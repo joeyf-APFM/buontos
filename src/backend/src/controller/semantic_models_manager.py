@@ -667,7 +667,7 @@ class SemanticModelsManager(SearchableAsset):
                 target_graph.add(t)
             self._strip_subjects_from_graph(target_graph, conflict_iris)
 
-        current_triples = rdf_triples_repo.list_by_context(self._db, context_name)
+        current_triples = rdf_triples_repo.list_current_by_context(self._db, context_name)
         diff = compute_concept_diff(target_graph, current_triples)
 
         original_commit = self._db.commit
@@ -805,7 +805,7 @@ class SemanticModelsManager(SearchableAsset):
                 diff_graph.add(t)
             self._strip_subjects_from_graph(diff_graph, conflict_iris)
 
-        current_triples = rdf_triples_repo.list_by_context(self._db, context_name)
+        current_triples = rdf_triples_repo.list_current_by_context(self._db, context_name)
         diff = compute_concept_diff(diff_graph, current_triples)
 
         # Stamp the origin filename into the incoming graph (per typed subject)
@@ -984,7 +984,7 @@ class SemanticModelsManager(SearchableAsset):
 
         # Aggregate diff for the WHOLE upload (never per-concept).
         incoming_graph = self._load_stash_graph(stash)
-        current_triples = rdf_triples_repo.list_by_context(self._db, context_name)
+        current_triples = rdf_triples_repo.list_current_by_context(self._db, context_name)
         diff = compute_concept_diff(incoming_graph, current_triples)
         summary = diff.summary()
 

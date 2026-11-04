@@ -288,6 +288,30 @@ class RdfTriplesRepository(CRUDBase[RdfTripleDb, dict, dict]):
             .all()
         )
 
+    def list_current_by_context(self, db: Session, context_name: str) -> List[RdfTripleDb]:
+        """Current-only triples for one context: ``list_current``'s rule scoped to ``context_name``.
+
+        Use this as the baseline for re-upload diffs. ``list_by_context`` also returns prior
+        versions' frozen snapshot rows, so a concept whose triples changed in an earlier version
+        (e.g. a re-parented class holding both the old and the new ``rdfs:subClassOf``) can never
+        match an incoming file and is re-reported as "modified" on every upload.
+        """
+        return (
+            db.query(RdfTripleDb)
+            .outerjoin(
+                ConceptVersionDb,
+                ConceptVersionDb.id == RdfTripleDb.concept_version_id,
+            )
+            .filter(RdfTripleDb.context_name == context_name)
+            .filter(
+                or_(
+                    RdfTripleDb.concept_version_id.is_(None),
+                    ConceptVersionDb.is_current.is_(True),
+                )
+            )
+            .all()
+        )
+
     def list_by_subject(self, db: Session, subject_uri: str) -> List[RdfTripleDb]:
         """Get all triples with a given subject."""
         return db.query(RdfTripleDb).filter(
