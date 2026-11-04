@@ -146,3 +146,46 @@ class TestUnchangedReuploadAfterVersioning:
         assert preview["summary"]["new"] == 0, preview["summary"]
         assert preview["summary"]["removed"] == 0, preview["summary"]
         assert concept_versions_repo.max_version(db_session, REVENUE) == 2
+
+
+# ---------------------------------------------------------------------------
+# 3. A modification's RDF/RDFS/OWL triples (domain, comment, ...) must land on the new version.
+#    publish_concept_version copied the prior version's rows and rewrote only SKOS fields, so a changed
+#    rdfs:domain or rdfs:comment kept its OLD value and the concept stayed "modified" on every upload.
+# ---------------------------------------------------------------------------
+
+_RDFS_PREFIXES = """@prefix ex: <http://example.org/onto#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+"""
+
+
+def _rdfs_model(domain: str, a_comment: str) -> str:
+    # SKOS mirrors included so only the RDFS change is under test.
+    return _RDFS_PREFIXES + f"""
+ex:A a rdfs:Class ; rdfs:label "A" ; rdfs:comment "{a_comment}" ; skos:prefLabel "A" ; skos:definition "{a_comment}" .
+ex:B a rdfs:Class ; rdfs:label "B" ; rdfs:comment "B." ; skos:prefLabel "B" ; skos:definition "B." .
+ex:name a rdf:Property ; rdfs:label "Name" ; rdfs:comment "A name." ; rdfs:domain ex:{domain} ; rdfs:range xsd:string ;
+    skos:prefLabel "Name" ; skos:definition "A name." .
+"""
+
+
+class TestModifiedConceptTakesRdfsTriples:
+    def test_domain_and_comment_follow_the_file(self, semantic_models_manager, db_session):
+        mgr = semantic_models_manager
+        name = f"reupload_rdfs_{uuid.uuid4().hex[:8]}.ttl"
+        _seed(mgr, name, _rdfs_model("A", "A."))
+        ctx = _context(name)
+
+        summary = _upload(mgr, ctx, _rdfs_model("B", "A, revised."))
+        assert summary["modified"] == 2, summary  # ex:name (domain) and ex:A (comment)
+
+        prop = mgr.get_concept("http://example.org/onto#name")
+        assert prop.get("domain") == "http://example.org/onto#B"
+        cls = mgr.get_concept("http://example.org/onto#A")
+        assert (cls.get("comment") or "") == "A, revised."
+
+        again = mgr.preview_upload(ctx, _parse(_rdfs_model("B", "A, revised.")))
+        assert again["summary"]["modified"] == 0, again["summary"]

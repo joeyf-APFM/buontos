@@ -509,6 +509,63 @@ class SemanticModelsManager(SearchableAsset):
             created_by=actor,
         )
 
+    # Namespaces whose triples a re-upload states authoritatively for a modified concept. SKOS human fields are
+    # applied by publish_concept_version; rdfs:subClassOf by its parent-link handling (incl. owl:Restriction bnodes).
+    _UPLOAD_SYNC_NAMESPACES = (str(RDF), str(RDFS), str(OWL))
+    _UPLOAD_SYNC_SKIP = {str(RDFS.subClassOf)}
+
+    def _sync_structural_triples_from_upload(self, concept_iri: str, incoming_graph, context_name: str) -> None:
+        """Make the just-published version's RDF/RDFS/OWL triples equal the uploaded file's for this concept.
+
+        publish_concept_version copies the prior version's rows and then rewrites only the SKOS human fields, so a
+        re-upload that changes e.g. rdfs:domain, rdfs:range or rdfs:comment left the OLD value on the new version and
+        the concept diffed as "modified" forever. Only rows owned by the current version are touched (prior
+        snapshots stay frozen); predicates whose objects are blank nodes are left to the existing handling.
+        """
+        from src.repositories.concept_versions_repository import concept_versions_repo
+
+        current = concept_versions_repo.get_current(self._db, concept_iri)
+        if current is None:
+            return
+        subject = URIRef(concept_iri)
+
+        def in_scope(pred: str) -> bool:
+            return pred.startswith(self._UPLOAD_SYNC_NAMESPACES) and pred not in self._UPLOAD_SYNC_SKIP
+
+        incoming: Dict[str, set] = {}
+        for p, o in incoming_graph.predicate_objects(subject):
+            pred = str(p)
+            if not in_scope(pred) or isinstance(o, BNode):
+                continue
+            if isinstance(o, Literal):
+                incoming.setdefault(pred, set()).add((str(o), False, o.language or "", str(o.datatype) if o.datatype else ""))
+            else:
+                incoming.setdefault(pred, set()).add((str(o), True, "", ""))
+
+        stored: Dict[str, set] = {}
+        for row in rdf_triples_repo.list_by_subject(self._db, concept_iri):
+            if row.context_name != context_name or row.concept_version_id != current.id:
+                continue
+            if not in_scope(row.predicate_uri) or (row.object_value or "").startswith("urn:ontos:bnode:"):
+                continue
+            stored.setdefault(row.predicate_uri, set()).add(
+                (row.object_value, bool(row.object_is_uri), row.object_language or "", row.object_datatype or ""))
+
+        for pred in set(incoming) | set(stored):
+            want, have = incoming.get(pred, set()), stored.get(pred, set())
+            if want == have:
+                continue
+            rdf_triples_repo.remove_by_subject_predicate(
+                self._db, concept_iri, pred, context_name, concept_version_id=current.id,
+                keep_object_prefixes=("urn:ontos:bnode:",),
+            )
+            for value, is_uri, lang, dtype in want:
+                rdf_triples_repo.add_triple(
+                    self._db, subject_uri=concept_iri, predicate_uri=pred, object_value=value,
+                    object_is_uri=is_uri, object_language=lang, object_datatype=dtype,
+                    context_name=context_name, concept_version_id=current.id,
+                )
+
     def _ensure_concept_version_v1(
         self, concept_iri: str, context_name: str, actor: Optional[str], status: str = "active"
     ) -> None:
@@ -686,6 +743,7 @@ class SemanticModelsManager(SearchableAsset):
                     iri, changes=diff.changes.get(iri), published_by=actor,
                     bypass_editable_gate=True,
                 )
+                self._sync_structural_triples_from_upload(iri, target_graph, context_name)
 
             for iri in diff.new:
                 self._import_new_concept_from_graph(iri, target_graph, context_name, actor)
