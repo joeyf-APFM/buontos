@@ -10,6 +10,7 @@ import { useGlossaryPreferencesStore } from '@/stores/glossary-preferences-store
 import { useKnowledgeGraphStore } from '@/stores/knowledge-graph-store';
 import { collectionSourceKey } from '@/lib/collection-source-key';
 import { useConceptMode } from '@/components/concepts/mode-switch';
+import { collectRelationshipConcepts } from '@/components/semantic-models/knowledge-graph-relationships';
 
 // Walk the collections tree (the API returns nested child_collections when
 // hierarchical=true, so a child scheme with a parent is NOT at top level).
@@ -69,6 +70,8 @@ export interface UseExploreConceptsResult {
   availableSources: string[];
   sourceConceptCounts: Record<string, number>;
   filteredConcepts: OntologyConcept[];
+  /** Object properties for graph edges; source-filtered, independent of showProperties. */
+  relationshipConcepts: OntologyConcept[];
   totalConcepts: number;
   totalProperties: number;
   refetch: () => Promise<void>;
@@ -173,6 +176,11 @@ export function useExploreConcepts(): UseExploreConceptsResult {
     }
     return combined;
   }, [groupedConcepts, groupedProperties, hiddenSources, showProperties]);
+
+  const relationshipConcepts = useMemo(
+    () => collectRelationshipConcepts([groupedConcepts, groupedProperties], hiddenSources),
+    [groupedConcepts, groupedProperties, hiddenSources]
+  );
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -304,6 +312,7 @@ export function useExploreConcepts(): UseExploreConceptsResult {
     availableSources,
     sourceConceptCounts,
     filteredConcepts,
+    relationshipConcepts,
     totalConcepts,
     totalProperties,
     refetch: fetchData,

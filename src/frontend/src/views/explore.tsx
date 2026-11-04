@@ -135,6 +135,7 @@ export default function ExploreView() {
     availableSources,
     sourceConceptCounts,
     filteredConcepts,
+    relationshipConcepts,
     refetch,
   } = useExploreConcepts();
 
@@ -582,6 +583,7 @@ export default function ExploreView() {
               {viewMode === 'graph' ? (
                 <GraphTab
                   concepts={filteredConcepts}
+                  relationships={relationshipConcepts}
                   hiddenRoots={hiddenRoots}
                   onToggleRoot={handleToggleRoot}
                   onNodeClick={handleNodeClick}

@@ -4,6 +4,7 @@ import { KnowledgeGraph } from '@/components/semantic-models/knowledge-graph';
 
 interface GraphTabProps {
   concepts: OntologyConcept[];
+  relationships?: OntologyConcept[];
   hiddenRoots: Set<string>;
   onToggleRoot: (rootIri: string) => void;
   onNodeClick: (concept: OntologyConcept) => void;
@@ -13,6 +14,7 @@ interface GraphTabProps {
 
 export const GraphTab: React.FC<GraphTabProps> = ({
   concepts,
+  relationships,
   hiddenRoots,
   onToggleRoot,
   onNodeClick,
@@ -25,6 +27,7 @@ export const GraphTab: React.FC<GraphTabProps> = ({
       <div className="flex-1 min-h-0">
         <KnowledgeGraph
           concepts={concepts}
+          relationships={relationships}
           hiddenRoots={hiddenRoots}
           onToggleRoot={onToggleRoot}
           onNodeClick={onNodeClick}

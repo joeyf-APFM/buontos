@@ -5,6 +5,7 @@ import CytoscapeComponent from 'react-cytoscapejs';
 import type { Core, ElementDefinition, LayoutOptions } from 'cytoscape';
 import type { OntologyConcept } from '@/types/ontology';
 import { resolveLabel } from '@/lib/ontology-utils';
+import { buildRelationshipEdges, selectRelationshipProperties } from './knowledge-graph-relationships';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -43,6 +44,13 @@ const DOMAIN_COLORS = [
 
 // Threshold for switching from badges to dropdown
 const ROOT_BADGE_THRESHOLD = 10;
+
+// Stable default so the graph memo does not recompute on every render when no relationships are passed.
+const EMPTY_RELATIONSHIPS: OntologyConcept[] = [];
+
+// Layouts position nodes from hierarchy edges only: relationship edges (object properties) are drawn
+// on top so they never reshape the class hierarchy (e.g. breadthfirst would push a range a level down).
+const layoutElements = (cy: Core) => cy.elements().not('edge.relationship-edge');
 
 export type LayoutType = 'circle' | 'cose' | 'grid' | 'breadthfirst' | 'concentric';
 
@@ -219,6 +227,8 @@ const RootNodeFilter: React.FC<RootNodeFilterProps> = ({
 
 interface KnowledgeGraphProps {
   concepts: OntologyConcept[];
+  /** Object properties drawn as edges even when property nodes are hidden (see collectRelationshipConcepts). */
+  relationships?: OntologyConcept[];
   hiddenRoots: Set<string>;
   onToggleRoot: (rootIri: string) => void;
   onNodeClick: (concept: OntologyConcept) => void;
@@ -235,6 +245,7 @@ interface GraphData {
 
 export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
   concepts,
+  relationships = EMPTY_RELATIONSHIPS,
   hiddenRoots,
   onToggleRoot,
   onNodeClick,
@@ -317,9 +328,18 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
   // Transform concepts to Cytoscape elements
   const graphData = useMemo((): GraphData => {
-    // Include classes, concepts, and properties (matching the tree view)
+    // Object properties whose domain AND range are classes/concepts in this graph are drawn as
+    // labelled relationship edges (domain -> range) instead of standalone property nodes.
+    const relationshipProps = selectRelationshipProperties(
+      Array.from(new Map([...concepts, ...relationships].map((c) => [c.iri, c])).values())
+    );
+    const relationshipIris = new Set(relationshipProps.map((c) => c.iri));
+
+    // Include classes, concepts, and properties (matching the tree view), minus edge-drawn relationships
     const visibleConcepts = concepts.filter(
-      (c) => c.concept_type === 'class' || c.concept_type === 'concept' || c.concept_type === 'property'
+      (c) =>
+        (c.concept_type === 'class' || c.concept_type === 'concept' || c.concept_type === 'property') &&
+        !relationshipIris.has(c.iri)
     );
 
     // Build concept map for fast lookups
@@ -471,8 +491,17 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       });
     });
 
+    // Add edges for relationships (object properties), only when both ends are visible
+    elements.push(
+      ...buildRelationshipEdges(
+        relationshipProps,
+        new Set(filteredConcepts.map((c) => c.iri)),
+        (prop) => resolveLabel(prop, selectedLanguage)
+      )
+    );
+
     return { elements, rootNodes, rootColors, getRootDescendants };
-  }, [concepts, hiddenRoots, showDomainBoxes, selectedLanguage]);
+  }, [concepts, relationships, hiddenRoots, showDomainBoxes, selectedLanguage]);
 
   // Create stylesheet based on dark mode
   // Cytoscape stylesheet - using any[] due to complex type definitions
@@ -480,6 +509,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     const textColor = isDarkMode ? '#f1f5f9' : '#1f2937';
     const textOutlineColor = isDarkMode ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)';
     const edgeColor = isDarkMode ? '#71717a' : '#64748b';
+    const relationshipColor = isDarkMode ? '#a78bfa' : '#7c3aed';
     const domainBgOpacity = isDarkMode ? 0.15 : 0.12;
     
     return [
@@ -593,6 +623,22 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           'text-outline-color': textOutlineColor,
           'text-rotation': 'autorotate',
           'text-background-opacity': 0,
+        },
+      },
+      // Relationship edges (object properties): dashed and curved so they read as links, not hierarchy,
+      // and arc clear of sibling nodes laid out on the same row. Labels follow the edge-labels toggle.
+      {
+        selector: 'edge.relationship-edge',
+        style: {
+          'line-style': 'dashed',
+          'line-color': relationshipColor,
+          'target-arrow-color': relationshipColor,
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'unbundled-bezier',
+          'control-point-distances': [-40],
+          'control-point-weights': [0.5],
+          'opacity': 0.85,
+          'color': relationshipColor,
         },
       },
       // Edge hover
@@ -731,7 +777,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       }
 
       const layoutConfig = getLayoutConfig(layout, true);
-      const layoutInstance = currentCy.layout(layoutConfig);
+      const layoutInstance = layoutElements(currentCy).layout(layoutConfig);
       layoutRef.current = layoutInstance;
       layoutInstance.run();
     }, 50);
@@ -773,7 +819,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         layoutRef.current.stop();
       }
       const layoutConfig = getLayoutConfig(layout);
-      const layoutInstance = cy.layout(layoutConfig);
+      const layoutInstance = layoutElements(cy).layout(layoutConfig);
       layoutRef.current = layoutInstance;
       layoutInstance.run();
     }
@@ -946,7 +992,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
               setTimeout(() => {
                 if (cyRef.current && cyRef.current.elements().length > 0) {
                   const layoutConfig = getLayoutConfig(layout, true);
-                  cyRef.current.layout(layoutConfig).run();
+                  layoutElements(cyRef.current).layout(layoutConfig).run();
                 }
               }, 50);
             }
@@ -1110,7 +1156,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
                     const timeoutId = setTimeout(() => {
                       if (fullscreenCyRef.current && fullscreenCyRef.current.elements().length > 0) {
                         const layoutConfig = getLayoutConfig(layout, true);
-                        fullscreenCyRef.current.layout(layoutConfig).run();
+                        layoutElements(fullscreenCyRef.current).layout(layoutConfig).run();
                       }
                     }, 150);
                     // Store cleanup
@@ -1173,7 +1219,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
                   const cy = fullscreenCyRef.current;
                   if (cy) {
                     const layoutConfig = getLayoutConfig(layout, true);
-                    cy.layout(layoutConfig).run();
+                    layoutElements(cy).layout(layoutConfig).run();
                   }
                 }} 
                 title={t('common:tooltips.resetLayout')}

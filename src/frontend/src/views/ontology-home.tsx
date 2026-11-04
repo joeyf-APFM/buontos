@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { collectRelationshipConcepts } from '@/components/semantic-models/knowledge-graph-relationships';
 import { useNavigate } from 'react-router-dom';
 import i18n from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -91,6 +92,12 @@ export default function OntologyHomeView() {
     }
     return combined;
   }, [groupedConcepts, groupedProperties, hiddenSources, showProperties]);
+
+  // Relationships are drawn as graph edges regardless of the "show properties" preference.
+  const relationshipConcepts = useMemo(
+    () => collectRelationshipConcepts([groupedConcepts, groupedProperties], hiddenSources),
+    [groupedConcepts, groupedProperties, hiddenSources]
+  );
 
   // Breadcrumbs
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
@@ -223,6 +230,7 @@ export default function OntologyHomeView() {
           {/* View Graph */}
           <GraphTab
             concepts={filteredConcepts}
+            relationships={relationshipConcepts}
             hiddenRoots={hiddenRoots}
             onToggleRoot={handleToggleRoot}
             onNodeClick={handleNodeClick}
