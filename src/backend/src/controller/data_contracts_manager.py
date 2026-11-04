@@ -830,6 +830,9 @@ class DataContractsManager(DeliveryMixin, SearchableAsset):
 
         created = []
         skipped = []
+        # governedBy links added earlier in THIS pass are not yet visible to the existence query below, so a
+        # second table of the same Dataset would add the link again (uq_entity_relationship -> HTTP 500).
+        governed_in_pass: set = set()
 
         for schema_obj in contract.schema_objects:
             match_name = schema_obj.physical_name or schema_obj.name
@@ -837,11 +840,20 @@ class DataContractsManager(DeliveryMixin, SearchableAsset):
                 skipped.append(f"Schema object {schema_obj.id} has no name")
                 continue
 
+            # Exact name/location first: a substring match alone lets main.prod.crm_user pick
+            # main.prod.crm_user_history. Fall back to the substring match only when nothing matches exactly.
             asset = (
                 db_session.query(AssetDb)
                 .filter(
                     AssetDb.asset_type_id.in_(asset_type_ids),
-                    (AssetDb.location.ilike(f"%{match_name}%")) | (AssetDb.name == match_name),
+                    (AssetDb.name == match_name) | (AssetDb.location == match_name),
+                )
+                .first()
+            ) or (
+                db_session.query(AssetDb)
+                .filter(
+                    AssetDb.asset_type_id.in_(asset_type_ids),
+                    AssetDb.location.ilike(f"%{match_name}%"),
                 )
                 .first()
             )
@@ -890,12 +902,14 @@ class DataContractsManager(DeliveryMixin, SearchableAsset):
             parent_ds_rel = (
                 db_session.query(EntityRelationshipDb)
                 .filter(
+                    # Only a Dataset is a parent here; a Schema also has hasTable/hasView to its tables.
+                    EntityRelationshipDb.source_type == "Dataset",
                     EntityRelationshipDb.relationship_type.in_(["hasTable", "hasView"]),
                     EntityRelationshipDb.target_id == str(asset.id),
                 )
                 .first()
             )
-            if parent_ds_rel:
+            if parent_ds_rel and parent_ds_rel.source_id not in governed_in_pass:
                 ds_gov_existing = (
                     db_session.query(EntityRelationshipDb)
                     .filter(
@@ -907,6 +921,7 @@ class DataContractsManager(DeliveryMixin, SearchableAsset):
                     )
                     .first()
                 )
+                governed_in_pass.add(parent_ds_rel.source_id)
                 if not ds_gov_existing:
                     gov_rel = EntityRelationshipDb(
                         source_type="Dataset",
