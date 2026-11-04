@@ -530,8 +530,13 @@ class SemanticModelsManager(SearchableAsset):
         v1 = self._mint_new_concept_version(
             concept_iri, context_name, actor=actor, status=status
         )
+        # only_null_owned=True: when the concept is ALREADY versioned, ``v1`` is its
+        # existing current row (v2+). Re-stamping every subject row would move prior
+        # versions' frozen snapshot rows onto it, collide with its identical copies on
+        # uq_rdf_triple and 500 the whole upload confirm. For a never-versioned concept
+        # every row is NULL-owned, so this adopts exactly the same rows as before.
         rdf_triples_repo.reassign_subject_to_concept_version(
-            self._db, concept_iri, v1.id, context_name=context_name
+            self._db, concept_iri, v1.id, context_name=context_name, only_null_owned=True
         )
 
     def _import_new_concept_from_graph(
