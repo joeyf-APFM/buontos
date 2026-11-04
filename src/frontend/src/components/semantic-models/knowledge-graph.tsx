@@ -2,10 +2,14 @@ import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 // @ts-expect-error - react-cytoscapejs doesn't have type declarations
 import CytoscapeComponent from 'react-cytoscapejs';
-import type { Core, ElementDefinition, LayoutOptions } from 'cytoscape';
+import type { Core, ElementDefinition, LayoutOptions, NodeSingular } from 'cytoscape';
 import type { OntologyConcept } from '@/types/ontology';
 import { resolveLabel } from '@/lib/ontology-utils';
-import { buildRelationshipEdges, selectRelationshipProperties } from './knowledge-graph-relationships';
+import {
+  buildRelationshipEdges,
+  relationshipOrder,
+  selectRelationshipProperties,
+} from './knowledge-graph-relationships';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -334,6 +338,8 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       Array.from(new Map([...concepts, ...relationships].map((c) => [c.iri, c])).values())
     );
     const relationshipIris = new Set(relationshipProps.map((c) => c.iri));
+    // Sibling order for the hierarchical layout: follow relationship direction (see relationshipOrder).
+    const relOrder = relationshipOrder(relationshipProps);
 
     // Include classes, concepts, and properties (matching the tree view), minus edge-drawn relationships
     const visibleConcepts = concepts.filter(
@@ -460,6 +466,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           sourceContext: concept.source_context,
           childCount: concept.child_concepts?.length || 0,
           parentCount: concept.parent_concepts?.length || 0,
+          relOrder: relOrder.get(concept.iri) ?? Number.MAX_SAFE_INTEGER,
         },
         classes: isProperty ? 'concept-node property-node' : 'concept-node',
       };
@@ -707,7 +714,12 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           spacingFactor,
           avoidOverlap: true,
           maximal: false,
-        };
+          // Within a level, place relationship chains in their direction (domain before range), then by label,
+          // so e.g. stages linked by "precedes" read left to right instead of crossing.
+          depthSort: (a: NodeSingular, b: NodeSingular) =>
+            (a.data('relOrder') ?? Number.MAX_SAFE_INTEGER) - (b.data('relOrder') ?? Number.MAX_SAFE_INTEGER) ||
+            String(a.data('label') ?? '').localeCompare(String(b.data('label') ?? '')),
+        } as LayoutOptions;
       case 'concentric':
         return {
           name: 'concentric',

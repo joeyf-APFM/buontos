@@ -63,3 +63,45 @@ export function collectRelationshipConcepts(
   }
   return out;
 }
+
+
+/**
+ * Left-to-right rank of every class/concept that takes part in a relationship, following the
+ * relationships' direction (domain before range) so a chain such as "A precedes B precedes C" lays
+ * out in that order. Topological order (Kahn); nodes left in a cycle follow, sorted by IRI.
+ * Self-loops are ignored. Classes with no relationship are absent from the map.
+ */
+export function relationshipOrder(relationships: OntologyConcept[]): Map<string, number> {
+  const out = new Map<string, Set<string>>();
+  const indegree = new Map<string, number>();
+  const touch = (iri: string) => {
+    if (!out.has(iri)) out.set(iri, new Set());
+    if (!indegree.has(iri)) indegree.set(iri, 0);
+  };
+  for (const rel of relationships) {
+    if (!rel.domain || !rel.range || rel.domain === rel.range) continue;
+    touch(rel.domain);
+    touch(rel.range);
+    if (!out.get(rel.domain)!.has(rel.range)) {
+      out.get(rel.domain)!.add(rel.range);
+      indegree.set(rel.range, indegree.get(rel.range)! + 1);
+    }
+  }
+  const order = new Map<string, number>();
+  const ready = [...indegree.entries()].filter(([, d]) => d === 0).map(([iri]) => iri).sort();
+  while (ready.length > 0) {
+    const iri = ready.shift()!;
+    order.set(iri, order.size);
+    const next: string[] = [];
+    for (const target of out.get(iri)!) {
+      const d = indegree.get(target)! - 1;
+      indegree.set(target, d);
+      if (d === 0) next.push(target);
+    }
+    ready.push(...next.sort());
+  }
+  for (const iri of [...indegree.keys()].sort()) {
+    if (!order.has(iri)) order.set(iri, order.size);
+  }
+  return order;
+}

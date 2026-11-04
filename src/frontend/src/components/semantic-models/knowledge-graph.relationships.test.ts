@@ -5,6 +5,7 @@ import type { OntologyConcept } from '@/types/ontology';
 import {
   buildRelationshipEdges,
   collectRelationshipConcepts,
+  relationshipOrder,
   selectRelationshipProperties,
 } from './knowledge-graph-relationships';
 
@@ -85,5 +86,21 @@ describe('collectRelationshipConcepts', () => {
     const scoped = { ...hasReached, source_context: 'urn:hidden' };
     expect(collectRelationshipConcepts([{ 'urn:hidden': [scoped] }], ['urn:hidden'])).toEqual([]);
     expect(collectRelationshipConcepts([{ 'urn:hidden': [scoped] }], [])).toHaveLength(1);
+  });
+});
+
+describe('relationshipOrder', () => {
+  const rel = (d: string, r: string) =>
+    concept(`${d}To${r}`, { concept_type: 'property', property_type: 'object', domain: NS + d, range: NS + r });
+
+  it('ranks a chain in its direction regardless of input order', () => {
+    const order = relationshipOrder([rel('C', 'D'), rel('A', 'B'), rel('B', 'C')]);
+    expect(['A', 'B', 'C', 'D'].map((x) => order.get(NS + x))).toEqual([0, 1, 2, 3]);
+  });
+
+  it('ignores self-loops and still ranks every node in a cycle', () => {
+    const order = relationshipOrder([rel('A', 'A'), rel('X', 'Y'), rel('Y', 'X')]);
+    expect(order.has(NS + 'A')).toBe(false);
+    expect([...order.values()].sort()).toEqual([0, 1]);
   });
 });
