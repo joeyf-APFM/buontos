@@ -29,6 +29,7 @@ from src.controller.semantic_models_manager import (
 )
 from src.models.semantic_models import SemanticModelCreate
 from src.repositories.concept_versions_repository import concept_versions_repo
+from src.repositories.rdf_triples_repository import rdf_triples_repo
 
 
 @pytest.fixture
@@ -188,4 +189,38 @@ class TestModifiedConceptTakesRdfsTriples:
         assert (cls.get("comment") or "") == "A, revised."
 
         again = mgr.preview_upload(ctx, _parse(_rdfs_model("B", "A, revised.")))
+        assert again["summary"]["modified"] == 0, again["summary"]
+
+
+# ---------------------------------------------------------------------------
+# 4. A modification's SKOS mapping triples (skos:exactMatch, closeMatch, ...) must land on the new version.
+#    Found 2026-11-06 curating the APFM Glossary: 29 terms re-uploaded with skos:exactMatch to another collection's
+#    concepts lost the links (neither the SKOS human-field rewrite nor the RDF/RDFS/OWL sync covered them), so the
+#    terms stayed "modified" on every upload.
+# ---------------------------------------------------------------------------
+
+def _skos_glossary(definition: str, match: str | None) -> str:
+    extra = f" ; skos:exactMatch <{match}>" if match else ""
+    return _RDFS_PREFIXES + f"""
+ex:term a skos:Concept ; skos:prefLabel "Term" ; skos:definition "{definition}"{extra} .
+"""
+
+
+class TestModifiedConceptTakesSkosMappings:
+    def test_exact_match_follows_the_file(self, semantic_models_manager, db_session):
+        mgr = semantic_models_manager
+        name = f"reupload_skos_{uuid.uuid4().hex[:8]}.ttl"
+        _seed(mgr, name, _skos_glossary("A term. (Source: X)", None))
+        ctx = _context(name)
+
+        target = "https://example.org/business#term"
+        summary = _upload(mgr, ctx, _skos_glossary("A term.", target))
+        assert summary["modified"] == 1, summary
+
+        current = concept_versions_repo.get_current(db_session, "http://example.org/onto#term")
+        rows = [r for r in rdf_triples_repo.list_by_subject(db_session, "http://example.org/onto#term")
+                if r.concept_version_id == current.id and r.predicate_uri == "http://www.w3.org/2004/02/skos/core#exactMatch"]
+        assert [r.object_value for r in rows] == [target]
+
+        again = mgr.preview_upload(ctx, _parse(_skos_glossary("A term.", target)))
         assert again["summary"]["modified"] == 0, again["summary"]

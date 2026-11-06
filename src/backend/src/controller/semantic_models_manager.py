@@ -513,6 +513,10 @@ class SemanticModelsManager(SearchableAsset):
     # applied by publish_concept_version; rdfs:subClassOf by its parent-link handling (incl. owl:Restriction bnodes).
     _UPLOAD_SYNC_NAMESPACES = (str(RDF), str(RDFS), str(OWL))
     _UPLOAD_SYNC_SKIP = {str(RDFS.subClassOf)}
+    # SKOS mapping properties are not among the SKOS human fields publish_concept_version rewrites, so they need the
+    # same sync (a re-upload adding skos:exactMatch to another collection's concept otherwise lost it).
+    _UPLOAD_SYNC_EXTRA = {str(SKOS.exactMatch), str(SKOS.closeMatch), str(SKOS.broadMatch), str(SKOS.narrowMatch),
+                          str(SKOS.relatedMatch)}
 
     def _sync_structural_triples_from_upload(self, concept_iri: str, incoming_graph, context_name: str) -> None:
         """Make the just-published version's RDF/RDFS/OWL triples equal the uploaded file's for this concept.
@@ -530,7 +534,8 @@ class SemanticModelsManager(SearchableAsset):
         subject = URIRef(concept_iri)
 
         def in_scope(pred: str) -> bool:
-            return pred.startswith(self._UPLOAD_SYNC_NAMESPACES) and pred not in self._UPLOAD_SYNC_SKIP
+            return pred in self._UPLOAD_SYNC_EXTRA or (
+                pred.startswith(self._UPLOAD_SYNC_NAMESPACES) and pred not in self._UPLOAD_SYNC_SKIP)
 
         incoming: Dict[str, set] = {}
         for p, o in incoming_graph.predicate_objects(subject):
