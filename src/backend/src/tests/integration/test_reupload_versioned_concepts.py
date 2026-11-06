@@ -200,7 +200,7 @@ class TestModifiedConceptTakesRdfsTriples:
 # ---------------------------------------------------------------------------
 
 def _skos_glossary(definition: str, match: str | None) -> str:
-    extra = f" ; skos:exactMatch <{match}>" if match else ""
+    extra = f" ; skos:exactMatch <{match}> ; skos:scopeNote \"Source table: t.\"" if match else ""
     return _RDFS_PREFIXES + f"""
 ex:term a skos:Concept ; skos:prefLabel "Term" ; skos:definition "{definition}"{extra} .
 """
@@ -221,6 +221,9 @@ class TestModifiedConceptTakesSkosMappings:
         rows = [r for r in rdf_triples_repo.list_by_subject(db_session, "http://example.org/onto#term")
                 if r.concept_version_id == current.id and r.predicate_uri == "http://www.w3.org/2004/02/skos/core#exactMatch"]
         assert [r.object_value for r in rows] == [target]
+        notes = [r.object_value for r in rdf_triples_repo.list_by_subject(db_session, "http://example.org/onto#term")
+                 if r.concept_version_id == current.id and r.predicate_uri == "http://www.w3.org/2004/02/skos/core#scopeNote"]
+        assert notes == ["Source table: t."]
 
         again = mgr.preview_upload(ctx, _parse(_skos_glossary("A term.", target)))
         assert again["summary"]["modified"] == 0, again["summary"]

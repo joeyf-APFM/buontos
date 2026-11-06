@@ -515,8 +515,11 @@ class SemanticModelsManager(SearchableAsset):
     _UPLOAD_SYNC_SKIP = {str(RDFS.subClassOf)}
     # SKOS mapping properties are not among the SKOS human fields publish_concept_version rewrites, so they need the
     # same sync (a re-upload adding skos:exactMatch to another collection's concept otherwise lost it).
+    # The SKOS documentation properties other than the human fields (scopeNote, editorialNote, ...) were dropped the
+    # same way.
     _UPLOAD_SYNC_EXTRA = {str(SKOS.exactMatch), str(SKOS.closeMatch), str(SKOS.broadMatch), str(SKOS.narrowMatch),
-                          str(SKOS.relatedMatch)}
+                          str(SKOS.relatedMatch), str(SKOS.note), str(SKOS.scopeNote), str(SKOS.editorialNote),
+                          str(SKOS.historyNote), str(SKOS.changeNote), str(SKOS.example)}
 
     def _sync_structural_triples_from_upload(self, concept_iri: str, incoming_graph, context_name: str) -> None:
         """Make the just-published version's RDF/RDFS/OWL triples equal the uploaded file's for this concept.
