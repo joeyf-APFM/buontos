@@ -21,6 +21,7 @@ export const TREE: Record<string, unknown[]> = {
     node('asset:sch2', 'empty_schema', 'asset', 0, false, { asset_id: 'sch2', asset_type_name: 'Schema' }),
   ],
   'asset:sch1': [node('group:sch1:Table', 'Tables', 'group', 2, false, { asset_id: 'sch1', asset_type_name: 'Table' })],
+  'branch:external': [],
   'category:analytics': [node('type:Dashboard', 'Dashboards', 'type', 4, false, { asset_type_name: 'Dashboard' })],
   'category:integration': [],
   'category:system': [],
@@ -54,6 +55,11 @@ export const ASSETS: Record<string, AssetSummary[]> = {
   'asset:sch2': [],
 };
 
+export const CONCEPTS = [
+  { value: 'http://ontos.app/apfm#Lead', label: 'Lead', type: 'class' },
+  { value: 'http://ontos.app/apfm#Event', label: 'Event', type: 'class' },
+];
+
 export type Handler = (url: URL) => Response | undefined;
 
 /** Stubs `fetch` with the fake backend; `override` answers first when it returns a response. */
@@ -65,6 +71,13 @@ export function mockBackend(override?: Handler) {
     if (url.pathname === '/api/assets/tree') {
       const children = TREE[url.searchParams.get('parent') ?? ''];
       return children ? json(children) : json({ detail: 'bad key' }, 400);
+    }
+    if (url.pathname === '/api/semantic-models/concepts') {
+      return json(CONCEPTS.filter((c) => c.label.toLowerCase().includes((url.searchParams.get('q') ?? '').toLowerCase())));
+    }
+    if (url.pathname === '/api/assets' && url.searchParams.get('concept_iri')) {
+      // The server's total counts every page, not only this one
+      return json({ items: [LEADS], total: 37, skip: 0, limit: 50 });
     }
     if (url.pathname === '/api/assets') {
       const items = (ASSETS[url.searchParams.get('node') ?? ''] ?? []).filter(

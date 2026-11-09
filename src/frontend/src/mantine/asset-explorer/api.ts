@@ -42,7 +42,7 @@ export interface AssetSummary {
   updated_at?: string | null;
   owner_display?: string | null;
   owner_extra_count: number;
-  /** Concept labels (the API doesn't send their IRIs). */
+  /** Concept labels. */
   concepts: string[];
   column_count?: number | null;
 }
@@ -99,6 +99,16 @@ export async function fetchAssets(q: AssetQuery): Promise<{ items: AssetSummary[
   const page = await getJson<{ items: AssetSummary[]; total: number }>(`/api/assets?${params}`);
   return { items: page.items, total: page.total };
 }
+
+/** A concept, as the concept search returns it: the IRI in `value`. */
+export interface ConceptOption {
+  value: string;
+  label: string;
+}
+
+/** Concepts whose label matches `q` (the concept pickers' search). */
+export const searchConcepts = (q: string) =>
+  getJson<ConceptOption[]>(`/api/semantic-models/concepts?q=${encodeURIComponent(q)}&limit=50`);
 
 export const fetchAsset = (id: string) => getJson<AssetRead>(`/api/assets/${encodeURIComponent(id)}`);
 

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Menu, Pagination, Select, TextInput, UnstyledButton } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import { AssetFormDialog } from '@/components/common/asset-form-dialog';
@@ -10,7 +9,8 @@ import type { AssetStatus, AssetTypeRead, DataBranch } from '@/types/asset';
 import type { EntityTypeDefinition } from '@/types/ontology-schema';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import {
-  fetchAsset, fetchAssetTypes, fetchAssets, fetchOntologyAssetTypes, type AssetSummary, type TreeNode,
+  fetchAsset, fetchAssetTypes, fetchAssets, fetchOntologyAssetTypes, searchConcepts,
+  type AssetSummary, type ConceptOption, type TreeNode,
 } from './api';
 import { AssetTree, type TreeSelection } from './asset-tree';
 import { AssetTable } from './asset-table';
@@ -18,6 +18,7 @@ import { DetailsPanel } from './details-panel';
 import classes from './explorer.module.css';
 
 const PAGE_SIZE = 50;
+const EMPTY_PAGE: Page = { items: [], total: 0 };
 const STATUSES: AssetStatus[] = ['active', 'draft', 'deprecated', 'retired'];
 const BRANCHES: Record<string, DataBranch> = { 'branch:uc': 'uc', 'branch:internal': 'internal', 'branch:external': 'external' };
 
@@ -47,11 +48,13 @@ export default function ExplorerPage() {
 
   const [selection, setSelection] = useState<TreeSelection | null>(null);
   const node = selection?.node ?? null;
+  const nodeKey = node?.key;
   const [nameInput, setNameInput] = useState('');
-  const [name] = useDebouncedValue(nameInput.trim(), 250);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [conceptFilter, setConceptFilter] = useState<string | null>(null);
+  const [concept, setConcept] = useState<ConceptOption | null>(null);
+  const [conceptSearch, setConceptSearch] = useState('');
+  const [conceptOptions, setConceptOptions] = useState<ConceptOption[]>([]);
   const [listToken, setListToken] = useState(0);
   const [treeToken, setTreeToken] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(null);
@@ -66,7 +69,8 @@ export default function ExplorerPage() {
       setNameInput('');
       setTypeFilter(null);
       setStatusFilter(null);
-      setConceptFilter(null);
+      setConcept(null);
+      setConceptSearch('');
       setSelectedAsset(null);
       setContext(next.node.label);
     },
@@ -83,9 +87,17 @@ export default function ExplorerPage() {
     setContext(node?.label ?? null);
   };
 
+  // The name filter, 250ms after typing stops. It belongs to the node it was
+  // typed under, so a new node starts unfiltered at once.
+  const [typedName, setTypedName] = useState<{ nodeKey?: string; name: string }>({ name: '' });
+  useEffect(() => {
+    const timer = setTimeout(() => setTypedName({ nodeKey, name: nameInput.trim() }), 250);
+    return () => clearTimeout(timer);
+  }, [nameInput, nodeKey]);
+  const name = typedName.nodeKey === nodeKey ? typedName.name : '';
+
   // The page number belongs to one node and filter: any change starts again at page 1
-  const nodeKey = node?.key;
-  const listKey = JSON.stringify([nodeKey, name, typeFilter, statusFilter]);
+  const listKey = JSON.stringify([nodeKey, name, typeFilter, statusFilter, concept?.value]);
   const [pageState, setPageState] = useState({ listKey: '', number: 1 });
   const pageNumber = pageState.listKey === listKey ? pageState.number : 1;
   const setPageNumber = (number: number) => setPageState({ listKey, number });
@@ -97,25 +109,28 @@ export default function ExplorerPage() {
       name: name || undefined,
       types: typeFilter ? [typeFilter] : undefined,
       status: statusFilter ?? undefined,
+      conceptIri: concept?.value,
       skip: (pageNumber - 1) * PAGE_SIZE,
       limit: PAGE_SIZE,
     }),
-    [nodeKey, name, typeFilter, statusFilter, pageNumber],
+    [nodeKey, name, typeFilter, statusFilter, concept, pageNumber],
   );
   const requestKey = JSON.stringify([query, listToken]);
-  const [answer, setAnswer] = useState<{ requestKey: string; page: Page; error: string | null } | null>(null);
+  const [answer, setAnswer] = useState<{ requestKey: string; listKey: string; page: Page; error: string | null } | null>(null);
   useEffect(() => {
     if (!query.node) return;
     let cancelled = false;
     fetchAssets(query)
-      .then((result) => !cancelled && setAnswer({ requestKey, page: result, error: null }))
-      .catch((e: Error) => !cancelled && setAnswer({ requestKey, page: { items: [], total: 0 }, error: e.message }));
+      .then((result) => !cancelled && setAnswer({ requestKey, listKey, page: result, error: null }))
+      .catch((e: Error) => !cancelled && setAnswer({ requestKey, listKey, page: EMPTY_PAGE, error: e.message }));
     return () => {
       cancelled = true;
     };
-  }, [query, requestKey]);
+  }, [query, requestKey, listKey]);
   const loading = answer?.requestKey !== requestKey;
-  const page = answer?.page ?? { items: [], total: 0 };
+  // While loading, the previous rows stay only when just the page changed
+  const current = !!answer && (answer.requestKey === requestKey || answer.listKey === listKey);
+  const page = current ? answer.page : EMPTY_PAGE;
   const error = !loading ? answer.error : null;
 
   // An asset node's own status, for the header badge
@@ -141,13 +156,27 @@ export default function ExplorerPage() {
     fetchOntologyAssetTypes(i18n.language).then(setOntologyTypes).catch(() => {});
   }, [canWrite, i18n.language]);
 
-  // Concepts are labels only, so the Concept filter narrows the loaded page
-  const conceptOptions = useMemo(() => {
-    const labels = new Set(page.items.flatMap((a) => a.concepts));
-    if (conceptFilter) labels.add(conceptFilter);
-    return [...labels].sort((a, b) => a.localeCompare(b));
-  }, [page.items, conceptFilter]);
-  const rows = conceptFilter ? page.items.filter((a) => a.concepts.includes(conceptFilter)) : page.items;
+  // Concept options come from the concept search, 250ms after typing stops
+  useEffect(() => {
+    const q = conceptSearch.trim();
+    if (!q) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchConcepts(q)
+        .then((found) => !cancelled && setConceptOptions(found))
+        .catch(() => !cancelled && setConceptOptions([]));
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [conceptSearch]);
+  const conceptData = useMemo(() => {
+    // One option per IRI (Select rejects duplicate values), the chosen one included
+    const byIri = new Map<string, ConceptOption>(concept ? [[concept.value, concept]] : []);
+    conceptOptions.forEach(({ value, label }) => byIri.has(value) || byIri.set(value, { value, label: label || value }));
+    return [...byIri.values()];
+  }, [conceptOptions, concept]);
 
   if (permissionsLoading) return null;
   if (!canRead) {
@@ -263,19 +292,22 @@ export default function ExplorerPage() {
                 className={classes.barSelect}
                 aria-label={t('filter.concept')}
                 placeholder={t('filter.allConcepts')}
-                title={t('conceptOnPage')}
-                data={conceptOptions}
-                value={conceptFilter}
-                onChange={setConceptFilter}
+                data={conceptData}
+                value={concept?.value ?? null}
+                onChange={(_value, option) => setConcept(option ? { value: option.value, label: option.label } : null)}
                 searchable
+                searchValue={conceptSearch}
+                onSearchChange={setConceptSearch}
+                filter={({ options }) => options}
+                nothingFoundMessage={t('filter.conceptSearch')}
                 clearable
               />
-              <span className={classes.count}>{t('count', { count: conceptFilter ? rows.length : page.total })}</span>
+              {(!loading || current) && <span className={classes.count}>{t('count', { count: page.total })}</span>}
             </div>
 
             <div className={classes.tableWrap}>
               <AssetTable
-                items={rows}
+                items={page.items}
                 loading={loading}
                 error={error}
                 onRetry={() => setListToken((n) => n + 1)}
@@ -285,7 +317,7 @@ export default function ExplorerPage() {
             </div>
             {pages > 1 && (
               <div className={classes.pager}>
-                <Pagination size="xs" total={pages} value={pageNumber} onChange={setPageNumber} />
+                <Pagination size="sm" total={pages} value={pageNumber} onChange={setPageNumber} />
               </div>
             )}
           </>

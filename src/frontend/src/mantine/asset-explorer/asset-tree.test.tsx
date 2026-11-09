@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { AssetTree, type TreeSelection } from './asset-tree';
-import { mockBackend, treeCalls } from './test-fixtures';
+import { json, mockBackend, treeCalls } from './test-fixtures';
 
 function Harness({ onSelect }: { onSelect: (s: TreeSelection) => void }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -80,5 +80,30 @@ describe('AssetTree', () => {
     const last = onSelect.mock.lastCall![0] as TreeSelection;
     expect(last.node.key).toBe('asset:sch1');
     expect(last.ancestors.map((n) => n.label)).toEqual(['Unity Catalog', 'insights']);
+  });
+
+  it('refetches a failed level only on Retry', async () => {
+    let fail = true;
+    fetchMock = mockBackend((url) =>
+      url.pathname === '/api/assets/tree' && url.searchParams.get('parent') === 'asset:cat1' && fail
+        ? json({ detail: 'boom' }, 500)
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderWithMantine(<Harness onSelect={() => {}} />);
+
+    await clickRow(user, 'insights');
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    expect(treeCalls(fetchMock, 'asset:cat1')).toBe(1);
+
+    // Expanding something else leaves the failed level alone
+    await clickRow(user, 'External');
+    await waitFor(() => expect(treeCalls(fetchMock, 'branch:external')).toBe(1));
+    expect(treeCalls(fetchMock, 'asset:cat1')).toBe(1);
+
+    fail = false;
+    await user.click(retry);
+    expect(await row('referrals')).toBeInTheDocument();
+    expect(treeCalls(fetchMock, 'asset:cat1')).toBe(2);
   });
 });

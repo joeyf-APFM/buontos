@@ -182,11 +182,12 @@ function TreeSection({
   const tree = useTree({ initialExpandedState: initialExpanded ? { [initialExpanded]: true } : {} });
   const data = useMemo(() => toTreeData(top ?? [], loaded), [top, loaded]);
 
-  // Expanding a node loads its children (cached after the first time)
+  // Expanding a node loads its children (cached after the first time). A
+  // level that failed waits for its Retry.
   const { expandedState, select, clearSelected, selectedState } = tree;
   useEffect(() => {
-    Object.entries(expandedState).forEach(([key, open]) => open && ensure(key));
-  }, [expandedState, ensure]);
+    Object.entries(expandedState).forEach(([key, open]) => open && !(key in errors) && ensure(key));
+  }, [expandedState, errors, ensure]);
 
   // Mirror the page's selection, so only one section shows a selected row
   const inThisSection = !!selectedKey && !!top && !!pathTo(selectedKey, top, loaded);

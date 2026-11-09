@@ -22,11 +22,11 @@
     "status": "Status",
     "allStatuses": "Status: All",
     "concept": "Concept",
-    "allConcepts": "Concept: All"
+    "allConcepts": "Concept: All",
+    "conceptSearch": "Type to search concepts"
   },
   "count_one": "{{count}} asset",
   "count_other": "{{count}} assets",
-  "conceptOnPage": "Concept filter applies to this page only",
   "status": {
     "active": "active",
     "draft": "draft",

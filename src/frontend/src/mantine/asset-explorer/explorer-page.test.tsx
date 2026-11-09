@@ -5,7 +5,7 @@ import usePermissionsStore from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
-import { calledUrls, json, mockBackend } from './test-fixtures';
+import { LEADS, calledUrls, json, mockBackend } from './test-fixtures';
 
 // The create dialog has its own tests; here it only has to open
 vi.mock('@/components/common/asset-form-dialog', () => ({
@@ -74,6 +74,62 @@ describe('ExplorerPage', () => {
     expect(within(t).getByText('leads')).toBeInTheDocument();
     expect(within(t).getByText('data-eng +2')).toBeInTheDocument();
     expect(useHelixStore.getState().context).toBe('referrals');
+  });
+
+  it('shows none of the previous node’s rows while the next node loads', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock = mockBackend((url) => {
+      if (url.pathname !== '/api/assets' || url.searchParams.get('node') !== 'asset:cat1') return undefined;
+      // Held until the test releases it
+      return held.then(() => json({ items: [LEADS], total: 1, skip: 0, limit: 50 })) as unknown as Response;
+    });
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await within(await table()).findByText('lead_events');
+    expect(screen.getByText('2 assets')).toBeInTheDocument();
+
+    await clickRow(user, 'insights');
+    expect(await screen.findByRole('heading', { name: 'insights' })).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).queryByText('leads')).toBeNull();
+    expect(within(screen.getByRole('table')).queryByText('lead_events')).toBeNull();
+    expect(screen.queryByText('2 assets')).toBeNull();
+
+    release();
+    expect(await within(await table()).findByText('leads')).toBeInTheDocument();
+    expect(screen.getByText('1 asset')).toBeInTheDocument();
+  });
+
+  it('drops the name filter at once when the node changes', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await within(await table()).findByText('leads');
+
+    await user.type(screen.getByRole('textbox', { name: 'Filter assets' }), 'events');
+    await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('name')).toBe('events'));
+    await clickRow(user, 'insights');
+    await within(await table()).findByText('leads');
+    await new Promise((r) => setTimeout(r, 350));
+
+    const forInsights = assetCalls(fetchMock).filter((u) => u.searchParams.get('node') === 'asset:cat1');
+    expect(forInsights.map((u) => u.searchParams.get('name'))).toEqual([null]);
+  });
+
+  it('filters by concept on the server', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await within(await table()).findByText('leads');
+
+    await user.type(screen.getByRole('textbox', { name: 'Concept' }), 'Lea');
+    // In jsdom the open dropdown stays display: none, so its options count as hidden
+    await user.click(await screen.findByRole('option', { name: 'Lead', hidden: true }));
+
+    await waitFor(() =>
+      expect(lastAssetCall(fetchMock).searchParams.get('concept_iri')).toBe('http://ontos.app/apfm#Lead'),
+    );
+    expect(lastAssetCall(fetchMock).searchParams.get('skip')).toBe('0');
+    expect(await screen.findByText('37 assets')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).queryByText('lead_events')).toBeNull();
   });
 
   it('debounces the text filter into the name parameter', async () => {
