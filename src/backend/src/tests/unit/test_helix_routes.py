@@ -218,7 +218,7 @@ def test_local_env_uses_the_developer_profile(api, settings, genie, monkeypatch)
 def test_context_is_capped_and_plain(api, genie):
     context = ("Table insights.referrals.leads\n\twith columns\r\n" * 40)  # under the 2000 limit
     assert ask(api, context=context).status_code == 200
-    content = genie.calls[0]["body"]["input"][0]["content"]
+    content = genie.calls[0]["body"]["input"][0]["content"][0]["text"]
     prefix = "The user is looking at: "
     assert content.startswith(prefix) and content.endswith(f"\n\n{QUESTION}")
     sent_context = content[len(prefix):-len(f"\n\n{QUESTION}")]

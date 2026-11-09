@@ -29,7 +29,8 @@ def build_request(question: str, *, context: Optional[str], conversation_id: Opt
         if flat:
             content = f"The user is looking at: {flat}\n\n{question}"
     body: dict = {
-        "input": [{"type": "message", "role": "user", "content": content}],
+        "input": [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": content}]}
+        ],
         "enable_viz": False,
         "source": "apfm_helix",
     }
@@ -49,7 +50,23 @@ def _error_message(event: dict) -> str:
     return _FAILED
 
 
-def _map_event(event: dict) -> Iterator[HelixEvent]:
+def _message_text(item: dict, seen: set) -> Optional[str]:
+    """Text of a message item, once per id; None if already emitted or empty."""
+    text = "".join(
+        p.get("text") or ""
+        for p in item.get("content") or []
+        if isinstance(p, dict) and p.get("type") == "output_text"
+    )
+    if not text:
+        return None
+    key = item.get("id") or ("text", text)
+    if key in seen:
+        return None
+    seen.add(key)
+    return text
+
+
+def _map_event(event: dict, seen: set) -> Iterator[HelixEvent]:
     etype = str(event.get("type") or "")
     if "error" in etype:
         yield HelixEvent("error", {"message": _error_message(event)})
@@ -63,6 +80,11 @@ def _map_event(event: dict) -> Iterator[HelixEvent]:
         if response.get("status") == "failed":
             yield HelixEvent("error", {"message": _error_message(response)})
         else:
+            for out in response.get("output") or []:
+                if isinstance(out, dict) and out.get("type") == "message" and out.get("status") == "completed":
+                    text = _message_text(out, seen)
+                    if text:
+                        yield HelixEvent("text", {"text": text})
             yield HelixEvent("done", {})
     elif etype in ("response.output_item.added", "response.output_item.done"):
         item = event.get("item") if isinstance(event.get("item"), dict) else {}
@@ -82,17 +104,14 @@ def _map_event(event: dict) -> Iterator[HelixEvent]:
                         "warehouse_id": meta.get("warehouse_id"),
                     },
                 )
-        elif itype == "message" and etype.endswith(".done"):
-            text = "".join(
-                p.get("text") or ""
-                for p in item.get("content") or []
-                if isinstance(p, dict) and p.get("type") == "output_text"
-            )
+        elif itype == "message" and (etype.endswith(".done") or item.get("status") == "completed"):
+            text = _message_text(item, seen)
             if text:
                 yield HelixEvent("text", {"text": text})
 
 
-def parse_events(lines: Iterable[str]) -> Iterator[HelixEvent]:
+def parse_events(lines: Iterable[str], seen: Optional[set] = None) -> Iterator[HelixEvent]:
+    seen = set() if seen is None else seen
     for raw in lines:
         line = raw.strip()
         if line.startswith("data:"):
@@ -106,7 +125,7 @@ def parse_events(lines: Iterable[str]) -> Iterator[HelixEvent]:
         if not isinstance(event, dict):
             continue
         try:
-            mapped = list(_map_event(event))
+            mapped = list(_map_event(event, seen))
         except (TypeError, AttributeError, ValueError):
             continue  # malformed upstream shape: skip the event
         for ev in mapped:
@@ -136,6 +155,7 @@ async def stream_answer(
     """Stream parsed events; any failure becomes one final error event."""
     stopped = HelixEvent("error", {"message": _STOPPED})
     terminal = False
+    seen: set = set()
     try:
         url = _base_url(host) + ONECHAT_PATH
         async with httpx.AsyncClient(timeout=timeout_s, transport=transport) as client:
@@ -146,7 +166,7 @@ async def stream_answer(
                     )
                     return
                 async for line in resp.aiter_lines():
-                    for ev in parse_events([line]):
+                    for ev in parse_events([line], seen):
                         yield ev
                         if ev.kind in ("done", "error"):
                             terminal = True

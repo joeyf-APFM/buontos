@@ -66,7 +66,9 @@ def _lines(prefix=""):
 
 def test_request_puts_plain_context_first():
     body = build_request("How many?", context="Table\nfoo " + "x" * 1000, conversation_id=None)
-    content = body["input"][0]["content"]
+    parts = body["input"][0]["content"]
+    assert len(parts) == 1 and parts[0]["type"] == "input_text"
+    content = parts[0]["text"]
     assert content.startswith("The user is looking at: Table foo ")
     assert content.endswith("\n\nHow many?")
     ctx = content[len("The user is looking at: ") : -len("\n\nHow many?")]
@@ -77,7 +79,9 @@ def test_request_puts_plain_context_first():
 
 
 def test_request_without_context_is_just_the_question():
-    assert build_request("Hi", context=None, conversation_id=None)["input"][0]["content"] == "Hi"
+    assert build_request("Hi", context=None, conversation_id=None)["input"][0]["content"] == [
+        {"type": "input_text", "text": "Hi"}
+    ]
 
 
 def test_follow_up_sends_conversation_id():
@@ -222,3 +226,45 @@ def test_http_host_is_never_used_in_cleartext():
     events = asyncio.run(run())
     assert all(u.startswith("https://") for u in seen)
     assert events[-1].kind == "error"
+
+
+def _msg(id_, status="completed", text="Answer."):
+    return {"id": id_, "type": "message", "role": "assistant", "status": status,
+            "content": [{"type": "output_text", "text": text}]}
+
+
+def _ev(etype, item):
+    return json.dumps({"type": etype, "item": item})
+
+
+def test_completed_message_on_added_yields_text_once():
+    events = list(parse_events([_ev("response.output_item.added", _msg("m1"))]))
+    assert events == [HelixEvent("text", {"text": "Answer."})]
+
+
+def test_added_then_done_same_id_yields_text_once():
+    lines = [_ev("response.output_item.added", _msg("m1")), _ev("response.output_item.done", _msg("m1"))]
+    assert [e.kind for e in parse_events(lines)] == ["text"]
+
+
+def test_in_progress_message_on_added_is_skipped():
+    assert list(parse_events([_ev("response.output_item.added", _msg("m1", status="in_progress"))])) == []
+
+
+def test_response_done_fallback_emits_missing_message_before_done():
+    done = json.dumps({"type": "response.done", "response": {"output": [_msg("m1"), _msg("m2", "in_progress")]}})
+    assert [e.kind for e in parse_events([done])] == ["text", "done"]
+
+
+def test_response_done_fallback_skips_already_emitted():
+    lines = [_ev("response.output_item.added", _msg("m1")),
+             json.dumps({"type": "response.done", "response": {"output": [_msg("m1")]}})]
+    assert [e.kind for e in parse_events(lines)] == ["text", "done"]
+
+
+def test_stream_dedupes_text_across_lines():
+    lines = [_ev("response.output_item.added", _msg("m1")), _ev("response.output_item.done", _msg("m1")),
+             json.dumps({"type": "response.done", "response": {"output": [_msg("m1")]}})]
+    body = "\n".join("data: " + line for line in lines).encode()
+    events = _collect(httpx.MockTransport(lambda r: httpx.Response(200, content=body)))
+    assert [e.kind for e in events] == ["text", "done"]
