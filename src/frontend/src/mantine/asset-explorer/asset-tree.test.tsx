@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { AssetTree, type TreeSelection } from './asset-tree';
 import { calledUrls, json, mockBackend, treeCalls } from './test-fixtures';
+import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 
 function Harness({ onSelect }: { onSelect: (s: TreeSelection) => void }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -30,6 +31,7 @@ describe('AssetTree', () => {
   let fetchMock: ReturnType<typeof mockBackend>;
 
   beforeEach(() => {
+    useExplorerStore.getState().actions.reset();
     fetchMock = mockBackend();
   });
 

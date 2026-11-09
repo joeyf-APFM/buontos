@@ -11,6 +11,7 @@ import { json, mockBackend } from '@/mantine/asset-explorer/test-fixtures';
 import { HELIX_DEFAULTS, useHelixStore, type HelixConfig } from './helix-store';
 import { HelixPanel } from './helix-panel';
 import { frame, openStream, sseResponse } from './test-fixtures';
+import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 
 vi.mock('@/components/ui/user-info', () => ({ default: () => null }));
 vi.mock('@/components/ui/notification-bell', () => ({ default: () => null }));
@@ -227,6 +228,7 @@ describe('HelixPanel', () => {
 
 describe('Ask Helix in the shell', () => {
   beforeEach(() => {
+    useExplorerStore.getState().actions.reset();
     useHelixStore.setState(HELIX_DEFAULTS);
     useShellStore.setState(SHELL_DEFAULTS);
     useFeatureVisibilityStore.setState({ allowedMaturities: ['ga'] });

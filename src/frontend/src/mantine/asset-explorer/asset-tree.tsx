@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { fetchTreeChildren, type TreeNode } from './api';
 import { nodeIcon } from './node-icons';
+import { useExplorerStore } from './explorer-store';
 import { shortLabel } from './format';
 import classes from './explorer.module.css';
 
@@ -71,10 +72,13 @@ function pathTo(key: string, nodes: TreeNode[], children: ChildrenMap): TreeNode
  */
 export function AssetTree({ selectedKey, onSelect, initialKey = 'branch:uc', refreshToken = 0 }: AssetTreeProps) {
   const { t } = useTranslation('asset-explorer');
-  const [children, setChildren] = useState<ChildrenMap>({});
+  // Levels loaded earlier in the session come back as they were (R21)
+  const [children, setChildren] = useState<ChildrenMap>(() => useExplorerStore.getState().tree?.children ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const inFlight = useRef(new Set<string>());
-  const loaded = useRef(new Set<string>());
+  const loaded = useRef(new Set<string>(Object.keys(children)));
+  const { saveTreeChildren } = useExplorerStore((s) => s.actions);
+  useEffect(() => saveTreeChildren(children), [children, saveTreeChildren]);
 
   /** Fetches a level (again, if it was loaded) unless it is already loading. */
   const load = useCallback((parent: string) => {
@@ -174,7 +178,12 @@ function TreeSection({
   section, title, top, topError, onRetryTop, loaded, errors, ensure, retry, selectedKey, initialExpanded, onSelect,
 }: TreeSectionProps) {
   const { t } = useTranslation('asset-explorer');
-  const tree = useTree({ initialExpandedState: initialExpanded ? { [initialExpanded]: true } : {} });
+  const tree = useTree({
+    initialExpandedState:
+      useExplorerStore.getState().tree?.expanded[section] ?? (initialExpanded ? { [initialExpanded]: true } : {}),
+  });
+  const { saveTreeExpanded } = useExplorerStore((s) => s.actions);
+  useEffect(() => saveTreeExpanded(section, tree.expandedState), [section, tree.expandedState, saveTreeExpanded]);
   const data = useMemo(() => toTreeData(top ?? [], loaded), [top, loaded]);
 
   // Expanding a node loads its children (cached after the first time). A

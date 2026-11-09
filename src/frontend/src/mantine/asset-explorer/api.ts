@@ -59,12 +59,24 @@ export interface AssetQuery {
   node?: string;
   /** …or the node's direct children, as the tree lists them. */
   parent?: string;
+  /** With `node` (an asset key): leave the node itself out (R22). */
+  excludeSelf?: boolean;
   name?: string;
   types?: string[];
   status?: string;
   conceptIri?: string;
   skip: number;
   limit: number;
+}
+
+/** A non-OK answer, with its HTTP status (a 404 means the asset is gone). */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -77,7 +89,7 @@ async function getJson<T>(url: string): Promise<T> {
     } catch {
       // not JSON
     }
-    throw new Error(detail || `${response.status} ${response.statusText}`.trim());
+    throw new ApiError(response.status, detail || `${response.status} ${response.statusText}`.trim());
   }
   return response.json() as Promise<T>;
 }
@@ -104,6 +116,7 @@ export async function fetchAssets(q: AssetQuery): Promise<{ items: AssetSummary[
   const params = new URLSearchParams({ skip: String(q.skip), limit: String(q.limit) });
   if (q.node) params.set('node', q.node);
   if (q.parent) params.set('parent', q.parent);
+  if (q.excludeSelf) params.set('exclude_self', 'true');
   if (q.name) params.set('name', q.name);
   if (q.types?.length) params.set('asset_type_names', q.types.join(','));
   if (q.status) params.set('status', q.status);

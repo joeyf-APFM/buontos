@@ -9,12 +9,13 @@ import type { AssetRead, AssetStatus, AssetTypeRead, DataBranch } from '@/types/
 import type { EntityTypeDefinition } from '@/types/ontology-schema';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import {
-  fetchAsset, fetchAssetTypes, fetchAssets, fetchOntologyAssetTypes, searchConcepts,
+  ApiError, fetchAsset, fetchAssetTypes, fetchAssets, fetchOntologyAssetTypes, searchConcepts,
   type AssetSummary, type ConceptOption, type TreeNode,
 } from './api';
 import { AssetTree, type TreeSelection } from './asset-tree';
 import { AssetTable } from './asset-table';
 import { useExpansions } from './use-expansions';
+import { useExplorerStore } from './explorer-store';
 import { DetailsPanel } from './details-panel';
 import classes from './explorer.module.css';
 
@@ -47,32 +48,36 @@ export default function ExplorerPage() {
   // What you were looking at here stops being Helix's context when you leave
   useEffect(() => clearContext, [clearContext]);
 
-  const [selection, setSelection] = useState<TreeSelection | null>(null);
+  // What the user had open when they last left the page (R21), read once
+  const [saved] = useState(() => useExplorerStore.getState().page);
+  const [selection, setSelection] = useState<TreeSelection | null>(saved?.selection ?? null);
   const node = selection?.node ?? null;
   const nodeKey = node?.key;
-  const [nameInput, setNameInput] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [concept, setConcept] = useState<ConceptOption | null>(null);
-  const [conceptSearch, setConceptSearch] = useState('');
-  const [conceptOptions, setConceptOptions] = useState<ConceptOption[]>([]);
-  const [listToken, setListToken] = useState(0);
-  const [treeToken, setTreeToken] = useState(0);
-  const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(null);
+  const [nameInput, setNameInput] = useState(saved?.nameInput ?? '');
+  const [typeFilter, setTypeFilter] = useState<string | null>(saved?.typeFilter ?? null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(saved?.statusFilter ?? null);
+  const [concept, setConcept] = useState<ConceptOption | null>(saved?.concept ?? null);
+  const [conceptSearch, setConceptSearch] = useState(saved?.conceptSearch ?? '');
+  const [conceptOptions, setConceptOptions] = useState<ConceptOption[]>(saved?.conceptOptions ?? []);
+  const [listToken, setListToken] = useState(saved?.listToken ?? 0);
+  const [treeToken, setTreeToken] = useState(saved?.treeToken ?? 0);
+  const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(saved?.selectedAsset ?? null);
   /** Counts tree selections, so reselecting a node still starts with every row closed. */
-  const [selectionCount, setSelectionCount] = useState(0);
+  const [selectionCount, setSelectionCount] = useState(saved?.selectionCount ?? 0);
   const [editing, setEditing] = useState<AssetRead | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [editPendingId, setEditPendingId] = useState<string | null>(null);
   // For async answers: which asset is selected now, and the node's Helix
   // context (its label; for a column, its full name once the asset is in)
-  const selectedIdRef = useRef<string | null>(null);
-  const nodeContextRef = useRef<string | null>(null);
+  const selectedIdRef = useRef<string | null>(saved?.selectedAsset?.id ?? null);
+  const nodeContextRef = useRef<string | null>(saved?.nodeContext ?? null);
   /** What Helix should see when no row is selected. */
   const nodeContext = () => nodeContextRef.current;
   // After a save: the edited asset, and the list refresh that has to include it
   const afterSave = useRef<{ id: string; listToken: number } | null>(null);
-  const [nodeStatus, setNodeStatus] = useState<{ key: string; status: AssetStatus } | null>(null);
+  const [nodeStatus, setNodeStatus] = useState<{ key: string; token: number; status: AssetStatus } | null>(
+    saved?.nodeStatus ?? null,
+  );
   const [assetTypes, setAssetTypes] = useState<AssetTypeRead[]>([]);
   const [ontologyTypes, setOntologyTypes] = useState<EntityTypeDefinition[]>([]);
   const [createType, setCreateType] = useState<AssetTypeRead | null>(null);
@@ -108,9 +113,52 @@ export default function ExplorerPage() {
     setContext(nodeContext());
   };
 
+  // Back on the page: give Helix its context again, then check that what was
+  // restored still exists. A deleted node gives way to its nearest existing
+  // ancestor (or Unity Catalog), and a deleted row's details close.
+  useEffect(() => {
+    if (!saved) return;
+    setContext(saved.selectedAsset ? (saved.selectedAsset.location ?? saved.selectedAsset.name) : saved.nodeContext);
+    let cancelled = false;
+    const gone = (id: string) =>
+      fetchAsset(id).then(
+        () => false,
+        (e: unknown) => e instanceof ApiError && e.status === 404,
+      );
+    void (async () => {
+      const sel = saved.selection;
+      if (sel?.node.kind === 'asset' && sel.node.assetId && (await gone(sel.node.assetId))) {
+        let i = sel.ancestors.length - 1;
+        while (i >= 0) {
+          const a = sel.ancestors[i];
+          if (a.kind !== 'asset' || !a.assetId || !(await gone(a.assetId))) break;
+          i -= 1;
+        }
+        if (cancelled) return;
+        const uc = useExplorerStore.getState().tree?.children['']?.find((n) => n.key === 'branch:uc');
+        const fallback: TreeSelection | null =
+          i >= 0
+            ? { node: sel.ancestors[i], ancestors: sel.ancestors.slice(0, i), section: sel.section }
+            : uc
+              ? { node: uc, ancestors: [], section: 'data' }
+              : null;
+        if (fallback) onSelectNode(fallback);
+        setTreeToken((n) => n + 1); // reload the tree levels on the way, without the deleted node
+        return;
+      }
+      const row = saved.selectedAsset;
+      if (row && (await gone(row.id)) && !cancelled && selectedIdRef.current === row.id) closeDetails();
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Once, on coming back: what is restored is checked against the server
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // The name filter, 250ms after typing stops. It belongs to the node it was
   // typed under, so a new node starts unfiltered at once.
-  const [typedName, setTypedName] = useState<{ nodeKey?: string; name: string }>({ name: '' });
+  const [typedName, setTypedName] = useState<{ nodeKey?: string; name: string }>(saved?.typedName ?? { name: '' });
   useEffect(() => {
     const timer = setTimeout(() => setTypedName({ nodeKey, name: nameInput.trim() }), 250);
     return () => clearTimeout(timer);
@@ -119,7 +167,7 @@ export default function ExplorerPage() {
 
   // The page number belongs to one node and filter: any change starts again at page 1
   const listKey = JSON.stringify([nodeKey, name, typeFilter, statusFilter, concept?.value]);
-  const [pageState, setPageState] = useState({ listKey: '', number: 1 });
+  const [pageState, setPageState] = useState(saved?.pageState ?? { listKey: '', number: 1 });
   const pageNumber = pageState.listKey === listKey ? pageState.number : 1;
   const setPageNumber = (number: number) => setPageState({ listKey, number });
 
@@ -130,15 +178,12 @@ export default function ExplorerPage() {
   // Browsing, the grid lists the node's direct children, which open further
   // (R19). With a filter it lists the flat matches under the node instead.
   // Nodes without asset children (type nodes, Unsorted, leaves) list flat.
-  const browse =
-    !filterActive &&
-    !!node &&
-    (node.kind === 'branch' ? node.key !== 'branch:unsorted' : node.kind === 'asset' && node.hasChildren);
+  const browse = !filterActive && !!node && (node.kind === 'branch' || node.kind === 'asset') && node.hasChildren;
 
   // The assets for the grid, with the request they answer
   const query = useMemo(
     () => ({
-      ...(browse ? { parent: nodeKey } : { node: nodeKey }),
+      ...(browse ? { parent: nodeKey } : { node: nodeKey, excludeSelf: filterActive && node?.kind === 'asset' }),
       name: name || undefined,
       types: typeFilter ? [typeFilter] : undefined,
       status: statusFilter ?? undefined,
@@ -146,12 +191,15 @@ export default function ExplorerPage() {
       skip: (pageNumber - 1) * PAGE_SIZE,
       limit: PAGE_SIZE,
     }),
-    [browse, nodeKey, name, typeFilter, statusFilter, concept, pageNumber],
+    [browse, filterActive, node?.kind, nodeKey, name, typeFilter, statusFilter, concept, pageNumber],
   );
   const requestKey = JSON.stringify([query, listToken]);
-  const [answer, setAnswer] = useState<{ requestKey: string; listKey: string; page: Page; error: string | null } | null>(null);
+  const [answer, setAnswer] = useState<{ requestKey: string; listKey: string; page: Page; error: string | null } | null>(
+    saved?.answer ?? null,
+  );
   useEffect(() => {
-    if (!nodeKey) return;
+    // A restored answer is the answer: no need to ask again
+    if (!nodeKey || answer?.requestKey === requestKey) return;
     let cancelled = false;
     fetchAssets(query)
       .then((result) => {
@@ -173,17 +221,11 @@ export default function ExplorerPage() {
     return () => {
       cancelled = true;
     };
-  }, [nodeKey, query, requestKey, listKey, listToken, setContext]);
+  }, [nodeKey, query, requestKey, listKey, listToken, setContext, answer?.requestKey]);
   const loading = answer?.requestKey !== requestKey;
   // While loading, the previous rows stay only when just the page changed
   const current = !!answer && (answer.requestKey === requestKey || answer.listKey === listKey);
-  // A node's flat listing holds the node itself, which isn't one of its own matches
-  const selfId = filterActive && node?.kind === 'asset' ? node.assetId : undefined;
-  const listed = current ? answer.page : EMPTY_PAGE;
-  const page = useMemo(() => {
-    if (!selfId || !listed.items.some((a) => a.id === selfId)) return listed;
-    return { items: listed.items.filter((a) => a.id !== selfId), total: listed.total - 1 };
-  }, [listed, selfId]);
+  const page = current ? answer.page : EMPTY_PAGE;
   const error = !loading ? answer.error : null;
 
   // An asset node's own status, for the header badge. A column's Helix
@@ -191,13 +233,14 @@ export default function ExplorerPage() {
   // labels may be short).
   const nodeAssetId = node?.kind === 'asset' ? node.assetId : undefined;
   const nodeIsColumn = node?.assetTypeName === 'Column';
+  const haveNodeStatus = nodeStatus?.key === nodeKey && nodeStatus?.token === treeToken;
   useEffect(() => {
-    if (!nodeKey || !nodeAssetId) return;
+    if (!nodeKey || !nodeAssetId || haveNodeStatus) return;
     let cancelled = false;
     fetchAsset(nodeAssetId)
       .then((a) => {
         if (cancelled) return;
-        setNodeStatus({ key: nodeKey, status: a.status });
+        setNodeStatus({ key: nodeKey, token: treeToken, status: a.status });
         if (nodeIsColumn && a.location) {
           nodeContextRef.current = a.location;
           if (!selectedIdRef.current) setContext(a.location);
@@ -207,7 +250,20 @@ export default function ExplorerPage() {
     return () => {
       cancelled = true;
     };
-  }, [nodeKey, nodeAssetId, nodeIsColumn, treeToken, setContext]);
+  }, [nodeKey, nodeAssetId, nodeIsColumn, treeToken, haveNodeStatus, setContext]);
+
+  // Keep what the user has open, for when they come back (R21)
+  const { savePage } = useExplorerStore((s) => s.actions);
+  useEffect(() => {
+    savePage({
+      selection, selectionCount, nameInput, typedName, typeFilter, statusFilter, concept, conceptSearch,
+      conceptOptions, pageState, listToken, treeToken, answer, selectedAsset, nodeStatus,
+      nodeContext: nodeContextRef.current,
+    });
+  }, [
+    savePage, selection, selectionCount, nameInput, typedName, typeFilter, statusFilter, concept, conceptSearch,
+    conceptOptions, pageState, listToken, treeToken, answer, selectedAsset, nodeStatus,
+  ]);
 
   // Asset types, for the Type filter and New asset; ontology types for the create form
   useEffect(() => {

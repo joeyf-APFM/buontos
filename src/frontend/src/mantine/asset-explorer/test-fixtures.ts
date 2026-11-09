@@ -165,8 +165,11 @@ export function mockBackend(override?: Handler) {
     }
     if (url.pathname === '/api/assets' && url.searchParams.get('parent')) return childrenListing(url);
     if (url.pathname === '/api/assets') {
-      const items = (ASSETS[url.searchParams.get('node') ?? ''] ?? []).filter(
-        (a) => !url.searchParams.get('name') || a.name.includes(url.searchParams.get('name')!),
+      const node = url.searchParams.get('node') ?? '';
+      // exclude_self leaves an asset node out of its own listing
+      const self = url.searchParams.get('exclude_self') === 'true' && node.startsWith('asset:') ? node.slice(6) : null;
+      const items = (ASSETS[node] ?? []).filter(
+        (a) => a.id !== self && (!url.searchParams.get('name') || a.name.includes(url.searchParams.get('name')!)),
       );
       return json({ items, total: items.length, skip: 0, limit: 50 });
     }

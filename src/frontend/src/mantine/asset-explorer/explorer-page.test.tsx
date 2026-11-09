@@ -6,6 +6,7 @@ import { FeatureAccessLevel } from '@/types/settings';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
 import { LEADS, LEAD_EVENTS, calledUrls, json, mockBackend } from './test-fixtures';
+import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 
 // The form dialog has its own tests; here it opens, and Save and Cancel act as
 // the real one does (Save reports the saved asset, then closes)
@@ -68,6 +69,7 @@ describe('ExplorerPage', () => {
   let fetchMock: ReturnType<typeof mockBackend>;
 
   beforeEach(() => {
+    useExplorerStore.getState().actions.reset();
     grant(FeatureAccessLevel.READ_WRITE);
     useHelixStore.setState({ isOpen: false, context: null });
     fetchMock = mockBackend();

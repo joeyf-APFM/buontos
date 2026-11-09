@@ -8,8 +8,9 @@
  * (tree selection, filters, page) changes, so answers from a collapsed,
  * re-opened or earlier scope never land.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchAssets, type AssetSummary } from './api';
+import { useExplorerStore } from './explorer-store';
 
 export const NEST_PAGE = 50;
 
@@ -42,12 +43,32 @@ interface State {
 
 const NONE: Record<string, Expansion> = {};
 
+/** Generations for the whole session, so a restored record never shares one with a new request. */
+let generation = 0;
+
+/**
+ * A saved grid, minus answers that were still out when the page was left
+ * (they can't land any more): unanswered rows close, a page still loading is
+ * dropped.
+ */
+function restore(saved: State | null): State | null {
+  if (!saved) return null;
+  const map: Record<string, Expansion> = {};
+  for (const [key, e] of Object.entries(saved.map)) {
+    if (e.status === 'loading') continue;
+    map[key] = e.status === 'loadingMore' ? { ...e, status: 'ready' } : e;
+  }
+  return { scope: saved.scope, map };
+}
+
 /** Open rows by row path (a row can show up at more than one place). */
 export function useExpansions(scope: string) {
-  const [state, setState] = useState<State>({ scope, map: NONE });
-  const generation = useRef(0);
-  // A new scope (even one seen before) starts with every row closed
+  // Coming back to the page restores the rows it had open (R21); a new
+  // scope (even one seen before) while on the page starts with every row closed
+  const [state, setState] = useState<State>(() => restore(useExplorerStore.getState().grid) ?? { scope, map: NONE });
   if (state.scope !== scope) setState({ scope, map: NONE });
+  const { saveGrid } = useExplorerStore((s) => s.actions);
+  useEffect(() => saveGrid(state), [state, saveGrid]);
   const expansions = state.scope === scope ? state.map : NONE;
 
   /** Applies `change` only if the record at `key` is still the one generation `gen` made. */
@@ -61,7 +82,9 @@ export function useExpansions(scope: string) {
 
   const load = useCallback(
     (key: string, parent: AssetSummary, kind: ExpansionKind, skip: number) => {
-      const gen = ++generation.current;
+      // A later page needs the record it adds to
+      if (skip > 0 && !expansions[key]) return;
+      const gen = ++generation;
       setState((s) => {
         if (s.scope !== scope) return s;
         const prev = s.map[key];
@@ -83,7 +106,7 @@ export function useExpansions(scope: string) {
           settle(key, gen, (e) => ({ ...e, status: skip === 0 ? 'error' : 'moreError', error: err.message })),
         );
     },
-    [scope, settle],
+    [expansions, scope, settle],
   );
 
   const toggle = useCallback(

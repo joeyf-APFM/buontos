@@ -6,6 +6,7 @@ import { FeatureAccessLevel } from '@/types/settings';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
 import { calledUrls, json, mockBackend, summary, treeCalls } from './test-fixtures';
+import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -55,6 +56,7 @@ describe('Nested rows in the asset grid', () => {
   let fetchMock: ReturnType<typeof mockBackend>;
 
   beforeEach(() => {
+    useExplorerStore.getState().actions.reset();
     usePermissionsStore.setState({
       permissions: { assets: FeatureAccessLevel.READ_WRITE },
       appliedRoleId: null,
@@ -234,11 +236,49 @@ describe('Nested rows in the asset grid', () => {
     expect(await screen.findByText('Showing matches under insights; clear filters to browse')).toBeInTheDocument();
     await waitFor(() => expect(lastCall(fetchMock).searchParams.get('node')).toBe('asset:cat1'));
     expect(lastCall(fetchMock).searchParams.get('parent')).toBeNull();
-    // The catalog itself matches, but it isn't one of its own matches
+    // The catalog itself matches, but the server leaves it out of its own matches
+    expect(lastCall(fetchMock).searchParams.get('exclude_self')).toBe('true');
     const schema = await gridRow('insights.referrals');
     expect(screen.queryAllByText('insights', { selector: '[data-name]' })).toHaveLength(0);
     expect(within(schema).queryByRole('button')).toBeNull();
     expect(screen.getByText('1 asset')).toBeInTheDocument();
+  });
+
+  it('counts the filtered matches as the server does, on every page', async () => {
+    const matches = Array.from({ length: 60 }, (_, i) =>
+      summary({ id: `f${i}`, name: `insights.match_${String(i).padStart(2, '0')}` }),
+    );
+    fetchMock = mockBackend((url) => {
+      if (url.pathname !== '/api/assets' || url.searchParams.get('node') !== 'asset:cat1') return undefined;
+      // A server that didn't honour exclude_self would list the catalog too
+      if (url.searchParams.get('exclude_self') !== 'true') {
+        return json({ items: [summary({ id: 'cat1', name: 'insights' })], total: 61, skip: 0, limit: 50 });
+      }
+      const skip = Number(url.searchParams.get('skip'));
+      return json({ items: matches.slice(skip, skip + 50), total: 60, skip, limit: 50 });
+    });
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await openCatalog(user);
+    await user.type(screen.getByRole('textbox', { name: 'Filter assets' }), 'match');
+
+    await gridRow('insights.match_00');
+    expect(screen.getByText('60 assets')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '2' }));
+    await gridRow('insights.match_59');
+    expect(screen.getByText('60 assets')).toBeInTheDocument();
+    expect(screen.queryAllByText('insights', { selector: '[data-name]' })).toHaveLength(0);
+  });
+
+  it('names the schema in full in the matches hint and the header', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await clickTreeRow(user, 'insights');
+    await clickTreeRow(user, 'referrals');
+    await user.type(screen.getByRole('textbox', { name: 'Filter assets' }), 'leads');
+
+    expect(await screen.findByText('Showing matches under insights.referrals; clear filters to browse')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'insights.referrals' })).toBeInTheDocument();
   });
 
   it('closes every row after a filter is set and cleared', async () => {
