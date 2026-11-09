@@ -14,5 +14,7 @@
   "switch \"Relationships\"",
   "tab \"Define\"",
   "tab \"Enrich\"",
-  "tab \"Explore\""
+  "tab \"Explore\"",
+  "textbox \"Base URI\"",
+  "textbox \"Guidelines\""
 ]

@@ -22,7 +22,7 @@ import { expect, test } from '@playwright/test';
 import { mockApi, unmockedRequests } from './fixtures/api';
 import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
-import { RESTYLE_PAGES, controlInventory } from './restyle-pages';
+import { RESTYLE_PAGES, SELECT_LIKE, controlInventory } from './restyle-pages';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROLS_DIR = path.join(HERE, '__controls__');
@@ -32,6 +32,45 @@ test.afterAll(() => {
     // eslint-disable-next-line no-console
     console.log('[restyle-check] answered with []:', [...new Set(unmockedRequests)].sort());
   }
+});
+
+// The inventory itself, on real Mantine 8.3.18 fields (the Asset Explorer's
+// filter bar) and a Radix Select (the Data Catalog's filters)
+test.describe('controlInventory', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockApi(page, PERSONAS.admin, DATA_FIXTURES);
+  });
+
+  test('lists a Mantine Select as combobox and a Mantine TextInput as textbox', async ({ page }) => {
+    await page.goto('/assets');
+    const select = page.locator('main input[aria-label="Status"]');
+    const textInput = page.locator('main input[aria-label="Filter assets"]');
+    await expect(select).toBeVisible();
+    // What Mantine renders: the Select is a text input that pops up a listbox
+    await expect(select).toHaveAttribute('aria-haspopup', 'listbox');
+    await expect(select).not.toHaveAttribute('role', /./);
+    await expect(textInput).not.toHaveAttribute('aria-haspopup', /./);
+    expect(await select.evaluate((el, sel) => el.matches(sel), SELECT_LIKE)).toBe(true);
+    expect(await textInput.evaluate((el, sel) => el.matches(sel), SELECT_LIKE)).toBe(false);
+
+    const controls = await controlInventory(page);
+    expect(controls).toEqual(expect.arrayContaining([
+      'combobox "Type"', 'combobox "Status"', 'combobox "Concept"', 'textbox "Filter assets"', 'treeitem "Unity Catalog 3"',
+    ]));
+    expect(controls).not.toContain('textbox "Status"');
+    // The DOM is left as it was
+    await expect(select).not.toHaveAttribute('role', /./);
+    await expect(page.locator('main [data-restyle-role]')).toHaveCount(0);
+  });
+
+  test('lists a Radix Select as combobox', async ({ page }) => {
+    await page.goto('/data-catalog');
+    const trigger = page.locator('main button[role="combobox"]').first();
+    await expect(trigger).toBeVisible();
+    const controls = await controlInventory(page);
+    expect(controls.filter((c) => c.startsWith('combobox ')).length).toBeGreaterThanOrEqual(3);
+    await expect(trigger).toHaveAttribute('role', 'combobox');
+  });
 });
 
 for (const persona of Object.values(PERSONAS)) {

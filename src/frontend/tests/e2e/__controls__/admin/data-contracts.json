@@ -15,5 +15,6 @@
   "checkbox \"Select all\"",
   "combobox \"\"",
   "link \"\"",
-  "switch \"Show all versions\""
+  "switch \"Show all versions\"",
+  "textbox \"Filter names...\""
 ]

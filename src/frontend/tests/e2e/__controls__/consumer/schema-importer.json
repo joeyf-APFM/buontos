@@ -6,5 +6,8 @@
   "checkbox \"\"",
   "checkbox \"\"",
   "combobox \"\"",
-  "link \"\""
+  "link \"\"",
+  "radio \"Full recursive Everything nested below selected nodes\"",
+  "radio \"One level Selected items + immediate children\"",
+  "radio \"Selected only Import only the selected items\""
 ]

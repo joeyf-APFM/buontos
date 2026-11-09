@@ -4,5 +4,6 @@
   "link \"\"",
   "tab \"Define\"",
   "tab \"Enrich\"",
-  "tab \"Explore\""
+  "tab \"Explore\"",
+  "textbox \"Filter...\""
 ]

@@ -2,5 +2,6 @@
   "button \"Save\"",
   "link \"\"",
   "switch \"Enable Ask Helix\"",
-  "switch \"Enable LLM features\""
+  "switch \"Enable LLM features\"",
+  "textbox \"Serving endpoint\""
 ]

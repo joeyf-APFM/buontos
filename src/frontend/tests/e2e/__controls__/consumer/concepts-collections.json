@@ -16,5 +16,6 @@
   "link \"Schemes\"",
   "tab \"Define\"",
   "tab \"Enrich\"",
-  "tab \"Explore\""
+  "tab \"Explore\"",
+  "textbox \"Filter labels...\""
 ]

@@ -1,5 +1,14 @@
 [
   "link \"\"",
   "switch \"Allow users to request background job enablement\"",
-  "switch \"Enable AI Features\""
+  "switch \"Enable AI Features\"",
+  "textbox \"Audit Log Directory\"",
+  "textbox \"Catalog\"",
+  "textbox \"Disclaimer Text\"",
+  "textbox \"Instance ID\"",
+  "textbox \"Instance Name\"",
+  "textbox \"LLM Endpoint\"",
+  "textbox \"Schema\"",
+  "textbox \"System Prompt\"",
+  "textbox \"Volume\""
 ]

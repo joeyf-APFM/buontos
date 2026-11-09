@@ -11,5 +11,6 @@
   "button \"Upload\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\""
+  "link \"\"",
+  "textbox \"Filter names...\""
 ]

@@ -109,17 +109,48 @@ export const RESTYLE_PAGES: RestylePage[] = [
   { id: 'settings-helix', route: '/settings/helix', wave: 0 },
 ];
 
-// The roles whose controls the restyle must keep
-const CONTROL_ROLES = ['button', 'link', 'menuitem', 'tab', 'checkbox', 'switch', 'combobox'];
+// The roles whose controls the restyle must keep (ruling R3 adds textbox,
+// radio and treeitem)
+const CONTROL_ROLES = [
+  'button', 'link', 'menuitem', 'tab', 'checkbox', 'switch', 'combobox', 'textbox', 'radio', 'treeitem',
+];
 const CONTROL_LINE = new RegExp(`^\\s*- (${CONTROL_ROLES.join('|')})(?: "((?:[^"\\\\]|\\\\.)*)")?(?=[\\s:\\[]|$)`);
+
+/**
+ * Select-like fields that are not `role="combobox"`, such as Mantine's Select
+ * (a text input with `aria-haspopup="listbox"`). They are recorded as
+ * combobox, so a Radix Select and a Mantine Select give the same entry.
+ */
+export const SELECT_LIKE = 'input[aria-haspopup="listbox"], button[aria-haspopup="listbox"]';
 
 /**
  * The controls in <main>, as sorted `role "name"` lines, one per control (so
  * a duplicated control appears twice). Names are Playwright's accessible
  * names, read from its aria snapshot; hidden controls are not listed.
+ * Select-like fields (SELECT_LIKE) are listed as combobox.
  */
 export async function controlInventory(page: Page): Promise<string[]> {
-  const snapshot = await page.locator('main').ariaSnapshot();
+  const main = page.locator('main');
+  // Give select-like fields the combobox role just for the snapshot
+  await main.evaluate((root, selector) => {
+    for (const el of root.querySelectorAll(selector)) {
+      el.setAttribute('data-restyle-role', el.getAttribute('role') ?? '');
+      el.setAttribute('role', 'combobox');
+    }
+  }, SELECT_LIKE);
+  let snapshot: string;
+  try {
+    snapshot = await main.ariaSnapshot();
+  } finally {
+    await main.evaluate((root) => {
+      for (const el of root.querySelectorAll('[data-restyle-role]')) {
+        const role = el.getAttribute('data-restyle-role');
+        if (role) el.setAttribute('role', role);
+        else el.removeAttribute('role');
+        el.removeAttribute('data-restyle-role');
+      }
+    });
+  }
   const controls: string[] = [];
   for (const line of snapshot.split('\n')) {
     const match = CONTROL_LINE.exec(line);

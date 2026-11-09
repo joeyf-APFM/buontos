@@ -1,5 +1,6 @@
 [
   "link \"\"",
   "tab \"Ask Ontos\"",
-  "tab \"Index Search\""
+  "tab \"Index Search\"",
+  "textbox \"Search for data products, terms, contracts...\""
 ]

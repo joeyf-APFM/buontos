@@ -26,5 +26,6 @@
   "link \"draft 1\"",
   "link \"retired 0\"",
   "link \"sandbox 0\"",
-  "switch \"\""
+  "switch \"\"",
+  "textbox \"Search for data products, glossary terms, contracts...\""
 ]

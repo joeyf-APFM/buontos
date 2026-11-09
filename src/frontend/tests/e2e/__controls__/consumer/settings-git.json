@@ -1,4 +1,8 @@
 [
   "button \"Clone Repository\"",
-  "link \"\""
+  "link \"\"",
+  "textbox \"Branch\"",
+  "textbox \"Repository URL\"",
+  "textbox \"Token\"",
+  "textbox \"Username\""
 ]

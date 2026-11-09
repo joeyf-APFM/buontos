@@ -2,5 +2,11 @@
   "link \"\"",
   "switch \"Enable Internationalization\"",
   "tab \"Edit\"",
-  "tab \"Preview\""
+  "tab \"Preview\"",
+  "textbox \"# About Our Company Write your custom about page content here using **Markdown**...\"",
+  "textbox \"Custom CSS\"",
+  "textbox \"Display name\"",
+  "textbox \"Favicon URL\"",
+  "textbox \"Logo URL\"",
+  "textbox \"Short name (optional)\""
 ]

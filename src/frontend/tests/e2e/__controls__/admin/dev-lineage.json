@@ -1,4 +1,6 @@
 [
   "button \"Load\"",
-  "link \"\""
+  "link \"\"",
+  "textbox \"e.g. DataProduct\"",
+  "textbox \"e.g. uuid\""
 ]

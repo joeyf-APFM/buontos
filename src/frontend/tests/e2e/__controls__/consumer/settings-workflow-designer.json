@@ -22,5 +22,6 @@
   "link \"\"",
   "link \"React Flow attribution\"",
   "link \"Workflows\"",
-  "switch \"\""
+  "switch \"\"",
+  "textbox \"Workflow name\""
 ]

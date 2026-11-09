@@ -19,5 +19,6 @@
   "combobox \"\"",
   "combobox \"Overall Status:\"",
   "link \"\"",
-  "link \"Data Asset Reviews\""
+  "link \"Data Asset Reviews\"",
+  "textbox \"Filter items...\""
 ]

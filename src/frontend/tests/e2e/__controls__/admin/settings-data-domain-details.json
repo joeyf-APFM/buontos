@@ -33,5 +33,6 @@
   "link \"Data Domains\"",
   "link \"Data Platform\"",
   "link \"Finance\"",
-  "link \"Sales Analytics\""
+  "link \"Sales Analytics\"",
+  "textbox \"Filter names...\""
 ]

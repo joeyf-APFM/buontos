@@ -13,5 +13,6 @@
   "checkbox \"Select row\"",
   "checkbox \"Select row\"",
   "combobox \"\"",
-  "link \"\""
+  "link \"\"",
+  "textbox \"Filter names...\""
 ]

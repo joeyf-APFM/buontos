@@ -31,5 +31,6 @@
   "checkbox \"Select row\"",
   "combobox \"\"",
   "link \"\"",
-  "switch \"Show all versions\""
+  "switch \"Show all versions\"",
+  "textbox \"Filter info > titles...\""
 ]

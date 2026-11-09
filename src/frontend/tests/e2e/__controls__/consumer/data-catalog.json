@@ -8,5 +8,6 @@
   "combobox \"\"",
   "link \"\"",
   "link \"Data Catalog\"",
-  "link \"Home\""
+  "link \"Home\"",
+  "textbox \"Search columns...\""
 ]
