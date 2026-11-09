@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.common.repository import CRUDBase
+from src.db_models.semantic_links import EntitySemanticLinkDb
 from src.db_models.assets import AssetTypeDb, AssetDb, AssetRelationshipDb
 from src.repositories.entity_domain_association_repository import entity_domain_repo
 from src.models.assets import (
@@ -84,7 +85,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
 
     def _apply_filters(self, query, *, db=None, asset_type_id=None, asset_type_names=None,
                         platform=None, domain_id=None, domain_ids=None, status=None, name=None,
-                        restrict_to_ids=None, scope_subquery=None):
+                        restrict_to_ids=None, scope_subquery=None, concept_iri=None):
         """Apply common filter predicates to a query.
 
         ``restrict_to_ids`` is an optional iterable of asset UUIDs to scope
@@ -130,6 +131,21 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
                 query = query.filter(self.model.id.in_(ids))
         if scope_subquery is not None:
             query = query.filter(self.model.id.in_(scope_subquery))
+        if concept_iri:
+            # Links store the asset id as a string; resolve to UUIDs so the match is
+            # independent of how the database renders UUID columns.
+            session = db or query.session
+            linked = session.query(EntitySemanticLinkDb.entity_id).filter(
+                EntitySemanticLinkDb.entity_type == "asset",
+                EntitySemanticLinkDb.iri == concept_iri,
+            ).all()
+            ids = []
+            for (entity_id,) in linked:
+                try:
+                    ids.append(UUID(entity_id))
+                except ValueError:
+                    continue
+            query = query.filter(self.model.id.in_(ids))
         return query
 
     def get_multi_filtered(
@@ -139,6 +155,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
         domain_ids: Optional[list] = None,
         status: Optional[str] = None, name: Optional[str] = None,
         restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
     ) -> List[AssetDb]:
         """Gets multiple assets with optional filters."""
         try:
@@ -154,7 +171,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             query = self._apply_filters(
                 query, db=db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
                 platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery,
+                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery, concept_iri=concept_iri,
             )
             return query.offset(skip).limit(limit).all()
         except SQLAlchemyError as e:
@@ -169,6 +186,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
         domain_ids: Optional[list] = None,
         status: Optional[str] = None, name: Optional[str] = None,
         restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
     ) -> int:
         """Returns the total count of assets matching the given filters."""
         try:
@@ -177,7 +195,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             query = self._apply_filters(
                 query, db=db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
                 platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery,
+                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery, concept_iri=concept_iri,
             )
             return query.scalar() or 0
         except SQLAlchemyError as e:

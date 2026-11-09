@@ -372,6 +372,7 @@ def get_all_assets(
     asset_status: Optional[str] = Query(None, alias="status"),
     name: Optional[str] = Query(None),
     node: Optional[str] = Query(None, description="Asset Explorer tree node key; lists the node and everything under it"),
+    concept_iri: Optional[str] = Query(None, description="Only assets linked to this semantic concept IRI"),
 ):
     """Lists all assets with optional filters. Returns paginated results.
 
@@ -398,7 +399,7 @@ def get_all_assets(
         db=db, skip=skip, limit=limit,
         asset_type_id=asset_type_id, asset_type_names=type_names_list,
         platform=platform, domain_id=domain_id, domain_ids=domain_ids_list, status=asset_status, name=name,
-        restrict_to_ids=restrict_ids, scope_subquery=scope,
+        restrict_to_ids=restrict_ids, scope_subquery=scope, concept_iri=concept_iri,
     )
 
 

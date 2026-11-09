@@ -705,6 +705,10 @@ class AssetSummary(BaseModel):
     parent_id: Optional[UUID] = Field(None, description="ID of the parent asset (from hierarchical relationship)")
     parent_name: Optional[str] = Field(None, description="Name of the parent asset")
     updated_at: Optional[datetime] = None
+    owner_display: Optional[str] = None
+    owner_extra_count: int = 0
+    concepts: List[str] = Field(default_factory=list)
+    column_count: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

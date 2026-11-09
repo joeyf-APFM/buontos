@@ -16,6 +16,8 @@ from src.models.assets import (
     DeletePreviewItem, CascadeDeleteResult,
     PHYSICAL_TABLE_ASSET_TYPES,
 )
+from src.db_models.business_owners import BusinessOwnerDb
+from src.db_models.semantic_links import EntitySemanticLinkDb
 from src.db_models.assets import AssetTypeDb, AssetDb, AssetRelationshipDb
 from src.common.errors import ConflictError, NotFoundError, ValidationError
 from src.common.logging import get_logger
@@ -335,6 +337,7 @@ class AssetsManager(SearchableAsset):
         status: Optional[str] = None, name: Optional[str] = None,
         restrict_to_ids: Optional[List[UUID]] = None,
         scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
     ) -> PaginatedAssetSummary:
         """Gets a paginated page of asset summaries.
 
@@ -347,7 +350,7 @@ class AssetsManager(SearchableAsset):
         filter_kwargs = dict(
             asset_type_id=asset_type_id, asset_type_names=asset_type_names,
             platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-            restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery,
+            restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery, concept_iri=concept_iri,
         )
         db_assets = self._asset_repo.get_multi_filtered(
             db, skip=skip, limit=limit, **filter_kwargs,
@@ -365,12 +368,44 @@ class AssetsManager(SearchableAsset):
                 s.domains = assigned
                 s.domain_ids = [d.domain_id for d in assigned]
                 s.primary_domain_id = next((d.domain_id for d in assigned if d.is_primary), None)
+            self._attach_owners_and_concepts(db, summaries, db_assets)
         return PaginatedAssetSummary(
             items=summaries,
             total=total,
             skip=skip,
             limit=limit,
         )
+
+    @staticmethod
+    def _attach_owners_and_concepts(db: Session, summaries: List[AssetSummary], db_assets: List[AssetDb]) -> None:
+        """Batch-load owners and semantic links for a page: two queries regardless of page size."""
+        ids = [str(s.id) for s in summaries]
+        owners: Dict[str, List[BusinessOwnerDb]] = {}
+        for o in (
+            db.query(BusinessOwnerDb)
+            .filter(BusinessOwnerDb.object_type == "asset", BusinessOwnerDb.object_id.in_(ids),
+                    BusinessOwnerDb.is_active.is_(True))
+            .order_by(BusinessOwnerDb.assigned_at, BusinessOwnerDb.user_email)
+            .all()
+        ):
+            owners.setdefault(o.object_id, []).append(o)
+        concepts: Dict[str, set] = {}
+        for entity_id, iri, label in (
+            db.query(EntitySemanticLinkDb.entity_id, EntitySemanticLinkDb.iri, EntitySemanticLinkDb.label)
+            .filter(EntitySemanticLinkDb.entity_type == "asset", EntitySemanticLinkDb.entity_id.in_(ids))
+            .all()
+        ):
+            local = iri.rstrip("/#").rsplit("#", 1)[-1].rsplit("/", 1)[-1]
+            concepts.setdefault(entity_id, set()).add(label or local or iri)
+        for s, a in zip(summaries, db_assets):
+            mine = owners.get(str(s.id), [])
+            if mine:
+                s.owner_display = mine[0].user_name or mine[0].user_email
+                s.owner_extra_count = len(mine) - 1
+            s.concepts = sorted(concepts.get(str(s.id), ()))
+            schema = (a.properties or {}).get("schema")
+            if isinstance(schema, dict) and isinstance(schema.get("column_count"), int):
+                s.column_count = schema["column_count"]
 
     def update_asset(self, db: Session, *, asset_id: UUID, asset_in: AssetUpdate, current_user_id: str) -> AssetRead:
         db_asset = self._asset_repo.get(db, asset_id)
