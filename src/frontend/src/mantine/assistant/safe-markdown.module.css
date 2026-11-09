@@ -1,0 +1,58 @@
+/* Assistant answers rendered as markdown. */
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin: 0 0 6px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 18px;
+}
+
+.markdown a {
+  color: var(--aura-accent);
+}
+
+.markdown code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+}
+
+.markdown pre {
+  white-space: pre-wrap;
+  background: var(--aura-surface-strong);
+  border-radius: 4px;
+  padding: 5px 6px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin: 4px 0;
+}
+
+.tableWrap table {
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  border: 1px solid var(--aura-border);
+  padding: 2px 6px;
+  text-align: left;
+}
+
+.tableWrap th {
+  background: var(--aura-surface-strong);
+  font-weight: 600;
+}

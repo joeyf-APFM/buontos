@@ -12,7 +12,6 @@ vi.mock('@/mantine/shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/components/ui/breadcrumbs', () => ({ Breadcrumbs: () => null }));
-vi.mock('@/components/copilot/copilot-panel', () => ({ default: () => null }));
 
 const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 

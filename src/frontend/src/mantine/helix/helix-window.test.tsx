@@ -12,7 +12,7 @@ import { AppShell } from '@/mantine/shell/app-shell';
 import { SHELL_DEFAULTS, useShellStore } from '@/mantine/shell/use-shell-store';
 import { json } from '@/mantine/asset-explorer/test-fixtures';
 import { HELIX_DEFAULTS, useHelixStore, type HelixConfig } from './helix-store';
-import { WINDOW_DEFAULT, WINDOW_MARGIN, WINDOW_MIN } from './helix-window-geometry';
+import { WINDOW_DEFAULT, WINDOW_MARGIN, WINDOW_MIN } from '@/mantine/assistant/window-geometry';
 import { frame, sseResponse } from './test-fixtures';
 
 vi.mock('@/components/ui/user-info', () => ({ default: () => null }));
@@ -199,7 +199,7 @@ describe('Helix window', () => {
     renderShell('/search');
     await user.click(await helixButton());
     const win = dialog()!;
-    const grip = within(win).getByTestId('helix-resize');
+    const grip = within(win).getByTestId('assistant-resize');
     const left = 1200 - WINDOW_DEFAULT.width - WINDOW_MARGIN;
 
     fireEvent.pointerDown(grip, { clientX: left, clientY: 780, pointerId: 2, button: 0 });

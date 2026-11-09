@@ -1,11 +1,9 @@
 /**
- * Helix's answers as markdown: no raw HTML (skipHtml, no rehype-raw), no
- * images, and links only to the Databricks workspace; any other link is shown
+ * Helix's answers as markdown, with the shared safe rules (no raw HTML, no
+ * images) and links only to the Databricks workspace; any other link is shown
  * as its text.
  */
-import ReactMarkdown, { type Components } from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import classes from './helix.module.css';
+import { SafeMarkdown } from '@/mantine/assistant/safe-markdown';
 
 /** The host part of the workspace URL, which may come without a scheme. */
 function hostOf(url: string): string | null {
@@ -30,23 +28,5 @@ function isWorkspaceLink(href: string | undefined, workspaceHost: string | null)
 
 export function HelixMarkdown({ text, workspaceHost }: { text: string; workspaceHost: string }) {
   const host = hostOf(workspaceHost);
-  const components: Components = {
-    a: ({ href, children }) =>
-      isWorkspaceLink(href, host) ? (
-        <a href={href} target="_blank" rel="noopener noreferrer">
-          {children}
-        </a>
-      ) : (
-        <span>{children}</span>
-      ),
-    // An image would load from wherever the answer points; show its text instead
-    img: ({ alt }) => (alt ? <span>{alt}</span> : null),
-  };
-  return (
-    <div className={classes.markdown}>
-      <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={components}>
-        {text}
-      </ReactMarkdown>
-    </div>
-  );
+  return <SafeMarkdown text={text} keepLink={(href) => isWorkspaceLink(href, host)} />;
 }

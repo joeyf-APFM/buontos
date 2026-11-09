@@ -3,7 +3,9 @@
   "strip": {
     "label": "Main menu",
     "askHelix": "Ask Helix",
-    "helix": "Helix"
+    "helix": "Helix",
+    "askOntos": "Ask Ontos",
+    "ontos": "Ontos"
   },
   "sections": {
     "platform": "Platform",

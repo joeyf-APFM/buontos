@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, DatabaseZap, Sparkles } from 'lucide-react';
+import { AlertTriangle, DatabaseZap } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { AppShell } from '@/mantine/shell/app-shell';
 import { isFullBleed } from '@/mantine/shell/full-bleed';
@@ -8,10 +8,6 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useCopilotStore } from '@/stores/copilot-store';
-import CopilotPanel from '@/components/copilot/copilot-panel';
-import { useHelixStore } from '@/mantine/helix/helix-store';
-import { useUICustomizationStore } from '@/stores/ui-customization-store';
 import { healthIssueText, retryDetailText, type HealthIssue } from '@/lib/health-issue';
 
 interface HealthState {
@@ -31,13 +27,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { t } = useTranslation(['navigation', 'common', 'search']);
-  const shortName = useUICustomizationStore((s) => s.getShortName());
+  const { t } = useTranslation(['navigation', 'common']);
   const fullBleed = isFullBleed(useLocation().pathname);
-  const isCopilotOpen = useCopilotStore((s) => s.isOpen);
-  const copilotPanelWidth = useCopilotStore((s) => s.panelWidth);
-  const { togglePanel } = useCopilotStore((s) => s.actions);
-  const isHelixOpen = useHelixStore((s) => s.isOpen);
   const [health, setHealth] = useState<HealthState | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -114,12 +105,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <AppShell>
-      {/* The copilot offset uses padding (not margin) so the column never
-          overflows horizontally. */}
-      <div
-        className="flex flex-1 flex-col min-w-0 bg-background"
-        style={{ paddingRight: isCopilotOpen ? copilotPanelWidth : undefined }}
-      >
+      <div className="flex flex-1 flex-col min-w-0 bg-background">
         {/* Alerts wrapped in padded containers (not mx-6 on the Alert itself):
             shadcn Alert is `w-full`, so mx-6 would expand it past the
             parent and overflow horizontally by the margin width. */}
@@ -200,26 +186,6 @@ export default function Layout({ children }: LayoutProps) {
           )}
         </main>
       </div>
-
-      {/* Right-edge Ask Ontos tab; it steps aside while the Helix panel is open */}
-      {!isCopilotOpen && !isHelixOpen && (
-        <button
-          onClick={togglePanel}
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-40
-            flex flex-col items-center gap-2 px-1.5 py-4
-            bg-gradient-to-b from-violet-500 to-purple-600
-            text-white rounded-l-xl shadow-lg
-            hover:px-2.5 hover:shadow-violet-500/25 hover:shadow-xl
-            transition-all duration-200"
-        >
-          <Sparkles className="h-4 w-4 shrink-0" />
-          <span className="text-xs font-medium [writing-mode:vertical-rl] rotate-180">
-            {t('search:copilot.button', { shortName })}
-          </span>
-        </button>
-      )}
-
-      <CopilotPanel />
     </AppShell>
   );
 } 

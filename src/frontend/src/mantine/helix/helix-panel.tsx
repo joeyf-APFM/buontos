@@ -1,8 +1,7 @@
 /** Ask Helix's content, which the floating window (helix-window.tsx) renders. */
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Anchor, Button, CloseButton, Textarea, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { HelixMark } from './helix-mark';
 import { HelixMarkdown } from './helix-markdown';
 import { useHelixStore, type HelixResult, type Turn } from './helix-store';
 import classes from './helix.module.css';
@@ -90,22 +89,15 @@ function Answer({ turn, pending }: { turn: Turn; pending: boolean }) {
   );
 }
 
-interface HelixContentProps {
-  /** The id for the title, which the window's dialog is labelled by. */
-  titleId: string;
-  /** The window drags by its header. */
-  onHeaderPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
-}
-
-/** Helix's header, context chip, conversation and input. */
-export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps) {
+/** Helix's shared-mode label, context chip, conversation and input (the window frame holds the header). */
+export function HelixContent() {
   const { t } = useTranslation('helix');
   const context = useHelixStore((s) => s.context);
   const turns = useHelixStore((s) => s.turns);
   const busy = useHelixStore((s) => s.busy);
   const mode = useHelixStore((s) => s.config?.mode);
   const draft = useHelixStore((s) => s.draft);
-  const { close, clearContext, ask, stop, newConversation, setDraft } = useHelixStore((s) => s.actions);
+  const { clearContext, ask, stop, newConversation, setDraft } = useHelixStore((s) => s.actions);
   const messages = useRef<HTMLDivElement>(null);
 
   // Keep the latest answer in view as it streams
@@ -129,17 +121,6 @@ export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps
 
   return (
     <>
-      <div
-        className={classes.head}
-        data-drag-handle={onHeaderPointerDown ? true : undefined}
-        onPointerDown={onHeaderPointerDown}
-      >
-        <HelixMark className={classes.headMark} />
-        <h2 id={titleId} className={classes.headTitle}>
-          {t('panel.title')} <span className={classes.headSub}>{t('panel.subtitle')}</span>
-        </h2>
-        <CloseButton className={classes.close} aria-label={t('panel.close')} onClick={close} />
-      </div>
       {mode === 'shared' && <div className={classes.shared}>{t('panel.shared')}</div>}
       {context && (
         <div className={classes.context}>

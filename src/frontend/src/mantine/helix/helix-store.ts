@@ -6,6 +6,9 @@ import { create } from 'zustand';
 import i18n from '@/i18n/config';
 import { useCopilotStore } from '@/stores/copilot-store';
 import { askHelix, type HelixAskBody } from './helix-stream';
+import type { WindowRect } from '@/mantine/assistant/window-geometry';
+
+export type { WindowRect };
 
 export interface HelixResult {
   columns: string[];
@@ -31,14 +34,6 @@ export interface HelixConfig {
   enabled: boolean;
   mode: 'user' | 'shared';
   workspace_host: string;
-}
-
-/** The floating window's place and size, in viewport pixels. */
-export interface WindowRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 interface HelixState {

@@ -135,12 +135,12 @@
   background: var(--aura-surface);
 }
 
-/* Ask Helix: like a group button, with its icon in the accent */
-.helixButton svg {
+/* Ask Helix and Ask Ontos: like group buttons, with their icons in the accent */
+.assistantButton svg {
   color: var(--aura-accent);
 }
 
-.helixButton[aria-pressed='true'] {
+.assistantButton[aria-pressed='true'] {
   background: var(--aura-surface);
   color: var(--aura-accent-hover);
 }

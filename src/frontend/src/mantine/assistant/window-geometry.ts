@@ -1,5 +1,12 @@
-/** Where the floating Helix window sits and how big it is, kept inside the viewport. */
-import type { WindowRect } from './helix-store';
+/** Where an assistant's floating window sits and how big it is, kept inside the viewport. */
+
+/** A window's place and size, in viewport pixels. */
+export interface WindowRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export const WINDOW_DEFAULT = { width: 380, height: 520 } as const;
 export const WINDOW_MIN = { width: 320, height: 360 } as const;

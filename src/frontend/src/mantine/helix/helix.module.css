@@ -22,39 +22,14 @@
   background: var(--aura-accent);
 }
 
-.headMark {
-  flex: none;
-  color: var(--aura-accent);
-}
 
-.head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 6px 0 10px;
-  border-bottom: 1px solid var(--aura-border);
-  background: var(--aura-surface);
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--aura-navy);
-}
 
-.headTitle {
-  margin: 0;
-  font: inherit;
-  white-space: nowrap;
-}
 
 .headSub {
   font-weight: 400;
   color: var(--aura-text-muted);
 }
 
-.close {
-  margin-left: auto;
-}
 
 .shared {
   flex: none;
@@ -153,34 +128,6 @@
   font-style: italic;
 }
 
-.markdown > :first-child {
-  margin-top: 0;
-}
-
-.markdown > :last-child {
-  margin-bottom: 0;
-}
-
-.markdown p,
-.markdown ul,
-.markdown ol {
-  margin: 0 0 6px;
-}
-
-.markdown ul,
-.markdown ol {
-  padding-left: 18px;
-}
-
-.markdown a {
-  color: var(--aura-accent);
-}
-
-.markdown code {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 11px;
-}
-
 .sql {
   margin: 6px 0 0;
   font-family: ui-monospace, Menlo, monospace;
@@ -263,44 +210,4 @@
 .newConversation {
   align-self: flex-start;
   font-size: 11px;
-}
-
-/* The floating window, on every page but the explorer */
-.window {
-  position: fixed;
-  z-index: 150;
-  display: flex;
-  flex-direction: column;
-  background: var(--aura-canvas);
-  border: 1px solid var(--aura-border);
-  border-radius: 8px;
-  box-shadow: var(--mantine-shadow-md);
-  overflow: hidden;
-}
-
-.window:focus {
-  outline: none;
-}
-
-.head[data-drag-handle] {
-  cursor: move;
-  touch-action: none;
-  user-select: none;
-}
-
-.resize {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nesw-resize;
-  touch-action: none;
-  background: linear-gradient(
-    45deg,
-    var(--aura-border-strong) 0 1px,
-    transparent 1px 4px,
-    var(--aura-border-strong) 4px 5px,
-    transparent 5px
-  );
 }

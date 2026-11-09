@@ -10,13 +10,16 @@ import { GroupPanel } from './group-panel';
 import { TopBar } from './top-bar';
 import { HelixButton } from '@/mantine/helix/helix-button';
 import { HelixWindow } from '@/mantine/helix/helix-window';
+import { OntosWindow } from '@/mantine/ontos/ontos-window';
+import { useOntosStore } from '@/mantine/ontos/ontos-store';
+import { useCopilotStore } from '@/stores/copilot-store';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import classes from './shell.module.css';
 
 /**
  * The app shell for every route: top bar, icon strip, the open group's panel,
- * the page, and Ask Helix: the top-bar and strip buttons, and Helix itself
- * as a floating window on every page (R25).
+ * the page, and the two assistants: Ask Helix (top-bar and strip buttons)
+ * and Ask Ontos (strip button), each a floating window on every page (R25, R26).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -25,6 +28,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const openGroup = useShellStore((s) => s.openGroup);
   const { afterNavigate } = useShellStore((s) => s.actions);
   const helixOpen = useHelixStore((s) => s.isOpen && !!s.config?.enabled);
+  const ontosEnabled = useOntosStore((s) => !!s.status?.enabled);
+  const ontosOpen = useCopilotStore((s) => s.isOpen) && ontosEnabled;
 
   const nav = useMemo(
     () =>
@@ -57,6 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className={classes.main}>{children}</div>
       </div>
       {helixOpen && <HelixWindow />}
+      {ontosOpen && <OntosWindow />}
     </div>
   );
 }

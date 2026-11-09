@@ -1,9 +1,13 @@
 import { UnstyledButton } from '@mantine/core';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
 import { NAV_GROUPS, type NavGroupId } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import { HelixMark } from '@/mantine/helix/helix-mark';
+import { useCopilotStore } from '@/stores/copilot-store';
+import { useOntosStore } from '@/mantine/ontos/ontos-store';
 import classes from './shell.module.css';
 
 /**
@@ -19,7 +23,7 @@ function HelixStripButton() {
   if (!enabled) return null;
   return (
     <UnstyledButton
-      className={`${classes.groupButton} ${classes.helixButton}`}
+      className={`${classes.groupButton} ${classes.assistantButton}`}
       aria-label={t('strip.askHelix')}
       aria-pressed={isOpen}
       onClick={isOpen ? close : open}
@@ -30,7 +34,36 @@ function HelixStripButton() {
   );
 }
 
-/** The icon strip: Discover, Ask Helix and the other groups at the top, Settings at the bottom. */
+/**
+ * Ask Ontos, directly under Helix (R26): it opens or closes the Ask Ontos
+ * window. Shown only when /api/llm-search/status says it's enabled.
+ */
+function OntosStripButton() {
+  const { t } = useTranslation('shell');
+  const enabled = useOntosStore((s) => !!s.status?.enabled);
+  const loadStatus = useOntosStore((s) => s.actions.loadStatus);
+  const isOpen = useCopilotStore((s) => s.isOpen);
+  const togglePanel = useCopilotStore((s) => s.actions.togglePanel);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  if (!enabled) return null;
+  return (
+    <UnstyledButton
+      className={`${classes.groupButton} ${classes.assistantButton}`}
+      aria-label={t('strip.askOntos')}
+      aria-pressed={isOpen}
+      onClick={togglePanel}
+    >
+      <Sparkles size={17} strokeWidth={1.7} aria-hidden />
+      {t('strip.ontos')}
+    </UnstyledButton>
+  );
+}
+
+/** The icon strip: Discover, Ask Helix, Ask Ontos and the other groups at the top, Settings at the bottom. */
 export function SideStrip({ groups }: { groups: NavGroupId[] }) {
   const { t } = useTranslation(['shell', 'navigation', 'settings']);
   const openGroup = useShellStore((s) => s.openGroup);
@@ -62,6 +95,7 @@ export function SideStrip({ groups }: { groups: NavGroupId[] }) {
     <nav className={classes.strip} aria-label={t('shell:strip.label')}>
       {top.slice(0, helixAt).map(button)}
       <HelixStripButton />
+      <OntosStripButton />
       {top.slice(helixAt).map(button)}
       <div className={classes.stripSpacer} />
       {groups.includes('Settings') && button('Settings')}
