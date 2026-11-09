@@ -22,6 +22,7 @@ import settingsNL from './locales/nl/settings.json';
 import settingsPT from './locales/pt/settings.json';
 import shellEN from './locales/en/shell.json';
 import assetExplorerEN from './locales/en/asset-explorer.json';
+import helixEN from './locales/en/helix.json';
 
 const resources: Resource = {};
 
@@ -64,7 +65,7 @@ for (const [lang, data] of Object.entries(fallbackSettingsByLang)) {
   }
 }
 
-// The app shell's and Asset Explorer's labels are English only (other languages fall back to it);
+// The app shell's, Asset Explorer's and Helix's labels are English only (other languages fall back to it);
 // make sure the namespaces are there even if packaging missed the files
 if (!resources['en']) resources['en'] = {};
 if (!(resources['en'] as any)['shell']) {
@@ -73,6 +74,8 @@ if (!(resources['en'] as any)['shell']) {
 if (!namespaces.includes('shell')) namespaces.push('shell');
 resources['en']['asset-explorer'] ??= assetExplorerEN;
 if (!namespaces.includes('asset-explorer')) namespaces.push('asset-explorer');
+resources['en']['helix'] ??= helixEN;
+if (!namespaces.includes('helix')) namespaces.push('helix');
 
 // Check if i18n is disabled via settings (set in localStorage)
 // When disabled, we force English regardless of browser settings

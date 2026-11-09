@@ -95,7 +95,7 @@ function ShellSearch() {
 }
 
 interface TopBarProps {
-  /** Where the Ask Helix button goes (Task 11). */
+  /** Where the Ask Helix button goes. */
   helixSlot?: ReactNode;
 }
 

@@ -40,16 +40,13 @@ function allItems(): NavItem[] {
   );
 }
 
-// Task 11 adds the Settings → Helix & LLM page and its route.
-const NOT_YET_ROUTED = new Set(['/settings/helix']);
-
 describe('NAV', () => {
   it('points every item at a route in app.tsx', () => {
     const routes = routePaths(appSource);
     expect(routes.has('/settings/business-roles')).toBe(true); // the parser joins nested routes
     const missing = allItems()
       .map((i) => i.path)
-      .filter((p): p is string => !!p && !NOT_YET_ROUTED.has(p) && !routes.has(p));
+      .filter((p): p is string => !!p && !routes.has(p));
     expect(missing).toEqual([]);
   });
 

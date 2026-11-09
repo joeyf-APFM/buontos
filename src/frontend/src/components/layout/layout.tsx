@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useCopilotStore } from '@/stores/copilot-store';
 import CopilotPanel from '@/components/copilot/copilot-panel';
+import { useHelixStore } from '@/mantine/helix/helix-store';
 import { useUICustomizationStore } from '@/stores/ui-customization-store';
 import { healthIssueText, retryDetailText, type HealthIssue } from '@/lib/health-issue';
 
@@ -36,6 +37,7 @@ export default function Layout({ children }: LayoutProps) {
   const isCopilotOpen = useCopilotStore((s) => s.isOpen);
   const copilotPanelWidth = useCopilotStore((s) => s.panelWidth);
   const { togglePanel } = useCopilotStore((s) => s.actions);
+  const isHelixOpen = useHelixStore((s) => s.isOpen);
   const [health, setHealth] = useState<HealthState | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -199,8 +201,8 @@ export default function Layout({ children }: LayoutProps) {
         </main>
       </div>
 
-      {/* Right-edge Ask Ontos tab */}
-      {!isCopilotOpen && (
+      {/* Right-edge Ask Ontos tab; it steps aside while the Helix panel is open */}
+      {!isCopilotOpen && !isHelixOpen && (
         <button
           onClick={togglePanel}
           className="fixed right-0 top-1/2 -translate-y-1/2 z-40

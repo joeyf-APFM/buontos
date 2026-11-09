@@ -105,6 +105,7 @@ import SettingsDirectoryView from './views/settings-directory';
 import SettingsSemanticModelsView from './views/settings-semantic-models';
 import SettingsCertificationLevelsView from './views/settings-certification-levels';
 import SettingsMaturityLevelsView from './views/settings-maturity-levels';
+import HelixSettings from './mantine/settings/helix-settings';
 
 export default function App() {
   const fetchUserInfo = useUserStore((state: any) => state.fetchUserInfo);
@@ -261,6 +262,7 @@ export default function App() {
               <Route path="/settings" element={<SettingsLayout />}>
                 <Route index element={<Navigate to="/settings/general" replace />} />
                 <Route path="general" element={<SettingsGeneralView />} />
+                <Route path="helix" element={<HelixSettings />} />
                 <Route path="git" element={<SettingsGitView />} />
                 <Route path="delivery" element={<SettingsDeliveryView />} />
                 <Route path="jobs" element={<SettingsJobsView />} />

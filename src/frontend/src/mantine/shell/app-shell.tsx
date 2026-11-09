@@ -8,11 +8,14 @@ import { useShellStore } from './use-shell-store';
 import { SideStrip } from './side-strip';
 import { GroupPanel } from './group-panel';
 import { TopBar } from './top-bar';
+import { HelixButton } from '@/mantine/helix/helix-button';
+import { HelixPanel } from '@/mantine/helix/helix-panel';
+import { useHelixStore } from '@/mantine/helix/helix-store';
 import classes from './shell.module.css';
 
 /**
  * The app shell for every route: top bar, icon strip, the open group's panel,
- * and the page. The Helix button (top bar) and panel (right) arrive in Task 11.
+ * the page, and the Ask Helix button (top bar) and panel (right).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -20,6 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const allowedMaturities = useFeatureVisibilityStore((s) => s.allowedMaturities);
   const openGroup = useShellStore((s) => s.openGroup);
   const { afterNavigate } = useShellStore((s) => s.actions);
+  const helixOpen = useHelixStore((s) => s.isOpen && !!s.config?.enabled);
 
   const nav = useMemo(
     () =>
@@ -43,14 +47,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={classes.shell}>
-      <TopBar helixSlot={null /* Task 11: <HelixButton /> */} />
+      <TopBar helixSlot={<HelixButton />} />
       <div className={classes.body}>
         <div className={`${classes.side} apfm-surface`}>
           <SideStrip groups={groups} />
           {openGroup && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} />}
         </div>
         <div className={classes.main}>{children}</div>
-        {/* Task 11: the Helix panel mounts here, on the right */}
+        {helixOpen && <HelixPanel />}
       </div>
     </div>
   );
