@@ -19,6 +19,7 @@ from src.db_models.assets import AssetDb
 from src.db_models.connections import ConnectionDb
 from src.models.assets import (
     METRIC_VIEW_ASSET_TYPE,
+    VOLUME_ASSET_TYPE,
     AssetCreate,
     AssetRelationshipCreate,
     AssetStatus,
@@ -52,6 +53,14 @@ _CHILD_LIMIT_MAX = 10000
 
 
 # ---------------------------------------------------------------------------
+# Asset types that were imported as another type before they had their own: the
+# type they were imported as, and the (old, new) name of the link from the parent
+# when it changes with the type.
+_LEGACY_TYPES: Dict[str, tuple] = {
+    METRIC_VIEW_ASSET_TYPE: ("View", None),
+    VOLUME_ASSET_TYPE: ("System", ("hasPart", "hasVolume")),
+}
+
 # UnifiedAssetType  ->  (Ontos AssetType name, relationship from parent)
 # ---------------------------------------------------------------------------
 
@@ -67,7 +76,7 @@ _TYPE_MAP: Dict[str, tuple] = {
     UnifiedAssetType.UC_STREAMING_TABLE.value: ("Table", "hasTable"),
     UnifiedAssetType.UC_FUNCTION.value: ("System", "hasPart"),
     UnifiedAssetType.UC_MODEL.value: ("ML Model", "hasPart"),
-    UnifiedAssetType.UC_VOLUME.value: ("System", "hasPart"),
+    UnifiedAssetType.UC_VOLUME.value: (VOLUME_ASSET_TYPE, "hasVolume"),
     # BigQuery — structural containers
     UnifiedAssetType.BQ_PROJECT.value: ("Catalog", "hasCatalog"),
     UnifiedAssetType.BQ_DATASET.value: ("Schema", "hasSchema"),
@@ -403,22 +412,24 @@ class SchemaImportManager:
                 continue
 
             if not item.will_create:
-                if item.asset_type == METRIC_VIEW_ASSET_TYPE and item.existing_asset_id:
-                    # Unity Catalog reports a metric view here: convert a legacy View
-                    # asset (no-op when it already is a Metric View). In a savepoint and
+                if item.asset_type in _LEGACY_TYPES and item.existing_asset_id:
+                    legacy_type, rename = _LEGACY_TYPES[item.asset_type]
+                    # Unity Catalog reports e.g. a metric view here: convert a legacy View
+                    # asset (no-op when it already has the new type). In a savepoint and
                     # without committing, so a failure drops only this conversion and the
                     # import goes on; the conversion is committed with the import.
                     try:
                         with db.begin_nested():
                             self._assets.retype_asset(
-                                db, asset_id=item.existing_asset_id, from_type="View",
-                                to_type=METRIC_VIEW_ASSET_TYPE, current_user_id=current_user_id,
-                                commit=False,
+                                db, asset_id=item.existing_asset_id, from_type=legacy_type,
+                                to_type=item.asset_type, current_user_id=current_user_id,
+                                commit=False, rename_relationship=rename,
                             )
                     except Exception:
-                        logger.error("Failed to convert the View asset at %s to a Metric View",
-                                     item.path, exc_info=True)
-                        message = "The existing View asset could not be converted to a Metric View."
+                        logger.error("Failed to convert the %s asset at %s to %s",
+                                     legacy_type, item.path, item.asset_type, exc_info=True)
+                        message = (f"The existing {legacy_type} asset could not be "
+                                   f"converted to a {item.asset_type}.")
                         result.errors += 1
                         result.error_messages.append(f"{item.path}: {message}")
                         result.items.append(ImportResultItem(
@@ -756,18 +767,19 @@ class SchemaImportManager:
                         db, name=metadata.name, asset_type_id=at_db.id,
                         platform=platform, location=path,
                     )
-                if existing is None and ontos_type_name == METRIC_VIEW_ASSET_TYPE:
-                    # A metric view imported as a View before the Metric View type
-                    # existed is reused, and execute_import converts it. Without the
-                    # seeded Metric View type it stays (or is imported as) a View.
-                    view_db = _get_asset_type_db("View")
-                    legacy = view_db and asset_repo.get_by_identity(
-                        db, name=metadata.name, asset_type_id=view_db.id,
+                if existing is None and ontos_type_name in _LEGACY_TYPES:
+                    # A metric view imported as a View (a volume as a System) before
+                    # its own type existed is reused, and execute_import converts it.
+                    # Without the seeded type it stays (or is imported as) the legacy type.
+                    legacy_name = _LEGACY_TYPES[ontos_type_name][0]
+                    legacy_db = _get_asset_type_db(legacy_name)
+                    legacy = legacy_db and asset_repo.get_by_identity(
+                        db, name=metadata.name, asset_type_id=legacy_db.id,
                         platform=platform, location=path,
                     )
                     existing = legacy or None
                     if not at_db:
-                        ontos_type_name = "View"
+                        ontos_type_name = legacy_name
 
                 items.append(ImportPreviewItem(
                     path=path,
@@ -975,6 +987,7 @@ class SchemaImportManager:
             "Table": "hasTable",
             "View": "hasView",
             METRIC_VIEW_ASSET_TYPE: "hasView",
+            VOLUME_ASSET_TYPE: "hasVolume",
             "Column": "hasColumn",
             "Dataset": "hasDataset",
             "ML Model": "hasPart",
@@ -987,6 +1000,7 @@ class SchemaImportManager:
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
 
 # Per-asset-type display labels for the browse tree (drives the
 # `node_type` field on BrowseNode and the icon picked by the frontend).

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from sqlalchemy.orm import Session, object_session
@@ -69,7 +69,7 @@ class AssetsManager(SearchableAsset):
         return read
 
     # Hierarchical relationship types where source = parent, target = child
-    _HIERARCHICAL_RELS = {"hasColumn", "hasTable", "hasView", "hasDataset", "hasPart", "contains"}
+    _HIERARCHICAL_RELS = {"hasColumn", "hasTable", "hasView", "hasDataset", "hasVolume", "hasPart", "contains"}
 
     def _asset_to_summary(self, db_asset: AssetDb) -> AssetSummary:
         summary = AssetSummary.model_validate(db_asset)
@@ -422,8 +422,13 @@ class AssetsManager(SearchableAsset):
     def retype_asset(
         self, db: Session, *, asset_id: UUID, from_type: str, to_type: str,
         current_user_id: str, commit: bool = True,
+        rename_relationship: Optional[Tuple[str, str]] = None,
     ) -> int:
         """Change an asset's type and the type name its entity_relationships rows carry.
+
+        ``rename_relationship=(old, new)`` also renames the relationship type of the links
+        pointing at this asset (it is their target), in asset_relationships and
+        entity_relationships; a link that already exists under the new name is dropped.
 
         entity_relationships stores the asset type name in source_type / target_type, so
         both change together (one commit, with the change-log entry). With
@@ -446,16 +451,35 @@ class AssetsManager(SearchableAsset):
                 db, entity_type=from_type, entity_id=entity_id):
             source_type = to_type if rel.source_id == entity_id else rel.source_type
             target_type = to_type if rel.target_id == entity_id else rel.target_type
+            relationship_type = rel.relationship_type
+            if (rename_relationship and rel.target_id == entity_id
+                    and relationship_type == rename_relationship[0]):
+                relationship_type = rename_relationship[1]
             duplicate = entity_relationship_repo.find_existing(
                 db, source_type=source_type, source_id=rel.source_id,
                 target_type=target_type, target_id=rel.target_id,
-                relationship_type=rel.relationship_type,
+                relationship_type=relationship_type,
             )
-            if duplicate is not None:
+            if duplicate is not None and duplicate is not rel:
                 db.delete(rel)  # the same link already exists under the new type
             else:
                 rel.source_type, rel.target_type = source_type, target_type
+                rel.relationship_type = relationship_type
             rewritten += 1
+        if rename_relationship:
+            old_name, new_name = rename_relationship
+            for link in db.query(AssetRelationshipDb).filter(
+                    AssetRelationshipDb.target_asset_id == db_asset.id,
+                    AssetRelationshipDb.relationship_type == old_name).all():
+                duplicate = db.query(AssetRelationshipDb).filter(
+                    AssetRelationshipDb.source_asset_id == link.source_asset_id,
+                    AssetRelationshipDb.target_asset_id == link.target_asset_id,
+                    AssetRelationshipDb.relationship_type == new_name).first()
+                if duplicate is not None:
+                    db.delete(link)
+                else:
+                    link.relationship_type = new_name
+                rewritten += 1
         db_asset.asset_type_id = new_type.id
         db.flush()
         change_log_manager.log_change_with_details(
