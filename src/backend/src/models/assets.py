@@ -715,6 +715,9 @@ class AssetSummary(BaseModel):
     owner_extra_count: int = 0
     concepts: List[str] = Field(default_factory=list)
     column_count: Optional[int] = None
+    # A Column's type and nullability, from its properties; None for other assets.
+    data_type: Optional[str] = None
+    nullable: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 

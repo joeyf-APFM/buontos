@@ -78,6 +78,8 @@ class AssetsManager(SearchableAsset):
         summary = AssetSummary.model_validate(db_asset)
         if db_asset.asset_type:
             summary.asset_type_name = db_asset.asset_type.name
+        if summary.asset_type_name == "Column":
+            summary.data_type, summary.nullable = self._column_type(db_asset.properties)
         if db_asset.target_relationships:
             for rel in db_asset.target_relationships:
                 if rel.relationship_type in self._HIERARCHICAL_RELS and rel.source_asset:
@@ -85,6 +87,20 @@ class AssetsManager(SearchableAsset):
                     summary.parent_name = rel.source_asset.name
                     break
         return summary
+
+    @staticmethod
+    def _column_type(properties: Optional[Dict[str, Any]]) -> Tuple[Optional[str], Optional[bool]]:
+        """A Column's (data type, nullable) from its properties, either of which may be None.
+
+        The importer writes ``data_type``/``nullable``; data shaped by the ontology carries
+        ``columnDataType``/``isNullable``.
+        """
+        props = properties if isinstance(properties, dict) else {}
+        data_type = next((props[k] for k in ("data_type", "columnDataType", "dataType")
+                          if props.get(k) not in (None, "")), None)
+        nullable = next((props[k] for k in ("nullable", "isNullable")
+                         if isinstance(props.get(k), bool)), None)
+        return (str(data_type) if data_type is not None else None), nullable
 
     # --- JSON Schema validation ---
 

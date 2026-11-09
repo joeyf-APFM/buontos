@@ -102,7 +102,7 @@ def test_root_lists_the_three_branches_and_unsorted_when_present(db_session, gra
     assert [(n.key, n.label, n.kind, n.has_children) for n in nodes] == [
         ("branch:uc", "Unity Catalog", "branch", True),
         ("branch:internal", "Internal", "branch", True),
-        ("branch:external", "External", "branch", True),
+        ("branch:external", "External", "branch", False),
         ("branch:unsorted", "Unsorted", "branch", False),
     ]
     counts = {n.key: n.count for n in nodes}
@@ -121,7 +121,7 @@ def test_root_omits_unsorted_when_empty(db_session, graph):
 def test_uc_children_are_catalogs_not_the_system(db_session, graph):
     nodes = tree_children(db_session, "branch:uc", None)
     assert [(n.key, n.label, n.kind, n.asset_type_name, n.count, n.has_children) for n in nodes] == [
-        (f"asset:{graph.insights}", "insights", "asset", "Catalog", 8, True),
+        (f"asset:{graph.insights}", "insights", "asset", "Catalog", 7, True),
     ]
     assert nodes[0].asset_id == graph.insights
 
@@ -129,7 +129,7 @@ def test_uc_children_are_catalogs_not_the_system(db_session, graph):
 def test_internal_children_are_source_systems(db_session, graph):
     nodes = tree_children(db_session, "branch:internal", None)
     assert [(n.label, n.asset_type_name, n.count, n.has_children) for n in nodes] == [
-        ("Snowflake", "System", 2, True),
+        ("Snowflake", "System", 1, True),
     ]
     assert [n.label for n in tree_children(db_session, f"asset:{graph.snowflake}", None)] == ["SF_DB"]
 
@@ -142,25 +142,40 @@ def test_unsorted_and_leaf_nodes_have_no_children(db_session, graph):
 
 def test_a_catalog_lists_its_schemas_sorted_with_counts(db_session, graph):
     nodes = tree_children(db_session, f"asset:{graph.insights}", None)
+    # What is under each schema, not the schema itself.
     assert [(n.label, n.count, n.has_children) for n in nodes] == [
-        ("catalog_graph", 2, True), ("referrals", 5, True),
+        ("catalog_graph", 1, True), ("referrals", 4, True),
     ]
+
+
+def test_an_empty_schema_counts_zero_and_has_no_children(db_session, graph):
+    schema_type = db_session.query(AssetTypeDb).filter_by(name="Schema").one()
+    empty = AssetDb(id=uuid.uuid4(), name="empty", asset_type_id=schema_type.id, status="active",
+                    data_branch="uc", location="Schema:empty")
+    db_session.add(empty)
+    db_session.flush()
+    _entity_link(db_session, "Catalog", graph.insights, "Schema", empty.id, "hasSchema")
+    db_session.flush()
+
+    nodes = {n.label: n for n in tree_children(db_session, f"asset:{graph.insights}", None)}
+    assert (nodes["empty"].count, nodes["empty"].has_children) == (0, False)
+    assert tree_children(db_session, f"asset:{empty.id}", None) == []
 
 
 def test_a_schema_lists_its_tables_views_and_volumes_by_name(db_session, graph):
     nodes = tree_children(db_session, f"asset:{graph.referrals}", None)
     assert [(n.key, n.label, n.kind, n.asset_type_name, n.count, n.has_children) for n in nodes] == [
-        (f"asset:{graph.lead_view}", "lead_view", "asset", "View", 1, False),
-        (f"asset:{graph.leads}", "leads", "asset", "Table", 2, True),
-        (f"asset:{graph.moves}", "moves", "asset", "Table", 1, False),
-        (f"asset:{graph.raw_files}", "raw_files", "asset", "Volume", 1, False),
+        (f"asset:{graph.lead_view}", "lead_view", "asset", "View", 0, False),
+        (f"asset:{graph.leads}", "leads", "asset", "Table", 1, True),
+        (f"asset:{graph.moves}", "moves", "asset", "Table", 0, False),
+        (f"asset:{graph.raw_files}", "raw_files", "asset", "Volume", 0, False),
     ]
 
 
 def test_a_table_lists_its_columns_as_leaves(db_session, graph):
     nodes = tree_children(db_session, f"asset:{graph.leads}", None)
     assert [(n.key, n.label, n.kind, n.asset_type_name, n.count, n.has_children) for n in nodes] == [
-        (f"asset:{graph.lead_id}", "lead_id", "asset", "Column", 1, False),
+        (f"asset:{graph.lead_id}", "lead_id", "asset", "Column", 0, False),
     ]
 
 
@@ -177,7 +192,7 @@ def test_a_view_lists_its_columns_sorted_by_name(db_session, graph):
 
     assert [n.label for n in tree_children(db_session, f"asset:{graph.lead_view}", None)] == ["amount", "Zip"]
     schema = {n.label: n for n in tree_children(db_session, f"asset:{graph.referrals}", None)}
-    assert (schema["lead_view"].count, schema["lead_view"].has_children) == (3, True)
+    assert (schema["lead_view"].count, schema["lead_view"].has_children) == (2, True)
 
 
 def test_node_scope_is_the_node_and_everything_under_it_with_columns_only_under_tables(db_session, graph):
@@ -214,14 +229,17 @@ def test_scoped_user_sees_only_nodes_with_readable_assets(db_session, graph):
     root = {n.key: n.count for n in tree_children(db_session, None, only)}
     assert root["branch:uc"] == 1
     assert root["branch:internal"] == 0
+    assert {n.key: n.has_children for n in tree_children(db_session, None, only)} == {
+        "branch:uc": True, "branch:internal": False, "branch:external": False,
+    }
 
     uc = tree_children(db_session, "branch:uc", only)
     assert [(n.label, n.count, n.has_children) for n in uc] == [("insights", 1, True)]
     catalog = tree_children(db_session, f"asset:{graph.insights}", only)
     assert [(n.label, n.count, n.has_children) for n in catalog] == [("referrals", 1, True)]
     schema = tree_children(db_session, f"asset:{graph.referrals}", only)
-    # leads' column isn't readable, so leads has no children.
-    assert [(n.label, n.count, n.has_children) for n in schema] == [("leads", 1, False)]
+    # leads' column isn't readable: leads is listed (it is readable) but counts 0, no children.
+    assert [(n.label, n.count, n.has_children) for n in schema] == [("leads", 0, False)]
     assert tree_children(db_session, "branch:internal", only) == []
 
 
@@ -230,21 +248,24 @@ def test_a_scoped_user_sees_a_table_through_a_readable_column(db_session, graph)
     schema = tree_children(db_session, f"asset:{graph.referrals}", only)
     assert [(n.label, n.count, n.has_children) for n in schema] == [("leads", 1, True)]
     table = tree_children(db_session, f"asset:{graph.leads}", only)
-    assert [(n.label, n.count) for n in table] == [("lead_id", 1)]
+    assert [(n.label, n.count) for n in table] == [("lead_id", 0)]
 
 
-def test_each_asset_count_is_the_size_of_its_scope(db_session, graph):
+def test_each_asset_count_is_its_scope_without_the_node(db_session, graph):
     for parent in ("branch:uc", f"asset:{graph.insights}", f"asset:{graph.referrals}", f"asset:{graph.leads}"):
         for node in tree_children(db_session, parent, None):
-            assert node.count == len(_scope_ids(db_session, node.key)), node.label
+            scope = _scope_ids(db_session, node.key)
+            assert node.asset_id in scope
+            assert node.count == len(scope) - 1, node.label
 
 
 def test_a_scoped_catalog_without_readable_grandchildren_has_no_children(db_session, graph):
-    # The schema is readable but nothing under it is: the catalog's only listed child is the
-    # schema, and the schema has no listed groups.
+    # The schema is readable but nothing under it is: it still shows, counting 0, and the
+    # catalog (not readable, one readable asset under it) counts 1.
     only = [graph.catalog_graph]
     catalog = tree_children(db_session, f"asset:{graph.insights}", only)
-    assert [(n.label, n.count, n.has_children) for n in catalog] == [("catalog_graph", 1, False)]
+    assert [(n.label, n.count, n.has_children) for n in catalog] == [("catalog_graph", 0, False)]
+    assert [(n.label, n.count) for n in tree_children(db_session, "branch:uc", only)] == [("insights", 1)]
 
 
 def test_the_hierarchy_comes_from_entity_relationships(db_session, graph):
@@ -253,13 +274,13 @@ def test_the_hierarchy_comes_from_entity_relationships(db_session, graph):
     db_session.flush()
 
     assert [(n.label, n.count, n.has_children) for n in tree_children(db_session, "branch:uc", None)] == [
-        ("insights", 8, True),
+        ("insights", 7, True),
     ]
     assert [(n.label, n.count) for n in tree_children(db_session, f"asset:{graph.insights}", None)] == [
-        ("catalog_graph", 2), ("referrals", 5),
+        ("catalog_graph", 1), ("referrals", 4),
     ]
     assert [(n.label, n.count) for n in tree_children(db_session, f"asset:{graph.referrals}", None)] == [
-        ("lead_view", 1), ("leads", 2), ("moves", 1), ("raw_files", 1),
+        ("lead_view", 0), ("leads", 1), ("moves", 0), ("raw_files", 0),
     ]
     assert [n.label for n in tree_children(db_session, f"asset:{graph.leads}", None)] == ["lead_id"]
     assert _scope_ids(db_session, f"group:{graph.referrals}:Table") == {graph.leads, graph.moves}
@@ -317,8 +338,8 @@ def test_cycle_in_hierarchy_terminates(db_session, graph):
         graph.insights, graph.referrals, graph.catalog_graph, graph.leads, graph.moves,
         graph.lead_view, graph.raw_files, graph.nodes,
     }
-    # catalog_graph still holds only itself and nodes; referrals now reaches the whole catalog.
-    assert [n.count for n in tree_children(db_session, f"asset:{graph.insights}", None)] == [2, 8]
+    # catalog_graph still holds only nodes; referrals now reaches the whole catalog, not itself twice.
+    assert [n.count for n in tree_children(db_session, f"asset:{graph.insights}", None)] == [1, 7]
 
 
 def test_category_children_are_types(db_session, graph):

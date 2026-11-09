@@ -9,7 +9,7 @@ that is where an import's Catalog -> Schema -> Table/View -> Column links are ke
 What a node lists as children depends on its type: a Schema its tables, views, metric views and
 volumes; a table-like asset its columns; a Column or Volume nothing; anything else (System,
 Catalog) its child containers. Columns are in a node's scope only under a table-like asset or a
-Column itself, and each asset node's count is the size of its scope.
+Column itself. An asset node's count is what is under it: its scope without the node itself.
 """
 
 from dataclasses import dataclass
@@ -260,7 +260,7 @@ def _root_children(db, restrict_to_ids) -> List[AssetTreeNode]:
             counts[UNSORTED] += count
     return [
         AssetTreeNode(key=f"branch:{b}", label=BRANCH_LABELS[b], kind="branch",
-                      count=counts[b], has_children=b != UNSORTED)
+                      count=counts[b], has_children=b != UNSORTED and counts[b] > 0)
         for b in BRANCHES + (UNSORTED,)
         if b != UNSORTED or counts[b] > 0
     ]
@@ -302,8 +302,9 @@ def _asset_children(db, asset_id: UUID, restrict_to_ids) -> List[AssetTreeNode]:
 def _asset_nodes(db, rows, restrict_to_ids) -> List[AssetTreeNode]:
     """Asset nodes for (id, name, type name) rows, counted with one grouped query over their subtrees.
 
-    A node's count is the readable assets in its scope; it has children if a child it lists
-    would itself be listed, i.e. has a readable asset in the child's scope.
+    A node's count is the readable assets in its scope other than the node itself. Under
+    ``restrict_to_ids`` a node is listed if it is readable or counts more than 0; so it has
+    children if a child it lists has a readable asset in the child's scope, the child included.
     """
     if not rows:
         return []
@@ -312,7 +313,7 @@ def _asset_nodes(db, rows, restrict_to_ids) -> List[AssetTreeNode]:
     member, member_type = aliased(AssetDb), aliased(AssetTypeDb)
     via, via_type = aliased(AssetDb), aliased(AssetTypeDb)
     readable = _readable(member.id, restrict_to_ids)
-    counted = and_(_in_scope_of(root_type.name, member_type.name), readable)
+    counted = and_(tree.c.id != tree.c.root, _in_scope_of(root_type.name, member_type.name), readable)
     lists_child = and_(
         tree.c.depth >= 1,
         _lists(root_type.name, via_type.name),
@@ -337,10 +338,11 @@ def _asset_nodes(db, rows, restrict_to_ids) -> List[AssetTreeNode]:
             .group_by(tree.c.root)
         ).all()
     }
+    readable_ids = None if restrict_to_ids is None else set(restrict_to_ids)
     nodes = []
     for asset_id, name, type_name in rows:
         count, has_children = stats.get(asset_id, (0, False))
-        if restrict_to_ids is not None and count == 0:
+        if readable_ids is not None and count == 0 and asset_id not in readable_ids:
             continue
         nodes.append(AssetTreeNode(
             key=f"asset:{asset_id}", label=name, kind="asset", asset_id=asset_id,

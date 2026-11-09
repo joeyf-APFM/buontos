@@ -83,6 +83,36 @@ def test_column_count_from_schema_properties(world):
     assert items["beta"].column_count is None
 
 
+def _column(world, name, properties):
+    column_type = world.db.query(AssetTypeDb).filter_by(name="Column").first()
+    if column_type is None:
+        column_type = AssetTypeDb(name="Column", category="data")
+        world.db.add(column_type)
+        world.db.flush()
+    world.db.add(AssetDb(id=uuid.uuid4(), name=name, asset_type_id=column_type.id, status="active",
+                         properties=properties))
+    world.db.flush()
+
+
+def test_a_column_summary_carries_its_data_type_and_nullability(world):
+    # The importer's keys, and the ontology's keys that imported data carries.
+    _column(world, "imported", {"data_type": "STRING", "nullable": False})
+    _column(world, "ontology", {"columnDataType": "boolean", "isNullable": True})
+    _column(world, "bare", {"source_path": "main.raw.orders.bare"})
+    items = world.page()
+    assert (items["imported"].data_type, items["imported"].nullable) == ("STRING", False)
+    assert (items["ontology"].data_type, items["ontology"].nullable) == ("boolean", True)
+    assert (items["bare"].data_type, items["bare"].nullable) == (None, None)
+
+
+def test_a_table_summary_has_no_column_fields(world):
+    world.assets["beta"].properties = {"data_type": "STRING", "nullable": True}
+    world.db.flush()
+    items = world.page()
+    assert (items["alpha"].data_type, items["alpha"].nullable) == (None, None)
+    assert (items["beta"].data_type, items["beta"].nullable) == (None, None)
+
+
 def test_concept_iri_filters_list_and_total(world):
     world.link(world.assets["alpha"], CUSTOMER, "Customer")
     world.link(world.assets["gamma"], CUSTOMER, "Customer")
