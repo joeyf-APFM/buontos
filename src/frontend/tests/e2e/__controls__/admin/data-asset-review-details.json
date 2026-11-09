@@ -1,0 +1,23 @@
+[
+  "button \"Asset FQN\"",
+  "button \"Back to Reviews\"",
+  "button \"Columns\"",
+  "button \"Copy ID\"",
+  "button \"Edit title\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Last Reviewed\"",
+  "button \"Review\"",
+  "button \"Review\"",
+  "button \"Status\"",
+  "button \"Type\"",
+  "checkbox \"Select all\"",
+  "checkbox \"Select row\"",
+  "checkbox \"Select row\"",
+  "combobox \"\"",
+  "combobox \"Overall Status:\"",
+  "link \"\"",
+  "link \"Data Asset Reviews\""
+]

@@ -1,0 +1,6 @@
+[
+  "button \"Add Namespace\"",
+  "combobox \"Active Namespace:\"",
+  "combobox \"Display Format:\"",
+  "link \"\""
+]

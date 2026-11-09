@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Screenshot checks against a throwaway Vite dev server on port 3100. Every
+// Screenshot checks against a throwaway Vite dev server on port 3200. Every
 // /api call is answered by route fixtures (see fixtures/api.ts), and the dev
 // proxy points at a closed port, so nothing reaches a real backend.
 // Run: npx playwright test -c tests/e2e/playwright.config.ts
-const PORT = 3100;
+const PORT = 3200;
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -35,7 +35,21 @@ export default defineConfig({
     },
   },
   // The installed Google Chrome, so the check needs no browser download
-  projects: [{ name: 'chrome', use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1800, height: 2400 } } }],
+  projects: [
+    {
+      name: 'chrome',
+      testIgnore: /restyle-check\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1800, height: 2400 } },
+    },
+    {
+      // The restyle check (restyle-check.spec.ts): one screenshot of <main> per
+      // page and persona, at a laptop size
+      name: 'restyle',
+      testMatch: /restyle-check\.spec\.ts/,
+      snapshotPathTemplate: '{testDir}/__screenshots__/restyle/{arg}{ext}',
+      use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1280, height: 800 } },
+    },
+  ],
   webServer: {
     command: `npx vite --port ${PORT} --strictPort`,
     port: PORT,

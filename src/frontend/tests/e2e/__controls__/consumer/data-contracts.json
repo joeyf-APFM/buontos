@@ -1,0 +1,17 @@
+[
+  "button \"Columns\"",
+  "button \"Created\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Name\"",
+  "button \"Owner\"",
+  "button \"Status\"",
+  "button \"Updated\"",
+  "button \"Version\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"\"",
+  "switch \"Show all versions\""
+]

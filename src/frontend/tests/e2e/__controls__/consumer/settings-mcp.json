@@ -1,0 +1,6 @@
+[
+  "button \"Create Token\"",
+  "button \"Refresh\"",
+  "checkbox \"Show revoked tokens\"",
+  "link \"\""
+]

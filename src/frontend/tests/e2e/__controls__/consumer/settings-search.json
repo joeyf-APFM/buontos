@@ -1,0 +1,14 @@
+[
+  "button \"Rebuild Search Index\"",
+  "button \"Save Configuration\"",
+  "combobox \"\"",
+  "combobox \"\"",
+  "combobox \"\"",
+  "link \"\"",
+  "switch \"Indexed\"",
+  "switch \"Indexed\"",
+  "switch \"Indexed\"",
+  "tab \"Asset Types\"",
+  "tab \"Default Fields\"",
+  "tab \"Ranking\""
+]

@@ -1,0 +1,21 @@
+[
+  "button \"Columns\"",
+  "button \"Concepts\"",
+  "button \"Create Scheme\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Name\"",
+  "button \"Scope\"",
+  "button \"Small View\"",
+  "button \"Type\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"\"",
+  "link \"Concept Browser\"",
+  "link \"Schemes\"",
+  "tab \"Define\"",
+  "tab \"Enrich\"",
+  "tab \"Explore\""
+]

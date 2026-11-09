@@ -1,0 +1,13 @@
+[
+  "button \"Generate Ontology (0 selected)\"",
+  "button \"Small View\"",
+  "link \"\"",
+  "link \"Concepts\"",
+  "link \"Define\"",
+  "switch \"Data properties\"",
+  "switch \"Inheritance\"",
+  "switch \"Relationships\"",
+  "tab \"Define\"",
+  "tab \"Enrich\"",
+  "tab \"Explore\""
+]

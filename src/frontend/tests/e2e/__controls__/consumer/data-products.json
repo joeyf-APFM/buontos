@@ -1,0 +1,23 @@
+[
+  "button \"Columns\"",
+  "button \"Create Product\"",
+  "button \"Created\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Graph View\"",
+  "button \"My Subscriptions\"",
+  "button \"Owner\"",
+  "button \"Status\"",
+  "button \"Table View\"",
+  "button \"Title\"",
+  "button \"Type\"",
+  "button \"Updated\"",
+  "button \"Upload File\"",
+  "button \"Version\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"\"",
+  "switch \"Show all versions\""
+]

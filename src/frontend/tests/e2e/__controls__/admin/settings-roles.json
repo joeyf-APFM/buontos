@@ -1,0 +1,13 @@
+[
+  "button \"Add Role\"",
+  "button \"Columns\"",
+  "button \"Description\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Name\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"\""
+]

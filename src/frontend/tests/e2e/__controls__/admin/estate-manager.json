@@ -1,0 +1,13 @@
+[
+  "button \"Add Estate\"",
+  "button \"Columns\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Graph View\"",
+  "button \"Table View\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"\""
+]
