@@ -1,0 +1,62 @@
+{
+  "noAccess": "You don’t have access to assets.",
+  "tree": {
+    "label": "Asset tree",
+    "loadError": "Couldn’t load this part of the tree.",
+    "sections": {
+      "data": "Data Assets",
+      "analytics": "Analytics",
+      "integration": "Integration",
+      "system": "System",
+      "custom": "Custom"
+    }
+  },
+  "breadcrumb": "Breadcrumb",
+  "newAsset": "New asset",
+  "chooseType": "Asset type",
+  "filter": {
+    "label": "Filter assets",
+    "placeholder": "Filter assets…",
+    "type": "Type",
+    "allTypes": "Type: All",
+    "status": "Status",
+    "allStatuses": "Status: All",
+    "concept": "Concept",
+    "allConcepts": "Concept: All"
+  },
+  "count_one": "{{count}} asset",
+  "count_other": "{{count}} assets",
+  "conceptOnPage": "Concept filter applies to this page only",
+  "status": {
+    "active": "active",
+    "draft": "draft",
+    "deprecated": "deprecated",
+    "retired": "retired",
+    "archived": "archived"
+  },
+  "columns": {
+    "name": "Name",
+    "type": "Type",
+    "owner": "Owner",
+    "status": "Status",
+    "concepts": "Concepts",
+    "updated": "Updated"
+  },
+  "empty": "Nothing here yet",
+  "loadError": "Couldn’t load the assets: {{message}}",
+  "retry": "Retry",
+  "details": {
+    "close": "Close details",
+    "type": "Type",
+    "fullName": "Full name",
+    "owner": "Owner",
+    "status": "Status",
+    "columns": "Columns",
+    "concepts": "Concepts",
+    "domain": "Domain",
+    "updated": "Updated",
+    "description": "Description",
+    "noDescription": "No description.",
+    "openFullPage": "Open full page"
+  }
+}

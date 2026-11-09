@@ -60,7 +60,7 @@ import Workflows from './views/workflows';
 import MarketplaceView from './components/home/marketplace-view';
 
 // New views added in this branch
-import AssetExplorerView from './views/asset-explorer';
+import ExplorerPage from './mantine/asset-explorer/explorer-page';
 import AssetDetailView from './views/asset-detail';
 import AssetTypesView from './views/asset-types';
 import BusinessRolesView from './views/business-roles';
@@ -193,7 +193,7 @@ export default function App() {
               <Route path="/projects" element={<Navigate to="/settings/projects" replace />} />
 
               {/* Governance */}
-              <Route path="/assets" element={<AssetExplorerView />} />
+              <Route path="/assets" element={<ExplorerPage />} />
               <Route path="/assets/:assetId" element={<AssetDetailView />} />
               <Route path="/asset-types" element={<Navigate to="/settings/asset-types" replace />} />
               <Route path="/business-roles" element={<Navigate to="/settings/business-roles" replace />} />

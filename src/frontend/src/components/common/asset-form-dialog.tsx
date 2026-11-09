@@ -18,7 +18,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import DomainMultiSelector from '@/components/ui/domain-multi-selector';
-import { AssetRead, AssetCreate, AssetUpdate } from '@/types/asset';
+import { AssetRead, AssetCreate, AssetUpdate, DataBranch } from '@/types/asset';
 import { EntityFieldDefinition, EntityTypeSchema } from '@/types/ontology-schema';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/hooks/use-api';
@@ -35,6 +35,8 @@ interface AssetFormDialogProps {
   assetTypeIri?: string | null;
   /** Existing asset for edit mode */
   asset?: AssetRead | null;
+  /** Data branch a new asset starts with (create mode only) */
+  defaultDataBranch?: DataBranch | null;
 }
 
 const GROUP_LABEL_KEYS: Record<string, string> = {
@@ -80,7 +82,7 @@ const SYSTEM_FIELDS = new Set([
 
 export function AssetFormDialog({
   isOpen, onOpenChange, onSuccess,
-  assetTypeId, assetTypeName, assetTypeIri, asset,
+  assetTypeId, assetTypeName, assetTypeIri, asset, defaultDataBranch,
 }: AssetFormDialogProps) {
   const [schema, setSchema] = useState<EntityTypeSchema | null>(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
@@ -146,7 +148,7 @@ export function AssetFormDialog({
       defaults.status = 'draft';
       defaults.platform = '';
       defaults.location = '';
-      defaults.data_branch = NO_BRANCH;
+      defaults.data_branch = defaultDataBranch || NO_BRANCH;
       defaults.domain_ids = [];
       defaults.primary_domain_id = null;
       if (schema?.fields) {
@@ -157,7 +159,7 @@ export function AssetFormDialog({
       }
     }
     form.reset(defaults);
-  }, [isOpen, schema, isEdit, asset]);
+  }, [isOpen, schema, isEdit, asset, defaultDataBranch]);
 
   const groupedFields = useMemo(() => {
     if (!schema?.fields) return [];
