@@ -25,6 +25,7 @@ user_api_scopes:
   - "serving.serving-endpoints"
   - "files.files"
   - "dashboards.genie"
+  - "genie"
   - "catalog.connections"
   - "catalog.catalogs:read"
   - "catalog.schemas:read"
