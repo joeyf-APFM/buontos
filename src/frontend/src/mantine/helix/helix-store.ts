@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import i18n from '@/i18n/config';
+import { useCopilotStore } from '@/stores/copilot-store';
 import { askHelix, type HelixAskBody } from './helix-stream';
 
 export interface HelixResult {
@@ -96,7 +97,11 @@ export const useHelixStore = create<HelixState>()((set, get) => {
   return {
     ...HELIX_DEFAULTS,
     actions: {
-      open: () => set({ isOpen: true }),
+      open: () => {
+        // One right-hand panel at a time: Helix replaces Ask Ontos
+        if (useCopilotStore.getState().isOpen) useCopilotStore.getState().actions.closePanel();
+        set({ isOpen: true });
+      },
       close: () => set({ isOpen: false }),
       setContext: (context) => set({ context }),
       clearContext: () => set({ context: null }),
@@ -161,4 +166,9 @@ export const useHelixStore = create<HelixState>()((set, get) => {
       },
     },
   };
+});
+
+// ...and Ask Ontos replaces Helix
+useCopilotStore.subscribe((state, prev) => {
+  if (state.isOpen && !prev.isOpen) useHelixStore.setState({ isOpen: false });
 });

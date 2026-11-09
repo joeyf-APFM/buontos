@@ -7,6 +7,7 @@ Tokens, headers and the shared secret are never logged.
 """
 
 import json
+import os
 from typing import Annotated, Dict, Optional, Tuple
 
 from databricks.sdk import WorkspaceClient
@@ -27,6 +28,7 @@ NO_USER_TOKEN = "Helix needs your Databricks sign-in."
 SHARED_UNCONFIGURED = "Helix's shared identity isn't configured."
 NO_HOST = "Helix has no Databricks workspace configured."
 SIGN_IN_FAILED = "Helix couldn't sign in to Databricks."
+SHARED_IS_APP = "Helix's shared identity must not be the app's own."
 
 router = APIRouter(prefix="/api", tags=["Helix"])
 
@@ -36,7 +38,7 @@ _SHARED_CLIENTS: Dict[str, WorkspaceClient] = {}
 
 class HelixAskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=4000)
-    context: Optional[str] = None
+    context: Optional[str] = Field(None, max_length=2000)
     conversation_id: Optional[str] = Field(None, pattern=r"^[A-Za-z0-9_-]{1,64}$")
 
 
@@ -61,17 +63,24 @@ def _shared_client(settings: Settings) -> WorkspaceClient:
     secret = settings.HELIX_SHARED_CLIENT_SECRET
     if not client_id or not secret:
         raise HTTPException(status_code=503, detail=SHARED_UNCONFIGURED)
+    if client_id == os.environ.get("DATABRICKS_CLIENT_ID"):
+        # Never the app's own service principal (it holds the app's broad grants).
+        raise HTTPException(status_code=503, detail=SHARED_IS_APP)
     if not settings.DATABRICKS_HOST:
         raise HTTPException(status_code=503, detail=NO_HOST)
     client = _SHARED_CLIENTS.get(client_id)
     if client is None:
-        # auth_type pins M2M OAuth so no other credential in the environment is used.
-        client = WorkspaceClient(
-            host=settings.DATABRICKS_HOST,
-            client_id=client_id,
-            client_secret=secret,
-            auth_type="oauth-m2m",
-        )
+        try:
+            # auth_type pins M2M OAuth so no other credential in the environment is used.
+            client = WorkspaceClient(
+                host=settings.DATABRICKS_HOST,
+                client_id=client_id,
+                client_secret=secret,
+                auth_type="oauth-m2m",
+            )
+        except Exception as e:
+            logger.warning("Helix shared client setup failed (%s)", type(e).__name__)
+            raise HTTPException(status_code=503, detail=SIGN_IN_FAILED) from None
         _SHARED_CLIENTS[client_id] = client
     return client
 

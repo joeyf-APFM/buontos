@@ -172,6 +172,36 @@ def test_shared_mode_unconfigured_is_503(api, settings, genie):
     assert genie.calls == []
 
 
+def test_shared_mode_refuses_the_apps_own_principal(api, settings, genie, monkeypatch):
+    settings.HELIX_IDENTITY_MODE = "shared"
+    settings.HELIX_SHARED_CLIENT_ID = "app-sp"
+    settings.HELIX_SHARED_CLIENT_SECRET = "app-secret"
+    monkeypatch.setenv("DATABRICKS_CLIENT_ID", "app-sp")
+    # The api fixture's WorkspaceClient raises AssertionError if a client is built.
+    resp = ask(api)
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "Helix's shared identity must not be the app's own."
+    assert helix_routes._SHARED_CLIENTS == {}
+    assert genie.calls == []
+
+
+def test_shared_client_build_failure_is_a_clean_503(api, settings, genie, monkeypatch, caplog):
+    settings.HELIX_IDENTITY_MODE = "shared"
+    settings.HELIX_SHARED_CLIENT_ID = "helix-sp"
+    settings.HELIX_SHARED_CLIENT_SECRET = "helix-secret"
+
+    def _bad_config(**kwargs):
+        raise ValueError("bad config helix-secret")
+
+    monkeypatch.setattr(helix_routes, "WorkspaceClient", _bad_config)
+    resp = ask(api)
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "Helix couldn't sign in to Databricks."
+    assert "helix-secret" not in resp.text and "helix-secret" not in caplog.text
+    assert helix_routes._SHARED_CLIENTS == {}
+    assert genie.calls == []
+
+
 def test_local_env_uses_the_developer_profile(api, settings, genie, monkeypatch):
     settings.ENV = "LOCAL"
     dev = SimpleNamespace(config=SimpleNamespace(
@@ -186,7 +216,7 @@ def test_local_env_uses_the_developer_profile(api, settings, genie, monkeypatch)
 
 
 def test_context_is_capped_and_plain(api, genie):
-    context = ("Table insights.referrals.leads\n\twith columns\r\n" * 100)
+    context = ("Table insights.referrals.leads\n\twith columns\r\n" * 40)  # under the 2000 limit
     assert ask(api, context=context).status_code == 200
     content = genie.calls[0]["body"]["input"][0]["content"]
     prefix = "The user is looking at: "
@@ -194,6 +224,12 @@ def test_context_is_capped_and_plain(api, genie):
     sent_context = content[len(prefix):-len(f"\n\n{QUESTION}")]
     assert 0 < len(sent_context) <= CONTEXT_MAX_CHARS
     assert "\n" not in sent_context and "\r" not in sent_context and "\t" not in sent_context
+
+
+def test_context_over_2000_characters_is_422(api, genie):
+    assert ask(api, context="x" * 2001).status_code == 422
+    assert ask(api, context="x" * 2000).status_code == 200
+    assert len(genie.calls) == 1
 
 
 @pytest.mark.parametrize("bad", ["../etc", "has space", "x" * 65, ""])

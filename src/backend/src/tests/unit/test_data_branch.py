@@ -8,6 +8,7 @@ import os
 os.environ['TESTING'] = 'true'
 os.environ['SKIP_STARTUP_TASKS'] = 'true'
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -32,6 +33,11 @@ from src.models.schema_import import ImportDepth, ImportRequest
 TTL = Path(__file__).resolve().parents[2] / "data" / "taxonomies" / "ontos-ontology.ttl"
 BACKEND = Path(__file__).resolve().parents[3]
 TABLE = "main.raw.orders"
+# Placeholders only: offline mode renders SQL and never connects.
+OFFLINE_ENV = {"ENV": "LOCAL", "PGHOST": "localhost", "PGDATABASE": "offline",
+               "PGUSER": "offline", "PGPASSWORD": "offline",
+               "DATABRICKS_HOST": "https://offline.invalid",
+               "DATABRICKS_WAREHOUSE_ID": "offline", "APP_AUDIT_LOG_DIR": "/tmp/offline-audit"}
 
 
 @pytest.fixture(scope="module")
@@ -164,12 +170,53 @@ def test_the_migration_adds_both_columns():
     out = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "c5_merge_cv2_b8:d1_data_branch", "--sql"],
         cwd=BACKEND, capture_output=True, text=True, check=True,
-        # Placeholders only: offline mode renders SQL and never connects.
-        env={**os.environ, "ENV": "LOCAL", "PGHOST": "localhost", "PGDATABASE": "offline",
-             "PGUSER": "offline", "PGPASSWORD": "offline", "DATABRICKS_HOST": "https://offline.invalid",
-             "DATABRICKS_WAREHOUSE_ID": "offline", "APP_AUDIT_LOG_DIR": "/tmp/offline-audit"},
+        env={**os.environ, **OFFLINE_ENV},
     )
     sql = out.stdout + out.stderr
     assert "ALTER TABLE assets ADD COLUMN data_branch" in sql
     assert "ALTER TABLE connections ADD COLUMN data_branch" in sql
     assert "CREATE INDEX ix_assets_data_branch ON assets (data_branch)" in sql
+
+
+def _backfill_migration():
+    path = BACKEND / "alembic" / "versions" / "d2_backfill_uc_data_branch.py"
+    spec = importlib.util.spec_from_file_location("d2_backfill_uc_data_branch", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_backfill_migration_marks_databricks_assets_uc_except_the_system():
+    out = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "d1_data_branch:d2_backfill_uc_branch", "--sql"],
+        cwd=BACKEND, capture_output=True, text=True, check=True,
+        env={**os.environ, **OFFLINE_ENV},
+    )
+    sql = " ".join((out.stdout + out.stderr).split())
+    assert "UPDATE assets SET data_branch = 'uc'" in sql
+    assert "platform = 'databricks'" in sql
+    assert "data_branch IS NULL" in sql
+    assert "asset_types.name = 'System'" in sql
+
+
+def test_the_backfill_updates_only_unmarked_databricks_non_system_assets(db_session, asset_types):
+    def asset(name, type_name, platform, branch=None):
+        row = AssetDb(name=name, asset_type_id=asset_types[type_name].id, platform=platform,
+                      location=name, data_branch=branch)
+        db_session.add(row)
+        return row
+
+    table = asset("main.raw.orders", "Table", "databricks")
+    system = asset("databricks", "System", "databricks")
+    snowflake = asset("sf.raw.orders", "Table", "snowflake")
+    external = asset("main.raw.feed", "Table", "databricks", branch="external")
+    db_session.flush()
+
+    from sqlalchemy import text
+    db_session.execute(text(_backfill_migration().BACKFILL_UC_BRANCH_SQL))
+    db_session.expire_all()
+
+    assert db_session.get(AssetDb, table.id).data_branch == "uc"
+    assert db_session.get(AssetDb, system.id).data_branch is None
+    assert db_session.get(AssetDb, snowflake.id).data_branch is None
+    assert db_session.get(AssetDb, external.id).data_branch == "external"

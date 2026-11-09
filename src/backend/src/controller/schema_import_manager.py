@@ -1040,8 +1040,8 @@ class SchemaImportManager:
 #
 # Distinct from `_TYPE_MAP` on purpose: `_TYPE_MAP` collapses source-system
 # concepts to a smaller Ontos asset-type vocabulary used at *import* time
-# (e.g. UC_FUNCTION/UC_VOLUME -> "System"), but at *browse* time we want
-# to preserve the source label so users can tell a function from a volume.
+# (e.g. UC_FUNCTION -> "System"), but at *browse* time we want to
+# preserve the source label so users can tell a function from a system.
 _DISPLAY_TYPE_MAP: Dict[str, str] = {
     # Databricks / Unity Catalog
     UnifiedAssetType.UC_CATALOG.value: "catalog",
