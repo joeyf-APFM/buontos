@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 import json
 import re
 
@@ -190,6 +190,17 @@ class Settings(BaseSettings):
         LLM_INJECTION_CHECK_PROMPT_SECURE_DEFAULT,
         env='LLM_INJECTION_CHECK_PROMPT'
     )
+
+    # Ask Helix (Databricks Genie One answers in the app).
+    # HELIX_IDENTITY_MODE "user": Helix answers as the asking user (their
+    # x-forwarded-access-token); without it the request is refused, never
+    # answered as the app. "shared": Helix answers as the dedicated service
+    # principal below, never the app's own. ENV=LOCAL* uses the developer's profile.
+    HELIX_ENABLED: bool = Field(False, env='HELIX_ENABLED')
+    HELIX_IDENTITY_MODE: Literal["user", "shared"] = Field("user", env='HELIX_IDENTITY_MODE')
+    HELIX_SHARED_CLIENT_ID: Optional[str] = Field(None, env='HELIX_SHARED_CLIENT_ID')
+    # repr=False keeps the secret out of logged settings dumps.
+    HELIX_SHARED_CLIENT_SECRET: Optional[str] = Field(None, env='HELIX_SHARED_CLIENT_SECRET', repr=False)
 
     # Sandbox allowlist settings
     sandbox_default_schema: str = Field('sandbox', validation_alias=AliasChoices('SANDBOX_DEFAULT_SCHEMA', 'sandbox_default_schema'))

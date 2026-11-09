@@ -317,6 +317,10 @@ class SettingsManager:
             if 'LLM_ENABLED' in all_settings and all_settings['LLM_ENABLED'] is not None:
                 self._settings.LLM_ENABLED = all_settings['LLM_ENABLED'].lower() == 'true'
                 logger.debug(f"Loaded LLM_ENABLED from database: {self._settings.LLM_ENABLED}")
+
+            if 'HELIX_ENABLED' in all_settings and all_settings['HELIX_ENABLED'] is not None:
+                self._settings.HELIX_ENABLED = all_settings['HELIX_ENABLED'].lower() == 'true'
+                logger.debug(f"Loaded HELIX_ENABLED from database: {self._settings.HELIX_ENABLED}")
             
             if 'LLM_ENDPOINT' in all_settings and all_settings['LLM_ENDPOINT'] is not None:
                 self._settings.LLM_ENDPOINT = all_settings['LLM_ENDPOINT']
@@ -1353,6 +1357,8 @@ class SettingsManager:
             'llm_endpoint': self._settings.LLM_ENDPOINT,
             'llm_system_prompt': self._settings.LLM_SYSTEM_PROMPT,
             'llm_disclaimer_text': self._settings.LLM_DISCLAIMER_TEXT,
+            # Ask Helix
+            'helix_enabled': self._settings.HELIX_ENABLED,
             # Tag display settings
             'tag_display_format': tag_display_format,
             # Background job enablement requests
@@ -1634,6 +1640,12 @@ class SettingsManager:
             app_settings_repo.set(self._db, 'LLM_ENABLED', str(value).lower() if value is not None else None)
             self._settings.LLM_ENABLED = bool(value) if value is not None else self._settings.LLM_ENABLED
             logger.info(f"Updated LLM_ENABLED to: {value}")
+
+        if 'helix_enabled' in settings:
+            value = settings.get('helix_enabled')
+            app_settings_repo.set(self._db, 'HELIX_ENABLED', str(value).lower() if value is not None else None)
+            self._settings.HELIX_ENABLED = bool(value) if value is not None else self._settings.HELIX_ENABLED
+            logger.info(f"Updated HELIX_ENABLED to: {value}")
         
         if 'llm_endpoint' in settings:
             value = settings.get('llm_endpoint') or None

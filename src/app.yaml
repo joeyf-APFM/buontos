@@ -41,4 +41,16 @@ env:
     value: "True"
   - name: "LLM_ENDPOINT"
     valueFrom: "serving-endpoint"
+
+  # Ask Helix (Genie One). "user": answers as the asking user (on-behalf-of token).
+  # "shared": answers as a dedicated service principal, never the app's own.
+  - name: "HELIX_ENABLED"
+    value: "false"
+  - name: "HELIX_IDENTITY_MODE"
+    value: "user"
+  # Shared mode only: the dedicated principal's OAuth credentials, from app secret resources.
+  # - name: "HELIX_SHARED_CLIENT_ID"
+  #   valueFrom: "helix-shared-client-id"
+  # - name: "HELIX_SHARED_CLIENT_SECRET"
+  #   valueFrom: "helix-shared-client-secret"
   
