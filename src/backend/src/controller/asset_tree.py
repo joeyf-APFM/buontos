@@ -214,8 +214,11 @@ def _readable(column, restrict_to_ids: Optional[Iterable[UUID]]):
     return true() if restrict_to_ids is None else column.in_(list(restrict_to_ids))
 
 
-def scope_subquery(db: Session, key: str) -> Select:
-    """SELECT assets.id for the node and everything under it. ``db`` is unused; the query is lazy."""
+def scope_subquery(db: Session, key: str, exclude_self: bool = False) -> Select:
+    """SELECT assets.id for the node and everything under it. ``db`` is unused; the query is lazy.
+
+    ``exclude_self`` leaves an asset node itself out; other keys have no self row and ignore it.
+    """
     node = parse_node_key(key)
     if node.kind == "branch":
         if node.branch == UNSORTED:
@@ -223,7 +226,8 @@ def scope_subquery(db: Session, key: str) -> Select:
         return _in_scope(AssetDb.data_branch == node.branch)
     if node.kind == "asset":
         tree = _descendants([node.asset_id])
-        return _in_scope(AssetDb.id.in_(select(tree.c.id)), node_type=_type_of(node.asset_id))
+        not_self = AssetDb.id != node.asset_id if exclude_self else true()
+        return _in_scope(AssetDb.id.in_(select(tree.c.id)), not_self, node_type=_type_of(node.asset_id))
     if node.kind == "group":  # a legacy key: the schema's direct children of one type
         return _in_scope(AssetTypeDb.name == node.type_name, AssetDb.id.in_(_direct_children(node.asset_id)))
     if node.kind == "category":

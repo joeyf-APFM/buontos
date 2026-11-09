@@ -604,3 +604,45 @@ def test_children_differing_only_in_case_keep_a_stable_order(api, db_session, gr
 def test_parent_rejects_bad_paging(api, graph, unscoped_user, params):
     response = api.get("/api/assets", params={"parent": f"asset:{graph.referrals}", **params})
     assert response.status_code == 422
+
+
+# --- GET /api/assets?node=asset:<id>&exclude_self=true (R22) ---
+
+def _listing(api, **params):
+    response = api.get("/api/assets", params=params)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_exclude_self_leaves_the_node_out_of_every_page(api, graph, unscoped_user, db_session):
+    key = f"asset:{graph.referrals}"
+    scope = _scope_ids(db_session, key)
+    seen, total = [], None
+    for skip in range(0, len(scope), 2):
+        page = _listing(api, node=key, exclude_self="true", skip=skip, limit=2)
+        seen += [a["id"] for a in page["items"]]
+        total = page["total"]
+    assert total == len(scope) - 1
+    assert str(graph.referrals) not in seen
+    assert set(seen) == {str(i) for i in scope - {graph.referrals}}
+
+
+def test_exclude_self_combines_with_a_name_filter_matching_the_node(api, graph, unscoped_user):
+    key = f"asset:{graph.referrals}"
+    assert [a["name"] for a in _listing(api, node=key, name="referrals")["items"]] == ["referrals"]
+    page = _listing(api, node=key, name="referrals", exclude_self="true")
+    assert (page["total"], page["items"]) == (0, [])
+
+
+def test_without_exclude_self_the_node_is_listed(api, graph, unscoped_user, db_session):
+    key = f"asset:{graph.referrals}"
+    page = _listing(api, node=key, limit=100)
+    assert page["total"] == len(_scope_ids(db_session, key))
+    assert str(graph.referrals) in [a["id"] for a in page["items"]]
+
+
+def test_exclude_self_is_ignored_where_there_is_no_self_row(api, graph, unscoped_user):
+    for key in ("branch:uc", "category:analytics", "type:Table"):
+        assert _listing(api, node=key, exclude_self="true")["total"] == _listing(api, node=key)["total"], key
+    key = f"asset:{graph.referrals}"
+    assert _listing(api, parent=key, exclude_self="true") == _listing(api, parent=key)

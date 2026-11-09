@@ -373,6 +373,7 @@ def get_all_assets(
     name: Optional[str] = Query(None),
     node: Optional[str] = Query(None, description="Asset Explorer tree node key; lists the node and everything under it"),
     parent: Optional[str] = Query(None, description="Asset Explorer tree node key; lists its direct asset children, as the tree does"),
+    exclude_self: bool = Query(False, description="With node=asset:<id>, leave that asset itself out; ignored otherwise"),
     concept_iri: Optional[str] = Query(None, description="Only assets linked to this semantic concept IRI"),
 ):
     """Lists all assets with optional filters. Returns paginated results.
@@ -412,7 +413,7 @@ def get_all_assets(
     scope = None
     if node is not None:
         try:
-            scope = scope_subquery(db, node)
+            scope = scope_subquery(db, node, exclude_self=exclude_self)
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
