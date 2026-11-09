@@ -393,6 +393,10 @@ def get_all_assets(
     type_names_list = [t.strip() for t in asset_type_names.split(",")] if asset_type_names else None
     domain_ids_list = [d.strip() for d in domain_ids.split(",") if d.strip()] if domain_ids else None
     if parent is not None:
+        # Pages are sliced from the child list: a negative skip or a limit under 1 isn't a page.
+        if skip < 0 or limit < 1:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail="skip must be at least 0 and limit at least 1.")
         try:
             children = asset_child_nodes(db, parent, restrict_ids)
         except ValueError as e:

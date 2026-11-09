@@ -528,3 +528,79 @@ def test_an_unscoped_user_sees_full_container_rows(api, graph, unscoped_user, db
     db_session.flush()
     rows = {a["name"]: a for a in _children(api, f"asset:{graph.insights}")["items"]}
     assert (rows["referrals"]["description"], rows["referrals"]["location"]) == ("schema notes", "Schema:referrals")
+
+
+@pytest.fixture
+def hidden_referrals(db_session, graph):
+    """referrals (unreadable to a leads-only consumer) with a concept, a domain and a platform."""
+    from src.db_models.data_domains import DataDomain
+    from src.db_models.domain_associations import EntityDomainAssociationDb
+    from src.db_models.semantic_links import EntitySemanticLinkDb
+
+    domain = DataDomain(id=str(uuid.uuid4()), name=f"d-{uuid.uuid4().hex[:6]}", created_by="u@x.com")
+    db_session.add(domain)
+    db_session.flush()
+    db_session.add(EntityDomainAssociationDb(domain_id=domain.id, entity_id=str(graph.referrals),
+                                             entity_type="asset"))
+    db_session.add(EntitySemanticLinkDb(entity_id=str(graph.referrals), entity_type="asset",
+                                        iri="http://example.com/glossary#Referral"))
+    db_session.get(AssetDb, graph.referrals).platform = "databricks"
+    db_session.flush()
+    return SimpleNamespace(domain=domain.id, concept="http://example.com/glossary#Referral",
+                           platform="databricks")
+
+
+def _hidden_filter_cases(hidden):
+    matching = [{"concept_iri": hidden.concept}, {"domain_id": hidden.domain},
+                {"domain_ids": hidden.domain}, {"platform": hidden.platform}]
+    missing = [{"concept_iri": "http://example.com/glossary#Other"}, {"domain_id": str(uuid.uuid4())},
+               {"domain_ids": str(uuid.uuid4())}, {"platform": "snowflake"}]
+    return matching, missing
+
+
+def test_hidden_attributes_never_match_for_an_unreadable_child(api, graph, monkeypatch, hidden_referrals):
+    monkeypatch.setattr(assets_routes, "_restrict_ids_for", lambda *args: [graph.leads])
+    key = f"asset:{graph.insights}"
+    assert _children(api, key)["total"] == 1  # referrals is listed
+    matching, missing = _hidden_filter_cases(hidden_referrals)
+    for params in matching + missing:
+        page = _children(api, key, **params)
+        assert (page["total"], page["items"]) == (0, []), params
+    # Visible attributes still filter the unreadable child.
+    assert _children(api, key, name="referr")["total"] == 1
+    assert _children(api, key, asset_type_names="Schema")["total"] == 1
+
+
+def test_hidden_attributes_match_for_an_unscoped_user(api, graph, unscoped_user, hidden_referrals):
+    key = f"asset:{graph.insights}"
+    matching, missing = _hidden_filter_cases(hidden_referrals)
+    for params in matching:
+        assert [a["name"] for a in _children(api, key, **params)["items"]] == ["referrals"], params
+    for params in missing:
+        assert _children(api, key, **params)["total"] == 0, params
+
+
+def test_children_differing_only_in_case_keep_a_stable_order(api, db_session, graph, unscoped_user):
+    schema_type = db_session.query(AssetTypeDb).filter_by(name="Schema").one()
+    ids = []
+    for name in ("Staging", "staging"):
+        schema = AssetDb(id=uuid.uuid4(), name=name, asset_type_id=schema_type.id, status="active",
+                         data_branch="uc", location=f"Schema:{name}")
+        db_session.add(schema)
+        db_session.flush()
+        _entity_link(db_session, "Catalog", graph.insights, "Schema", schema.id, "hasSchema")
+        ids.append(str(schema.id))
+    db_session.flush()
+
+    key = f"asset:{graph.insights}"
+    tree_ids = [str(n.asset_id) for n in tree_children(db_session, key, None) if n.label.lower() == "staging"]
+    assert tree_ids == sorted(ids)
+    pages = [api.get("/api/assets", params={"parent": key, "skip": skip, "limit": 1}).json()["items"][0]["id"]
+             for skip in range(4)]
+    assert [i for i in pages if i in ids] == sorted(ids)
+
+
+@pytest.mark.parametrize("params", [{"skip": -1}, {"limit": 0}, {"limit": -5}])
+def test_parent_rejects_bad_paging(api, graph, unscoped_user, params):
+    response = api.get("/api/assets", params={"parent": f"asset:{graph.referrals}", **params})
+    assert response.status_code == 422

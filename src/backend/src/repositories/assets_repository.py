@@ -19,6 +19,17 @@ from src.common.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _as_uuids(entity_ids) -> list:
+    """Entity ids stored as strings, as UUIDs; ids that aren't UUIDs are dropped."""
+    ids = []
+    for entity_id in entity_ids:
+        try:
+            ids.append(UUID(str(entity_id)))
+        except ValueError:
+            continue
+    return ids
+
+
 class AssetTypeRepository(CRUDBase[AssetTypeDb, AssetTypeCreate, AssetTypeUpdate]):
     def __init__(self):
         super().__init__(AssetTypeDb)
@@ -115,8 +126,9 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
                 session, domain_ids=wanted, entity_type="asset"
             )
             # Empty list -> SQLAlchemy renders an always-false predicate (no rows). A
-            # string sentinel would crash here because AssetDb.id is a Postgres UUID.
-            query = query.filter(self.model.id.in_(asset_ids))
+            # string sentinel would crash here because AssetDb.id is a Postgres UUID; the
+            # junction stores ids as strings, so they're resolved to UUIDs like concept links.
+            query = query.filter(self.model.id.in_(_as_uuids(asset_ids)))
         if status:
             query = query.filter(self.model.status == status)
         if name:
@@ -139,13 +151,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
                 EntitySemanticLinkDb.entity_type == "asset",
                 EntitySemanticLinkDb.iri == concept_iri,
             ).all()
-            ids = []
-            for (entity_id,) in linked:
-                try:
-                    ids.append(UUID(entity_id))
-                except ValueError:
-                    continue
-            query = query.filter(self.model.id.in_(ids))
+            query = query.filter(self.model.id.in_(_as_uuids(entity_id for (entity_id,) in linked)))
         return query
 
     def get_multi_filtered(

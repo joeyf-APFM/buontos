@@ -366,7 +366,7 @@ def _asset_nodes(db, rows, restrict_to_ids) -> List[AssetTreeNode]:
             key=f"asset:{asset_id}", label=name, kind="asset", asset_id=asset_id,
             asset_type_name=type_name, count=count, has_children=has_children,
         ))
-    return sorted(nodes, key=lambda n: n.label.lower())
+    return sorted(nodes, key=lambda n: (n.label.lower(), str(n.asset_id)))  # ids break ties stably
 
 
 def _category_children(db, category: str, restrict_to_ids) -> List[AssetTreeNode]:

@@ -391,14 +391,23 @@ class AssetsManager(SearchableAsset):
         The tree already applied the user's scoping to ``children``; the other filters narrow
         them further. Each summary carries the child's tree ``has_children``. A child outside
         ``restrict_to_ids`` (listed only because readable assets sit under it) shows no more
-        than the tree does: see ``_unreadable_summary``.
+        than the tree does: see ``_unreadable_summary``. Filters on what such a row hides
+        (concept, domain, platform) never match it.
         """
         by_id = {c.asset_id: c for c in children}
-        matching = self._asset_repo.get_filtered_ids(
-            db, asset_type_id=asset_type_id, asset_type_names=asset_type_names, platform=platform,
-            domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-            scope_subquery=select(AssetDb.id).where(AssetDb.id.in_(list(by_id))), concept_iri=concept_iri,
-        ) if by_id else set()
+        matching = set()
+        if by_id:
+            in_children = select(AssetDb.id).where(AssetDb.id.in_(list(by_id)))
+            # What the tree shows of every child (name, type, status) filters all of them.
+            matching = self._asset_repo.get_filtered_ids(
+                db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
+                status=status, name=name, scope_subquery=in_children,
+            )
+            if matching and (concept_iri or platform or domain_id or domain_ids):
+                matching &= self._asset_repo.get_filtered_ids(
+                    db, platform=platform, domain_id=domain_id, domain_ids=domain_ids,
+                    concept_iri=concept_iri, scope_subquery=in_children, restrict_to_ids=restrict_to_ids,
+                )
         ordered = [c.asset_id for c in children if c.asset_id in matching]
         page_ids = ordered[skip:skip + limit]
         db_assets = self._asset_repo.get_multi_filtered(
@@ -407,9 +416,9 @@ class AssetsManager(SearchableAsset):
         ) if page_ids else []
         position = {asset_id: i for i, asset_id in enumerate(page_ids)}
         readable_ids = None if restrict_to_ids is None else set(restrict_to_ids)
-        readable = [a for a in db_assets if readable_ids is None or a.id in readable_ids]
-        summaries = self._page_summaries(db, readable) + [
-            self._unreadable_summary(a) for a in db_assets if a not in readable
+        is_readable = lambda a: readable_ids is None or a.id in readable_ids  # noqa: E731
+        summaries = self._page_summaries(db, [a for a in db_assets if is_readable(a)]) + [
+            self._unreadable_summary(a) for a in db_assets if not is_readable(a)
         ]
         summaries.sort(key=lambda s: position[s.id])
         for s in summaries:
