@@ -26,6 +26,8 @@ interface AssetTableProps {
   onRetry: () => void;
   selectedId: string | null;
   onSelect: (asset: AssetSummary) => void;
+  /** Whether rows with children can open (off for a flat list of matches). */
+  nesting?: boolean;
   /** Open rows by row path; see useExpansions. */
   expansions?: Record<string, Expansion>;
   onToggle?: (key: string, row: AssetSummary, kind: ExpansionKind) => void;
@@ -39,13 +41,13 @@ const COLUMNS = ['name', 'type', 'owner', 'status', 'concepts', 'updated'] as co
 const indent = (level: number) => 10 + 16 * (level - 1);
 
 /**
- * One page of assets: 28px rows; a row click opens its details. Containers
- * open into their child rows and tables into a column sub-grid (chevron, or
- * the arrow keys); nested rows show everything under their parent.
+ * One page of assets: 28px rows; a row click opens its details. With nesting
+ * on, a row with children opens (chevron, or the arrow keys) into its child
+ * rows, or for a table into a column sub-grid.
  */
 export function AssetTable({
   items, loading, error, onRetry, selectedId, onSelect,
-  expansions = {}, onToggle = () => {}, onMore = () => {}, onRetryExpansion = () => {},
+  nesting = false, expansions = {}, onToggle = () => {}, onMore = () => {}, onRetryExpansion = () => {},
 }: AssetTableProps) {
   const { t } = useTranslation('asset-explorer');
 
@@ -86,7 +88,7 @@ export function AssetTable({
     const skeleton = (k: string) => wideRow(k, level, <Skeleton height={8} radius="sm" />, classes.nestRow);
     if (e.status === 'loading') rows.push(skeleton(`${key}:loading`));
     if (e.status === 'error') rows.push(errorRow(`${key}:error`));
-    if (e.status === 'ready' && !e.items.length) {
+    if (e.status === 'ready' && !e.items.length && !hasMore(e)) {
       rows.push(wideRow(`${key}:empty`, level, <span className={classes.nestEmpty}>{t('grid.noChildren')}</span>, classes.nestRow));
     }
     if (e.status === 'loadingMore') rows.push(skeleton(`${key}:more`));
@@ -109,7 +111,7 @@ export function AssetTable({
   const renderRows = (rows: AssetSummary[], level: number, parentPath?: string, parentName?: string): ReactNode[] =>
     rows.flatMap((a) => {
       const key = parentPath ? `${parentPath}/${a.id}` : a.id;
-      const kind = expansionKind(a);
+      const kind = nesting ? expansionKind(a) : null;
       const open = expansions[key];
       const isSelected = a.id === selectedId;
       const Chevron = open ? ChevronDown : ChevronRight;

@@ -47,13 +47,18 @@ export interface AssetSummary {
   /** Concept labels. */
   concepts: string[];
   column_count?: number | null;
+  /** On direct-children listings (`parent=`): whether the row has children of its own. */
+  has_children?: boolean | null;
   /** Column rows only. */
   data_type?: string | null;
   nullable?: boolean | null;
 }
 
 export interface AssetQuery {
-  node: string;
+  /** The node and everything under it (a flat listing)… */
+  node?: string;
+  /** …or the node's direct children, as the tree lists them. */
+  parent?: string;
   name?: string;
   types?: string[];
   status?: string;
@@ -96,7 +101,9 @@ export async function fetchTreeChildren(parent?: string): Promise<TreeNode[]> {
 
 /** A page of the assets in a node's scope. */
 export async function fetchAssets(q: AssetQuery): Promise<{ items: AssetSummary[]; total: number }> {
-  const params = new URLSearchParams({ node: q.node, skip: String(q.skip), limit: String(q.limit) });
+  const params = new URLSearchParams({ skip: String(q.skip), limit: String(q.limit) });
+  if (q.node) params.set('node', q.node);
+  if (q.parent) params.set('parent', q.parent);
   if (q.name) params.set('name', q.name);
   if (q.types?.length) params.set('asset_type_names', q.types.join(','));
   if (q.status) params.set('status', q.status);

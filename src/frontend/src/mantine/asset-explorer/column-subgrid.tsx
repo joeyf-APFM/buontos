@@ -73,8 +73,8 @@ export function ColumnSubgrid({ expansion, selectedId, onSelect, onMore, onRetry
             <td>{c.concepts.join(', ')}</td>
           </tr>
         ))}
-        {status === 'ready' && !items.length && wide(<span className={classes.nestEmpty}>{t('grid.noChildren')}</span>, 'empty')}
-        {status === 'loadingMore' && skeletonRow('more')}
+        {status === 'ready' && !items.length && !hasMore(expansion) && wide(<span className={classes.nestEmpty}>{t('grid.noChildren')}</span>, 'empty')}
+        {status === 'loadingMore' && skeletonRow('loadingMore')}
         {status === 'moreError' && errorRow('moreError')}
         {status === 'ready' &&
           hasMore(expansion) &&
@@ -82,7 +82,7 @@ export function ColumnSubgrid({ expansion, selectedId, onSelect, onMore, onRetry
             <Button variant="subtle" size="compact-xs" onClick={onMore}>
               {t('grid.showMore', { count: leftCount(expansion) })}
             </Button>,
-            'more',
+            'showMore',
           )}
       </tbody>
     </table>

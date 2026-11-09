@@ -48,7 +48,9 @@ function grant(level: FeatureAccessLevel) {
 }
 
 // A row's accessible name is its label then its count (and, when open, its children)
-const row = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) });
+// The first match: an open node's rows come before its later siblings
+const row = async (name: string) =>
+  (await screen.findAllByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) }))[0];
 /** Clicks a tree row as a pointer would: on the row's content, not its list item. */
 const clickRow = async (user: ReturnType<typeof userEvent.setup>, name: string) =>
   user.click((await row(name)).firstElementChild!);
@@ -80,7 +82,7 @@ describe('ExplorerPage', () => {
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
 
     expect(await within(await table()).findByText('leads')).toBeInTheDocument();
-    expect(assetCalls(fetchMock)[0].searchParams.get('node')).toBe('branch:uc');
+    expect(assetCalls(fetchMock)[0].searchParams.get('parent')).toBe('branch:uc');
     expect(assetCalls(fetchMock)[0].searchParams.get('limit')).toBe('50');
     expect(screen.getByRole('heading', { name: 'Unity Catalog' })).toBeInTheDocument();
   });
@@ -90,13 +92,13 @@ describe('ExplorerPage', () => {
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
     await openSchema(user);
 
-    await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('node')).toBe('asset:sch1'));
+    await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('parent')).toBe('asset:sch1'));
     expect(await screen.findByRole('heading', { name: 'insights.referrals' })).toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(crumbs).toHaveTextContent('Unity Catalog');
     expect(crumbs).toHaveTextContent('insights');
     const t = await table();
-    expect(within(t).getByText('leads')).toBeInTheDocument();
+    expect(await within(t).findByText('insights.referrals.leads')).toBeInTheDocument();
     expect(within(t).getByText('data-eng +2')).toBeInTheDocument();
     expect(useHelixStore.getState().context).toBe('insights.referrals');
   });
@@ -105,20 +107,20 @@ describe('ExplorerPage', () => {
     let release: () => void = () => {};
     const held = new Promise<void>((resolve) => (release = resolve));
     fetchMock = mockBackend((url) => {
-      if (url.pathname !== '/api/assets' || url.searchParams.get('node') !== 'asset:cat1') return undefined;
+      if (url.pathname !== '/api/assets' || url.searchParams.get('parent') !== 'asset:cat1') return undefined;
       // Held until the test releases it
       return held.then(() => json({ items: [LEADS], total: 1, skip: 0, limit: 50 })) as unknown as Response;
     });
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
     await within(await table()).findByText('lead_events');
-    expect(screen.getByText('2 assets')).toBeInTheDocument();
+    expect(screen.getByText('3 assets')).toBeInTheDocument();
 
     await clickRow(user, 'insights');
     expect(await screen.findByRole('heading', { name: 'insights' })).toBeInTheDocument();
     expect(within(screen.getByRole('treegrid')).queryByText('leads')).toBeNull();
     expect(within(screen.getByRole('treegrid')).queryByText('lead_events')).toBeNull();
-    expect(screen.queryByText('2 assets')).toBeNull();
+    expect(screen.queryByText('3 assets')).toBeNull();
 
     release();
     expect(await within(await table()).findByText('leads')).toBeInTheDocument();
@@ -133,10 +135,12 @@ describe('ExplorerPage', () => {
     await user.type(screen.getByRole('textbox', { name: 'Filter assets' }), 'events');
     await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('name')).toBe('events'));
     await clickRow(user, 'insights');
-    await within(await table()).findByText('leads');
+    await within(await table()).findByText('insights.referrals');
     await new Promise((r) => setTimeout(r, 350));
 
-    const forInsights = assetCalls(fetchMock).filter((u) => u.searchParams.get('node') === 'asset:cat1');
+    const forInsights = assetCalls(fetchMock).filter(
+      (u) => u.searchParams.get('node') === 'asset:cat1' || u.searchParams.get('parent') === 'asset:cat1',
+    );
     expect(forInsights.map((u) => u.searchParams.get('name'))).toEqual([null]);
   });
 

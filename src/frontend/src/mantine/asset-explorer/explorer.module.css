@@ -291,8 +291,7 @@ button.rowChevron:hover {
   min-width: 60%;
   border-collapse: collapse;
   border: 1px solid var(--aura-border);
-  border-radius: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .subgrid th {

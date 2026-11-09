@@ -19,7 +19,9 @@ function Harness({ onSelect }: { onSelect: (s: TreeSelection) => void }) {
 }
 
 // A row's accessible name is its label then its count (and, when open, its children)
-const row = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) });
+// The first match: an open node's rows come before its later siblings
+const row = async (name: string) =>
+  (await screen.findAllByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) }))[0];
 /** Clicks a tree row as a pointer would: on the row's content, not its list item. */
 const clickRow = async (user: ReturnType<typeof userEvent.setup>, name: string) =>
   user.click((await row(name)).firstElementChild!);

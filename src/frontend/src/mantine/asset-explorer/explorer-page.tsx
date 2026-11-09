@@ -127,10 +127,18 @@ export default function ExplorerPage() {
   const { expansions, toggle, more, retry } = useExpansions(JSON.stringify([listKey, pageNumber, selectionCount]));
   const filterActive = !!(name || typeFilter || statusFilter || concept);
 
-  // The assets under the selected node, with the request they answer
+  // Browsing, the grid lists the node's direct children, which open further
+  // (R19). With a filter it lists the flat matches under the node instead.
+  // Nodes without asset children (type nodes, Unsorted, leaves) list flat.
+  const browse =
+    !filterActive &&
+    !!node &&
+    (node.kind === 'branch' ? node.key !== 'branch:unsorted' : node.kind === 'asset' && node.hasChildren);
+
+  // The assets for the grid, with the request they answer
   const query = useMemo(
     () => ({
-      node: nodeKey ?? '',
+      ...(browse ? { parent: nodeKey } : { node: nodeKey }),
       name: name || undefined,
       types: typeFilter ? [typeFilter] : undefined,
       status: statusFilter ?? undefined,
@@ -138,12 +146,12 @@ export default function ExplorerPage() {
       skip: (pageNumber - 1) * PAGE_SIZE,
       limit: PAGE_SIZE,
     }),
-    [nodeKey, name, typeFilter, statusFilter, concept, pageNumber],
+    [browse, nodeKey, name, typeFilter, statusFilter, concept, pageNumber],
   );
   const requestKey = JSON.stringify([query, listToken]);
   const [answer, setAnswer] = useState<{ requestKey: string; listKey: string; page: Page; error: string | null } | null>(null);
   useEffect(() => {
-    if (!query.node) return;
+    if (!nodeKey) return;
     let cancelled = false;
     fetchAssets(query)
       .then((result) => {
@@ -165,11 +173,17 @@ export default function ExplorerPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, requestKey, listKey, listToken, setContext]);
+  }, [nodeKey, query, requestKey, listKey, listToken, setContext]);
   const loading = answer?.requestKey !== requestKey;
   // While loading, the previous rows stay only when just the page changed
   const current = !!answer && (answer.requestKey === requestKey || answer.listKey === listKey);
-  const page = current ? answer.page : EMPTY_PAGE;
+  // A node's flat listing holds the node itself, which isn't one of its own matches
+  const selfId = filterActive && node?.kind === 'asset' ? node.assetId : undefined;
+  const listed = current ? answer.page : EMPTY_PAGE;
+  const page = useMemo(() => {
+    if (!selfId || !listed.items.some((a) => a.id === selfId)) return listed;
+    return { items: listed.items.filter((a) => a.id !== selfId), total: listed.total - 1 };
+  }, [listed, selfId]);
   const error = !loading ? answer.error : null;
 
   // An asset node's own status, for the header badge. A column's Helix
@@ -396,7 +410,7 @@ export default function ExplorerPage() {
               {(!loading || current) && <span className={classes.count}>{t('count', { count: page.total })}</span>}
             </div>
 
-            {filterActive && <div className={classes.gridHint}>{t('grid.filterHint')}</div>}
+            {filterActive && <div className={classes.gridHint}>{t('grid.matchesHint', { node: node.label })}</div>}
             <div className={classes.tableWrap}>
               <AssetTable
                 items={page.items}
@@ -405,6 +419,7 @@ export default function ExplorerPage() {
                 onRetry={() => setListToken((n) => n + 1)}
                 selectedId={selectedAsset?.id ?? null}
                 onSelect={onSelectAsset}
+                nesting={browse}
                 expansions={expansions}
                 onToggle={toggle}
                 onMore={more}

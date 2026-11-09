@@ -54,7 +54,7 @@
     "showMore": "Show more ({{count}} left)",
     "noChildren": "Nothing under this yet",
     "loadError": "Couldn’t load: {{message}}",
-    "filterHint": "Filters apply to the top-level rows; nested rows show everything under them."
+    "matchesHint": "Showing matches under {{node}}; clear filters to browse"
   },
   "subgrid": {
     "label": "Columns of {{name}}",

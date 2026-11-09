@@ -5,11 +5,13 @@ import usePermissionsStore from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
-import { TREE, calledUrls, json, mockBackend, summary, treeCalls } from './test-fixtures';
+import { calledUrls, json, mockBackend, summary, treeCalls } from './test-fixtures';
 
 type User = ReturnType<typeof userEvent.setup>;
 
-const treeRow = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) });
+// The first match: an open node's rows come before its later siblings
+const treeRow = async (name: string) =>
+  (await screen.findAllByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) }))[0];
 const clickTreeRow = async (user: User, name: string) => user.click((await treeRow(name)).firstElementChild!);
 const grid = () => screen.findByRole('treegrid');
 
@@ -27,8 +29,16 @@ async function gridRow(name: string, level = 1) {
 const nestedRows = (name: string) =>
   screen.queryAllByText(name, { selector: '[data-name]' }).filter((el) => el.closest('tr')!.getAttribute('aria-level') !== '1');
 
-const listCalls = (fetchMock: ReturnType<typeof mockBackend>, node: string) =>
-  calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets' && u.searchParams.get('node') === node);
+/** Direct-children listings of `parent`. */
+const listCalls = (fetchMock: ReturnType<typeof mockBackend>, parent: string) =>
+  calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets' && u.searchParams.get('parent') === parent);
+
+/** Whether `url` is the direct-children listing of `parent`. */
+const listingOf = (parent: string, url: URL) =>
+  url.pathname === '/api/assets' && url.searchParams.get('parent') === parent;
+
+const lastCall = (fetchMock: ReturnType<typeof mockBackend>) =>
+  calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets').slice(-1)[0];
 
 async function openCatalog(user: User) {
   await clickTreeRow(user, 'insights');
@@ -60,7 +70,7 @@ describe('Nested rows in the asset grid', () => {
     vi.unstubAllGlobals();
   });
 
-  it('expands a schema row into its tables, indented, with one tree call and one list call', async () => {
+  it('expands a schema row into its direct children, indented, with one list call', async () => {
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
     const schema = await openCatalog(user);
@@ -74,10 +84,29 @@ describe('Nested rows in the asset grid', () => {
     for (const name of ['referrals_daily', 'referral_kpis', 'raw_exports']) expect(await gridRow(name, 2)).toBeInTheDocument();
     // The listing holds the schema itself; it isn't one of its own children
     expect(nestedRows('insights.referrals')).toHaveLength(0);
-    expect(treeCalls(fetchMock, 'asset:sch1')).toBe(1);
-    const lists = listCalls(fetchMock, 'asset:sch1');
-    expect(lists).toHaveLength(1);
-    expect(lists[0].searchParams.get('asset_type_names')!.split(',').sort()).toEqual(['Metric View', 'Table', 'View', 'Volume']);
+    expect(listCalls(fetchMock, 'asset:sch1')).toHaveLength(1);
+    expect(treeCalls(fetchMock, 'asset:sch1')).toBe(0);
+  });
+
+  it('gives a chevron only to rows that have children', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    const schema = await openCatalog(user);
+
+    expect(within(schema).getByRole('button', { name: 'Expand insights.referrals' })).toBeInTheDocument();
+    const empty = await gridRow('insights.empty_schema');
+    expect(within(empty).queryByRole('button')).toBeNull();
+    expect(empty).not.toHaveAttribute('aria-expanded');
+  });
+
+  it('lists only the direct children of the selected node', async () => {
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+
+    // Unity Catalog: its catalog and the two loose tables, not what is inside the catalog
+    expect(await gridRow('insights')).toBeInTheDocument();
+    expect(await gridRow('leads')).toBeInTheDocument();
+    expect(screen.queryAllByText('insights.referrals', { selector: '[data-name]' })).toHaveLength(0);
+    expect(screen.getByText('3 assets')).toBeInTheDocument();
   });
 
   it('expands a table row into a sub-grid of its columns', async () => {
@@ -125,14 +154,9 @@ describe('Nested rows in the asset grid', () => {
       summary({ id: `m${i}`, name: `insights.referrals.t${String(i).padStart(2, '0')}`, location: `insights.referrals.t${i}` }),
     );
     fetchMock = mockBackend((url) => {
-      if (url.pathname === '/api/assets/tree' && url.searchParams.get('parent') === 'asset:sch1') {
-        return json(tables.map((t) => ({ key: `asset:${t.id}`, label: t.name, kind: 'asset', asset_id: t.id, asset_type_name: 'Table', count: 0, has_children: false })));
-      }
-      if (url.pathname === '/api/assets' && url.searchParams.get('node') === 'asset:sch1' && url.searchParams.get('asset_type_names')) {
-        const skip = Number(url.searchParams.get('skip'));
-        return json({ items: tables.slice(skip, skip + 50), total: 60, skip, limit: 50 });
-      }
-      return undefined;
+      if (!listingOf('asset:sch1', url)) return undefined;
+      const skip = Number(url.searchParams.get('skip'));
+      return json({ items: tables.slice(skip, skip + 50), total: 60, skip, limit: 50 });
     });
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
@@ -149,11 +173,7 @@ describe('Nested rows in the asset grid', () => {
 
   it('shows an expansion error with Retry, and Retry fetches again', async () => {
     let fail = true;
-    fetchMock = mockBackend((url) =>
-      url.pathname === '/api/assets/tree' && url.searchParams.get('parent') === 'asset:sch1' && fail
-        ? json({ detail: 'boom' }, 500)
-        : undefined,
-    );
+    fetchMock = mockBackend((url) => (listingOf('asset:sch1', url) && fail ? json({ detail: 'boom' }, 500) : undefined));
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
     await expandSchema(user);
@@ -164,7 +184,7 @@ describe('Nested rows in the asset grid', () => {
     await user.click(within(g).getByRole('button', { name: 'Retry' }));
 
     expect(await gridRow('leads', 2)).toBeInTheDocument();
-    expect(treeCalls(fetchMock, 'asset:sch1')).toBe(2);
+    expect(listCalls(fetchMock, 'asset:sch1')).toHaveLength(2);
   });
 
   it('collapses everything when the tree selection changes', async () => {
@@ -184,36 +204,109 @@ describe('Nested rows in the asset grid', () => {
   it('ignores the answer of an expansion that was collapsed or replaced', async () => {
     const releases: (() => void)[] = [];
     fetchMock = mockBackend((url) => {
-      if (url.pathname !== '/api/assets/tree' || url.searchParams.get('parent') !== 'asset:sch1') return undefined;
-      if (releases.length) return undefined; // later calls answer at once
+      if (!listingOf('asset:sch1', url) || releases.length) return undefined; // later calls answer at once
       const held = new Promise<void>((resolve) => releases.push(resolve));
-      return held.then(() => json(TREE['asset:sch1'])) as unknown as Response;
+      return held.then(() => json({ items: [summary({ id: 'old', name: 'insights.referrals.stale' })], total: 1, skip: 0, limit: 50 })) as unknown as Response;
     });
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
     const schema = await expandSchema(user);
 
-    // Collapse while the first answer is out: it must not land
+    // Collapse while the first answer is out, then expand again: the new answer lands
     await user.click(within(schema).getByRole('button', { name: 'Collapse insights.referrals' }));
-    await act(async () => releases[0]());
-    expect(nestedRows('referrals_daily')).toHaveLength(0);
-    expect(schema).toHaveAttribute('aria-expanded', 'false');
-
-    // Expanded again, the new answer lands once
     await user.click(within(schema).getByRole('button', { name: 'Expand insights.referrals' }));
     await gridRow('referrals_daily', 2);
+
+    // The first answer, arriving late, replaces nothing
+    await act(async () => releases[0]());
+    expect(nestedRows('stale')).toHaveLength(0);
     expect(nestedRows('referrals_daily')).toHaveLength(1);
   });
 
-  it('says that filters apply to the top-level rows only', async () => {
+  it('shows the flat matches, without nesting, while a filter is active', async () => {
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
     await openCatalog(user);
-    expect(screen.queryByText(/Filters apply to the top-level rows/)).toBeNull();
+    expect(screen.queryByText(/Showing matches under/)).toBeNull();
 
-    await user.type(screen.getByRole('textbox', { name: 'Filter assets' }), 'ref');
+    await user.type(screen.getByRole('textbox', { name: 'Filter assets' }), 'insights');
 
-    expect(await screen.findByText('Filters apply to the top-level rows; nested rows show everything under them.')).toBeInTheDocument();
+    expect(await screen.findByText('Showing matches under insights; clear filters to browse')).toBeInTheDocument();
+    await waitFor(() => expect(lastCall(fetchMock).searchParams.get('node')).toBe('asset:cat1'));
+    expect(lastCall(fetchMock).searchParams.get('parent')).toBeNull();
+    // The catalog itself matches, but it isn't one of its own matches
+    const schema = await gridRow('insights.referrals');
+    expect(screen.queryAllByText('insights', { selector: '[data-name]' })).toHaveLength(0);
+    expect(within(schema).queryByRole('button')).toBeNull();
+    expect(screen.getByText('1 asset')).toBeInTheDocument();
+  });
+
+  it('closes every row after a filter is set and cleared', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await expandSchema(user);
+    await gridRow('referrals_daily', 2);
+
+    const filter = screen.getByRole('textbox', { name: 'Filter assets' });
+    await user.type(filter, 'ref');
+    await screen.findByText(/Showing matches under/);
+    await user.clear(filter);
+    await waitFor(() => expect(screen.queryByText(/Showing matches under/)).toBeNull());
+
+    expect(await gridRow('insights.referrals')).toHaveAttribute('aria-expanded', 'false');
+    expect(nestedRows('referrals_daily')).toHaveLength(0);
+  });
+
+  it('closes every row after paging away and back', async () => {
+    const schemas = Array.from({ length: 60 }, (_, i) =>
+      summary({ id: `s${i}`, name: `insights.s${String(i).padStart(2, '0')}`, asset_type_name: 'Schema' }),
+    );
+    fetchMock = mockBackend((url) => {
+      if (listingOf('asset:cat1', url)) {
+        const skip = Number(url.searchParams.get('skip'));
+        return json({ items: schemas.slice(skip, skip + 50).map((a) => ({ ...a, has_children: true })), total: 60, skip, limit: 50 });
+      }
+      return url.pathname === '/api/assets' && url.searchParams.get('parent')?.startsWith('asset:s')
+        ? json({ items: [summary({ id: 'kid', name: 'kid_table' })], total: 1, skip: 0, limit: 50 })
+        : undefined;
+    });
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await clickTreeRow(user, 'insights');
+    const first = await gridRow('insights.s00');
+    await user.click(within(first).getByRole('button', { name: 'Expand insights.s00' }));
+    await gridRow('kid_table', 2);
+
+    await user.click(screen.getByRole('button', { name: '2' }));
+    await gridRow('insights.s50');
+    await user.click(screen.getByRole('button', { name: '1' }));
+
+    expect(await gridRow('insights.s00')).toHaveAttribute('aria-expanded', 'false');
+    expect(nestedRows('kid_table')).toHaveLength(0);
+  });
+
+  it('drops an answer that was in flight when the scope changed', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock = mockBackend((url) =>
+      listingOf('asset:sch1', url)
+        ? (held.then(() => json({ items: [summary({ id: 'late', name: 'insights.referrals.late' })], total: 1, skip: 0, limit: 50 })) as unknown as Response)
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await expandSchema(user);
+
+    // Away to a filter and back while the expansion's answer is out
+    const filter = screen.getByRole('textbox', { name: 'Filter assets' });
+    await user.type(filter, 'ref');
+    await screen.findByText(/Showing matches under/);
+    await user.clear(filter);
+    await waitFor(() => expect(screen.queryByText(/Showing matches under/)).toBeNull());
+    await act(async () => release());
+
+    expect(await gridRow('insights.referrals')).toHaveAttribute('aria-expanded', 'false');
+    expect(nestedRows('late')).toHaveLength(0);
   });
 
   it('keeps a column’s full name as Helix context after its details close', async () => {
