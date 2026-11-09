@@ -545,6 +545,7 @@ class AssetTypeCategory(str, Enum):
 # Name of the persisted asset type seeded from ontos:MetricView (a subclass of
 # ontos:View). Imported Unity Catalog metric views get this type.
 METRIC_VIEW_ASSET_TYPE = "Metric View"
+VOLUME_ASSET_TYPE = "Volume"
 
 # Persisted asset types that are tables with columns: Table, View and its
 # Metric View subclass. Used where Ontos lists or matches physical tables.
