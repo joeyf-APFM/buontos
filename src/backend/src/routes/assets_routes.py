@@ -11,6 +11,8 @@ from src.models.assets import (
     DeletePreviewItem, CascadeDeleteRequest, CascadeDeleteResult,
 )
 from src.controller.assets_manager import assets_manager
+from src.controller.asset_tree import scope_subquery, tree_children
+from src.models.asset_tree import AssetTreeNode
 from src.controller.metric_views_manager import (
     MetricViewNotFoundError, MetricViewsManager, UserClientUnavailableError, UserTokenRequiredError,
 )
@@ -278,6 +280,33 @@ def delete_asset_type(
 
 # ===================== Assets =====================
 
+def _restrict_ids_for(request: Request, db, current_user, manager) -> Optional[List[UUID]]:
+    """The asset ids the user may read, or None for no restriction.
+
+    Authorization (issue #347):
+    - Users with ``assets:READ_WRITE`` or higher (Producers, Admins): None —
+      all assets, unscoped.
+    - Users below ``READ_WRITE`` (typically Data Consumers, or no ``assets``
+      feature at all): the assets linked to Data Products they can access.
+      Fails closed: without a DataProductsManager the list is empty.
+    """
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authentication required.",
+        )
+    # Producers + Admins (READ_WRITE+) keep full visibility.
+    if _user_has_assets_feature(request, current_user, FeatureAccessLevel.READ_WRITE):
+        return None
+    dpm = _get_data_products_manager(request)
+    if dpm is None:
+        logger.warning("DataProductsManager unavailable; returning no assets for scoped user")
+        return []
+    # Pass is_admin=False to force scoping logic; the manager itself doesn't
+    # check group membership — it only branches on the boolean we pass in.
+    return manager.resolve_accessible_asset_ids(db, data_products_manager=dpm, is_admin=False)
+
+
 @assets_router.post(
     "",
     response_model=AssetRead,
@@ -342,6 +371,7 @@ def get_all_assets(
     domain_ids: Optional[str] = Query(None, description="Filter by multiple domain IDs, comma-separated (any-of)"),
     asset_status: Optional[str] = Query(None, alias="status"),
     name: Optional[str] = Query(None),
+    node: Optional[str] = Query(None, description="Asset Explorer tree node key; lists the node and everything under it"),
 ):
     """Lists all assets with optional filters. Returns paginated results.
 
@@ -354,28 +384,13 @@ def get_all_assets(
       they still see DP-linked assets so the DP detail view's Linked
       Assets surface keeps working without granting the broader feature.
     """
-    if current_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authentication required.",
-        )
-
-    # Producers + Admins (READ_WRITE+) keep full visibility.
-    is_unscoped = _user_has_assets_feature(request, current_user, FeatureAccessLevel.READ_WRITE)
-
-    if not is_unscoped:
-        dpm = _get_data_products_manager(request)
-        if dpm is None:
-            # Fail closed: no DP context available, scoped users see nothing.
-            logger.warning("DataProductsManager unavailable; returning empty asset list for scoped user")
-            return PaginatedAssetSummary(items=[], total=0, skip=skip, limit=limit)
-        # Pass is_admin=False to force scoping logic; the manager itself doesn't
-        # check group membership — it only branches on the boolean we pass in.
-        restrict_ids = manager.resolve_accessible_asset_ids(
-            db, data_products_manager=dpm, is_admin=False,
-        )
-    else:
-        restrict_ids = None  # unrestricted
+    restrict_ids = _restrict_ids_for(request, db, current_user, manager)
+    scope = None
+    if node is not None:
+        try:
+            scope = scope_subquery(db, node)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     type_names_list = [t.strip() for t in asset_type_names.split(",")] if asset_type_names else None
     domain_ids_list = [d.strip() for d in domain_ids.split(",") if d.strip()] if domain_ids else None
@@ -383,8 +398,31 @@ def get_all_assets(
         db=db, skip=skip, limit=limit,
         asset_type_id=asset_type_id, asset_type_names=type_names_list,
         platform=platform, domain_id=domain_id, domain_ids=domain_ids_list, status=asset_status, name=name,
-        restrict_to_ids=restrict_ids,
+        restrict_to_ids=restrict_ids, scope_subquery=scope,
     )
+
+
+@assets_router.get(
+    "/tree",
+    response_model=List[AssetTreeNode],
+)
+def get_asset_tree(
+    request: Request,
+    db: DBSessionDep,
+    current_user: CurrentUserDep,
+    manager=Depends(get_assets_manager),
+    parent: Optional[str] = Query(None, description="Node key whose children to list; the root when omitted"),
+):
+    """Lists one level of the Asset Explorer tree, with counts of the assets the user can read.
+
+    Scoping matches ``GET /api/assets``: READ_WRITE+ users count everything; others
+    count only assets linked to Data Products they can access.
+    """
+    restrict_ids = _restrict_ids_for(request, db, current_user, manager)
+    try:
+        return tree_children(db, parent, restrict_ids)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @assets_router.get(

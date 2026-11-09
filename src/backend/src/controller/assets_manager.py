@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
+from sqlalchemy import Select
 from sqlalchemy.orm import Session, object_session
 from sqlalchemy.exc import IntegrityError
 
@@ -333,18 +334,20 @@ class AssetsManager(SearchableAsset):
         domain_ids: Optional[List[str]] = None,
         status: Optional[str] = None, name: Optional[str] = None,
         restrict_to_ids: Optional[List[UUID]] = None,
+        scope_subquery: Optional[Select] = None,
     ) -> PaginatedAssetSummary:
         """Gets a paginated page of asset summaries.
 
         ``restrict_to_ids`` (when not None) limits results to the given asset
         UUIDs — used by role-aware Data Product scoping. An empty list
         intentionally yields zero results. Domain filtering (``domain_id`` /
-        ``domain_ids``) is any-of via the junction table.
+        ``domain_ids``) is any-of via the junction table. ``scope_subquery`` (a tree
+        node's ``SELECT assets.id``) limits results to that node's scope.
         """
         filter_kwargs = dict(
             asset_type_id=asset_type_id, asset_type_names=asset_type_names,
             platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-            restrict_to_ids=restrict_to_ids,
+            restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery,
         )
         db_assets = self._asset_repo.get_multi_filtered(
             db, skip=skip, limit=limit, **filter_kwargs,

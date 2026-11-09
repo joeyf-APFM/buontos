@@ -1,6 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy import Select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -83,7 +84,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
 
     def _apply_filters(self, query, *, db=None, asset_type_id=None, asset_type_names=None,
                         platform=None, domain_id=None, domain_ids=None, status=None, name=None,
-                        restrict_to_ids=None):
+                        restrict_to_ids=None, scope_subquery=None):
         """Apply common filter predicates to a query.
 
         ``restrict_to_ids`` is an optional iterable of asset UUIDs to scope
@@ -92,6 +93,9 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
 
         Domain filtering (``domain_id`` single and/or ``domain_ids`` list) is any-of
         via the ``entity_domain_associations`` junction table.
+
+        ``scope_subquery`` is an optional ``SELECT assets.id`` (an Asset Explorer tree
+        node's scope); results are limited to the ids it selects.
         """
         if asset_type_id:
             query = query.filter(self.model.asset_type_id == asset_type_id)
@@ -124,6 +128,8 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
                 query = query.filter(self.model.id.is_(None))
             else:
                 query = query.filter(self.model.id.in_(ids))
+        if scope_subquery is not None:
+            query = query.filter(self.model.id.in_(scope_subquery))
         return query
 
     def get_multi_filtered(
@@ -132,7 +138,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
         platform: Optional[str] = None, domain_id: Optional[str] = None,
         domain_ids: Optional[list] = None,
         status: Optional[str] = None, name: Optional[str] = None,
-        restrict_to_ids: Optional[list] = None,
+        restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
     ) -> List[AssetDb]:
         """Gets multiple assets with optional filters."""
         try:
@@ -148,7 +154,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             query = self._apply_filters(
                 query, db=db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
                 platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-                restrict_to_ids=restrict_to_ids,
+                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery,
             )
             return query.offset(skip).limit(limit).all()
         except SQLAlchemyError as e:
@@ -162,7 +168,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
         platform: Optional[str] = None, domain_id: Optional[str] = None,
         domain_ids: Optional[list] = None,
         status: Optional[str] = None, name: Optional[str] = None,
-        restrict_to_ids: Optional[list] = None,
+        restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
     ) -> int:
         """Returns the total count of assets matching the given filters."""
         try:
@@ -171,7 +177,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             query = self._apply_filters(
                 query, db=db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
                 platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-                restrict_to_ids=restrict_to_ids,
+                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery,
             )
             return query.scalar() or 0
         except SQLAlchemyError as e:
