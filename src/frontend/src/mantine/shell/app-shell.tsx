@@ -10,12 +10,17 @@ import { GroupPanel } from './group-panel';
 import { TopBar } from './top-bar';
 import { HelixButton } from '@/mantine/helix/helix-button';
 import { HelixPanel } from '@/mantine/helix/helix-panel';
+import { HelixWindow } from '@/mantine/helix/helix-window';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import classes from './shell.module.css';
 
+/** The one page where Helix is the right-hand pane rather than a window. */
+const HELIX_PANE_PATH = '/assets';
+
 /**
  * The app shell for every route: top bar, icon strip, the open group's panel,
- * the page, and the Ask Helix button (top bar) and panel (right).
+ * the page, and Ask Helix: the top-bar button, and Helix itself as the
+ * right-hand pane on the explorer or a floating window everywhere else (R24).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -24,16 +29,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const openGroup = useShellStore((s) => s.openGroup);
   const { afterNavigate } = useShellStore((s) => s.actions);
   const helixOpen = useHelixStore((s) => s.isOpen && !!s.config?.enabled);
+  const helixEnabled = useHelixStore((s) => !!s.config?.enabled);
+  // On the explorer Helix answers about the selection, beside it
+  const helixAsPane = pathname === HELIX_PANE_PATH;
 
   const nav = useMemo(
     () =>
       visibleNav(
         (id) => hasPermission(id, FeatureAccessLevel.READ_ONLY),
         (maturity) => allowedMaturities.includes(maturity),
+        (action) => action === 'helix' && helixEnabled,
       ),
     // hasPermission reads the store; recompute when the permissions change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [permissions, hasPermission, allowedMaturities],
+    [permissions, hasPermission, allowedMaturities, helixEnabled],
   );
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
 
@@ -54,8 +63,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           {openGroup && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} />}
         </div>
         <div className={classes.main}>{children}</div>
-        {helixOpen && <HelixPanel />}
+        {helixOpen && helixAsPane && <HelixPanel />}
       </div>
+      {helixOpen && !helixAsPane && <HelixWindow />}
     </div>
   );
 }

@@ -33,6 +33,14 @@ export interface HelixConfig {
   workspace_host: string;
 }
 
+/** The floating window's place and size, in viewport pixels. */
+export interface WindowRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface HelixState {
   /** Whether the Helix panel is showing. */
   isOpen: boolean;
@@ -44,6 +52,10 @@ interface HelixState {
   busy: boolean;
   /** Helix's settings, or null while unknown or when Helix is off. */
   config: HelixConfig | null;
+  /** The unsent question, kept while Helix switches between pane and window. */
+  draft: string;
+  /** Where the floating window was last put, or null for its default place. */
+  windowRect: WindowRect | null;
   actions: {
     open: () => void;
     close: () => void;
@@ -55,6 +67,8 @@ interface HelixState {
     newConversation: () => void;
     /** Reads Helix's settings; a failure or 404 means Helix is off. */
     loadConfig: () => Promise<void>;
+    setDraft: (draft: string) => void;
+    setWindowRect: (rect: WindowRect) => void;
   };
 }
 
@@ -65,6 +79,8 @@ export const HELIX_DEFAULTS = {
   turns: [],
   busy: false,
   config: null,
+  draft: '',
+  windowRect: null,
 } satisfies Omit<HelixState, 'actions'>;
 
 /** The running answer's abort handle; a newer conversation replaces it. */
@@ -152,6 +168,9 @@ export const useHelixStore = create<HelixState>()((set, get) => {
         running = null;
         set({ turns: [], conversationId: null, busy: false });
       },
+
+      setDraft: (draft) => set({ draft }),
+      setWindowRect: (windowRect) => set({ windowRect }),
 
       loadConfig: async () => {
         try {

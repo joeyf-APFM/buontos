@@ -240,6 +240,10 @@
   box-shadow: inset 2px 0 0 var(--aura-accent);
 }
 
+.itemIcon.actionIcon {
+  color: var(--aura-accent);
+}
+
 .item[data-active] .itemIcon {
   color: var(--aura-accent);
 }

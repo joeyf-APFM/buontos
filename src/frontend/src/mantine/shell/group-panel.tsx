@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
 import { NAV_GROUPS, matchInGroup, type NavGroupId, type NavItem, type NavSection } from './nav-config';
 import { useShellStore } from './use-shell-store';
+import { useHelixStore } from '@/mantine/helix/helix-store';
 import classes from './shell.module.css';
 
 interface GroupPanelProps {
@@ -19,6 +20,8 @@ export function GroupPanel({ group, sections }: GroupPanelProps) {
   const pinned = useShellStore((s) => s.pinned);
   const expanded = useShellStore((s) => s.expanded);
   const { setPinned, toggleExpanded } = useShellStore((s) => s.actions);
+  const openHelix = useHelixStore((s) => s.actions.open);
+  const runAction: Record<NonNullable<NavItem['action']>, () => void> = { helix: openHelix };
 
   const match = matchInGroup(sections, pathname);
   const groupLabel = t(NAV_GROUPS.find((g) => g.id === group)!.labelKey);
@@ -43,6 +46,18 @@ export function GroupPanel({ group, sections }: GroupPanelProps) {
 
   const renderItem = (item: NavItem) => {
     const Icon = item.icon;
+    if (item.action) {
+      // An action item runs its action where you are; it is never the active item
+      const action = runAction[item.action];
+      return (
+        <div key={item.id}>
+          <UnstyledButton className={classes.item} onClick={action}>
+            <Icon className={`${classes.itemIcon} ${classes.actionIcon}`} aria-hidden />
+            <span className={classes.itemLabel}>{t(item.labelKey)}</span>
+          </UnstyledButton>
+        </div>
+      );
+    }
     const isOpen = !!item.children && expanded.includes(item.id);
     const isPage = match?.itemId === item.id && !match.childId;
     // A folded parent stands in for its active sub-item

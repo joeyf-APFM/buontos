@@ -1,5 +1,8 @@
-/** The Ask Helix panel, on the right of the shell. */
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+/**
+ * Ask Helix's content, and its right-hand pane form (on /assets). The floating
+ * window (helix-window.tsx) renders the same content.
+ */
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Anchor, Button, CloseButton, Textarea, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { HelixMarkdown } from './helix-markdown';
@@ -89,14 +92,22 @@ function Answer({ turn, pending }: { turn: Turn; pending: boolean }) {
   );
 }
 
-export function HelixPanel() {
+interface HelixContentProps {
+  /** The id for the title, which the window's dialog is labelled by. */
+  titleId: string;
+  /** The window drags by its header. */
+  onHeaderPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
+}
+
+/** Helix's header, context chip, conversation and input, for either form. */
+export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps) {
   const { t } = useTranslation('helix');
   const context = useHelixStore((s) => s.context);
   const turns = useHelixStore((s) => s.turns);
   const busy = useHelixStore((s) => s.busy);
   const mode = useHelixStore((s) => s.config?.mode);
-  const { close, clearContext, ask, stop, newConversation } = useHelixStore((s) => s.actions);
-  const [draft, setDraft] = useState('');
+  const draft = useHelixStore((s) => s.draft);
+  const { close, clearContext, ask, stop, newConversation, setDraft } = useHelixStore((s) => s.actions);
   const messages = useRef<HTMLDivElement>(null);
 
   // Keep the latest answer in view as it streams
@@ -119,10 +130,14 @@ export function HelixPanel() {
   };
 
   return (
-    <aside className={classes.panel} aria-label={t('panel.label')}>
-      <div className={classes.head}>
+    <>
+      <div
+        className={classes.head}
+        data-drag-handle={onHeaderPointerDown ? true : undefined}
+        onPointerDown={onHeaderPointerDown}
+      >
         <span className={classes.spark} aria-hidden />
-        <h2 className={classes.headTitle}>
+        <h2 id={titleId} className={classes.headTitle}>
           {t('panel.title')} <span className={classes.headSub}>{t('panel.subtitle')}</span>
         </h2>
         <CloseButton className={classes.close} aria-label={t('panel.close')} onClick={close} />
@@ -191,6 +206,17 @@ export function HelixPanel() {
           </Anchor>
         )}
       </div>
+    </>
+  );
+}
+
+/** Helix as the right-hand pane of the shell. */
+export function HelixPanel() {
+  const { t } = useTranslation('helix');
+  const titleId = useId();
+  return (
+    <aside className={classes.panel} aria-label={t('panel.label')}>
+      <HelixContent titleId={titleId} />
     </aside>
   );
 }
