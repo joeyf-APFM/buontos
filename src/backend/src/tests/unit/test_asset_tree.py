@@ -412,3 +412,81 @@ def test_routes_fail_closed_for_a_scoped_user_without_data_products(api, graph):
     assert [n["count"] for n in root] == [0, 0, 0]
     assert api.get("/api/assets/tree", params={"parent": "branch:uc"}).json() == []
     assert api.get("/api/assets", params={"node": "branch:uc"}).json()["total"] == 0
+
+
+# --- GET /api/assets?parent=: a node's direct children, as the tree lists them ---
+
+def _tree_assets(api, key):
+    nodes = api.get("/api/assets/tree", params={"parent": key}).json()
+    return [(n["asset_id"], n["has_children"]) for n in nodes if n["kind"] == "asset"]
+
+
+def _children(api, key, **params):
+    response = api.get("/api/assets", params={"parent": key, "limit": 1000, **params})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.mark.parametrize("key", [
+    "branch:uc", "branch:internal", "branch:external", "branch:unsorted",
+    "asset:databricks", "asset:snowflake", "asset:insights", "asset:catalog_graph",
+    "asset:referrals", "asset:leads", "asset:moves", "asset:lead_id", "asset:raw_files",
+])
+def test_parent_lists_the_tree_asset_children_in_order(api, graph, unscoped_user, key):
+    kind, _, rest = key.partition(":")
+    key = f"asset:{getattr(graph, rest)}" if kind == "asset" else key
+    page = _children(api, key)
+    expected = _tree_assets(api, key)
+    assert [(a["id"], a["has_children"]) for a in page["items"]] == expected
+    assert page["total"] == len(expected)
+
+
+def test_parent_children_cover_every_listable_kind(api, graph, unscoped_user):
+    names = lambda key: [a["name"] for a in _children(api, key)["items"]]  # noqa: E731
+    assert names("branch:uc") == ["insights"]
+    assert names(f"asset:{graph.insights}") == ["catalog_graph", "referrals"]
+    assert names(f"asset:{graph.referrals}") == ["lead_view", "leads", "moves", "raw_files"]
+    assert names(f"asset:{graph.leads}") == ["lead_id"]
+    assert names(f"asset:{graph.lead_id}") == []
+
+
+def test_parent_children_page_with_a_real_total(api, graph, unscoped_user):
+    page = api.get("/api/assets", params={"parent": f"asset:{graph.referrals}", "skip": 1, "limit": 2}).json()
+    assert [a["name"] for a in page["items"]] == ["leads", "moves"]
+    assert (page["total"], page["skip"], page["limit"]) == (4, 1, 2)
+    assert [a["has_children"] for a in page["items"]] == [True, False]
+
+
+def test_parent_combines_with_the_other_filters(api, graph, unscoped_user):
+    key = f"asset:{graph.referrals}"
+    tables = _children(api, key, asset_type_names="Table")
+    assert ([a["name"] for a in tables["items"]], tables["total"]) == (["leads", "moves"], 2)
+    named = _children(api, key, name="lead")
+    assert [a["name"] for a in named["items"]] == ["lead_view", "leads"]
+    assert _children(api, key, status="deprecated")["total"] == 0
+
+
+def test_has_children_is_only_filled_on_parent_listings(api, graph, unscoped_user):
+    listed = api.get("/api/assets", params={"node": f"asset:{graph.referrals}"}).json()
+    assert {a["has_children"] for a in listed["items"]} == {None}
+
+
+def test_parent_children_follow_the_scoped_users_tree(api, graph, monkeypatch):
+    # Readable: leads only. insights and referrals aren't readable but hold leads, so the tree
+    # lists them; catalog_graph holds nothing readable and is omitted.
+    monkeypatch.setattr(assets_routes, "_restrict_ids_for", lambda *args: [graph.leads])
+    for key in ("branch:uc", f"asset:{graph.insights}", f"asset:{graph.referrals}", f"asset:{graph.leads}"):
+        assert [(a["id"], a["has_children"]) for a in _children(api, key)["items"]] == _tree_assets(api, key)
+    assert [a["name"] for a in _children(api, f"asset:{graph.insights}")["items"]] == ["referrals"]
+    leads = _children(api, f"asset:{graph.referrals}")["items"]
+    assert [(a["name"], a["has_children"]) for a in leads] == [("leads", False)]
+
+
+@pytest.mark.parametrize("params", [
+    {"parent": "category:analytics"},
+    {"parent": "type:Table"},
+    {"parent": "asset:not-a-uuid"},
+    {"parent": "branch:uc", "node": "branch:uc"},
+])
+def test_parent_rejects_keys_without_asset_children_and_node(api, unscoped_user, params):
+    assert api.get("/api/assets", params=params).status_code == 400

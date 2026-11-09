@@ -718,6 +718,8 @@ class AssetSummary(BaseModel):
     # A Column's type and nullability, from its properties; None for other assets.
     data_type: Optional[str] = None
     nullable: Optional[bool] = None
+    # Only on a ``?parent=`` listing: whether the tree shows children under this asset.
+    has_children: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 

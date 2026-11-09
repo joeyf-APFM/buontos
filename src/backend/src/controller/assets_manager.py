@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
-from sqlalchemy import Select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, object_session
 from sqlalchemy.exc import IntegrityError
 
@@ -19,6 +19,7 @@ from src.models.assets import (
 from src.db_models.business_owners import BusinessOwnerDb
 from src.db_models.semantic_links import EntitySemanticLinkDb
 from src.db_models.assets import AssetTypeDb, AssetDb, AssetRelationshipDb
+from src.models.asset_tree import AssetTreeNode
 from src.common.errors import ConflictError, NotFoundError, ValidationError
 from src.common.logging import get_logger
 from src.common.search_interfaces import SearchableAsset, SearchIndexItem
@@ -372,6 +373,44 @@ class AssetsManager(SearchableAsset):
             db, skip=skip, limit=limit, **filter_kwargs,
         )
         total = self._asset_repo.count_filtered(db, **filter_kwargs)
+        return PaginatedAssetSummary(
+            items=self._page_summaries(db, db_assets), total=total, skip=skip, limit=limit,
+        )
+
+    def get_child_assets(
+        self, db: Session, *, children: List[AssetTreeNode], skip: int = 0, limit: int = 100,
+        asset_type_id: Optional[UUID] = None, asset_type_names: Optional[List[str]] = None,
+        platform: Optional[str] = None, domain_id: Optional[str] = None,
+        domain_ids: Optional[List[str]] = None,
+        status: Optional[str] = None, name: Optional[str] = None,
+        concept_iri: Optional[str] = None,
+    ) -> PaginatedAssetSummary:
+        """A page of a tree node's asset children (``asset_tree.asset_child_nodes``), in tree order.
+
+        The tree already applied the user's scoping to ``children``; the other filters narrow
+        them further. Each summary carries the child's tree ``has_children``.
+        """
+        by_id = {c.asset_id: c for c in children}
+        matching = self._asset_repo.get_filtered_ids(
+            db, asset_type_id=asset_type_id, asset_type_names=asset_type_names, platform=platform,
+            domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
+            scope_subquery=select(AssetDb.id).where(AssetDb.id.in_(list(by_id))), concept_iri=concept_iri,
+        ) if by_id else set()
+        ordered = [c.asset_id for c in children if c.asset_id in matching]
+        page_ids = ordered[skip:skip + limit]
+        db_assets = self._asset_repo.get_multi_filtered(
+            db, skip=0, limit=len(page_ids),
+            scope_subquery=select(AssetDb.id).where(AssetDb.id.in_(page_ids)),
+        ) if page_ids else []
+        position = {asset_id: i for i, asset_id in enumerate(page_ids)}
+        db_assets = sorted(db_assets, key=lambda a: position[a.id])
+        summaries = self._page_summaries(db, db_assets)
+        for s in summaries:
+            s.has_children = by_id[s.id].has_children
+        return PaginatedAssetSummary(items=summaries, total=len(ordered), skip=skip, limit=limit)
+
+    def _page_summaries(self, db: Session, db_assets: List[AssetDb]) -> List[AssetSummary]:
+        """Summaries for a page of assets, with domains, owners and concepts batch-loaded."""
         summaries = [self._asset_to_summary(a) for a in db_assets]
         # Batch-load domain assignments for the page (avoids N+1) and attach to summaries
         # so list rows show domain badges and edit dialogs preserve domains on save (#520).
@@ -385,12 +424,7 @@ class AssetsManager(SearchableAsset):
                 s.domain_ids = [d.domain_id for d in assigned]
                 s.primary_domain_id = next((d.domain_id for d in assigned if d.is_primary), None)
             self._attach_owners_and_concepts(db, summaries, db_assets)
-        return PaginatedAssetSummary(
-            items=summaries,
-            total=total,
-            skip=skip,
-            limit=limit,
-        )
+        return summaries
 
     @staticmethod
     def _attach_owners_and_concepts(db: Session, summaries: List[AssetSummary], db_assets: List[AssetDb]) -> None:

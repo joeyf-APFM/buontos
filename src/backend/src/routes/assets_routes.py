@@ -11,7 +11,7 @@ from src.models.assets import (
     DeletePreviewItem, CascadeDeleteRequest, CascadeDeleteResult,
 )
 from src.controller.assets_manager import assets_manager
-from src.controller.asset_tree import scope_subquery, tree_children
+from src.controller.asset_tree import asset_child_nodes, scope_subquery, tree_children
 from src.models.asset_tree import AssetTreeNode
 from src.controller.metric_views_manager import (
     MetricViewNotFoundError, MetricViewsManager, UserClientUnavailableError, UserTokenRequiredError,
@@ -372,6 +372,7 @@ def get_all_assets(
     asset_status: Optional[str] = Query(None, alias="status"),
     name: Optional[str] = Query(None),
     node: Optional[str] = Query(None, description="Asset Explorer tree node key; lists the node and everything under it"),
+    parent: Optional[str] = Query(None, description="Asset Explorer tree node key; lists its direct asset children, as the tree does"),
     concept_iri: Optional[str] = Query(None, description="Only assets linked to this semantic concept IRI"),
 ):
     """Lists all assets with optional filters. Returns paginated results.
@@ -385,7 +386,25 @@ def get_all_assets(
       they still see DP-linked assets so the DP detail view's Linked
       Assets surface keeps working without granting the broader feature.
     """
+    if parent is not None and node is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Pass either node or parent, not both.")
     restrict_ids = _restrict_ids_for(request, db, current_user, manager)
+    type_names_list = [t.strip() for t in asset_type_names.split(",")] if asset_type_names else None
+    domain_ids_list = [d.strip() for d in domain_ids.split(",") if d.strip()] if domain_ids else None
+    if parent is not None:
+        try:
+            children = asset_child_nodes(db, parent, restrict_ids)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        # The tree applied the user's scoping to the children.
+        return manager.get_child_assets(
+            db=db, children=children, skip=skip, limit=limit,
+            asset_type_id=asset_type_id, asset_type_names=type_names_list,
+            platform=platform, domain_id=domain_id, domain_ids=domain_ids_list, status=asset_status,
+            name=name, concept_iri=concept_iri,
+        )
+
     scope = None
     if node is not None:
         try:
@@ -393,8 +412,6 @@ def get_all_assets(
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    type_names_list = [t.strip() for t in asset_type_names.split(",")] if asset_type_names else None
-    domain_ids_list = [d.strip() for d in domain_ids.split(",") if d.strip()] if domain_ids else None
     return manager.get_all_assets(
         db=db, skip=skip, limit=limit,
         asset_type_id=asset_type_id, asset_type_names=type_names_list,

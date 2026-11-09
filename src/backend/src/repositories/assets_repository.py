@@ -179,6 +179,29 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             db.rollback()
             raise
 
+    def get_filtered_ids(
+        self, db: Session, *,
+        asset_type_id: Optional[UUID] = None, asset_type_names: Optional[list] = None,
+        platform: Optional[str] = None, domain_id: Optional[str] = None,
+        domain_ids: Optional[list] = None,
+        status: Optional[str] = None, name: Optional[str] = None,
+        restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
+    ) -> set:
+        """The ids of every asset matching the given filters (no paging)."""
+        try:
+            query = self._apply_filters(
+                db.query(self.model.id), db=db, asset_type_id=asset_type_id,
+                asset_type_names=asset_type_names, platform=platform, domain_id=domain_id,
+                domain_ids=domain_ids, status=status, name=name, restrict_to_ids=restrict_to_ids,
+                scope_subquery=scope_subquery, concept_iri=concept_iri,
+            )
+            return {row[0] for row in query.all()}
+        except SQLAlchemyError as e:
+            logger.error(f"Database error fetching asset ids: {e}", exc_info=True)
+            db.rollback()
+            raise
+
     def count_filtered(
         self, db: Session, *,
         asset_type_id: Optional[UUID] = None, asset_type_names: Optional[list] = None,

@@ -236,13 +236,31 @@ def tree_children(db: Session, parent: Optional[str], restrict_to_ids: Optional[
     if parent is None:
         return _root_children(db, restrict_to_ids)
     node = parse_node_key(parent)
+    if node.kind == "category":
+        return _category_children(db, node.category, restrict_to_ids)
+    if node.kind == "type":
+        return []
+    return _asset_child_nodes(db, node, restrict_to_ids)
+
+
+def asset_child_nodes(db: Session, parent: str, restrict_to_ids: Optional[List[UUID]]) -> List[AssetTreeNode]:
+    """The asset children the tree lists under ``parent``, in tree order (``GET /api/assets?parent=``).
+
+    Raises ValueError for a bad key, and for category and type keys, which have no asset children.
+    """
+    node = parse_node_key(parent)
+    if node.kind in ("category", "type"):
+        raise ValueError(f"A {node.kind} node has no asset children: {parent!r}")
+    return _asset_child_nodes(db, node, restrict_to_ids)
+
+
+def _asset_child_nodes(db, node: NodeKey, restrict_to_ids) -> List[AssetTreeNode]:
+    """Asset children of a branch or asset node: what both the tree and ``?parent=`` list."""
     if node.kind == "branch" and node.branch != UNSORTED:
         return _branch_children(db, node.branch, restrict_to_ids)
     if node.kind == "asset":
         return _asset_children(db, node.asset_id, restrict_to_ids)
-    if node.kind == "category":
-        return _category_children(db, node.category, restrict_to_ids)
-    return []
+    return []  # the unsorted branch and legacy group keys
 
 
 def _root_children(db, restrict_to_ids) -> List[AssetTreeNode]:

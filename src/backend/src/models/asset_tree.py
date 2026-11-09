@@ -11,5 +11,5 @@ class AssetTreeNode(BaseModel):
     kind: Literal["branch", "type", "asset", "group"]
     asset_id: Optional[UUID] = None
     asset_type_name: Optional[str] = None
-    count: int               # assets in this node's scope the user can read
+    count: int               # readable assets under this node (an asset node not counting itself)
     has_children: bool
