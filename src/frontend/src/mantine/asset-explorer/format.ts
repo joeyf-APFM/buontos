@@ -16,7 +16,10 @@ export const ownerText = (a: AssetSummary) =>
 /**
  * Asset names are stored fully qualified; under its parent a row shows only
  * the part after the parent's name ("insights.referrals" under "insights"
- * reads "referrals"). Names that don't start with it (short columns) stay.
+ * reads "referrals"). Names that don't start with it (short columns), or are
+ * nothing more than "<parent>.", stay whole.
  */
 export const shortLabel = (label: string, parentLabel?: string) =>
-  parentLabel && label.startsWith(`${parentLabel}.`) ? label.slice(parentLabel.length + 1) : label;
+  parentLabel && label.startsWith(`${parentLabel}.`) && label.length > parentLabel.length + 1
+    ? label.slice(parentLabel.length + 1)
+    : label;

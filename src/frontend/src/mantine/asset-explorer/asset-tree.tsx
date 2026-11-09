@@ -41,8 +41,8 @@ type ChildrenMap = Record<string, TreeNode[]>;
 const placeholderValue = (parent: string) => `${parent}\u0000loading`;
 
 function toTreeData(nodes: TreeNode[], children: ChildrenMap, parent?: TreeNode): TreeNodeData[] {
-  // Only an asset parent's name prefixes its children's
-  const parentLabel = parent && parent.kind !== 'branch' ? parent.label : undefined;
+  // Only an asset parent's name prefixes its children's (never a branch or type node)
+  const parentLabel = parent?.kind === 'asset' ? parent.label : undefined;
   return nodes.map((node) => ({
     value: node.key,
     label: shortLabel(node.label, parentLabel),

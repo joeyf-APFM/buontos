@@ -14,6 +14,7 @@ import {
 } from './api';
 import { AssetTree, type TreeSelection } from './asset-tree';
 import { AssetTable } from './asset-table';
+import { useExpansions } from './use-expansions';
 import { DetailsPanel } from './details-panel';
 import classes from './explorer.module.css';
 
@@ -58,12 +59,17 @@ export default function ExplorerPage() {
   const [listToken, setListToken] = useState(0);
   const [treeToken, setTreeToken] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(null);
+  /** Counts tree selections, so reselecting a node still starts with every row closed. */
+  const [selectionCount, setSelectionCount] = useState(0);
   const [editing, setEditing] = useState<AssetRead | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [editPendingId, setEditPendingId] = useState<string | null>(null);
-  // For async answers: which asset is selected now, and the node's label
+  // For async answers: which asset is selected now, and the node's Helix
+  // context (its label; for a column, its full name once the asset is in)
   const selectedIdRef = useRef<string | null>(null);
-  const nodeLabelRef = useRef<string | null>(null);
+  const nodeContextRef = useRef<string | null>(null);
+  /** What Helix should see when no row is selected. */
+  const nodeContext = () => nodeContextRef.current;
   // After a save: the edited asset, and the list refresh that has to include it
   const afterSave = useRef<{ id: string; listToken: number } | null>(null);
   const [nodeStatus, setNodeStatus] = useState<{ key: string; status: AssetStatus } | null>(null);
@@ -74,6 +80,7 @@ export default function ExplorerPage() {
   const onSelectNode = useCallback(
     (next: TreeSelection) => {
       setSelection(next);
+      setSelectionCount((n) => n + 1);
       setNameInput('');
       setTypeFilter(null);
       setStatusFilter(null);
@@ -81,7 +88,7 @@ export default function ExplorerPage() {
       setConceptSearch('');
       setSelectedAsset(null);
       selectedIdRef.current = null;
-      nodeLabelRef.current = next.node.label;
+      nodeContextRef.current = next.node.label;
       setContext(next.node.label);
     },
     [setContext],
@@ -98,7 +105,7 @@ export default function ExplorerPage() {
     setSelectedAsset(null);
     selectedIdRef.current = null;
     setEditError(null);
-    setContext(node?.label ?? null);
+    setContext(nodeContext());
   };
 
   // The name filter, 250ms after typing stops. It belongs to the node it was
@@ -115,6 +122,10 @@ export default function ExplorerPage() {
   const [pageState, setPageState] = useState({ listKey: '', number: 1 });
   const pageNumber = pageState.listKey === listKey ? pageState.number : 1;
   const setPageNumber = (number: number) => setPageState({ listKey, number });
+
+  // Open rows (child rows, column sub-grids) belong to one tree selection, filter and page
+  const { expansions, toggle, more, retry } = useExpansions(JSON.stringify([listKey, pageNumber, selectionCount]));
+  const filterActive = !!(name || typeFilter || statusFilter || concept);
 
   // The assets under the selected node, with the request they answer
   const query = useMemo(
@@ -146,7 +157,7 @@ export default function ExplorerPage() {
           if (selectedIdRef.current === saved.id && !result.items.some((a) => a.id === saved.id)) {
             selectedIdRef.current = null;
             setSelectedAsset(null);
-            setContext(nodeLabelRef.current);
+            setContext(nodeContextRef.current);
           }
         }
       })
@@ -173,7 +184,10 @@ export default function ExplorerPage() {
       .then((a) => {
         if (cancelled) return;
         setNodeStatus({ key: nodeKey, status: a.status });
-        if (nodeIsColumn && a.location && !selectedIdRef.current) setContext(a.location);
+        if (nodeIsColumn && a.location) {
+          nodeContextRef.current = a.location;
+          if (!selectedIdRef.current) setContext(a.location);
+        }
       })
       .catch(() => {});
     return () => {
@@ -382,6 +396,7 @@ export default function ExplorerPage() {
               {(!loading || current) && <span className={classes.count}>{t('count', { count: page.total })}</span>}
             </div>
 
+            {filterActive && <div className={classes.gridHint}>{t('grid.filterHint')}</div>}
             <div className={classes.tableWrap}>
               <AssetTable
                 items={page.items}
@@ -390,6 +405,10 @@ export default function ExplorerPage() {
                 onRetry={() => setListToken((n) => n + 1)}
                 selectedId={selectedAsset?.id ?? null}
                 onSelect={onSelectAsset}
+                expansions={expansions}
+                onToggle={toggle}
+                onMore={more}
+                onRetryExpansion={retry}
               />
             </div>
             {pages > 1 && (

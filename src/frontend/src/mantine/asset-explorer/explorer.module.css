@@ -190,7 +190,8 @@
   border-collapse: collapse;
 }
 
-.table th {
+/* Child combinators: the column sub-grid inside a row keeps its own styles */
+.table > thead > tr > th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -205,28 +206,136 @@
   border-bottom: 1px solid var(--aura-border);
 }
 
-.table td {
+.table > tbody > tr > td {
   height: 28px;
   padding: 0 10px;
   white-space: nowrap;
   border-bottom: 1px solid var(--aura-border-subtle);
 }
 
-.table tbody tr {
+.table > tbody > tr {
   cursor: pointer;
 }
 
-.table tbody tr:not([data-selected]):hover td {
+.table > tbody > tr:not([data-selected], .nestRow, .subgridHost):hover > td {
   background: var(--aura-canvas);
 }
 
 /* Selection only highlights: the cells keep their own font, colour and weight */
-.table tbody tr[data-selected] td {
+.table > tbody > tr[data-selected] > td {
   background: var(--aura-accent-subtle);
 }
 
-.table tbody tr[data-selected] td:first-child {
+.table > tbody > tr[data-selected] > td:first-child {
   box-shadow: inset 2px 0 0 var(--aura-accent);
+}
+
+/* Nested rows */
+.nameCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rowChevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--aura-text-muted);
+}
+
+button.rowChevron:hover {
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-body);
+}
+
+.table > tbody > tr.nestRow,
+.table > tbody > tr.subgridHost {
+  cursor: default;
+}
+
+.table > tbody > tr.nestRow > td {
+  height: 24px;
+}
+
+.nestError {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--aura-text-secondary);
+}
+
+.nestEmpty {
+  color: var(--aura-text-muted);
+}
+
+.gridHint {
+  padding: 4px 14px;
+  font-size: 11px;
+  color: var(--aura-text-muted);
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+/* Column sub-grid: 24px rows, one density step below the grid */
+.table > tbody > tr.subgridHost > td {
+  height: auto;
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+
+.subgrid {
+  min-width: 60%;
+  border-collapse: collapse;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.subgrid th {
+  height: 24px;
+  padding: 0 8px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+  background: var(--aura-surface-strong);
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.subgrid td {
+  height: 24px;
+  padding: 0 8px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.subgrid tbody tr {
+  cursor: pointer;
+}
+
+.subgrid tbody tr:not([data-selected]):hover td {
+  background: var(--aura-canvas);
+}
+
+.subgrid tbody tr[data-selected] td {
+  background: var(--aura-accent-subtle);
+}
+
+.subgrid tbody tr[data-selected] td:first-child {
+  box-shadow: inset 2px 0 0 var(--aura-accent);
+}
+
+.truncate {
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 
 .mono {

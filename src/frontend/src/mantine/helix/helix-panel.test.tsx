@@ -263,7 +263,7 @@ describe('Ask Helix in the shell', () => {
     mockBackend((url) => (url.pathname === '/api/settings/helix' ? json(USER_MODE) : undefined));
     renderExplorer();
 
-    await user.click(await within(await screen.findByRole('table')).findByText('leads'));
+    await user.click(await within(await screen.findByRole('treegrid')).findByText('leads'));
     expect(await screen.findByRole('complementary', { name: 'leads' })).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: 'Ask Helix' }));

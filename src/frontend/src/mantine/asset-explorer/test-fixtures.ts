@@ -68,21 +68,47 @@ export const LEAD_EVENTS = summary({ id: 'a2', name: 'lead_events', status: 'dra
 
 export const LEAD_ID = summary({
   id: 'col1', name: 'insights.referrals.leads.lead_id', asset_type_name: 'Column',
-  location: 'insights.referrals.leads.lead_id', concepts: [], column_count: null,
+  location: 'insights.referrals.leads.lead_id', concepts: ['Lead'], column_count: null,
+  data_type: 'bigint', nullable: false, description: 'The lead’s id, unique across every lead source we ingest.',
 });
 
 export const EVENT_TS = summary({
   id: 'col2', name: 'event_ts', asset_type_name: 'Column',
   location: 'insights.referrals.leads.event_ts', concepts: [], column_count: null,
+  data_type: 'timestamp', nullable: true, description: null,
+});
+
+// The rows behind the tree's nodes, for nested rows and sub-grids
+export const SCHEMA_REFERRALS = summary({
+  id: 'sch1', name: 'insights.referrals', asset_type_name: 'Schema', location: 'insights.referrals', column_count: null,
+});
+export const T_LEADS = summary({ id: 't1', name: 'insights.referrals.leads', location: 'insights.referrals.leads' });
+export const V_DAILY = summary({
+  id: 'v1', name: 'insights.referrals.referrals_daily', asset_type_name: 'View', location: 'insights.referrals.referrals_daily',
+});
+export const MV_KPIS = summary({
+  id: 'mv1', name: 'insights.referrals.referral_kpis', asset_type_name: 'Metric View', location: 'insights.referrals.referral_kpis',
+});
+export const VOL_RAW = summary({
+  id: 'vol1', name: 'insights.referrals.raw_exports', asset_type_name: 'Volume', location: 'insights.referrals.raw_exports',
 });
 
 export const ASSETS: Record<string, AssetSummary[]> = {
   'branch:uc': [LEADS, LEAD_EVENTS],
-  'asset:cat1': [LEADS, LEAD_EVENTS],
+  'asset:cat1': [SCHEMA_REFERRALS, LEADS, LEAD_EVENTS],
   'asset:sch1': [LEADS, LEAD_EVENTS],
+  'asset:t1': [T_LEADS, LEAD_ID, EVENT_TS],
   'asset:sch2': [],
   'asset:col1': [LEAD_ID],
   'asset:col2': [EVENT_TS],
+};
+
+/**
+ * A node's listing when asked for some types only (nested rows ask for their
+ * children's types): the node itself and what is under it.
+ */
+export const BY_TYPE: Record<string, AssetSummary[]> = {
+  'asset:sch1': [SCHEMA_REFERRALS, T_LEADS, V_DAILY, MV_KPIS, VOL_RAW],
 };
 
 export const CONCEPTS = [
@@ -109,6 +135,12 @@ export function mockBackend(override?: Handler) {
       // The server's total counts every page, not only this one
       return json({ items: [LEADS], total: 37, skip: 0, limit: 50 });
     }
+    if (url.pathname === '/api/assets' && url.searchParams.get('asset_type_names')) {
+      const node = url.searchParams.get('node') ?? '';
+      const types = url.searchParams.get('asset_type_names')!.split(',');
+      const items = (BY_TYPE[node] ?? ASSETS[node] ?? []).filter((a) => types.includes(a.asset_type_name ?? ''));
+      return json({ items, total: items.length, skip: 0, limit: 50 });
+    }
     if (url.pathname === '/api/assets') {
       const items = (ASSETS[url.searchParams.get('node') ?? ''] ?? []).filter(
         (a) => !url.searchParams.get('name') || a.name.includes(url.searchParams.get('name')!),
@@ -117,7 +149,7 @@ export function mockBackend(override?: Handler) {
     }
     if (url.pathname.startsWith('/api/assets/')) {
       const id = url.pathname.split('/').pop();
-      const known = Object.values(ASSETS).flat().find((a) => a.id === id);
+      const known = [...Object.values(ASSETS), ...Object.values(BY_TYPE)].flat().find((a) => a.id === id);
       return json({ id, name: 'x', status: 'active', ...known, relationships: [], created_at: '2026-11-01T00:00:00Z' });
     }
     return json([]);

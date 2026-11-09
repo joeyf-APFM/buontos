@@ -48,6 +48,24 @@
     "updated": "Updated"
   },
   "empty": "Nothing here yet",
+  "grid": {
+    "expand": "Expand {{name}}",
+    "collapse": "Collapse {{name}}",
+    "showMore": "Show more ({{count}} left)",
+    "noChildren": "Nothing under this yet",
+    "loadError": "Couldn’t load: {{message}}",
+    "filterHint": "Filters apply to the top-level rows; nested rows show everything under them."
+  },
+  "subgrid": {
+    "label": "Columns of {{name}}",
+    "column": "Column",
+    "dataType": "Data type",
+    "nullable": "Nullable",
+    "description": "Description",
+    "concepts": "Concepts",
+    "yes": "Yes",
+    "no": "No"
+  },
   "loadError": "Couldn’t load the assets: {{message}}",
   "retry": "Retry",
   "details": {

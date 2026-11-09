@@ -55,7 +55,7 @@ const clickRow = async (user: ReturnType<typeof userEvent.setup>, name: string) 
 const assetCalls = (fetchMock: ReturnType<typeof mockBackend>) =>
   calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets');
 const lastAssetCall = (fetchMock: ReturnType<typeof mockBackend>) => assetCalls(fetchMock).slice(-1)[0];
-const table = () => screen.findByRole('table');
+const table = () => screen.findByRole('treegrid');
 
 async function openSchema(user: ReturnType<typeof userEvent.setup>) {
   await clickRow(user, 'insights');
@@ -116,8 +116,8 @@ describe('ExplorerPage', () => {
 
     await clickRow(user, 'insights');
     expect(await screen.findByRole('heading', { name: 'insights' })).toBeInTheDocument();
-    expect(within(screen.getByRole('table')).queryByText('leads')).toBeNull();
-    expect(within(screen.getByRole('table')).queryByText('lead_events')).toBeNull();
+    expect(within(screen.getByRole('treegrid')).queryByText('leads')).toBeNull();
+    expect(within(screen.getByRole('treegrid')).queryByText('lead_events')).toBeNull();
     expect(screen.queryByText('2 assets')).toBeNull();
 
     release();
@@ -154,7 +154,7 @@ describe('ExplorerPage', () => {
     );
     expect(lastAssetCall(fetchMock).searchParams.get('skip')).toBe('0');
     expect(await screen.findByText('37 assets')).toBeInTheDocument();
-    expect(within(screen.getByRole('table')).queryByText('lead_events')).toBeNull();
+    expect(within(screen.getByRole('treegrid')).queryByText('lead_events')).toBeNull();
   });
 
   it('selects a column: the table lists it, with the full path, its type and full name', async () => {
@@ -199,7 +199,7 @@ describe('ExplorerPage', () => {
     await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('name')).toBe('events'));
     const names = assetCalls(fetchMock).map((u) => u.searchParams.get('name'));
     expect(names.filter((n) => n && n !== 'events')).toEqual([]);
-    await waitFor(() => expect(within(screen.getByRole('table')).queryByText('leads')).toBeNull());
+    await waitFor(() => expect(within(screen.getByRole('treegrid')).queryByText('leads')).toBeNull());
   });
 
   it('opens the details panel for a clicked row, and hides it while Helix is open', async () => {
@@ -337,7 +337,7 @@ describe('ExplorerPage', () => {
 
       const details = await screen.findByRole('complementary', { name: 'leads_v2' });
       expect(within(details).getByText('insights.referrals.leads_v2')).toBeInTheDocument();
-      expect(within(screen.getByRole('table')).getByText('leads_v2')).toBeInTheDocument();
+      expect(within(screen.getByRole('treegrid')).getByText('leads_v2')).toBeInTheDocument();
       expect(assetCalls(fetchMock).length).toBe(before + 1);
       await waitFor(() =>
         expect(calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets/tree').length).toBeGreaterThan(treeBefore),
@@ -358,7 +358,7 @@ describe('ExplorerPage', () => {
       saved = true;
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
-      await waitFor(() => expect(within(screen.getByRole('table')).queryByText('leads')).toBeNull());
+      await waitFor(() => expect(within(screen.getByRole('treegrid')).queryByText('leads')).toBeNull());
       expect(screen.queryByRole('complementary')).toBeNull();
       expect(useHelixStore.getState().context).toBe('Unity Catalog');
     });
@@ -382,7 +382,7 @@ describe('ExplorerPage', () => {
       expect(calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets/a1')).toHaveLength(1);
 
       // Another row is selected before the asset arrives
-      await user.click(within(screen.getByRole('table')).getByText('lead_events'));
+      await user.click(within(screen.getByRole('treegrid')).getByText('lead_events'));
       await act(async () => release());
 
       expect(screen.queryByRole('dialog')).toBeNull();

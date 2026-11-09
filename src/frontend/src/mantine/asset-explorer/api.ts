@@ -47,6 +47,9 @@ export interface AssetSummary {
   /** Concept labels. */
   concepts: string[];
   column_count?: number | null;
+  /** Column rows only. */
+  data_type?: string | null;
+  nullable?: boolean | null;
 }
 
 export interface AssetQuery {
