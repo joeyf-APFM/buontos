@@ -103,13 +103,24 @@ def parse_events(lines: Iterable[str]) -> Iterator[HelixEvent]:
             event = json.loads(line)
         except ValueError:
             continue
-        if isinstance(event, dict):
-            yield from _map_event(event)
+        if not isinstance(event, dict):
+            continue
+        try:
+            mapped = list(_map_event(event))
+        except (TypeError, AttributeError, ValueError):
+            continue  # malformed upstream shape: skip the event
+        for ev in mapped:
+            yield ev
+            if ev.kind == "error":
+                return
 
 
 def _base_url(host: str) -> str:
+    """Always https: a bearer token must never travel in cleartext."""
     host = host.strip().rstrip("/")
-    if not host.startswith(("https://", "http://")):
+    if host.lower().startswith("http://"):
+        raise ValueError("insecure host")
+    if not host.lower().startswith("https://"):
         host = f"https://{host}"
     return host
 
@@ -123,8 +134,10 @@ async def stream_answer(
     transport: Optional[httpx.AsyncBaseTransport] = None,
 ) -> AsyncIterator[HelixEvent]:
     """Stream parsed events; any failure becomes one final error event."""
-    url = _base_url(host) + ONECHAT_PATH
+    stopped = HelixEvent("error", {"message": _STOPPED})
+    terminal = False
     try:
+        url = _base_url(host) + ONECHAT_PATH
         async with httpx.AsyncClient(timeout=timeout_s, transport=transport) as client:
             async with client.stream("POST", url, headers=auth_headers, json=body) as resp:
                 if resp.status_code >= 400:
@@ -135,5 +148,11 @@ async def stream_answer(
                 async for line in resp.aiter_lines():
                     for ev in parse_events([line]):
                         yield ev
-    except httpx.HTTPError:
-        yield HelixEvent("error", {"message": _STOPPED})
+                        if ev.kind in ("done", "error"):
+                            terminal = True
+                            return
+    except Exception:  # CancelledError is a BaseException and still propagates
+        yield stopped
+        return
+    if not terminal:
+        yield stopped

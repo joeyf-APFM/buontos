@@ -112,9 +112,24 @@ def test_error_event_becomes_error():
         json.dumps({"type": "response.done", "response": {"status": "failed"}}),
     ]
     events = list(parse_events(lines))
-    assert [e.kind for e in events] == ["error", "error"]
+    assert [e.kind for e in events] == ["error"]
     assert events[0].data["message"] == "boom"
-    assert events[1].data["message"]
+
+
+def test_failed_response_done_becomes_error():
+    line = json.dumps({"type": "response.done", "response": {"status": "failed"}})
+    events = list(parse_events([line]))
+    assert [e.kind for e in events] == ["error"] and events[0].data["message"]
+
+
+def test_malformed_events_are_skipped():
+    bad = [
+        {"type": "response.output_item.done", "item": {"type": "function_call_output",
+            "metadata": {"result_data": {"columns": 5, "preview_rows": 3}}}},
+        {"type": "response.output_item.done", "item": {"type": "message", "content": 7}},
+    ]
+    lines = [json.dumps(e) for e in bad] + [json.dumps({"type": "response.done", "response": {}})]
+    assert [e.kind for e in parse_events(lines)] == ["done"]
 
 
 def _collect(transport):
@@ -159,3 +174,51 @@ def test_dropped_stream_ends_with_error():
     events = _collect(httpx.MockTransport(lambda r: httpx.Response(200, stream=Dropping())))
     assert [e.kind for e in events] == ["conversation", "error"]
     assert events[-1].data == {"message": "Genie One stopped answering."}
+
+
+def test_malformed_columns_do_not_raise_from_stream():
+    bad = {"type": "response.output_item.done", "item": {"type": "function_call_output",
+           "metadata": {"result_data": {"columns": 5}}}}
+    body = "\n".join(json.dumps(e) for e in [bad, {"type": "response.done", "response": {}}]).encode()
+    events = _collect(httpx.MockTransport(lambda r: httpx.Response(200, content=body)))
+    assert [e.kind for e in events] == ["done"]
+
+
+def test_bad_host_becomes_error_not_exception():
+    async def run():
+        return [e async for e in stream_answer("bad host\n:xx", {}, {},
+                transport=httpx.MockTransport(lambda r: httpx.Response(200)))]
+
+    events = asyncio.run(run())
+    assert events == [HelixEvent("error", {"message": "Genie One stopped answering."})]
+
+
+def test_stream_stops_after_first_error():
+    lines = [{"type": "error", "message": "a"}, {"type": "error", "message": "b"},
+             {"type": "response.done", "response": {}}]
+    body = "\n".join(json.dumps(e) for e in lines).encode()
+    events = _collect(httpx.MockTransport(lambda r: httpx.Response(200, content=body)))
+    assert events == [HelixEvent("error", {"message": "a"})]
+
+
+def test_clean_close_without_done_ends_with_error():
+    body = json.dumps(_events()[0]).encode()
+    events = _collect(httpx.MockTransport(lambda r: httpx.Response(200, content=body)))
+    assert [e.kind for e in events] == ["conversation", "error"]
+    assert events[-1].data == {"message": "Genie One stopped answering."}
+
+
+def test_http_host_is_never_used_in_cleartext():
+    seen = []
+
+    def handler(request):
+        seen.append(str(request.url))
+        return httpx.Response(200)
+
+    async def run():
+        return [e async for e in stream_answer("http://example.com", {"Authorization": "Bearer s"}, {},
+                transport=httpx.MockTransport(handler))]
+
+    events = asyncio.run(run())
+    assert all(u.startswith("https://") for u in seen)
+    assert events[-1].kind == "error"
