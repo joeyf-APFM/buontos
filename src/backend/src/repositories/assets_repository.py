@@ -1,10 +1,12 @@
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy import Select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.common.repository import CRUDBase
+from src.db_models.semantic_links import EntitySemanticLinkDb
 from src.db_models.assets import AssetTypeDb, AssetDb, AssetRelationshipDb
 from src.repositories.entity_domain_association_repository import entity_domain_repo
 from src.models.assets import (
@@ -15,6 +17,17 @@ from src.models.assets import (
 from src.common.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _as_uuids(entity_ids) -> list:
+    """Entity ids stored as strings, as UUIDs; ids that aren't UUIDs are dropped."""
+    ids = []
+    for entity_id in entity_ids:
+        try:
+            ids.append(UUID(str(entity_id)))
+        except ValueError:
+            continue
+    return ids
 
 
 class AssetTypeRepository(CRUDBase[AssetTypeDb, AssetTypeCreate, AssetTypeUpdate]):
@@ -83,7 +96,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
 
     def _apply_filters(self, query, *, db=None, asset_type_id=None, asset_type_names=None,
                         platform=None, domain_id=None, domain_ids=None, status=None, name=None,
-                        restrict_to_ids=None):
+                        restrict_to_ids=None, scope_subquery=None, concept_iri=None):
         """Apply common filter predicates to a query.
 
         ``restrict_to_ids`` is an optional iterable of asset UUIDs to scope
@@ -92,6 +105,9 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
 
         Domain filtering (``domain_id`` single and/or ``domain_ids`` list) is any-of
         via the ``entity_domain_associations`` junction table.
+
+        ``scope_subquery`` is an optional ``SELECT assets.id`` (an Asset Explorer tree
+        node's scope); results are limited to the ids it selects.
         """
         if asset_type_id:
             query = query.filter(self.model.asset_type_id == asset_type_id)
@@ -110,8 +126,9 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
                 session, domain_ids=wanted, entity_type="asset"
             )
             # Empty list -> SQLAlchemy renders an always-false predicate (no rows). A
-            # string sentinel would crash here because AssetDb.id is a Postgres UUID.
-            query = query.filter(self.model.id.in_(asset_ids))
+            # string sentinel would crash here because AssetDb.id is a Postgres UUID; the
+            # junction stores ids as strings, so they're resolved to UUIDs like concept links.
+            query = query.filter(self.model.id.in_(_as_uuids(asset_ids)))
         if status:
             query = query.filter(self.model.status == status)
         if name:
@@ -124,6 +141,17 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
                 query = query.filter(self.model.id.is_(None))
             else:
                 query = query.filter(self.model.id.in_(ids))
+        if scope_subquery is not None:
+            query = query.filter(self.model.id.in_(scope_subquery))
+        if concept_iri:
+            # Links store the asset id as a string; resolve to UUIDs so the match is
+            # independent of how the database renders UUID columns.
+            session = db or query.session
+            linked = session.query(EntitySemanticLinkDb.entity_id).filter(
+                EntitySemanticLinkDb.entity_type == "asset",
+                EntitySemanticLinkDb.iri == concept_iri,
+            ).all()
+            query = query.filter(self.model.id.in_(_as_uuids(entity_id for (entity_id,) in linked)))
         return query
 
     def get_multi_filtered(
@@ -132,7 +160,8 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
         platform: Optional[str] = None, domain_id: Optional[str] = None,
         domain_ids: Optional[list] = None,
         status: Optional[str] = None, name: Optional[str] = None,
-        restrict_to_ids: Optional[list] = None,
+        restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
     ) -> List[AssetDb]:
         """Gets multiple assets with optional filters."""
         try:
@@ -148,11 +177,34 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             query = self._apply_filters(
                 query, db=db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
                 platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-                restrict_to_ids=restrict_to_ids,
+                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery, concept_iri=concept_iri,
             )
             return query.offset(skip).limit(limit).all()
         except SQLAlchemyError as e:
             logger.error(f"Database error fetching assets: {e}", exc_info=True)
+            db.rollback()
+            raise
+
+    def get_filtered_ids(
+        self, db: Session, *,
+        asset_type_id: Optional[UUID] = None, asset_type_names: Optional[list] = None,
+        platform: Optional[str] = None, domain_id: Optional[str] = None,
+        domain_ids: Optional[list] = None,
+        status: Optional[str] = None, name: Optional[str] = None,
+        restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
+    ) -> set:
+        """The ids of every asset matching the given filters (no paging)."""
+        try:
+            query = self._apply_filters(
+                db.query(self.model.id), db=db, asset_type_id=asset_type_id,
+                asset_type_names=asset_type_names, platform=platform, domain_id=domain_id,
+                domain_ids=domain_ids, status=status, name=name, restrict_to_ids=restrict_to_ids,
+                scope_subquery=scope_subquery, concept_iri=concept_iri,
+            )
+            return {row[0] for row in query.all()}
+        except SQLAlchemyError as e:
+            logger.error(f"Database error fetching asset ids: {e}", exc_info=True)
             db.rollback()
             raise
 
@@ -162,7 +214,8 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
         platform: Optional[str] = None, domain_id: Optional[str] = None,
         domain_ids: Optional[list] = None,
         status: Optional[str] = None, name: Optional[str] = None,
-        restrict_to_ids: Optional[list] = None,
+        restrict_to_ids: Optional[list] = None, scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
     ) -> int:
         """Returns the total count of assets matching the given filters."""
         try:
@@ -171,7 +224,7 @@ class AssetRepository(CRUDBase[AssetDb, AssetCreate, AssetUpdate]):
             query = self._apply_filters(
                 query, db=db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
                 platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-                restrict_to_ids=restrict_to_ids,
+                restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery, concept_iri=concept_iri,
             )
             return query.scalar() or 0
         except SQLAlchemyError as e:

@@ -19,9 +19,12 @@ from src.db_models.assets import AssetDb
 from src.db_models.connections import ConnectionDb
 from src.models.assets import (
     METRIC_VIEW_ASSET_TYPE,
+    UC_BRANCH_ASSET_TYPES,
+    VOLUME_ASSET_TYPE,
     AssetCreate,
     AssetRelationshipCreate,
     AssetStatus,
+    DataBranch,
     UnifiedAssetType,
 )
 from src.models.schema_import import (
@@ -52,6 +55,14 @@ _CHILD_LIMIT_MAX = 10000
 
 
 # ---------------------------------------------------------------------------
+# Asset types that were imported as another type before they had their own: the
+# type they were imported as, and the (old, new) name of the link from the parent
+# when it changes with the type.
+_LEGACY_TYPES: Dict[str, tuple] = {
+    METRIC_VIEW_ASSET_TYPE: ("View", None),
+    VOLUME_ASSET_TYPE: ("System", ("hasPart", "hasVolume")),
+}
+
 # UnifiedAssetType  ->  (Ontos AssetType name, relationship from parent)
 # ---------------------------------------------------------------------------
 
@@ -67,7 +78,7 @@ _TYPE_MAP: Dict[str, tuple] = {
     UnifiedAssetType.UC_STREAMING_TABLE.value: ("Table", "hasTable"),
     UnifiedAssetType.UC_FUNCTION.value: ("System", "hasPart"),
     UnifiedAssetType.UC_MODEL.value: ("ML Model", "hasPart"),
-    UnifiedAssetType.UC_VOLUME.value: ("System", "hasPart"),
+    UnifiedAssetType.UC_VOLUME.value: (VOLUME_ASSET_TYPE, "hasVolume"),
     # BigQuery — structural containers
     UnifiedAssetType.BQ_PROJECT.value: ("Catalog", "hasCatalog"),
     UnifiedAssetType.BQ_DATASET.value: ("Schema", "hasSchema"),
@@ -366,6 +377,7 @@ class SchemaImportManager:
         created_assets: Dict[str, UUID] = {}
         type_cache: Dict[str, Any] = {}
         metadata_cache: Dict[str, Any] = {}
+        conn_db = connections_repo.get(db, request.connection_id)
 
         # 2. Create assets (parents before children — items are in BFS order)
         total_items = len(preview_items)
@@ -402,23 +414,30 @@ class SchemaImportManager:
                 ))
                 continue
 
+            data_branch = self._branch_for(conn_db, connector, item.asset_type)
             if not item.will_create:
-                if item.asset_type == METRIC_VIEW_ASSET_TYPE and item.existing_asset_id:
-                    # Unity Catalog reports a metric view here: convert a legacy View
-                    # asset (no-op when it already is a Metric View). In a savepoint and
+                if item.existing_asset_id:
+                    existing_db = asset_repo.get(db, item.existing_asset_id)
+                    if existing_db is not None:
+                        self._stamp_branch(existing_db, data_branch)
+                if item.asset_type in _LEGACY_TYPES and item.existing_asset_id:
+                    legacy_type, rename = _LEGACY_TYPES[item.asset_type]
+                    # Unity Catalog reports e.g. a metric view here: convert a legacy View
+                    # asset (no-op when it already has the new type). In a savepoint and
                     # without committing, so a failure drops only this conversion and the
                     # import goes on; the conversion is committed with the import.
                     try:
                         with db.begin_nested():
                             self._assets.retype_asset(
-                                db, asset_id=item.existing_asset_id, from_type="View",
-                                to_type=METRIC_VIEW_ASSET_TYPE, current_user_id=current_user_id,
-                                commit=False,
+                                db, asset_id=item.existing_asset_id, from_type=legacy_type,
+                                to_type=item.asset_type, current_user_id=current_user_id,
+                                commit=False, rename_relationship=rename,
                             )
                     except Exception:
-                        logger.error("Failed to convert the View asset at %s to a Metric View",
-                                     item.path, exc_info=True)
-                        message = "The existing View asset could not be converted to a Metric View."
+                        logger.error("Failed to convert the %s asset at %s to %s",
+                                     legacy_type, item.path, item.asset_type, exc_info=True)
+                        message = (f"The existing {legacy_type} asset could not be "
+                                   f"converted to a {item.asset_type}.")
                         result.errors += 1
                         result.error_messages.append(f"{item.path}: {message}")
                         result.items.append(ImportResultItem(
@@ -453,6 +472,7 @@ class SchemaImportManager:
                     current_user_id=current_user_id,
                     _type_cache=type_cache,
                     _metadata_cache=metadata_cache,
+                    data_branch=data_branch,
                 )
                 created_assets[item.path] = asset_read.id
                 result.created += 1
@@ -623,9 +643,12 @@ class SchemaImportManager:
         if conn_db is None:
             return None
 
+        branch = self._branch_for(conn_db, connector, "System")
+
         if conn_db.system_asset_id:
             existing = asset_repo.get(db, conn_db.system_asset_id)
             if existing:
+                self._stamp_branch(existing, branch)
                 return existing.id
 
         system_type_db = asset_type_repo.get_by_name(db, name="System")
@@ -642,6 +665,7 @@ class SchemaImportManager:
             location=connector.connector_type,
         )
         if existing:
+            self._stamp_branch(existing, branch)
             conn_db.system_asset_id = existing.id
             db.flush()
             return existing.id
@@ -656,6 +680,7 @@ class SchemaImportManager:
                 location=connector.connector_type,
                 properties={"connector_type": connector.connector_type},
                 status=AssetStatus.ACTIVE,
+                data_branch=branch,
             ),
             current_user_id=current_user_id,
         )
@@ -663,6 +688,25 @@ class SchemaImportManager:
         db.flush()
         logger.info(f"Created System asset '{conn_db.name}' (id={system_asset.id}) for connection {connection_id}")
         return system_asset.id
+
+    @staticmethod
+    def _branch_for(conn_db, connector: AssetConnector, asset_type: str) -> Optional[str]:
+        """The data branch an import stamps on an asset of the Ontos type ``asset_type``.
+
+        Databricks assets of the physical Unity Catalog types are "uc"; the rest (its System
+        asset, so the catalogs sit directly under Unity Catalog, functions, models) get none.
+        Other connectors use the connection's own branch (internal or external), or none
+        when it isn't set.
+        """
+        if connector.connector_type == "databricks":
+            return DataBranch.UC.value if asset_type in UC_BRANCH_ASSET_TYPES else None
+        return conn_db.data_branch if conn_db is not None else None
+
+    @staticmethod
+    def _stamp_branch(asset_db, branch: Optional[str]) -> None:
+        """Set the branch on an asset that has none; a value already there is kept."""
+        if branch and asset_db.data_branch is None:
+            asset_db.data_branch = branch
 
     def _build_system_preview_item(
         self,
@@ -756,18 +800,19 @@ class SchemaImportManager:
                         db, name=metadata.name, asset_type_id=at_db.id,
                         platform=platform, location=path,
                     )
-                if existing is None and ontos_type_name == METRIC_VIEW_ASSET_TYPE:
-                    # A metric view imported as a View before the Metric View type
-                    # existed is reused, and execute_import converts it. Without the
-                    # seeded Metric View type it stays (or is imported as) a View.
-                    view_db = _get_asset_type_db("View")
-                    legacy = view_db and asset_repo.get_by_identity(
-                        db, name=metadata.name, asset_type_id=view_db.id,
+                if existing is None and ontos_type_name in _LEGACY_TYPES:
+                    # A metric view imported as a View (a volume as a System) before
+                    # its own type existed is reused, and execute_import converts it.
+                    # Without the seeded type it stays (or is imported as) the legacy type.
+                    legacy_name = _LEGACY_TYPES[ontos_type_name][0]
+                    legacy_db = _get_asset_type_db(legacy_name)
+                    legacy = legacy_db and asset_repo.get_by_identity(
+                        db, name=metadata.name, asset_type_id=legacy_db.id,
                         platform=platform, location=path,
                     )
                     existing = legacy or None
                     if not at_db:
-                        ontos_type_name = "View"
+                        ontos_type_name = legacy_name
 
                 items.append(ImportPreviewItem(
                     path=path,
@@ -865,6 +910,7 @@ class SchemaImportManager:
         current_user_id: str,
         _type_cache: Optional[Dict[str, Any]] = None,
         _metadata_cache: Optional[Dict[str, Any]] = None,
+        data_branch: Optional[str] = None,
     ):
         """Create a single Ontos asset from a preview item."""
         if _type_cache is not None and item.asset_type in _type_cache:
@@ -939,6 +985,7 @@ class SchemaImportManager:
             location=item.path,
             properties=properties or None,
             status=AssetStatus.ACTIVE,
+            data_branch=data_branch,
         )
 
         return self._assets.create_asset(db, asset_in=asset_in, current_user_id=current_user_id)
@@ -975,6 +1022,7 @@ class SchemaImportManager:
             "Table": "hasTable",
             "View": "hasView",
             METRIC_VIEW_ASSET_TYPE: "hasView",
+            VOLUME_ASSET_TYPE: "hasVolume",
             "Column": "hasColumn",
             "Dataset": "hasDataset",
             "ML Model": "hasPart",
@@ -988,13 +1036,14 @@ class SchemaImportManager:
 # Module-level helpers
 # ---------------------------------------------------------------------------
 
+
 # Per-asset-type display labels for the browse tree (drives the
 # `node_type` field on BrowseNode and the icon picked by the frontend).
 #
 # Distinct from `_TYPE_MAP` on purpose: `_TYPE_MAP` collapses source-system
 # concepts to a smaller Ontos asset-type vocabulary used at *import* time
-# (e.g. UC_FUNCTION/UC_VOLUME -> "System"), but at *browse* time we want
-# to preserve the source label so users can tell a function from a volume.
+# (e.g. UC_FUNCTION -> "System"), but at *browse* time we want to
+# preserve the source label so users can tell a function from a system.
 _DISPLAY_TYPE_MAP: Dict[str, str] = {
     # Databricks / Unity Catalog
     UnifiedAssetType.UC_CATALOG.value: "catalog",

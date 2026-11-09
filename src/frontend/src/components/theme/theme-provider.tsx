@@ -6,6 +6,8 @@ type ThemeProviderProps = {
   children: React.ReactNode
   defaultTheme?: Theme
   storageKey?: string
+  /** Always use this theme, ignoring the stored choice and the OS setting */
+  forcedTheme?: "dark" | "light"
 }
 
 type ThemeProviderState = {
@@ -24,11 +26,13 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "vite-ui-theme",
+  forcedTheme,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
+  const [storedTheme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
+  const theme = forcedTheme ?? storedTheme
 
   useEffect(() => {
     const root = window.document.documentElement

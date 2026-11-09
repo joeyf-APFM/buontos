@@ -60,7 +60,7 @@ import Workflows from './views/workflows';
 import MarketplaceView from './components/home/marketplace-view';
 
 // New views added in this branch
-import AssetExplorerView from './views/asset-explorer';
+import ExplorerPage from './mantine/asset-explorer/explorer-page';
 import AssetDetailView from './views/asset-detail';
 import AssetTypesView from './views/asset-types';
 import BusinessRolesView from './views/business-roles';
@@ -105,6 +105,7 @@ import SettingsDirectoryView from './views/settings-directory';
 import SettingsSemanticModelsView from './views/settings-semantic-models';
 import SettingsCertificationLevelsView from './views/settings-certification-levels';
 import SettingsMaturityLevelsView from './views/settings-maturity-levels';
+import HelixSettings from './mantine/settings/helix-settings';
 
 export default function App() {
   const fetchUserInfo = useUserStore((state: any) => state.fetchUserInfo);
@@ -165,8 +166,9 @@ export default function App() {
     };
   }, [fetchUserInfo, fetchPermissions, fetchAvailableRoles, startNotificationPolling, stopNotificationPolling, initializeTestPersonas]);
 
+  // Light only: the Mantine shell has no dark theme
   return (
-    <ThemeProvider defaultTheme="system" storageKey="ucapp-theme">
+    <ThemeProvider forcedTheme="light" storageKey="ucapp-theme">
       <TooltipProvider>
         <Router future={{ 
           v7_relativeSplatPath: true,
@@ -192,7 +194,7 @@ export default function App() {
               <Route path="/projects" element={<Navigate to="/settings/projects" replace />} />
 
               {/* Governance */}
-              <Route path="/assets" element={<AssetExplorerView />} />
+              <Route path="/assets" element={<ExplorerPage />} />
               <Route path="/assets/:assetId" element={<AssetDetailView />} />
               <Route path="/asset-types" element={<Navigate to="/settings/asset-types" replace />} />
               <Route path="/business-roles" element={<Navigate to="/settings/business-roles" replace />} />
@@ -260,6 +262,7 @@ export default function App() {
               <Route path="/settings" element={<SettingsLayout />}>
                 <Route index element={<Navigate to="/settings/general" replace />} />
                 <Route path="general" element={<SettingsGeneralView />} />
+                <Route path="helix" element={<HelixSettings />} />
                 <Route path="git" element={<SettingsGitView />} />
                 <Route path="delivery" element={<SettingsDeliveryView />} />
                 <Route path="jobs" element={<SettingsJobsView />} />

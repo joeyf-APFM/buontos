@@ -74,6 +74,7 @@ from src.routes import (
     ontology_generator_routes,
     entity_relationship_routes,
     entity_subscription_routes,
+    helix_routes,
     business_lineage_routes,
     readiness_routes,
     suggestion_routes,
@@ -484,6 +485,7 @@ mcp_tokens_routes.register_routes(app)
 self_service_routes.register_routes(app)
 workflows_routes.register_routes(app)
 settings_routes.register_routes(app)
+helix_routes.register_routes(app)
 directory_routes.register_routes(app)
 connection_routes.register_routes(app)
 schema_import_routes.register_routes(app)

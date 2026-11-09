@@ -1,0 +1,213 @@
+/* Ask Helix, after the approved prototype (prototype-final.html). */
+
+/* Top-bar button: navy with a conic multicolour mark */
+.button {
+  flex: none;
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border-radius: 6px;
+  background: var(--aura-navy);
+  color: #fff;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.button:hover {
+  background: var(--aura-accent-pressed);
+}
+
+.button[aria-pressed='true'] {
+  background: var(--aura-accent);
+}
+
+
+
+
+.headSub {
+  font-weight: 400;
+  color: var(--aura-text-muted);
+}
+
+
+.shared {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  background: var(--aura-accent-subtle);
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.context {
+  flex: none;
+  margin: 8px 10px 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  padding: 2px 4px 2px 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.contextValue {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.messages {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.hint {
+  color: var(--aura-text-muted);
+  font-size: 11px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.chip {
+  border: 1px solid var(--aura-border);
+  background: var(--aura-surface);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.chip:hover {
+  border-color: var(--aura-accent);
+  color: var(--aura-accent-hover);
+}
+
+.me {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--aura-navy);
+  color: #fff;
+  border-radius: 8px 8px 2px 8px;
+  padding: 6px 9px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bot {
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 8px 8px 8px 2px;
+  padding: 7px 9px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.typing {
+  color: var(--aura-text-muted);
+  font-style: italic;
+}
+
+.sql {
+  margin: 6px 0 0;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  background: var(--aura-surface-strong);
+  border-radius: 4px;
+  padding: 5px 6px;
+  color: var(--aura-navy);
+  white-space: pre-wrap;
+}
+
+.preview {
+  width: 100%;
+  margin-top: 6px;
+  border-collapse: collapse;
+}
+
+.preview th,
+.preview td {
+  height: 20px;
+  font-size: 11px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--aura-border-subtle);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.preview th {
+  color: var(--aura-text-muted);
+  font-weight: 600;
+}
+
+.footer {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--aura-text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.link {
+  color: var(--aura-accent);
+  font-size: 10.5px;
+}
+
+.error {
+  margin-top: 6px;
+  color: var(--aura-critical);
+  font-size: 11.5px;
+}
+
+.stopped {
+  margin-top: 6px;
+  color: var(--aura-text-muted);
+  font-size: 11px;
+}
+
+.composer {
+  flex: none;
+  margin: 0 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.input {
+  flex: 1;
+}
+
+.newConversation {
+  align-self: flex-start;
+  font-size: 11px;
+}

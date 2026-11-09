@@ -1,0 +1,71 @@
+/* Mantine settings pages, after the prototype's Helix & LLM page. */
+
+.page {
+  max-width: 760px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--aura-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--aura-navy);
+}
+
+.head > button {
+  margin-left: auto;
+}
+
+.section {
+  margin: 16px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--aura-text-secondary);
+}
+
+.form {
+  margin-top: 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  background: var(--aura-surface);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.label label,
+.label b {
+  display: block;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.label span {
+  color: var(--aura-text-muted);
+  font-size: 11px;
+}
+
+.mono input {
+  font-family: ui-monospace, Menlo, monospace;
+  max-width: 320px;
+}

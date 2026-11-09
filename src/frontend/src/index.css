@@ -1,6 +1,40 @@
-@tailwind base;
+/* Layer order first (tw-base, mantine, tw-app), then Mantine in its layer */
+@import './mantine/layers.css';
+@import '@mantine/core/styles.layer.css';
+
+/* Tailwind's preflight and base styles sit below Mantine; components and
+   utilities stay unlayered, as before */
+@layer tw-base {
+  @tailwind base;
+}
 @tailwind components;
 @tailwind utilities;
+
+@layer tw-app {
+  /* Unmigrated screens keep Tailwind's page defaults: undo Mantine's body
+     baseline (font, size, line height, colours, smoothing) */
+  body {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+  }
+
+  /* Mantine surfaces (the shell, migrated pages, Mantine's portals) use the
+     Aura body font and size */
+  .apfm-surface,
+  [data-portal] {
+    font-family: var(--mantine-font-family);
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height);
+    color: var(--mantine-color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
 
 @layer base {
   :root {

@@ -20,6 +20,10 @@ import settingsIT from './locales/it/settings.json';
 import settingsES from './locales/es/settings.json';
 import settingsNL from './locales/nl/settings.json';
 import settingsPT from './locales/pt/settings.json';
+import shellEN from './locales/en/shell.json';
+import assetExplorerEN from './locales/en/asset-explorer.json';
+import helixEN from './locales/en/helix.json';
+import ontosAssistantEN from './locales/en/ontos-assistant.json';
 
 const resources: Resource = {};
 
@@ -61,6 +65,20 @@ for (const [lang, data] of Object.entries(fallbackSettingsByLang)) {
     (resources[lang] as any)['settings'] = data as any;
   }
 }
+
+// The app shell's, Asset Explorer's, Helix's and Ask Ontos's labels are English only (other languages fall back to it);
+// make sure the namespaces are there even if packaging missed the files
+if (!resources['en']) resources['en'] = {};
+if (!(resources['en'] as any)['shell']) {
+  (resources['en'] as any)['shell'] = shellEN as any;
+}
+if (!namespaces.includes('shell')) namespaces.push('shell');
+resources['en']['asset-explorer'] ??= assetExplorerEN;
+if (!namespaces.includes('asset-explorer')) namespaces.push('asset-explorer');
+resources['en']['helix'] ??= helixEN;
+if (!namespaces.includes('helix')) namespaces.push('helix');
+resources['en']['ontos-assistant'] ??= ontosAssistantEN;
+if (!namespaces.includes('ontos-assistant')) namespaces.push('ontos-assistant');
 
 // Check if i18n is disabled via settings (set in localStorage)
 // When disabled, we force English regardless of browser settings

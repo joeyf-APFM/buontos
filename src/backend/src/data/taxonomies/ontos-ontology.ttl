@@ -405,6 +405,18 @@ ontos:MetricView a rdfs:Class ;
     ontos:uiDisplayOrder 4 ;
     ontos:uiPersonaVisibility "admin,steward,producer" .
 
+ontos:Volume a rdfs:Class ;
+    ontos:modelLayer "physical" ;
+    rdfs:subClassOf ontos:Asset ;
+    rdfs:label "Volume"@en ;
+    rdfs:comment "Unity Catalog volume: governed storage for files within a schema"@en ;
+    skos:example "catalog.schema.raw_files" ;
+    ontos:modelTier "asset" ;
+    ontos:uiIcon "FolderArchive" ;
+    ontos:uiCategory "data" ;
+    ontos:uiDisplayOrder 4 ;
+    ontos:uiPersonaVisibility "admin,steward,producer" .
+
 ontos:Column a rdfs:Class ;
     ontos:modelLayer "physical" ;
     rdfs:subClassOf ontos:Asset ;
@@ -687,6 +699,17 @@ ontos:hasView a owl:ObjectProperty ;
     rdfs:range ontos:View ;
     ontos:uiLabel "Contains Views"@en ;
     ontos:inverseLabel "Dataset"@en ;
+    ontos:cardinality "0..*" ;
+    ontos:uiDisplayContext "tab" ;
+    ontos:isHierarchical true .
+
+ontos:hasVolume a owl:ObjectProperty ;
+    rdfs:label "has volume"@en ;
+    rdfs:comment "Links a schema to a volume it contains"@en ;
+    rdfs:domain ontos:Schema ;
+    rdfs:range ontos:Volume ;
+    ontos:uiLabel "Contains Volumes"@en ;
+    ontos:inverseLabel "Schema"@en ;
     ontos:cardinality "0..*" ;
     ontos:uiDisplayContext "tab" ;
     ontos:isHierarchical true .

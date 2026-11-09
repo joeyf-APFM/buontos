@@ -17,6 +17,7 @@ class ConnectionDb(Base):
     config = Column(JSON, nullable=False, default=dict)
     enabled = Column(Boolean, nullable=False, default=True)
     is_default = Column(Boolean, nullable=False, default=False)
+    data_branch = Column(String, nullable=True)  # internal | external; stamped on imported assets
     system_asset_id = Column(
         PG_UUID(as_uuid=True),
         ForeignKey("assets.id", ondelete="SET NULL"),

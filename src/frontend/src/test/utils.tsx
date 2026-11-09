@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { vi, beforeEach, afterEach } from 'vitest';
 import { userEvent } from '@testing-library/user-event';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { AppMantineProvider } from '@/mantine/provider';
 
 /**
  * Custom render function that includes Router context
@@ -39,6 +40,30 @@ export const renderWithProviders = (
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <TooltipProvider>{children}</TooltipProvider>
+    </BrowserRouter>
+  );
+
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
+};
+
+/**
+ * Custom render function for Mantine components: Router, Mantine and Tooltip
+ * providers
+ */
+export const renderWithMantine = (
+  ui: ReactElement,
+  {
+    route = '/',
+    ...renderOptions
+  }: RenderOptions & { route?: string } = {}
+) => {
+  window.history.pushState({}, 'Test page', route);
+
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <BrowserRouter>
+      <AppMantineProvider>
+        <TooltipProvider>{children}</TooltipProvider>
+      </AppMantineProvider>
     </BrowserRouter>
   );
 

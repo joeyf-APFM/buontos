@@ -1,3 +1,6 @@
+/** Branch stamped on assets a connection imports (Databricks assets are always Unity Catalog). */
+export type ConnectionBranch = 'internal' | 'external';
+
 export interface Connection {
   id: string;
   name: string;
@@ -7,6 +10,7 @@ export interface Connection {
   enabled: boolean;
   is_default: boolean;
   system_asset_id: string | null;
+  data_branch?: ConnectionBranch | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -19,6 +23,7 @@ export interface ConnectionCreate {
   config: Record<string, any>;
   enabled?: boolean;
   is_default?: boolean;
+  data_branch?: ConnectionBranch | null;
 }
 
 export interface ConnectionUpdate {
@@ -28,6 +33,7 @@ export interface ConnectionUpdate {
   enabled?: boolean;
   is_default?: boolean;
   system_asset_id?: string | null;
+  data_branch?: ConnectionBranch | null;
 }
 
 export interface ConnectorTypeInfo {

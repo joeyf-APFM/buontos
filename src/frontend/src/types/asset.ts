@@ -59,6 +59,9 @@ export interface AssetRelationship {
   created_at: string;
 }
 
+/** Where an asset's data lives: Unity Catalog, or another platform we run (internal) or don't (external). */
+export type DataBranch = 'uc' | 'internal' | 'external';
+
 export interface AssetRead {
   id: string;
   name: string;
@@ -74,6 +77,7 @@ export interface AssetRead {
   properties?: Record<string, any> | null;
   tags?: string[] | null;
   status: AssetStatus;
+  data_branch?: DataBranch | null;
   certification_level?: number | null;
   inherited_certification_level?: number | null;
   certified_at?: string | null;
@@ -99,6 +103,7 @@ export interface AssetCreate {
   properties?: Record<string, any> | null;
   tags?: string[] | null;
   status?: AssetStatus;
+  data_branch?: DataBranch | null;
 }
 
 export interface AssetUpdate {
@@ -112,4 +117,5 @@ export interface AssetUpdate {
   properties?: Record<string, any> | null;
   tags?: string[] | null;
   status?: AssetStatus | null;
+  data_branch?: DataBranch | null;
 }

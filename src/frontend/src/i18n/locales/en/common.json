@@ -515,7 +515,14 @@
     "domainsPlaceholder": "Select domains...",
     "fieldRequired": "{{label}} is required",
     "selectFieldPlaceholder": "Select {{label}}",
-    "enterFieldPlaceholder": "Enter {{label}}"
+    "enterFieldPlaceholder": "Enter {{label}}",
+    "branchLabel": "Branch",
+    "branch": {
+      "uc": "Unity Catalog",
+      "internal": "Internal",
+      "external": "External",
+      "none": "Not set"
+    }
   },
   "businessLineage": {
     "loadingRelationships": "Loading relationships...",

@@ -42,6 +42,7 @@ const formSchema = z.object({
   enabled: z.boolean(),
   is_default: z.boolean(),
   system_asset_id: z.string().optional().nullable(),
+  data_branch: z.enum(['internal', 'external']).optional().nullable(),
   // BigQuery config fields
   project_id: z.string().optional(),
   location: z.string().optional(),
@@ -123,6 +124,7 @@ export function ConnectionFormDialog({
       enabled: true,
       is_default: false,
       system_asset_id: null,
+      data_branch: null,
     },
   });
 
@@ -165,6 +167,7 @@ export function ConnectionFormDialog({
         enabled: initialConnection?.enabled ?? true,
         is_default: initialConnection?.is_default ?? false,
         system_asset_id: initialConnection?.system_asset_id || null,
+        data_branch: initialConnection?.data_branch || null,
         project_id: cfg.project_id || '',
         location: cfg.location || '',
         uc_connection_name: cfg.uc_connection_name || '',
@@ -191,6 +194,8 @@ export function ConnectionFormDialog({
       enabled: values.enabled,
       is_default: values.is_default,
       system_asset_id: values.system_asset_id || null,
+      // Databricks assets are always Unity Catalog, so the branch only applies to other connectors.
+      data_branch: values.connector_type === 'databricks' ? null : values.data_branch || null,
     };
   };
 
@@ -399,6 +404,41 @@ export function ConnectionFormDialog({
                 </FormItem>
               )}
             />
+
+            {/* Branch stamped on imported assets (Databricks assets are always Unity Catalog) */}
+            {selectedType !== 'databricks' && (
+              <FormField
+                control={form.control}
+                name="data_branch"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings:connectors.form.branch', 'Branch')}</FormLabel>
+                    <Select
+                      onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
+                      value={field.value || '__none__'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="internal">{t('settings:connectors.form.branchInternal', 'Internal')}</SelectItem>
+                        <SelectItem value="external">{t('settings:connectors.form.branchExternal', 'External')}</SelectItem>
+                        <SelectItem value="__none__">{t('settings:connectors.form.branchNone', 'Not set')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {t(
+                        'settings:connectors.form.branchHelp',
+                        'Assets imported through this connection are marked Internal or External in the Asset Explorer.',
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* BigQuery-specific config */}
             {selectedType === 'bigquery' && (

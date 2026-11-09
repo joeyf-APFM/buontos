@@ -1,6 +1,7 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, object_session
 from sqlalchemy.exc import IntegrityError
 
@@ -15,7 +16,10 @@ from src.models.assets import (
     DeletePreviewItem, CascadeDeleteResult,
     PHYSICAL_TABLE_ASSET_TYPES,
 )
+from src.db_models.business_owners import BusinessOwnerDb
+from src.db_models.semantic_links import EntitySemanticLinkDb
 from src.db_models.assets import AssetTypeDb, AssetDb, AssetRelationshipDb
+from src.models.asset_tree import AssetTreeNode
 from src.common.errors import ConflictError, NotFoundError, ValidationError
 from src.common.logging import get_logger
 from src.common.search_interfaces import SearchableAsset, SearchIndexItem
@@ -69,12 +73,14 @@ class AssetsManager(SearchableAsset):
         return read
 
     # Hierarchical relationship types where source = parent, target = child
-    _HIERARCHICAL_RELS = {"hasColumn", "hasTable", "hasView", "hasDataset", "hasPart", "contains"}
+    _HIERARCHICAL_RELS = {"hasColumn", "hasTable", "hasView", "hasDataset", "hasVolume", "hasPart", "contains"}
 
     def _asset_to_summary(self, db_asset: AssetDb) -> AssetSummary:
         summary = AssetSummary.model_validate(db_asset)
         if db_asset.asset_type:
             summary.asset_type_name = db_asset.asset_type.name
+        if summary.asset_type_name == "Column":
+            summary.data_type, summary.nullable = self._column_type(db_asset.properties)
         if db_asset.target_relationships:
             for rel in db_asset.target_relationships:
                 if rel.relationship_type in self._HIERARCHICAL_RELS and rel.source_asset:
@@ -82,6 +88,20 @@ class AssetsManager(SearchableAsset):
                     summary.parent_name = rel.source_asset.name
                     break
         return summary
+
+    @staticmethod
+    def _column_type(properties: Optional[Dict[str, Any]]) -> Tuple[Optional[str], Optional[bool]]:
+        """A Column's (data type, nullable) from its properties, either of which may be None.
+
+        The importer writes ``data_type``/``nullable``; data shaped by the ontology carries
+        ``columnDataType``/``isNullable``.
+        """
+        props = properties if isinstance(properties, dict) else {}
+        data_type = next((props[k] for k in ("data_type", "columnDataType", "dataType")
+                          if props.get(k) not in (None, "")), None)
+        nullable = next((props[k] for k in ("nullable", "isNullable")
+                         if isinstance(props.get(k), bool)), None)
+        return (str(data_type) if data_type is not None else None), nullable
 
     # --- JSON Schema validation ---
 
@@ -333,23 +353,89 @@ class AssetsManager(SearchableAsset):
         domain_ids: Optional[List[str]] = None,
         status: Optional[str] = None, name: Optional[str] = None,
         restrict_to_ids: Optional[List[UUID]] = None,
+        scope_subquery: Optional[Select] = None,
+        concept_iri: Optional[str] = None,
     ) -> PaginatedAssetSummary:
         """Gets a paginated page of asset summaries.
 
         ``restrict_to_ids`` (when not None) limits results to the given asset
         UUIDs — used by role-aware Data Product scoping. An empty list
         intentionally yields zero results. Domain filtering (``domain_id`` /
-        ``domain_ids``) is any-of via the junction table.
+        ``domain_ids``) is any-of via the junction table. ``scope_subquery`` (a tree
+        node's ``SELECT assets.id``) limits results to that node's scope.
         """
         filter_kwargs = dict(
             asset_type_id=asset_type_id, asset_type_names=asset_type_names,
             platform=platform, domain_id=domain_id, domain_ids=domain_ids, status=status, name=name,
-            restrict_to_ids=restrict_to_ids,
+            restrict_to_ids=restrict_to_ids, scope_subquery=scope_subquery, concept_iri=concept_iri,
         )
         db_assets = self._asset_repo.get_multi_filtered(
             db, skip=skip, limit=limit, **filter_kwargs,
         )
         total = self._asset_repo.count_filtered(db, **filter_kwargs)
+        return PaginatedAssetSummary(
+            items=self._page_summaries(db, db_assets), total=total, skip=skip, limit=limit,
+        )
+
+    def get_child_assets(
+        self, db: Session, *, children: List[AssetTreeNode], skip: int = 0, limit: int = 100,
+        asset_type_id: Optional[UUID] = None, asset_type_names: Optional[List[str]] = None,
+        platform: Optional[str] = None, domain_id: Optional[str] = None,
+        domain_ids: Optional[List[str]] = None,
+        status: Optional[str] = None, name: Optional[str] = None,
+        concept_iri: Optional[str] = None,
+        restrict_to_ids: Optional[List[UUID]] = None,
+    ) -> PaginatedAssetSummary:
+        """A page of a tree node's asset children (``asset_tree.asset_child_nodes``), in tree order.
+
+        The tree already applied the user's scoping to ``children``; the other filters narrow
+        them further. Each summary carries the child's tree ``has_children``. A child outside
+        ``restrict_to_ids`` (listed only because readable assets sit under it) shows no more
+        than the tree does: see ``_unreadable_summary``. Filters on what such a row hides
+        (concept, domain, platform) never match it.
+        """
+        by_id = {c.asset_id: c for c in children}
+        matching = set()
+        if by_id:
+            in_children = select(AssetDb.id).where(AssetDb.id.in_(list(by_id)))
+            # What the tree shows of every child (name, type, status) filters all of them.
+            matching = self._asset_repo.get_filtered_ids(
+                db, asset_type_id=asset_type_id, asset_type_names=asset_type_names,
+                status=status, name=name, scope_subquery=in_children,
+            )
+            if matching and (concept_iri or platform or domain_id or domain_ids):
+                matching &= self._asset_repo.get_filtered_ids(
+                    db, platform=platform, domain_id=domain_id, domain_ids=domain_ids,
+                    concept_iri=concept_iri, scope_subquery=in_children, restrict_to_ids=restrict_to_ids,
+                )
+        ordered = [c.asset_id for c in children if c.asset_id in matching]
+        page_ids = ordered[skip:skip + limit]
+        db_assets = self._asset_repo.get_multi_filtered(
+            db, skip=0, limit=len(page_ids),
+            scope_subquery=select(AssetDb.id).where(AssetDb.id.in_(page_ids)),
+        ) if page_ids else []
+        position = {asset_id: i for i, asset_id in enumerate(page_ids)}
+        readable_ids = None if restrict_to_ids is None else set(restrict_to_ids)
+        is_readable = lambda a: readable_ids is None or a.id in readable_ids  # noqa: E731
+        summaries = self._page_summaries(db, [a for a in db_assets if is_readable(a)]) + [
+            self._unreadable_summary(a) for a in db_assets if not is_readable(a)
+        ]
+        summaries.sort(key=lambda s: position[s.id])
+        for s in summaries:
+            s.has_children = by_id[s.id].has_children
+        return PaginatedAssetSummary(items=summaries, total=len(ordered), skip=skip, limit=limit)
+
+    @staticmethod
+    def _unreadable_summary(db_asset: AssetDb) -> AssetSummary:
+        """A row for an asset the user can't read: what the tree shows of it, every other field blank."""
+        return AssetSummary(
+            id=db_asset.id, name=db_asset.name, asset_type_id=db_asset.asset_type_id,
+            asset_type_name=db_asset.asset_type.name if db_asset.asset_type else None,
+            data_branch=db_asset.data_branch, status=db_asset.status,
+        )
+
+    def _page_summaries(self, db: Session, db_assets: List[AssetDb]) -> List[AssetSummary]:
+        """Summaries for a page of assets, with domains, owners and concepts batch-loaded."""
         summaries = [self._asset_to_summary(a) for a in db_assets]
         # Batch-load domain assignments for the page (avoids N+1) and attach to summaries
         # so list rows show domain badges and edit dialogs preserve domains on save (#520).
@@ -362,12 +448,39 @@ class AssetsManager(SearchableAsset):
                 s.domains = assigned
                 s.domain_ids = [d.domain_id for d in assigned]
                 s.primary_domain_id = next((d.domain_id for d in assigned if d.is_primary), None)
-        return PaginatedAssetSummary(
-            items=summaries,
-            total=total,
-            skip=skip,
-            limit=limit,
-        )
+            self._attach_owners_and_concepts(db, summaries, db_assets)
+        return summaries
+
+    @staticmethod
+    def _attach_owners_and_concepts(db: Session, summaries: List[AssetSummary], db_assets: List[AssetDb]) -> None:
+        """Batch-load owners and semantic links for a page: two queries regardless of page size."""
+        ids = [str(s.id) for s in summaries]
+        owners: Dict[str, List[BusinessOwnerDb]] = {}
+        for o in (
+            db.query(BusinessOwnerDb)
+            .filter(BusinessOwnerDb.object_type == "asset", BusinessOwnerDb.object_id.in_(ids),
+                    BusinessOwnerDb.is_active.is_(True))
+            .order_by(BusinessOwnerDb.assigned_at, BusinessOwnerDb.user_email)
+            .all()
+        ):
+            owners.setdefault(o.object_id, []).append(o)
+        concepts: Dict[str, set] = {}
+        for entity_id, iri, label in (
+            db.query(EntitySemanticLinkDb.entity_id, EntitySemanticLinkDb.iri, EntitySemanticLinkDb.label)
+            .filter(EntitySemanticLinkDb.entity_type == "asset", EntitySemanticLinkDb.entity_id.in_(ids))
+            .all()
+        ):
+            local = iri.rstrip("/#").rsplit("#", 1)[-1].rsplit("/", 1)[-1]
+            concepts.setdefault(entity_id, set()).add(label or local or iri)
+        for s, a in zip(summaries, db_assets):
+            mine = owners.get(str(s.id), [])
+            if mine:
+                s.owner_display = mine[0].user_name or mine[0].user_email
+                s.owner_extra_count = len(mine) - 1
+            s.concepts = sorted(concepts.get(str(s.id), ()))
+            schema = (a.properties or {}).get("schema")
+            if isinstance(schema, dict) and isinstance(schema.get("column_count"), int):
+                s.column_count = schema["column_count"]
 
     def update_asset(self, db: Session, *, asset_id: UUID, asset_in: AssetUpdate, current_user_id: str) -> AssetRead:
         db_asset = self._asset_repo.get(db, asset_id)
@@ -422,8 +535,13 @@ class AssetsManager(SearchableAsset):
     def retype_asset(
         self, db: Session, *, asset_id: UUID, from_type: str, to_type: str,
         current_user_id: str, commit: bool = True,
+        rename_relationship: Optional[Tuple[str, str]] = None,
     ) -> int:
         """Change an asset's type and the type name its entity_relationships rows carry.
+
+        ``rename_relationship=(old, new)`` also renames the relationship type of the links
+        pointing at this asset (it is their target), in asset_relationships and
+        entity_relationships; a link that already exists under the new name is dropped.
 
         entity_relationships stores the asset type name in source_type / target_type, so
         both change together (one commit, with the change-log entry). With
@@ -446,16 +564,35 @@ class AssetsManager(SearchableAsset):
                 db, entity_type=from_type, entity_id=entity_id):
             source_type = to_type if rel.source_id == entity_id else rel.source_type
             target_type = to_type if rel.target_id == entity_id else rel.target_type
+            relationship_type = rel.relationship_type
+            if (rename_relationship and rel.target_id == entity_id
+                    and relationship_type == rename_relationship[0]):
+                relationship_type = rename_relationship[1]
             duplicate = entity_relationship_repo.find_existing(
                 db, source_type=source_type, source_id=rel.source_id,
                 target_type=target_type, target_id=rel.target_id,
-                relationship_type=rel.relationship_type,
+                relationship_type=relationship_type,
             )
-            if duplicate is not None:
+            if duplicate is not None and duplicate is not rel:
                 db.delete(rel)  # the same link already exists under the new type
             else:
                 rel.source_type, rel.target_type = source_type, target_type
+                rel.relationship_type = relationship_type
             rewritten += 1
+        if rename_relationship:
+            old_name, new_name = rename_relationship
+            for link in db.query(AssetRelationshipDb).filter(
+                    AssetRelationshipDb.target_asset_id == db_asset.id,
+                    AssetRelationshipDb.relationship_type == old_name).all():
+                duplicate = db.query(AssetRelationshipDb).filter(
+                    AssetRelationshipDb.source_asset_id == link.source_asset_id,
+                    AssetRelationshipDb.target_asset_id == link.target_asset_id,
+                    AssetRelationshipDb.relationship_type == new_name).first()
+                if duplicate is not None:
+                    db.delete(link)
+                else:
+                    link.relationship_type = new_name
+                rewritten += 1
         db_asset.asset_type_id = new_type.id
         db.flush()
         change_log_manager.log_change_with_details(

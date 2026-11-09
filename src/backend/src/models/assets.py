@@ -545,10 +545,17 @@ class AssetTypeCategory(str, Enum):
 # Name of the persisted asset type seeded from ontos:MetricView (a subclass of
 # ontos:View). Imported Unity Catalog metric views get this type.
 METRIC_VIEW_ASSET_TYPE = "Metric View"
+VOLUME_ASSET_TYPE = "Volume"
 
 # Persisted asset types that are tables with columns: Table, View and its
 # Metric View subclass. Used where Ontos lists or matches physical tables.
 PHYSICAL_TABLE_ASSET_TYPES = ("Table", "View", METRIC_VIEW_ASSET_TYPE)
+
+# The physical Unity Catalog types: what a Databricks import puts on the "uc" data branch.
+# Other Databricks-platform assets (System, functions, models, logical entities) get none.
+UC_BRANCH_ASSET_TYPES = (
+    "Catalog", "Schema", "Table", "View", METRIC_VIEW_ASSET_TYPE, VOLUME_ASSET_TYPE, "Column",
+)
 
 
 class AssetStatus(str, Enum):
@@ -633,6 +640,13 @@ class AssetRelationshipRead(AssetRelationshipBase):
 
 # --- Persisted Asset Models ---
 
+class DataBranch(str, Enum):
+    """Where a data asset's data lives: Unity Catalog, or another platform we run or don't."""
+    UC = "uc"
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+
+
 class AssetBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=500, description="Asset name")
     description: Optional[str] = Field(None, description="Human-readable description")
@@ -644,6 +658,7 @@ class AssetBase(BaseModel):
     properties: Optional[Dict[str, Any]] = Field(None, description="Type-specific metadata")
     tags: Optional[List[str]] = Field(None, description="Quick tags/classifications")
     status: AssetStatus = Field(AssetStatus.ACTIVE, description="Lifecycle status")
+    data_branch: Optional[DataBranch] = Field(None, description="Where the data lives: uc, internal or external")
 
 
 class AssetCreate(AssetBase):
@@ -661,6 +676,7 @@ class AssetUpdate(BaseModel):
     properties: Optional[Dict[str, Any]] = None
     tags: Optional[List[str]] = None
     status: Optional[AssetStatus] = None
+    data_branch: Optional[DataBranch] = None
 
 
 class AssetRead(AssetBase):
@@ -686,6 +702,7 @@ class AssetSummary(BaseModel):
     location: Optional[str] = None
     tags: Optional[List[str]] = None
     status: AssetStatus
+    data_branch: Optional[DataBranch] = None
     # Multi-domain assignment (#520): carried on summaries so list rows can show domain
     # badges and edit dialogs (fed an AssetSummary) preserve domains on save.
     domain_ids: List[str] = Field(default_factory=list)
@@ -694,6 +711,15 @@ class AssetSummary(BaseModel):
     parent_id: Optional[UUID] = Field(None, description="ID of the parent asset (from hierarchical relationship)")
     parent_name: Optional[str] = Field(None, description="Name of the parent asset")
     updated_at: Optional[datetime] = None
+    owner_display: Optional[str] = None
+    owner_extra_count: int = 0
+    concepts: List[str] = Field(default_factory=list)
+    column_count: Optional[int] = None
+    # A Column's type and nullability, from its properties; None for other assets.
+    data_type: Optional[str] = None
+    nullable: Optional[bool] = None
+    # Only on a ``?parent=`` listing: whether the tree shows children under this asset.
+    has_children: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 

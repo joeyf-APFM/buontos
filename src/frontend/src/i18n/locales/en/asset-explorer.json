@@ -1,0 +1,88 @@
+{
+  "noAccess": "You don’t have access to assets.",
+  "tree": {
+    "label": "Asset tree",
+    "loadError": "Couldn’t load this part of the tree.",
+    "sections": {
+      "data": "Data Assets",
+      "analytics": "Analytics",
+      "integration": "Integration",
+      "system": "System",
+      "custom": "Custom"
+    }
+  },
+  "breadcrumb": "Breadcrumb",
+  "branches": {
+    "uc": "Unity Catalog",
+    "internal": "Internal",
+    "external": "External"
+  },
+  "newAsset": "New asset",
+  "chooseType": "Asset type",
+  "filter": {
+    "label": "Filter assets",
+    "placeholder": "Filter assets…",
+    "type": "Type",
+    "allTypes": "Type: All",
+    "status": "Status",
+    "allStatuses": "Status: All",
+    "concept": "Concept",
+    "allConcepts": "Concept: All",
+    "conceptSearch": "Type to search concepts"
+  },
+  "count_one": "{{count}} asset",
+  "count_other": "{{count}} assets",
+  "status": {
+    "active": "active",
+    "draft": "draft",
+    "deprecated": "deprecated",
+    "retired": "retired",
+    "archived": "archived"
+  },
+  "columns": {
+    "name": "Name",
+    "type": "Type",
+    "owner": "Owner",
+    "status": "Status",
+    "concepts": "Concepts",
+    "updated": "Updated"
+  },
+  "empty": "Nothing here yet",
+  "grid": {
+    "expand": "Expand {{name}}",
+    "collapse": "Collapse {{name}}",
+    "showMore": "Show more ({{count}} left)",
+    "noChildren": "Nothing under this yet",
+    "loadError": "Couldn’t load: {{message}}",
+    "matchesHint": "Showing matches under {{node}}; clear filters to browse"
+  },
+  "subgrid": {
+    "label": "Columns of {{name}}",
+    "column": "Column",
+    "dataType": "Data type",
+    "nullable": "Nullable",
+    "description": "Description",
+    "concepts": "Concepts",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "loadError": "Couldn’t load the assets: {{message}}",
+  "retry": "Retry",
+  "details": {
+    "close": "Close details",
+    "type": "Type",
+    "fullName": "Full name",
+    "branch": "Branch",
+    "owner": "Owner",
+    "status": "Status",
+    "columns": "Columns",
+    "concepts": "Concepts",
+    "domain": "Domain",
+    "updated": "Updated",
+    "description": "Description",
+    "noDescription": "No description.",
+    "openFullPage": "Open full page",
+    "edit": "Edit",
+    "editError": "Couldn’t open the asset for editing: {{message}}"
+  }
+}

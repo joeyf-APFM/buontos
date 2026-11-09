@@ -1,0 +1,61 @@
+{
+  "button": "Ask Helix",
+  "panel": {
+    "title": "Helix",
+    "subtitle": "· Genie One",
+    "shared": "Answering as APFM Helix, not as you",
+    "close": "Close Helix",
+    "context": "Context:",
+    "removeContext": "Remove context",
+    "hintWithContext": "Ask about this data.",
+    "hintWithoutContext": "Ask about APFM data.",
+    "hintUser": "Answers use your own Databricks access.",
+    "hintShared": "Answers use APFM Helix’s Databricks access.",
+    "suggestions": {
+      "contents": "What’s in this?",
+      "usage": "Who uses this most?",
+      "changes": "Show recent changes"
+    },
+    "conversation": "Conversation",
+    "answer": "Helix’s answer",
+    "thinking": "Helix is asking Genie One…",
+    "showSql": "Show SQL",
+    "hideSql": "Hide SQL",
+    "rows_one": "{{total}} row",
+    "rows_other": "{{total}} rows",
+    "openInDatabricks": "Open in Databricks",
+    "stopped": "Stopped.",
+    "input": "Ask Helix",
+    "placeholder": "Ask about this data…",
+    "ask": "Ask",
+    "stop": "Stop",
+    "newConversation": "New conversation"
+  },
+  "errors": {
+    "http": "Helix couldn’t answer (HTTP {{status}}).",
+    "network": "Helix couldn’t reach the server.",
+    "cutShort": "The answer stopped before it finished."
+  },
+  "settings": {
+    "title": "Helix & LLM",
+    "helixSection": "Ask Helix",
+    "enable": "Enable Ask Helix",
+    "enableHelp": "Shows the button in the top bar for everyone.",
+    "mode": "Answers as",
+    "modeHelp": "Set by the deployment (HELIX_IDENTITY_MODE); not editable here.",
+    "modeUser": "The person asking",
+    "modeUserHelp": "Each question runs with the asker’s own Databricks sign-in.",
+    "modeShared": "A shared identity, APFM Helix",
+    "modeSharedHelp": "Each question runs as the APFM Helix service principal, and the panel says so.",
+    "modeUnknown": "Shown once Ask Helix is on",
+    "llmSection": "LLM features",
+    "llmEnable": "Enable LLM features",
+    "llmEnableHelp": "Term-mapping judge, ontology generator, Ask Ontos. Also on the General page.",
+    "llmEndpoint": "Serving endpoint",
+    "llmEndpointHelp": "Model Serving endpoint name. Also on the General page.",
+    "save": "Save",
+    "saved": "Settings saved",
+    "saveFailed": "Failed to save settings",
+    "loadFailed": "Couldn’t load the settings."
+  }
+}

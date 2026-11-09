@@ -1,0 +1,8 @@
+/*
+ * Cascade layer order, declared before any layered CSS loads.
+ * Tailwind's preflight sits below Mantine, so it can't restyle Mantine
+ * components; tw-app sits above Mantine, and holds the rules that keep
+ * Mantine's baseline off the unmigrated screens (see index.css). Tailwind's
+ * components and utilities stay unlayered, as before.
+ */
+@layer tw-base, mantine, tw-app;
