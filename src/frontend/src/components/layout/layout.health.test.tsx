@@ -3,14 +3,18 @@
  * a way back once the workspace recovers (#613).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import i18n from '@/i18n/config';
 import Layout from './layout';
 
-vi.mock('./sidebar', () => ({ Sidebar: () => null }));
-vi.mock('./header', () => ({ Header: () => null }));
+vi.mock('@/mantine/shell/app-shell', () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock('@/components/ui/breadcrumbs', () => ({ Breadcrumbs: () => null }));
 vi.mock('@/components/copilot/copilot-panel', () => ({ default: () => null }));
+
+const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 
 const WS_MESSAGE =
   'The Databricks workspace client could not be created. The cause is in the server logs.';

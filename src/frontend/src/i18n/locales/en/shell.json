@@ -1,0 +1,52 @@
+{
+  "brand": "{{shortName}} · Ontos",
+  "sections": {
+    "platform": "Platform",
+    "organization": "Organization",
+    "semantics": "Semantics",
+    "process": "Process"
+  },
+  "items": {
+    "marketplace": "Marketplace",
+    "dataCatalog": "Data Catalog",
+    "assets": "Assets",
+    "explorer": "Explorer",
+    "assetTypes": "Asset types",
+    "schemaImporter": "Schema importer",
+    "conceptBrowser": "Browser",
+    "conceptSearch": "Search",
+    "conceptHierarchy": "Hierarchy",
+    "conceptEnrich": "Enrich",
+    "conceptMapping": "Mapping",
+    "conceptImport": "Import",
+    "allProducts": "All products",
+    "myProducts": "My products",
+    "myRequests": "My Requests",
+    "masterData": "Master Data",
+    "helix": "Helix & LLM",
+    "appearance": "Appearance",
+    "mcpTokens": "MCP tokens",
+    "deliveryMethods": "Delivery methods",
+    "dataDomains": "Data domains",
+    "roles": "Roles",
+    "appRoles": "App roles",
+    "businessRoles": "Business roles",
+    "directory": "Directory",
+    "semanticModels": "Semantic models",
+    "levels": "Levels",
+    "certification": "Certification",
+    "maturity": "Maturity",
+    "delivery": "Delivery",
+    "auditLog": "Audit log"
+  },
+  "panel": {
+    "pin": "Pin",
+    "pinned": "Pinned",
+    "pinTitle": "Keep the panel open",
+    "hint": "Click the active group again to tuck the panel away."
+  },
+  "search": {
+    "placeholder": "Search assets, concepts, contracts…",
+    "label": "Search"
+  }
+}

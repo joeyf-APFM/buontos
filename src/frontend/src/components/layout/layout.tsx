@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, DatabaseZap, Sparkles } from 'lucide-react';
-import { Sidebar } from './sidebar';
-import { Header } from './header';
+import { useLocation } from 'react-router-dom';
+import { AppShell } from '@/mantine/shell/app-shell';
+import { isFullBleed } from '@/mantine/shell/full-bleed';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useLayoutStore } from '@/stores/layout-store';
 import { useCopilotStore } from '@/stores/copilot-store';
 import CopilotPanel from '@/components/copilot/copilot-panel';
 import { useUICustomizationStore } from '@/stores/ui-customization-store';
@@ -32,8 +32,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { t } = useTranslation(['navigation', 'common', 'search']);
   const shortName = useUICustomizationStore((s) => s.getShortName());
-  const isSidebarCollapsed = useLayoutStore((state) => state.isSidebarCollapsed);
-  const { toggleSidebar } = useLayoutStore((state) => state.actions);
+  const fullBleed = isFullBleed(useLocation().pathname);
   const isCopilotOpen = useCopilotStore((s) => s.isOpen);
   const copilotPanelWidth = useCopilotStore((s) => s.panelWidth);
   const { togglePanel } = useCopilotStore((s) => s.actions);
@@ -112,19 +111,13 @@ export default function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar isCollapsed={isSidebarCollapsed} />
-      {/* Sidebar/copilot offsets use padding (not margin) so the column
-          stays at 100vw and never overflows horizontally. The Sidebar is
-          position:fixed and contributes no flex/inline width. */}
+    <AppShell>
+      {/* The copilot offset uses padding (not margin) so the column never
+          overflows horizontally. */}
       <div
-        className={cn(
-          "flex flex-col min-h-screen min-w-0 transition-[padding] duration-300 ease-in-out",
-          isSidebarCollapsed ? "pl-[56px]" : "pl-[240px]"
-        )}
+        className="flex flex-1 flex-col min-w-0 bg-background"
         style={{ paddingRight: isCopilotOpen ? copilotPanelWidth : undefined }}
       >
-        <Header onToggleSidebar={toggleSidebar} isSidebarCollapsed={isSidebarCollapsed} />
         {/* Alerts wrapped in padded containers (not mx-6 on the Alert itself):
             shadcn Alert is `w-full`, so mx-6 would expand it past the
             parent and overflow horizontally by the margin width. */}
@@ -177,7 +170,7 @@ export default function Layout({ children }: LayoutProps) {
             </Alert>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className={cn('flex-1 overflow-y-auto', !fullBleed && 'p-6')}>
           {isDbDown ? (
             // Don't render the routed page when the DB is down: most views
             // immediately fetch /api/* which 503s, producing noisy half-broken
@@ -195,6 +188,8 @@ export default function Layout({ children }: LayoutProps) {
                 {t('navigation:dbDown.pausedBodyAfter')}
               </p>
             </div>
+          ) : fullBleed ? (
+            children
           ) : (
             <>
               <Breadcrumbs className="mb-6" />
@@ -223,6 +218,6 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       <CopilotPanel />
-    </div>
+    </AppShell>
   );
 } 
