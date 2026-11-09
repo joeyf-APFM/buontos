@@ -48,6 +48,7 @@ class AssetDb(Base):
     properties = Column(JSON, nullable=True)  # Type-specific metadata following type's schema
     tags = Column(JSON, nullable=True)  # Quick tags/classifications
     status = Column(String, nullable=False, default="active", index=True)
+    data_branch = Column(String, nullable=True, index=True)  # uc | internal | external
 
     # Certification
     certification_level = Column(Integer, nullable=True, index=True)

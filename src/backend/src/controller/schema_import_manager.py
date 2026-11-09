@@ -23,6 +23,7 @@ from src.models.assets import (
     AssetCreate,
     AssetRelationshipCreate,
     AssetStatus,
+    DataBranch,
     UnifiedAssetType,
 )
 from src.models.schema_import import (
@@ -375,6 +376,8 @@ class SchemaImportManager:
         created_assets: Dict[str, UUID] = {}
         type_cache: Dict[str, Any] = {}
         metadata_cache: Dict[str, Any] = {}
+        data_branch = self._branch_for(
+            connections_repo.get(db, request.connection_id), connector)
 
         # 2. Create assets (parents before children — items are in BFS order)
         total_items = len(preview_items)
@@ -412,6 +415,10 @@ class SchemaImportManager:
                 continue
 
             if not item.will_create:
+                if item.existing_asset_id:
+                    existing_db = asset_repo.get(db, item.existing_asset_id)
+                    if existing_db is not None:
+                        self._stamp_branch(existing_db, data_branch)
                 if item.asset_type in _LEGACY_TYPES and item.existing_asset_id:
                     legacy_type, rename = _LEGACY_TYPES[item.asset_type]
                     # Unity Catalog reports e.g. a metric view here: convert a legacy View
@@ -464,6 +471,7 @@ class SchemaImportManager:
                     current_user_id=current_user_id,
                     _type_cache=type_cache,
                     _metadata_cache=metadata_cache,
+                    data_branch=data_branch,
                 )
                 created_assets[item.path] = asset_read.id
                 result.created += 1
@@ -634,9 +642,12 @@ class SchemaImportManager:
         if conn_db is None:
             return None
 
+        branch = self._branch_for(conn_db, connector, is_system=True)
+
         if conn_db.system_asset_id:
             existing = asset_repo.get(db, conn_db.system_asset_id)
             if existing:
+                self._stamp_branch(existing, branch)
                 return existing.id
 
         system_type_db = asset_type_repo.get_by_name(db, name="System")
@@ -653,6 +664,7 @@ class SchemaImportManager:
             location=connector.connector_type,
         )
         if existing:
+            self._stamp_branch(existing, branch)
             conn_db.system_asset_id = existing.id
             db.flush()
             return existing.id
@@ -667,6 +679,7 @@ class SchemaImportManager:
                 location=connector.connector_type,
                 properties={"connector_type": connector.connector_type},
                 status=AssetStatus.ACTIVE,
+                data_branch=branch,
             ),
             current_user_id=current_user_id,
         )
@@ -674,6 +687,24 @@ class SchemaImportManager:
         db.flush()
         logger.info(f"Created System asset '{conn_db.name}' (id={system_asset.id}) for connection {connection_id}")
         return system_asset.id
+
+    @staticmethod
+    def _branch_for(conn_db, connector: AssetConnector, *, is_system: bool = False) -> Optional[str]:
+        """The data branch an import stamps on the assets it creates.
+
+        Databricks assets are Unity Catalog ("uc"), but its System asset has none so the
+        catalogs sit directly under Unity Catalog. Other connectors use the connection's
+        own branch (internal or external), or none when it isn't set.
+        """
+        if connector.connector_type == "databricks":
+            return None if is_system else DataBranch.UC.value
+        return conn_db.data_branch if conn_db is not None else None
+
+    @staticmethod
+    def _stamp_branch(asset_db, branch: Optional[str]) -> None:
+        """Set the branch on an asset that has none; a value already there is kept."""
+        if branch and asset_db.data_branch is None:
+            asset_db.data_branch = branch
 
     def _build_system_preview_item(
         self,
@@ -877,6 +908,7 @@ class SchemaImportManager:
         current_user_id: str,
         _type_cache: Optional[Dict[str, Any]] = None,
         _metadata_cache: Optional[Dict[str, Any]] = None,
+        data_branch: Optional[str] = None,
     ):
         """Create a single Ontos asset from a preview item."""
         if _type_cache is not None and item.asset_type in _type_cache:
@@ -951,6 +983,7 @@ class SchemaImportManager:
             location=item.path,
             properties=properties or None,
             status=AssetStatus.ACTIVE,
+            data_branch=data_branch,
         )
 
         return self._assets.create_asset(db, asset_in=asset_in, current_user_id=current_user_id)

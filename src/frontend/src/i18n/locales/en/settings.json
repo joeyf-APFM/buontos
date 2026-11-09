@@ -738,7 +738,12 @@
       "namePlaceholder": "e.g. Production BQ - Analytics",
       "descriptionPlaceholder": "Optional description...",
       "autoCreateOnImport": "Auto-create on first import",
-      "systemAsset": "Linked System Asset"
+      "systemAsset": "Linked System Asset",
+      "branch": "Branch",
+      "branchInternal": "Internal",
+      "branchExternal": "External",
+      "branchNone": "Not set",
+      "branchHelp": "Assets imported through this connection are marked Internal or External in the Asset Explorer."
     },
     "bigquery": {
       "configTitle": "BigQuery Configuration",

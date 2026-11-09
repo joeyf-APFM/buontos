@@ -1,7 +1,11 @@
 from typing import Any, Dict, Optional
 from uuid import UUID
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, Field
+
+
+ConnectionBranch = Literal["internal", "external"]
 
 
 class ConnectionBase(BaseModel):
@@ -12,6 +16,7 @@ class ConnectionBase(BaseModel):
     enabled: bool = Field(True, description="Whether this connection is active")
     is_default: bool = Field(False, description="Whether this is the default for its connector type")
     system_asset_id: Optional[UUID] = Field(None, description="Linked System asset for hierarchy imports")
+    data_branch: Optional[ConnectionBranch] = Field(None, description="Branch stamped on imported assets (internal or external)")
 
 
 class ConnectionCreate(ConnectionBase):
@@ -25,6 +30,7 @@ class ConnectionUpdate(BaseModel):
     enabled: Optional[bool] = None
     is_default: Optional[bool] = None
     system_asset_id: Optional[UUID] = None
+    data_branch: Optional[ConnectionBranch] = None
 
 
 class ConnectionResponse(ConnectionBase):

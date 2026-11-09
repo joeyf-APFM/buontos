@@ -634,6 +634,13 @@ class AssetRelationshipRead(AssetRelationshipBase):
 
 # --- Persisted Asset Models ---
 
+class DataBranch(str, Enum):
+    """Where a data asset's data lives: Unity Catalog, or another platform we run or don't."""
+    UC = "uc"
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+
+
 class AssetBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=500, description="Asset name")
     description: Optional[str] = Field(None, description="Human-readable description")
@@ -645,6 +652,7 @@ class AssetBase(BaseModel):
     properties: Optional[Dict[str, Any]] = Field(None, description="Type-specific metadata")
     tags: Optional[List[str]] = Field(None, description="Quick tags/classifications")
     status: AssetStatus = Field(AssetStatus.ACTIVE, description="Lifecycle status")
+    data_branch: Optional[DataBranch] = Field(None, description="Where the data lives: uc, internal or external")
 
 
 class AssetCreate(AssetBase):
@@ -662,6 +670,7 @@ class AssetUpdate(BaseModel):
     properties: Optional[Dict[str, Any]] = None
     tags: Optional[List[str]] = None
     status: Optional[AssetStatus] = None
+    data_branch: Optional[DataBranch] = None
 
 
 class AssetRead(AssetBase):
@@ -687,6 +696,7 @@ class AssetSummary(BaseModel):
     location: Optional[str] = None
     tags: Optional[List[str]] = None
     status: AssetStatus
+    data_branch: Optional[DataBranch] = None
     # Multi-domain assignment (#520): carried on summaries so list rows can show domain
     # badges and edit dialogs (fed an AssetSummary) preserve domains on save.
     domain_ids: List[str] = Field(default_factory=list)

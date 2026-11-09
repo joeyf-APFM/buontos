@@ -62,6 +62,10 @@ function groupAndSortFields(fields: EntityFieldDefinition[]): [string, EntityFie
   });
 }
 
+/** Select value for "no branch" (Radix Select items cannot have an empty value) */
+const NO_BRANCH = '__none__';
+const ASSET_BRANCHES = ['uc', 'internal', 'external'] as const;
+
 /** Fields handled by top-level AssetCreate/AssetUpdate (not stored in properties) */
 const TOP_LEVEL_FIELDS = new Set(['name', 'description', 'status', 'version']);
 
@@ -122,6 +126,7 @@ export function AssetFormDialog({
       defaults.status = asset.status || 'draft';
       defaults.platform = asset.platform || '';
       defaults.location = asset.location || '';
+      defaults.data_branch = asset.data_branch || NO_BRANCH;
       defaults.domain_ids = (asset.domains && asset.domains.length > 0)
         ? asset.domains.map(d => d.domain_id)
         : (asset.domain_id ? [asset.domain_id] : []);
@@ -141,6 +146,7 @@ export function AssetFormDialog({
       defaults.status = 'draft';
       defaults.platform = '';
       defaults.location = '';
+      defaults.data_branch = NO_BRANCH;
       defaults.domain_ids = [];
       defaults.primary_domain_id = null;
       if (schema?.fields) {
@@ -181,6 +187,7 @@ export function AssetFormDialog({
           status: values.status || null,
           platform: values.platform || null,
           location: values.location || null,
+          data_branch: values.data_branch && values.data_branch !== NO_BRANCH ? values.data_branch : null,
           domain_ids: values.domain_ids || [],
           primary_domain_id: values.primary_domain_id ?? null,
           properties: Object.keys(properties).length > 0 ? properties : null,
@@ -197,6 +204,7 @@ export function AssetFormDialog({
           status: values.status || 'draft',
           platform: values.platform || null,
           location: values.location || null,
+          data_branch: values.data_branch && values.data_branch !== NO_BRANCH ? values.data_branch : null,
           domain_ids: values.domain_ids || [],
           primary_domain_id: values.primary_domain_id ?? null,
           properties: Object.keys(properties).length > 0 ? properties : null,
@@ -315,6 +323,29 @@ export function AssetFormDialog({
                       <FormControl>
                         <Input placeholder={t('common:assetForm.locationPlaceholder')} {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="data_branch"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common:assetForm.branchLabel')}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? NO_BRANCH}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {ASSET_BRANCHES.map((branch) => (
+                            <SelectItem key={branch} value={branch}>{t(`common:assetForm.branch.${branch}`)}</SelectItem>
+                          ))}
+                          <SelectItem value={NO_BRANCH}>{t('common:assetForm.branch.none')}</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
