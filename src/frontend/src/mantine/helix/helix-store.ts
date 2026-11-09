@@ -56,6 +56,11 @@ interface HelixState {
   draft: string;
   /** Where the floating window was last put, or null for its default place. */
   windowRect: WindowRect | null;
+  /**
+   * The user just opened Helix, so it may take focus. Only that does: a pane
+   * turning into a window as you navigate leaves focus on the new page.
+   */
+  focusRequested: boolean;
   actions: {
     open: () => void;
     close: () => void;
@@ -69,6 +74,8 @@ interface HelixState {
     loadConfig: () => Promise<void>;
     setDraft: (draft: string) => void;
     setWindowRect: (rect: WindowRect) => void;
+    /** Whether Helix may take focus now; consumes the request. */
+    takeFocusRequest: () => boolean;
   };
 }
 
@@ -81,6 +88,7 @@ export const HELIX_DEFAULTS = {
   config: null,
   draft: '',
   windowRect: null,
+  focusRequested: false,
 } satisfies Omit<HelixState, 'actions'>;
 
 /** The running answer's abort handle; a newer conversation replaces it. */
@@ -116,7 +124,7 @@ export const useHelixStore = create<HelixState>()((set, get) => {
       open: () => {
         // One right-hand panel at a time: Helix replaces Ask Ontos
         if (useCopilotStore.getState().isOpen) useCopilotStore.getState().actions.closePanel();
-        set({ isOpen: true });
+        set({ isOpen: true, focusRequested: true });
       },
       close: () => set({ isOpen: false }),
       setContext: (context) => set({ context }),
@@ -171,6 +179,11 @@ export const useHelixStore = create<HelixState>()((set, get) => {
 
       setDraft: (draft) => set({ draft }),
       setWindowRect: (windowRect) => set({ windowRect }),
+      takeFocusRequest: () => {
+        if (!get().focusRequested) return false;
+        set({ focusRequested: false });
+        return true;
+      },
 
       loadConfig: async () => {
         try {

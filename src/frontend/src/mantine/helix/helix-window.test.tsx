@@ -46,6 +46,16 @@ function Page({ name }: { name: string }) {
       <button onClick={pageClicks}>Page action</button>
       <Link to="/assets">To assets</Link>
       <Link to="/search">To search</Link>
+      <Link to="/form">To form</Link>
+    </div>
+  );
+}
+
+function FormPage() {
+  return (
+    <div>
+      <h1>Form</h1>
+      <input aria-label="Page field" autoFocus />
     </div>
   );
 }
@@ -56,6 +66,7 @@ function renderShell(route: string) {
       <Routes>
         <Route path="/assets" element={<Page name="Explorer" />} />
         <Route path="/search" element={<Page name="Search" />} />
+        <Route path="/form" element={<FormPage />} />
       </Routes>
     </AppShell>,
     { route },
@@ -232,6 +243,63 @@ describe('Helix window and pane', () => {
 
     expect(dialog()!.style.left).toBe(left);
     expect(dialog()!.style.top).toBe(top);
+  });
+
+  it('leaves focus on the new page when navigating switches Helix to the window', async () => {
+    const user = userEvent.setup();
+    mockBackend();
+    renderShell('/assets');
+    await user.click(await helixButton());
+    expect(within(pane()!).getByRole('textbox', { name: 'Ask Helix' })).toHaveFocus(); // a user open focuses Helix
+
+    await user.click(screen.getByRole('link', { name: 'To form' }));
+
+    expect(dialog()).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Page field' })).toHaveFocus();
+  });
+
+  it('leaves focus where it is when it reappears on navigating back', async () => {
+    const user = userEvent.setup();
+    mockBackend();
+    renderShell('/search');
+    await user.click(await helixButton());
+    await user.click(screen.getByRole('link', { name: 'To assets' }));
+    const pageLink = screen.getByRole('link', { name: 'To search' });
+    pageLink.focus();
+
+    await user.click(pageLink);
+
+    expect(dialog()).toBeInTheDocument();
+    expect(dialog()!.contains(document.activeElement)).toBe(false);
+  });
+
+  it('labels shared mode in the window too', async () => {
+    const user = userEvent.setup();
+    mockBackend({ ...USER_MODE, mode: 'shared' });
+    renderShell('/search');
+    await user.click(await helixButton());
+
+    expect(within(dialog()!).getByText('Answering as APFM Helix, not as you')).toBeInTheDocument();
+  });
+
+  it('keeps following its bottom-right default on viewport resizes until it is moved', async () => {
+    const user = userEvent.setup();
+    mockBackend();
+    renderShell('/search');
+    await user.click(await helixButton());
+
+    act(() => {
+      setViewport(1000, 700);
+      window.dispatchEvent(new Event('resize'));
+    });
+    act(() => {
+      setViewport(1300, 900);
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    expect(dialog()!.style.left).toBe(`${1300 - WINDOW_DEFAULT.width - WINDOW_MARGIN}px`);
+    expect(dialog()!.style.top).toBe(`${900 - WINDOW_DEFAULT.height - WINDOW_MARGIN}px`);
+    expect(useHelixStore.getState().windowRect).toBeNull();
   });
 
   it('closes when Ask Ontos opens, in the window form too', async () => {

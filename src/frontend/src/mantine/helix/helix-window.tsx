@@ -24,23 +24,37 @@ export function HelixWindow() {
   // Read at first render, before focus moves in (and once, under StrictMode's double effects)
   const [opener] = useState(() => document.activeElement);
 
-  // Focus moves in; whatever had it gets it back when Helix closes
+  const focusRequested = useHelixStore((s) => s.focusRequested);
+  const [, setViewportTick] = useState(0);
+
+  // Only a user's open moves focus in; a window that appears because you
+  // navigated away from the explorer leaves focus on the new page
   useEffect(() => {
+    if (!focusRequested || !useHelixStore.getState().actions.takeFocusRequest()) return;
     const el = root.current;
     if (!el) return;
-    const input = el.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)');
-    (input ?? el).focus();
-    return () => {
-      if (!useHelixStore.getState().isOpen && opener instanceof HTMLElement && opener.isConnected) opener.focus();
-    };
-  }, [opener]);
+    (el.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)') ?? el).focus();
+  }, [focusRequested]);
 
-  // A smaller viewport pulls the window back inside
+  // Whatever had focus when the window appeared gets it back when Helix closes
+  useEffect(
+    () => () => {
+      if (!useHelixStore.getState().isOpen && opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    },
+    [opener],
+  );
+
+  // A smaller viewport pulls a placed window back inside; one never moved
+  // keeps following its bottom-right default
   useEffect(() => {
     const onResize = () => {
       const { windowRect } = useHelixStore.getState();
-      const vp = currentViewport();
-      setWindowRect(clampRect(windowRect ?? defaultRect(vp), vp));
+      if (windowRect) {
+        const clamped = clampRect(windowRect, currentViewport());
+        const changed = (Object.keys(clamped) as (keyof WindowRect)[]).some((k) => clamped[k] !== windowRect[k]);
+        if (changed) setWindowRect(clamped);
+      }
+      setViewportTick((n) => n + 1);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);

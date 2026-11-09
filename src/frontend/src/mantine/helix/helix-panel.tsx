@@ -214,8 +214,17 @@ export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps
 export function HelixPanel() {
   const { t } = useTranslation('helix');
   const titleId = useId();
+  const root = useRef<HTMLElement>(null);
+  const focusRequested = useHelixStore((s) => s.focusRequested);
+  const takeFocusRequest = useHelixStore((s) => s.actions.takeFocusRequest);
+
+  // Only a user's open moves focus in
+  useEffect(() => {
+    if (focusRequested && takeFocusRequest()) root.current?.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus();
+  }, [focusRequested, takeFocusRequest]);
+
   return (
-    <aside className={classes.panel} aria-label={t('panel.label')}>
+    <aside ref={root} className={classes.panel} aria-label={t('panel.label')}>
       <HelixContent titleId={titleId} />
     </aside>
   );
