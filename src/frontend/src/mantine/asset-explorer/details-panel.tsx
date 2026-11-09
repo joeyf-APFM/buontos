@@ -16,12 +16,14 @@ interface DetailsPanelProps {
   onClose: () => void;
   /** Opens the edit form; without it (no write access) there is no Edit button. */
   onEdit?: () => void;
+  /** The asset is loading for the edit form. */
+  editPending?: boolean;
   /** Why the edit form couldn't open. */
   editError?: string | null;
 }
 
 /** The selected row's summary, beside the list. */
-export function DetailsPanel({ asset, onClose, onEdit, editError }: DetailsPanelProps) {
+export function DetailsPanel({ asset, onClose, onEdit, editPending = false, editError }: DetailsPanelProps) {
   const { t } = useTranslation('asset-explorer');
   const rows: [string, ReactNode][] = [
     ['type', asset.asset_type_name],
@@ -40,7 +42,7 @@ export function DetailsPanel({ asset, onClose, onEdit, editError }: DetailsPanel
       <div className={classes.detailsHead}>
         <span className={`${classes.detailsName} ${classes.mono}`}>{asset.name}</span>
         {onEdit && (
-          <Button variant="default" size="compact-xs" onClick={onEdit}>
+          <Button variant="default" size="compact-xs" onClick={onEdit} disabled={editPending} loading={editPending}>
             {t('details.edit')}
           </Button>
         )}

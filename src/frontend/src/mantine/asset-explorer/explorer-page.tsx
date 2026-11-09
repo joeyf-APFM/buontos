@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Menu, Pagination, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
@@ -60,6 +60,12 @@ export default function ExplorerPage() {
   const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(null);
   const [editing, setEditing] = useState<AssetRead | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editPendingId, setEditPendingId] = useState<string | null>(null);
+  // For async answers: which asset is selected now, and the node's label
+  const selectedIdRef = useRef<string | null>(null);
+  const nodeLabelRef = useRef<string | null>(null);
+  // After a save: the edited asset, and the list refresh that has to include it
+  const afterSave = useRef<{ id: string; listToken: number } | null>(null);
   const [nodeStatus, setNodeStatus] = useState<{ key: string; status: AssetStatus } | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetTypeRead[]>([]);
   const [ontologyTypes, setOntologyTypes] = useState<EntityTypeDefinition[]>([]);
@@ -74,6 +80,8 @@ export default function ExplorerPage() {
       setConcept(null);
       setConceptSearch('');
       setSelectedAsset(null);
+      selectedIdRef.current = null;
+      nodeLabelRef.current = next.node.label;
       setContext(next.node.label);
     },
     [setContext],
@@ -81,12 +89,14 @@ export default function ExplorerPage() {
 
   const onSelectAsset = (asset: AssetSummary) => {
     setSelectedAsset(asset);
+    selectedIdRef.current = asset.id;
     setEditError(null);
     setContext(asset.location ?? asset.name);
   };
 
   const closeDetails = () => {
     setSelectedAsset(null);
+    selectedIdRef.current = null;
     setEditError(null);
     setContext(node?.label ?? null);
   };
@@ -125,12 +135,26 @@ export default function ExplorerPage() {
     if (!query.node) return;
     let cancelled = false;
     fetchAssets(query)
-      .then((result) => !cancelled && setAnswer({ requestKey, listKey, page: result, error: null }))
+      .then((result) => {
+        if (cancelled) return;
+        setAnswer({ requestKey, listKey, page: result, error: null });
+        // An edited asset that has left the node (say, a new branch or type)
+        // takes the details panel with it
+        const saved = afterSave.current;
+        if (saved && listToken >= saved.listToken) {
+          afterSave.current = null;
+          if (selectedIdRef.current === saved.id && !result.items.some((a) => a.id === saved.id)) {
+            selectedIdRef.current = null;
+            setSelectedAsset(null);
+            setContext(nodeLabelRef.current);
+          }
+        }
+      })
       .catch((e: Error) => !cancelled && setAnswer({ requestKey, listKey, page: EMPTY_PAGE, error: e.message }));
     return () => {
       cancelled = true;
     };
-  }, [query, requestKey, listKey]);
+  }, [query, requestKey, listKey, listToken, setContext]);
   const loading = answer?.requestKey !== requestKey;
   // While loading, the previous rows stay only when just the page changed
   const current = !!answer && (answer.requestKey === requestKey || answer.listKey === listKey);
@@ -211,12 +235,17 @@ export default function ExplorerPage() {
   // answer is the refresh); while a refresh loads, the row as saved
   const shownAsset = selectedAsset && ((!loading && page.items.find((a) => a.id === selectedAsset.id)) || selectedAsset);
 
-  // The edit form needs the full asset
+  // The edit form needs the full asset. One fetch at a time per asset, and
+  // its answer counts only while that asset is still selected.
   const editAsset = (asset: AssetSummary) => {
+    if (editPendingId === asset.id) return;
     setEditError(null);
+    setEditPendingId(asset.id);
+    const stillSelected = () => selectedIdRef.current === asset.id;
     fetchAsset(asset.id)
-      .then(setEditing)
-      .catch((e: Error) => setEditError(e.message));
+      .then((full) => stillSelected() && setEditing(full))
+      .catch((e: Error) => stillSelected() && setEditError(e.message))
+      .finally(() => setEditPendingId((id) => (id === asset.id ? null : id)));
   };
 
   // After a save: show the saved fields at once, then refresh the list (which
@@ -238,6 +267,7 @@ export default function ExplorerPage() {
       };
       setSelectedAsset(updated);
       setContext(updated.location ?? updated.name);
+      afterSave.current = { id: updated.id, listToken: listToken + 1 };
     }
     setListToken((n) => n + 1);
     setTreeToken((n) => n + 1);
@@ -369,6 +399,7 @@ export default function ExplorerPage() {
           asset={shownAsset}
           onClose={closeDetails}
           onEdit={canWrite ? () => editAsset(shownAsset) : undefined}
+          editPending={editPendingId === shownAsset.id}
           editError={editError}
         />
       )}

@@ -5,7 +5,7 @@ import usePermissionsStore from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
-import { LEADS, calledUrls, json, mockBackend } from './test-fixtures';
+import { LEADS, LEAD_EVENTS, calledUrls, json, mockBackend } from './test-fixtures';
 
 // The form dialog has its own tests; here it opens, and Save and Cancel act as
 // the real one does (Save reports the saved asset, then closes)
@@ -310,6 +310,51 @@ describe('ExplorerPage', () => {
         expect(calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets/tree').length).toBeGreaterThan(treeBefore),
       );
       expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('closes the panel when the saved asset has left the node', async () => {
+      let saved = false;
+      fetchMock = mockBackend((url) =>
+        url.pathname === '/api/assets' && saved ? json({ items: [LEAD_EVENTS], total: 1, skip: 0, limit: 50 }) : undefined,
+      );
+      const user = userEvent.setup();
+      renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      await user.click(within(await openDetails(user)).getByRole('button', { name: 'Edit' }));
+      await screen.findByRole('dialog');
+
+      saved = true;
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => expect(within(screen.getByRole('table')).queryByText('leads')).toBeNull());
+      expect(screen.queryByRole('complementary')).toBeNull();
+      expect(useHelixStore.getState().context).toBe('Unity Catalog');
+    });
+
+    it('opens the form once, and only for the asset still selected', async () => {
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => (release = resolve));
+      fetchMock = mockBackend((url) =>
+        url.pathname === '/api/assets/a1'
+          ? (held.then(() => json({ ...LEADS, relationships: [], created_at: '' })) as unknown as Response)
+          : undefined,
+      );
+      const user = userEvent.setup();
+      renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      const details = await openDetails(user);
+      const edit = within(details).getByRole('button', { name: 'Edit' });
+
+      await user.click(edit);
+      expect(edit).toBeDisabled();
+      await user.click(edit);
+      expect(calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets/a1')).toHaveLength(1);
+
+      // Another row is selected before the asset arrives
+      await user.click(within(screen.getByRole('table')).getByText('lead_events'));
+      await act(async () => release());
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByRole('complementary', { name: 'lead_events' })).toBeInTheDocument();
+      expect(within(screen.getByRole('complementary')).getByRole('button', { name: 'Edit' })).toBeEnabled();
     });
 
     it('changes nothing on Cancel', async () => {
