@@ -551,6 +551,12 @@ VOLUME_ASSET_TYPE = "Volume"
 # Metric View subclass. Used where Ontos lists or matches physical tables.
 PHYSICAL_TABLE_ASSET_TYPES = ("Table", "View", METRIC_VIEW_ASSET_TYPE)
 
+# The physical Unity Catalog types: what a Databricks import puts on the "uc" data branch.
+# Other Databricks-platform assets (System, functions, models, logical entities) get none.
+UC_BRANCH_ASSET_TYPES = (
+    "Catalog", "Schema", "Table", "View", METRIC_VIEW_ASSET_TYPE, VOLUME_ASSET_TYPE, "Column",
+)
+
 
 class AssetStatus(str, Enum):
     """Asset lifecycle status. Aligned with EntityStatus."""

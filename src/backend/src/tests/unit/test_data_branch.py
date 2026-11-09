@@ -1,7 +1,8 @@
 """Assets and connections carry a data branch (uc / internal / external).
 
-Databricks imports are "uc" (its System asset has none); other connectors stamp the
-connection's branch; a re-import fills only a missing branch.
+Databricks imports stamp "uc" on physical Unity Catalog types only (not its System asset,
+functions or models); other connectors stamp the connection's branch; a re-import fills
+only a missing branch.
 """
 import os
 
@@ -25,7 +26,7 @@ from src.controller.schema_import_manager import SchemaImportManager
 from src.db_models.assets import AssetDb, AssetTypeDb
 from src.db_models.connections import ConnectionDb
 from src.models.assets import (
-    AssetCreate, AssetMetadata, AssetUpdate, DataBranch, UnifiedAssetType,
+    UC_BRANCH_ASSET_TYPES, AssetCreate, AssetMetadata, AssetUpdate, DataBranch, UnifiedAssetType,
 )
 from src.models.connections import ConnectionCreate, ConnectionUpdate
 from src.models.schema_import import ImportDepth, ImportRequest
@@ -33,6 +34,7 @@ from src.models.schema_import import ImportDepth, ImportRequest
 TTL = Path(__file__).resolve().parents[2] / "data" / "taxonomies" / "ontos-ontology.ttl"
 BACKEND = Path(__file__).resolve().parents[3]
 TABLE = "main.raw.orders"
+FUNCTION = "main.raw.clean_name"
 # Placeholders only: offline mode renders SQL and never connects.
 OFFLINE_ENV = {"ENV": "LOCAL", "PGHOST": "localhost", "PGDATABASE": "offline",
                "PGUSER": "offline", "PGPASSWORD": "offline",
@@ -61,6 +63,7 @@ class _Connector:
             "main": self._meta("main", UnifiedAssetType.UC_CATALOG),
             "main.raw": self._meta("main.raw", UnifiedAssetType.UC_SCHEMA),
             TABLE: self._meta(TABLE, UnifiedAssetType.UC_TABLE),
+            FUNCTION: self._meta(FUNCTION, UnifiedAssetType.UC_FUNCTION),
         }
 
     def _meta(self, path, kind):
@@ -85,13 +88,13 @@ def _connection(db, connector_type, data_branch=None):
     return conn
 
 
-def _import(db, conn, connector_type):
+def _import(db, conn, connector_type, paths=(TABLE,)):
     connections = MagicMock()
     connections.get_connector_for_connection.return_value = _Connector(connector_type)
     importer = SchemaImportManager(connections, AssetsManager())
     return importer.execute_import(
         db,
-        ImportRequest(connection_id=conn.id, selected_paths=[TABLE], depth=ImportDepth.ONE_LEVEL),
+        ImportRequest(connection_id=conn.id, selected_paths=list(paths), depth=ImportDepth.ONE_LEVEL),
         "u@x.com",
     )
 
@@ -133,6 +136,22 @@ def test_databricks_imports_are_uc_but_their_system_is_not(db_session, asset_typ
     assert _branch_at(db_session, "main") == "uc"
     system = db_session.query(AssetDb).filter_by(location="databricks").one()
     assert system.data_branch is None
+
+
+def test_databricks_assets_that_are_not_uc_objects_get_no_branch(db_session, asset_types):
+    # A UC function is imported as a System asset; it isn't part of the catalog hierarchy.
+    conn = _connection(db_session, "databricks")
+    _import(db_session, conn, "databricks", paths=(TABLE, FUNCTION))
+
+    assert _branch_at(db_session, TABLE) == "uc"
+    assert _branch_at(db_session, FUNCTION) is None
+
+
+def test_the_uc_branch_types_are_the_physical_unity_catalog_types():
+    assert set(UC_BRANCH_ASSET_TYPES) == {
+        "Catalog", "Schema", "Table", "View", "Metric View", "Volume", "Column",
+    }
+    assert set(_backfill_migration().UC_BRANCH_TYPES) == set(UC_BRANCH_ASSET_TYPES)
 
 
 def test_other_connector_imports_take_the_connection_branch(db_session, asset_types):
@@ -186,7 +205,7 @@ def _backfill_migration():
     return module
 
 
-def test_the_backfill_migration_marks_databricks_assets_uc_except_the_system():
+def test_the_backfill_migration_marks_databricks_uc_types_uc():
     out = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "d1_data_branch:d2_backfill_uc_branch", "--sql"],
         cwd=BACKEND, capture_output=True, text=True, check=True,
@@ -196,10 +215,12 @@ def test_the_backfill_migration_marks_databricks_assets_uc_except_the_system():
     assert "UPDATE assets SET data_branch = 'uc'" in sql
     assert "platform = 'databricks'" in sql
     assert "data_branch IS NULL" in sql
-    assert "asset_types.name = 'System'" in sql
+    assert ("asset_types.name IN ('Catalog', 'Schema', 'Table', 'View', 'Metric View', "
+            "'Volume', 'Column')") in sql
+    assert "'System'" not in sql
 
 
-def test_the_backfill_updates_only_unmarked_databricks_non_system_assets(db_session, asset_types):
+def test_the_backfill_updates_only_unmarked_databricks_uc_type_assets(db_session, asset_types):
     def asset(name, type_name, platform, branch=None):
         row = AssetDb(name=name, asset_type_id=asset_types[type_name].id, platform=platform,
                       location=name, data_branch=branch)
@@ -210,6 +231,9 @@ def test_the_backfill_updates_only_unmarked_databricks_non_system_assets(db_sess
     system = asset("databricks", "System", "databricks")
     snowflake = asset("sf.raw.orders", "Table", "snowflake")
     external = asset("main.raw.feed", "Table", "databricks", branch="external")
+    column = asset("main.raw.orders.id", "Column", "databricks")
+    entity = asset("Order", "Logical Entity", "databricks")
+    attribute = asset("Order.id", "Logical Attribute", "databricks")
     db_session.flush()
 
     from sqlalchemy import text
@@ -220,3 +244,6 @@ def test_the_backfill_updates_only_unmarked_databricks_non_system_assets(db_sess
     assert db_session.get(AssetDb, system.id).data_branch is None
     assert db_session.get(AssetDb, snowflake.id).data_branch is None
     assert db_session.get(AssetDb, external.id).data_branch == "external"
+    assert db_session.get(AssetDb, column.id).data_branch == "uc"
+    assert db_session.get(AssetDb, entity.id).data_branch is None
+    assert db_session.get(AssetDb, attribute.id).data_branch is None

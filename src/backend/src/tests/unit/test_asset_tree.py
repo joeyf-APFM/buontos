@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from src.controller.asset_tree import parse_node_key, scope_subquery, tree_children
 from src.controller.assets_manager import assets_manager
 from src.db_models.assets import AssetDb, AssetRelationshipDb, AssetTypeDb
+from src.db_models.entity_relationships import EntityRelationshipDb
 from src.app import app
 from src.common import dependencies
 from src.routes import assets_routes
@@ -41,9 +42,14 @@ def graph(db_session: Session):
         db_session.add(a)
         return a
 
+    type_names = {t.id: name for name, t in types.items()}
+
     def link(source, target, rel):
+        # As SchemaImportManager.execute_import wires it: both tables, entity ids as strings.
         db_session.add(AssetRelationshipDb(source_asset_id=source.id, target_asset_id=target.id,
                                            relationship_type=rel))
+        _entity_link(db_session, type_names[source.asset_type_id], source.id,
+                     type_names[target.asset_type_id], target.id, rel)
 
     databricks = asset("Databricks", "System", branch=None)
     insights = asset("insights", "Catalog")
@@ -79,6 +85,12 @@ def graph(db_session: Session):
         raw_files=raw_files.id, lead_id=lead_id.id, nodes=nodes.id, snowflake=snowflake.id,
         sf_catalog=sf_catalog.id, orphan=orphan.id,
     )
+
+
+def _entity_link(db, source_type, source_id, target_type, target_id, rel):
+    db.add(EntityRelationshipDb(source_type=source_type, source_id=str(source_id),
+                                target_type=target_type, target_id=str(target_id),
+                                relationship_type=rel))
 
 
 def _scope_ids(db, key):
@@ -123,7 +135,8 @@ def test_internal_children_are_source_systems(db_session, graph):
 
 
 def test_unsorted_and_leaf_nodes_have_no_children(db_session, graph):
-    for key in ("branch:unsorted", f"group:{graph.referrals}:Table", "type:Dashboard"):
+    for key in ("branch:unsorted", f"group:{graph.referrals}:Table", "type:Dashboard",
+                f"asset:{graph.lead_id}", f"asset:{graph.moves}", f"asset:{graph.raw_files}"):
         assert tree_children(db_session, key, None) == []
 
 
@@ -134,21 +147,48 @@ def test_a_catalog_lists_its_schemas_sorted_with_counts(db_session, graph):
     ]
 
 
-def test_a_schema_has_type_groups_in_order_with_counts(db_session, graph):
+def test_a_schema_lists_its_tables_views_and_volumes_by_name(db_session, graph):
     nodes = tree_children(db_session, f"asset:{graph.referrals}", None)
-    assert [(n.label, n.count) for n in nodes] == [("Tables", 2), ("Views", 1), ("Volumes", 1)]
-    assert [(n.key, n.kind, n.asset_type_name, n.has_children) for n in nodes] == [
-        (f"group:{graph.referrals}:Table", "group", "Table", False),
-        (f"group:{graph.referrals}:View", "group", "View", False),
-        (f"group:{graph.referrals}:Volume", "group", "Volume", False),
+    assert [(n.key, n.label, n.kind, n.asset_type_name, n.count, n.has_children) for n in nodes] == [
+        (f"asset:{graph.lead_view}", "lead_view", "asset", "View", 1, False),
+        (f"asset:{graph.leads}", "leads", "asset", "Table", 2, True),
+        (f"asset:{graph.moves}", "moves", "asset", "Table", 1, False),
+        (f"asset:{graph.raw_files}", "raw_files", "asset", "Volume", 1, False),
     ]
 
 
-def test_node_scope_is_the_node_and_everything_under_it_without_columns(db_session, graph):
+def test_a_table_lists_its_columns_as_leaves(db_session, graph):
+    nodes = tree_children(db_session, f"asset:{graph.leads}", None)
+    assert [(n.key, n.label, n.kind, n.asset_type_name, n.count, n.has_children) for n in nodes] == [
+        (f"asset:{graph.lead_id}", "lead_id", "asset", "Column", 1, False),
+    ]
+
+
+def test_a_view_lists_its_columns_sorted_by_name(db_session, graph):
+    column_type = db_session.query(AssetTypeDb).filter_by(name="Column").one()
+    view = db_session.get(AssetDb, graph.lead_view)
+    for name in ("Zip", "amount"):
+        column = AssetDb(id=uuid.uuid4(), name=name, asset_type_id=column_type.id, status="active",
+                         data_branch="uc", location=f"Column:{name}")
+        db_session.add(column)
+        db_session.flush()
+        _entity_link(db_session, "View", view.id, "Column", column.id, "hasColumn")
+    db_session.flush()
+
+    assert [n.label for n in tree_children(db_session, f"asset:{graph.lead_view}", None)] == ["amount", "Zip"]
+    schema = {n.label: n for n in tree_children(db_session, f"asset:{graph.referrals}", None)}
+    assert (schema["lead_view"].count, schema["lead_view"].has_children) == (3, True)
+
+
+def test_node_scope_is_the_node_and_everything_under_it_with_columns_only_under_tables(db_session, graph):
     assert _scope_ids(db_session, f"asset:{graph.referrals}") == {
         graph.referrals, graph.leads, graph.moves, graph.lead_view, graph.raw_files,
     }
     assert graph.lead_id not in _scope_ids(db_session, f"asset:{graph.databricks}")
+    assert graph.lead_id not in _scope_ids(db_session, f"asset:{graph.insights}")
+    assert _scope_ids(db_session, f"asset:{graph.leads}") == {graph.leads, graph.lead_id}
+    assert _scope_ids(db_session, f"asset:{graph.moves}") == {graph.moves}
+    assert _scope_ids(db_session, f"asset:{graph.lead_id}") == {graph.lead_id}
     assert _scope_ids(db_session, f"group:{graph.referrals}:Table") == {graph.leads, graph.moves}
     assert _scope_ids(db_session, "branch:internal") == {graph.snowflake, graph.sf_catalog}
     assert _scope_ids(db_session, "branch:unsorted") == {graph.orphan}
@@ -180,8 +220,23 @@ def test_scoped_user_sees_only_nodes_with_readable_assets(db_session, graph):
     catalog = tree_children(db_session, f"asset:{graph.insights}", only)
     assert [(n.label, n.count, n.has_children) for n in catalog] == [("referrals", 1, True)]
     schema = tree_children(db_session, f"asset:{graph.referrals}", only)
-    assert [(n.label, n.count) for n in schema] == [("Tables", 1)]
+    # leads' column isn't readable, so leads has no children.
+    assert [(n.label, n.count, n.has_children) for n in schema] == [("leads", 1, False)]
     assert tree_children(db_session, "branch:internal", only) == []
+
+
+def test_a_scoped_user_sees_a_table_through_a_readable_column(db_session, graph):
+    only = [graph.lead_id]
+    schema = tree_children(db_session, f"asset:{graph.referrals}", only)
+    assert [(n.label, n.count, n.has_children) for n in schema] == [("leads", 1, True)]
+    table = tree_children(db_session, f"asset:{graph.leads}", only)
+    assert [(n.label, n.count) for n in table] == [("lead_id", 1)]
+
+
+def test_each_asset_count_is_the_size_of_its_scope(db_session, graph):
+    for parent in ("branch:uc", f"asset:{graph.insights}", f"asset:{graph.referrals}", f"asset:{graph.leads}"):
+        for node in tree_children(db_session, parent, None):
+            assert node.count == len(_scope_ids(db_session, node.key)), node.label
 
 
 def test_a_scoped_catalog_without_readable_grandchildren_has_no_children(db_session, graph):
@@ -192,9 +247,69 @@ def test_a_scoped_catalog_without_readable_grandchildren_has_no_children(db_sess
     assert [(n.label, n.count, n.has_children) for n in catalog] == [("catalog_graph", 1, False)]
 
 
+def test_the_hierarchy_comes_from_entity_relationships(db_session, graph):
+    # Real imports leave the hierarchy only in entity_relationships.
+    db_session.query(AssetRelationshipDb).delete()
+    db_session.flush()
+
+    assert [(n.label, n.count, n.has_children) for n in tree_children(db_session, "branch:uc", None)] == [
+        ("insights", 8, True),
+    ]
+    assert [(n.label, n.count) for n in tree_children(db_session, f"asset:{graph.insights}", None)] == [
+        ("catalog_graph", 2), ("referrals", 5),
+    ]
+    assert [(n.label, n.count) for n in tree_children(db_session, f"asset:{graph.referrals}", None)] == [
+        ("lead_view", 1), ("leads", 2), ("moves", 1), ("raw_files", 1),
+    ]
+    assert [n.label for n in tree_children(db_session, f"asset:{graph.leads}", None)] == ["lead_id"]
+    assert _scope_ids(db_session, f"group:{graph.referrals}:Table") == {graph.leads, graph.moves}
+    assert _scope_ids(db_session, f"asset:{graph.referrals}") == {
+        graph.referrals, graph.leads, graph.moves, graph.lead_view, graph.raw_files,
+    }
+
+
+def test_asset_relationships_alone_do_not_nest(db_session, graph):
+    db_session.query(EntityRelationshipDb).delete()
+    db_session.flush()
+
+    labels = [n.label for n in tree_children(db_session, "branch:uc", None)]
+    assert labels == ["catalog_graph", "insights", "referrals"]
+    assert tree_children(db_session, f"asset:{graph.referrals}", None) == []
+
+
+def test_edges_to_entities_that_are_not_assets_are_ignored(db_session, graph):
+    # entity_relationships also links other entities (e.g. a Dataset) to assets.
+    dataset_id = uuid.uuid4()
+    _entity_link(db_session, "Dataset", dataset_id, "Schema", graph.referrals, "hasSchema")
+    _entity_link(db_session, "Dataset", dataset_id, "Table", graph.leads, "hasTable")
+    _entity_link(db_session, "Schema", graph.referrals, "Table", uuid.uuid4(), "hasTable")
+    _entity_link(db_session, "Schema", graph.referrals, "Table", "not-a-uuid", "hasTable")
+    db_session.flush()
+
+    # referrals still has a tree parent (insights) and no extra table.
+    assert [n.label for n in tree_children(db_session, "branch:uc", None)] == ["insights"]
+    assert [n.label for n in tree_children(db_session, f"asset:{graph.referrals}", None)] == [
+        "lead_view", "leads", "moves", "raw_files",
+    ]
+    assert _scope_ids(db_session, f"asset:{graph.referrals}") == {
+        graph.referrals, graph.leads, graph.moves, graph.lead_view, graph.raw_files,
+    }
+    assert _scope_ids(db_session, f"asset:{dataset_id}") == set()
+
+
+def test_a_schema_alone_in_its_branch_is_a_branch_root(db_session, graph):
+    # The parent is in another branch: the schema has no tree parent in its own branch.
+    nodes = tree_children(db_session, "branch:internal", None)
+    assert [n.label for n in nodes] == ["Snowflake"]
+    db_session.query(AssetDb).filter(AssetDb.id == graph.catalog_graph).update({"data_branch": "internal"})
+    db_session.flush()
+    assert [n.label for n in tree_children(db_session, "branch:internal", None)] == [
+        "catalog_graph", "Snowflake",
+    ]
+
+
 def test_cycle_in_hierarchy_terminates(db_session, graph):
-    db_session.add(AssetRelationshipDb(source_asset_id=graph.leads, target_asset_id=graph.insights,
-                                       relationship_type="hasSchema"))
+    _entity_link(db_session, "Table", graph.leads, "Catalog", graph.insights, "hasSchema")
     db_session.flush()
     ids = db_session.execute(scope_subquery(db_session, f"asset:{graph.referrals}")).scalars().all()
     assert len(ids) == len(set(ids))
@@ -261,7 +376,9 @@ def test_tree_route_lists_children_and_list_route_scopes_to_a_node(api, graph, u
     ]
 
     children = api.get("/api/assets/tree", params={"parent": f"asset:{graph.referrals}"})
-    assert [n["label"] for n in children.json()] == ["Tables", "Views", "Volumes"]
+    assert [(n["label"], n["kind"]) for n in children.json()] == [
+        ("lead_view", "asset"), ("leads", "asset"), ("moves", "asset"), ("raw_files", "asset"),
+    ]
 
     listed = api.get("/api/assets", params={"node": f"group:{graph.referrals}:Table"})
     assert listed.status_code == 200

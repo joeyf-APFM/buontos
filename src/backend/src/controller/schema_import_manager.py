@@ -19,6 +19,7 @@ from src.db_models.assets import AssetDb
 from src.db_models.connections import ConnectionDb
 from src.models.assets import (
     METRIC_VIEW_ASSET_TYPE,
+    UC_BRANCH_ASSET_TYPES,
     VOLUME_ASSET_TYPE,
     AssetCreate,
     AssetRelationshipCreate,
@@ -376,8 +377,7 @@ class SchemaImportManager:
         created_assets: Dict[str, UUID] = {}
         type_cache: Dict[str, Any] = {}
         metadata_cache: Dict[str, Any] = {}
-        data_branch = self._branch_for(
-            connections_repo.get(db, request.connection_id), connector)
+        conn_db = connections_repo.get(db, request.connection_id)
 
         # 2. Create assets (parents before children — items are in BFS order)
         total_items = len(preview_items)
@@ -414,6 +414,7 @@ class SchemaImportManager:
                 ))
                 continue
 
+            data_branch = self._branch_for(conn_db, connector, item.asset_type)
             if not item.will_create:
                 if item.existing_asset_id:
                     existing_db = asset_repo.get(db, item.existing_asset_id)
@@ -642,7 +643,7 @@ class SchemaImportManager:
         if conn_db is None:
             return None
 
-        branch = self._branch_for(conn_db, connector, is_system=True)
+        branch = self._branch_for(conn_db, connector, "System")
 
         if conn_db.system_asset_id:
             existing = asset_repo.get(db, conn_db.system_asset_id)
@@ -689,15 +690,16 @@ class SchemaImportManager:
         return system_asset.id
 
     @staticmethod
-    def _branch_for(conn_db, connector: AssetConnector, *, is_system: bool = False) -> Optional[str]:
-        """The data branch an import stamps on the assets it creates.
+    def _branch_for(conn_db, connector: AssetConnector, asset_type: str) -> Optional[str]:
+        """The data branch an import stamps on an asset of the Ontos type ``asset_type``.
 
-        Databricks assets are Unity Catalog ("uc"), but its System asset has none so the
-        catalogs sit directly under Unity Catalog. Other connectors use the connection's
-        own branch (internal or external), or none when it isn't set.
+        Databricks assets of the physical Unity Catalog types are "uc"; the rest (its System
+        asset, so the catalogs sit directly under Unity Catalog, functions, models) get none.
+        Other connectors use the connection's own branch (internal or external), or none
+        when it isn't set.
         """
         if connector.connector_type == "databricks":
-            return None if is_system else DataBranch.UC.value
+            return DataBranch.UC.value if asset_type in UC_BRANCH_ASSET_TYPES else None
         return conn_db.data_branch if conn_db is not None else None
 
     @staticmethod

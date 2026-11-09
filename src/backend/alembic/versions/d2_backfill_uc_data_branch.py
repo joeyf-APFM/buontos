@@ -16,20 +16,25 @@ down_revision: Union[str, None] = 'd1_data_branch'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-# What a Databricks import stamps (SchemaImportManager._branch_for): its assets are
-# Unity Catalog, except the connection's System asset. A branch already set is kept.
+# What a Databricks import stamps (SchemaImportManager._branch_for): its physical Unity
+# Catalog types are "uc"; its System, functions, models and logical entities/attributes
+# get no branch. A branch already set is kept. Mirrors src.models.assets.UC_BRANCH_ASSET_TYPES
+# (spelled out: a migration doesn't import app code).
+UC_BRANCH_TYPES = ("Catalog", "Schema", "Table", "View", "Metric View", "Volume", "Column")
+
 BACKFILL_UC_BRANCH_SQL = (
     "UPDATE assets SET data_branch = 'uc' "
     "WHERE platform = 'databricks' "
     "AND data_branch IS NULL "
-    "AND NOT EXISTS ("
+    "AND EXISTS ("
     "SELECT 1 FROM asset_types "
-    "WHERE asset_types.id = assets.asset_type_id AND asset_types.name = 'System')"
+    "WHERE asset_types.id = assets.asset_type_id "
+    "AND asset_types.name IN (" + ", ".join(f"'{name}'" for name in UC_BRANCH_TYPES) + "))"
 )
 
 
 def upgrade() -> None:
-    """Mark assets imported before d1_data_branch as Unity Catalog."""
+    """Mark Unity Catalog objects imported before d1_data_branch as Unity Catalog."""
     op.execute(BACKFILL_UC_BRANCH_SQL)
 
 
