@@ -165,8 +165,9 @@ export default function App() {
     };
   }, [fetchUserInfo, fetchPermissions, fetchAvailableRoles, startNotificationPolling, stopNotificationPolling, initializeTestPersonas]);
 
+  // Light only: the Mantine shell has no dark theme
   return (
-    <ThemeProvider defaultTheme="system" storageKey="ucapp-theme">
+    <ThemeProvider forcedTheme="light" storageKey="ucapp-theme">
       <TooltipProvider>
         <Router future={{ 
           v7_relativeSplatPath: true,

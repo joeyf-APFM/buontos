@@ -1,3 +1,5 @@
+// First, so the cascade layer order is declared before any component CSS
+import './mantine/layers.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app';

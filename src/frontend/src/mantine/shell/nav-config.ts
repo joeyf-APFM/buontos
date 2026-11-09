@@ -51,6 +51,7 @@ import {
   Compass,
   type LucideIcon,
 } from 'lucide-react';
+import { features, type FeatureMaturity } from '@/config/features';
 
 export type NavGroupId = 'Discover' | 'Build' | 'Govern' | 'Deploy' | 'Settings';
 
@@ -209,20 +210,34 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
   ],
 };
 
-function visibleItem(item: NavItem, has: (permissionId: string) => boolean): NavItem | null {
-  if (!item.children) return has(item.permissionId) ? item : null;
-  const children = item.children.filter((c) => has(c.permissionId));
+// Maturity by feature id; items that aren't features (settings pages,
+// sub-pages) count as ga
+const MATURITY = new Map(features.map((f) => [f.id, f.maturity]));
+const maturityOf = (id: string): FeatureMaturity => MATURITY.get(id) ?? 'ga';
+
+function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean): NavItem | null {
+  if (!item.children) return allowed(item) ? item : null;
+  const children = item.children.filter(allowed);
   if (children.length === 0) return null;
   const { path, ...rest } = item;
-  return { ...rest, ...(path && has(item.permissionId) ? { path } : {}), children };
+  return { ...rest, ...(path && allowed(item) ? { path } : {}), children };
 }
 
-export function visibleNav(has: (permissionId: string) => boolean): Record<NavGroupId, NavSection[]> {
+/**
+ * The menu as one user sees it: items need READ_ONLY on their permission
+ * (`has`) and a feature maturity the user shows (`showMaturity`, as the old
+ * sidebar did with the beta/alpha toggles).
+ */
+export function visibleNav(
+  has: (permissionId: string) => boolean,
+  showMaturity: (maturity: FeatureMaturity) => boolean = () => true,
+): Record<NavGroupId, NavSection[]> {
+  const allowed = (item: NavItem) => has(item.permissionId) && showMaturity(maturityOf(item.id));
   const result = {} as Record<NavGroupId, NavSection[]>;
   for (const { id } of NAV_GROUPS) {
     if (id === 'Settings' && !has(SETTINGS_GATE)) continue;
     const sections = NAV[id]
-      .map((s) => ({ ...s, items: s.items.map((i) => visibleItem(i, has)).filter((i): i is NavItem => i !== null) }))
+      .map((s) => ({ ...s, items: s.items.map((i) => visibleItem(i, allowed)).filter((i): i is NavItem => i !== null) }))
       .filter((s) => s.items.length > 0);
     if (sections.length > 0) result[id] = sections;
   }

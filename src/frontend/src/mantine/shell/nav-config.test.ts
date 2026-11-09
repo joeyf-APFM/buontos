@@ -92,6 +92,33 @@ describe('visibleNav', () => {
   });
 });
 
+describe('visibleNav maturity', () => {
+  const gaOnly = (m: string) => m === 'ga';
+  const everything = () => true;
+
+  it('hides alpha items unless alpha is allowed', () => {
+    const hidden = visibleNav(() => true, gaOnly);
+    expect(itemIds(hidden, 'Govern')).not.toContain('security-features');
+    expect(itemIds(hidden, 'Govern')).not.toContain('entitlements-menu'); // both sub-items are alpha
+    expect(hidden.Deploy).toBeUndefined(); // estate-manager, catalog-commander
+
+    const shown = visibleNav(() => true, (m) => m === 'ga' || m === 'alpha');
+    expect(itemIds(shown, 'Govern')).toContain('security-features');
+    expect(itemIds(shown, 'Deploy')).toEqual(['estate-manager', 'catalog-commander']);
+  });
+
+  it('treats items without a feature as ga', () => {
+    const nav = visibleNav(() => true, gaOnly);
+    expect(itemIds(nav, 'Settings')).toContain('general');
+    expect(nav.Build.flatMap((s) => s.items).find((i) => i.id === 'concepts')?.children).toHaveLength(6);
+  });
+
+  it('applies on top of the permission check', () => {
+    const nav = visibleNav((id) => id !== 'security-features', everything);
+    expect(itemIds(nav, 'Govern')).not.toContain('security-features');
+  });
+});
+
 describe('activeLocation', () => {
   it('finds a settings sub-item', () => {
     expect(activeLocation('/settings/business-roles')).toEqual({

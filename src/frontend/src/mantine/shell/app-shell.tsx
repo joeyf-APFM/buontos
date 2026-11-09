@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePermissions } from '@/stores/permissions-store';
+import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { NAV_GROUPS, visibleNav } from './nav-config';
 import { useShellStore } from './use-shell-store';
@@ -16,14 +17,19 @@ import classes from './shell.module.css';
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { permissions, hasPermission } = usePermissions();
+  const allowedMaturities = useFeatureVisibilityStore((s) => s.allowedMaturities);
   const openGroup = useShellStore((s) => s.openGroup);
   const { afterNavigate } = useShellStore((s) => s.actions);
 
   const nav = useMemo(
-    () => visibleNav((id) => hasPermission(id, FeatureAccessLevel.READ_ONLY)),
+    () =>
+      visibleNav(
+        (id) => hasPermission(id, FeatureAccessLevel.READ_ONLY),
+        (maturity) => allowedMaturities.includes(maturity),
+      ),
     // hasPermission reads the store; recompute when the permissions change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [permissions, hasPermission],
+    [permissions, hasPermission, allowedMaturities],
   );
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
 
