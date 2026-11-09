@@ -4,6 +4,7 @@
  * for the browser session and not across reloads.
  */
 import { create } from 'zustand';
+import usePermissionsStore from '@/stores/permissions-store';
 import type { AssetStatus } from '@/types/asset';
 import type { AssetSummary, ConceptOption, TreeNode } from './api';
 import type { SectionId, TreeSelection } from './asset-tree';
@@ -69,3 +70,7 @@ export const useExplorerStore = create<ExplorerStore>()((set) => ({
   },
 }));
 
+// Another applied role sees other assets: what was saved under the old one goes
+usePermissionsStore.subscribe((state, prev) => {
+  if (state.appliedRoleId !== prev.appliedRoleId) useExplorerStore.getState().actions.reset();
+});

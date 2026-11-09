@@ -31,6 +31,21 @@ const branchOf = ({ node, ancestors }: TreeSelection): DataBranch | undefined =>
 /** Type nodes stand for one asset type; new assets there are of that type. */
 const nodeTypeName = (node: TreeNode) => (node.kind === 'type' ? node.assetTypeName : undefined);
 
+/** A row with the fields the full asset carries taken from it (after an edit, or a fresh GET). */
+const withSaved = (row: AssetSummary, a: AssetRead): AssetSummary => ({
+  ...row,
+  name: a.name,
+  description: a.description,
+  asset_type_id: a.asset_type_id,
+  asset_type_name: a.asset_type_name,
+  location: a.location,
+  status: a.status,
+  data_branch: a.data_branch,
+  domains: a.domains ?? row.domains,
+  primary_domain_id: a.primary_domain_id,
+  updated_at: a.updated_at,
+});
+
 interface Page {
   items: AssetSummary[];
   total: number;
@@ -59,7 +74,9 @@ export default function ExplorerPage() {
   const [concept, setConcept] = useState<ConceptOption | null>(saved?.concept ?? null);
   const [conceptSearch, setConceptSearch] = useState(saved?.conceptSearch ?? '');
   const [conceptOptions, setConceptOptions] = useState<ConceptOption[]>(saved?.conceptOptions ?? []);
-  const [listToken, setListToken] = useState(saved?.listToken ?? 0);
+  // Coming back, one step past the saved token: the grid page refreshes once
+  // in the background while the restored rows stay on screen (R23)
+  const [listToken, setListToken] = useState(saved ? saved.listToken + 1 : 0);
   const [treeToken, setTreeToken] = useState(saved?.treeToken ?? 0);
   const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(saved?.selectedAsset ?? null);
   /** Counts tree selections, so reselecting a node still starts with every row closed. */
@@ -71,6 +88,8 @@ export default function ExplorerPage() {
   // context (its label; for a column, its full name once the asset is in)
   const selectedIdRef = useRef<string | null>(saved?.selectedAsset?.id ?? null);
   const nodeContextRef = useRef<string | null>(saved?.nodeContext ?? null);
+  /** The selected tree node's key, for answers that arrive after the user moved on. */
+  const nodeKeyRef = useRef<string | undefined>(saved?.selection?.node.key);
   /** What Helix should see when no row is selected. */
   const nodeContext = () => nodeContextRef.current;
   // After a save: the edited asset, and the list refresh that has to include it
@@ -93,6 +112,7 @@ export default function ExplorerPage() {
       setConceptSearch('');
       setSelectedAsset(null);
       selectedIdRef.current = null;
+      nodeKeyRef.current = next.node.key;
       nodeContextRef.current = next.node.label;
       setContext(next.node.label);
     },
@@ -113,46 +133,63 @@ export default function ExplorerPage() {
     setContext(nodeContext());
   };
 
-  // Back on the page: give Helix its context again, then check that what was
-  // restored still exists. A deleted node gives way to its nearest existing
-  // ancestor (or Unity Catalog), and a deleted row's details close.
+  // Back on the page (R21, R23): show what was restored at once, give Helix
+  // its context again, refresh the grid page once in the background (rows
+  // stay on screen and open rows stay open), and check the node and the row
+  // against the server: fresh values replace the saved ones, a deleted node
+  // gives way to its nearest existing ancestor, a deleted row's details close.
   useEffect(() => {
     if (!saved) return;
     setContext(saved.selectedAsset ? (saved.selectedAsset.location ?? saved.selectedAsset.name) : saved.nodeContext);
     let cancelled = false;
-    const gone = (id: string) =>
+    const fresh = (id: string): Promise<AssetRead | 'gone' | null> =>
       fetchAsset(id).then(
-        () => false,
-        (e: unknown) => e instanceof ApiError && e.status === 404,
+        (a) => a,
+        (e: unknown) => (e instanceof ApiError && e.status === 404 ? 'gone' : null),
       );
     void (async () => {
       const sel = saved.selection;
-      if (sel?.node.kind === 'asset' && sel.node.assetId && (await gone(sel.node.assetId))) {
-        let i = sel.ancestors.length - 1;
-        while (i >= 0) {
-          const a = sel.ancestors[i];
-          if (a.kind !== 'asset' || !a.assetId || !(await gone(a.assetId))) break;
-          i -= 1;
+      const stillOn = () => !cancelled && nodeKeyRef.current === sel?.node.key;
+      if (sel?.node.kind === 'asset' && sel.node.assetId) {
+        const nodeNow = await fresh(sel.node.assetId);
+        if (!stillOn()) return; // the user has moved on
+        if (nodeNow === 'gone') {
+          let i = sel.ancestors.length - 1;
+          while (i >= 0) {
+            const a = sel.ancestors[i];
+            if (a.kind !== 'asset' || !a.assetId || (await fresh(a.assetId)) !== 'gone') break;
+            i -= 1;
+          }
+          if (!stillOn()) return;
+          const roots = useExplorerStore.getState().tree?.children[''] ?? [];
+          const branch = roots.find((n) => n.key === 'branch:uc') ?? roots.find((n) => n.kind === 'branch');
+          const fallback: TreeSelection | null =
+            i >= 0
+              ? { node: sel.ancestors[i], ancestors: sel.ancestors.slice(0, i), section: sel.section }
+              : branch
+                ? { node: branch, ancestors: [], section: 'data' }
+                : null;
+          if (fallback) onSelectNode(fallback);
+          else closeDetails();
+          setTreeToken((n) => n + 1); // reload the tree levels on the way, without the deleted node
+          return;
         }
-        if (cancelled) return;
-        const uc = useExplorerStore.getState().tree?.children['']?.find((n) => n.key === 'branch:uc');
-        const fallback: TreeSelection | null =
-          i >= 0
-            ? { node: sel.ancestors[i], ancestors: sel.ancestors.slice(0, i), section: sel.section }
-            : uc
-              ? { node: uc, ancestors: [], section: 'data' }
-              : null;
-        if (fallback) onSelectNode(fallback);
-        setTreeToken((n) => n + 1); // reload the tree levels on the way, without the deleted node
-        return;
+        if (nodeNow) setNodeStatus({ key: sel.node.key, token: saved.treeToken, status: nodeNow.status });
       }
       const row = saved.selectedAsset;
-      if (row && (await gone(row.id)) && !cancelled && selectedIdRef.current === row.id) closeDetails();
+      if (!row) return;
+      const rowNow = await fresh(row.id);
+      if (cancelled || selectedIdRef.current !== row.id) return;
+      if (rowNow === 'gone') closeDetails();
+      else if (rowNow) {
+        setSelectedAsset((cur) => (cur && cur.id === row.id ? withSaved(cur, rowNow) : cur));
+        setContext(rowNow.location ?? rowNow.name);
+      }
     })();
     return () => {
       cancelled = true;
     };
-    // Once, on coming back: what is restored is checked against the server
+    // Once, on coming back
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -343,19 +380,7 @@ export default function ExplorerPage() {
   // may no longer hold the asset) and the tree counts
   const onEdited = (saved: AssetRead) => {
     if (shownAsset) {
-      const updated: AssetSummary = {
-        ...shownAsset,
-        name: saved.name,
-        description: saved.description,
-        asset_type_id: saved.asset_type_id,
-        asset_type_name: saved.asset_type_name,
-        location: saved.location,
-        status: saved.status,
-        data_branch: saved.data_branch,
-        domains: saved.domains ?? shownAsset.domains,
-        primary_domain_id: saved.primary_domain_id,
-        updated_at: saved.updated_at,
-      };
+      const updated = withSaved(shownAsset, saved);
       setSelectedAsset(updated);
       setContext(updated.location ?? updated.name);
       afterSave.current = { id: updated.id, listToken: listToken + 1 };
