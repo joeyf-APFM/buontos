@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import { AssetFormDialog } from '@/components/common/asset-form-dialog';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
-import type { AssetStatus, AssetTypeRead, DataBranch } from '@/types/asset';
+import type { AssetRead, AssetStatus, AssetTypeRead, DataBranch } from '@/types/asset';
 import type { EntityTypeDefinition } from '@/types/ontology-schema';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import {
@@ -58,6 +58,8 @@ export default function ExplorerPage() {
   const [listToken, setListToken] = useState(0);
   const [treeToken, setTreeToken] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<AssetSummary | null>(null);
+  const [editing, setEditing] = useState<AssetRead | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [nodeStatus, setNodeStatus] = useState<{ key: string; status: AssetStatus } | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetTypeRead[]>([]);
   const [ontologyTypes, setOntologyTypes] = useState<EntityTypeDefinition[]>([]);
@@ -79,11 +81,13 @@ export default function ExplorerPage() {
 
   const onSelectAsset = (asset: AssetSummary) => {
     setSelectedAsset(asset);
+    setEditError(null);
     setContext(asset.location ?? asset.name);
   };
 
   const closeDetails = () => {
     setSelectedAsset(null);
+    setEditError(null);
     setContext(node?.label ?? null);
   };
 
@@ -201,6 +205,42 @@ export default function ExplorerPage() {
   const selectAncestor = (ancestor: TreeNode) => {
     const { ancestors, section } = selection!;
     onSelectNode({ node: ancestor, ancestors: ancestors.slice(0, ancestors.indexOf(ancestor)), section });
+  };
+
+  // The panel shows the row as the latest answer has it (after an edit, that
+  // answer is the refresh); while a refresh loads, the row as saved
+  const shownAsset = selectedAsset && ((!loading && page.items.find((a) => a.id === selectedAsset.id)) || selectedAsset);
+
+  // The edit form needs the full asset
+  const editAsset = (asset: AssetSummary) => {
+    setEditError(null);
+    fetchAsset(asset.id)
+      .then(setEditing)
+      .catch((e: Error) => setEditError(e.message));
+  };
+
+  // After a save: show the saved fields at once, then refresh the list (which
+  // may no longer hold the asset) and the tree counts
+  const onEdited = (saved: AssetRead) => {
+    if (shownAsset) {
+      const updated: AssetSummary = {
+        ...shownAsset,
+        name: saved.name,
+        description: saved.description,
+        asset_type_id: saved.asset_type_id,
+        asset_type_name: saved.asset_type_name,
+        location: saved.location,
+        status: saved.status,
+        data_branch: saved.data_branch,
+        domains: saved.domains ?? shownAsset.domains,
+        primary_domain_id: saved.primary_domain_id,
+        updated_at: saved.updated_at,
+      };
+      setSelectedAsset(updated);
+      setContext(updated.location ?? updated.name);
+    }
+    setListToken((n) => n + 1);
+    setTreeToken((n) => n + 1);
   };
 
   const newAssetButton = (
@@ -324,7 +364,26 @@ export default function ExplorerPage() {
         )}
       </section>
 
-      {selectedAsset && !helixOpen && <DetailsPanel asset={selectedAsset} onClose={closeDetails} />}
+      {shownAsset && !helixOpen && (
+        <DetailsPanel
+          asset={shownAsset}
+          onClose={closeDetails}
+          onEdit={canWrite ? () => editAsset(shownAsset) : undefined}
+          editError={editError}
+        />
+      )}
+
+      {editing && (
+        <AssetFormDialog
+          isOpen
+          onOpenChange={(open) => !open && setEditing(null)}
+          onSuccess={onEdited}
+          assetTypeId={editing.asset_type_id}
+          assetTypeName={editing.asset_type_name ?? ''}
+          assetTypeIri={editing.asset_type_name ? ontologyIri(editing.asset_type_name) : null}
+          asset={editing}
+        />
+      )}
 
       {createType && (
         <AssetFormDialog

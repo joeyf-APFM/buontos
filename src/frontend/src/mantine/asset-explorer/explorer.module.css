@@ -216,12 +216,17 @@
   cursor: pointer;
 }
 
-.table tbody tr:hover td {
+.table tbody tr:not([data-selected]):hover td {
   background: var(--aura-canvas);
 }
 
+/* Selection only highlights: the cells keep their own font, colour and weight */
 .table tbody tr[data-selected] td {
   background: var(--aura-accent-subtle);
+}
+
+.table tbody tr[data-selected] td:first-child {
+  box-shadow: inset 2px 0 0 var(--aura-accent);
 }
 
 .mono {
@@ -295,6 +300,15 @@
   flex: 1;
   overflow: auto;
   padding: 12px;
+}
+
+.detailsError {
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--aura-critical);
+  background: var(--aura-critical-bg);
 }
 
 .kv {

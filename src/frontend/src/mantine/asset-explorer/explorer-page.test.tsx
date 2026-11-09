@@ -7,10 +7,34 @@ import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
 import { LEADS, calledUrls, json, mockBackend } from './test-fixtures';
 
-// The create dialog has its own tests; here it only has to open
+// The form dialog has its own tests; here it opens, and Save and Cancel act as
+// the real one does (Save reports the saved asset, then closes)
+interface DialogProps {
+  isOpen: boolean;
+  assetTypeName: string;
+  defaultDataBranch?: string;
+  asset?: { id: string; name: string } | null;
+  onSuccess: (asset: unknown) => void;
+  onOpenChange: (open: boolean) => void;
+}
 vi.mock('@/components/common/asset-form-dialog', () => ({
-  AssetFormDialog: ({ isOpen, assetTypeName, defaultDataBranch }: { isOpen: boolean; assetTypeName: string; defaultDataBranch?: string }) =>
-    isOpen ? <div role="dialog">{`create ${assetTypeName} in ${defaultDataBranch}`}</div> : null,
+  AssetFormDialog: ({ isOpen, assetTypeName, defaultDataBranch, asset, onSuccess, onOpenChange }: DialogProps) =>
+    isOpen ? (
+      <div role="dialog">
+        {asset ? `edit ${asset.name} (${assetTypeName})` : `create ${assetTypeName} in ${defaultDataBranch}`}
+        {asset && (
+          <button
+            onClick={() => {
+              onSuccess({ ...asset, name: `${asset.name}_v2` });
+              onOpenChange(false);
+            }}
+          >
+            Save
+          </button>
+        )}
+        <button onClick={() => onOpenChange(false)}>Cancel</button>
+      </div>
+    ) : null,
 }));
 
 function grant(level: FeatureAccessLevel) {
@@ -234,5 +258,72 @@ describe('ExplorerPage', () => {
 
     expect(await screen.findByText('You don’t have access to assets.')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe('Edit from the details panel', () => {
+    const openDetails = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(await within(await table()).findByText('leads'));
+      return screen.findByRole('complementary', { name: 'leads' });
+    };
+
+    it('shows Edit only with write access', async () => {
+      const user = userEvent.setup();
+      const { unmount } = renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      expect(within(await openDetails(user)).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+      unmount();
+
+      grant(FeatureAccessLevel.READ_ONLY);
+      renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      expect(within(await openDetails(user)).queryByRole('button', { name: 'Edit' })).toBeNull();
+    });
+
+    it('opens the form for the asset, loaded in full', async () => {
+      const user = userEvent.setup();
+      renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      await user.click(within(await openDetails(user)).getByRole('button', { name: 'Edit' }));
+
+      expect(await screen.findByRole('dialog')).toHaveTextContent('edit leads (Table)');
+      expect(calledUrls(fetchMock).some((u) => u.pathname === '/api/assets/a1')).toBe(true);
+    });
+
+    it('refreshes the panel and the table after a save', async () => {
+      let saved = false;
+      const renamed = { ...LEADS, name: 'leads_v2', location: 'insights.referrals.leads_v2' };
+      fetchMock = mockBackend((url) =>
+        url.pathname === '/api/assets' && saved ? json({ items: [renamed], total: 1, skip: 0, limit: 50 }) : undefined,
+      );
+      const user = userEvent.setup();
+      renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      await user.click(within(await openDetails(user)).getByRole('button', { name: 'Edit' }));
+      await screen.findByRole('dialog');
+      const before = assetCalls(fetchMock).length;
+      const treeBefore = calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets/tree').length;
+
+      saved = true;
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      const details = await screen.findByRole('complementary', { name: 'leads_v2' });
+      expect(within(details).getByText('insights.referrals.leads_v2')).toBeInTheDocument();
+      expect(within(screen.getByRole('table')).getByText('leads_v2')).toBeInTheDocument();
+      expect(assetCalls(fetchMock).length).toBe(before + 1);
+      await waitFor(() =>
+        expect(calledUrls(fetchMock).filter((u) => u.pathname === '/api/assets/tree').length).toBeGreaterThan(treeBefore),
+      );
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('changes nothing on Cancel', async () => {
+      const user = userEvent.setup();
+      renderWithMantine(<ExplorerPage />, { route: '/assets' });
+      await user.click(within(await openDetails(user)).getByRole('button', { name: 'Edit' }));
+      await screen.findByRole('dialog');
+      const before = fetchMock.mock.calls.length;
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(fetchMock.mock.calls.length).toBe(before);
+      expect(screen.getByRole('complementary', { name: 'leads' })).toBeInTheDocument();
+    });
   });
 });

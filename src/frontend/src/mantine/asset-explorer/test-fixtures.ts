@@ -86,7 +86,9 @@ export function mockBackend(override?: Handler) {
       return json({ items, total: items.length, skip: 0, limit: 50 });
     }
     if (url.pathname.startsWith('/api/assets/')) {
-      return json({ id: url.pathname.split('/').pop(), name: 'x', status: 'active', relationships: [] });
+      const id = url.pathname.split('/').pop();
+      const known = Object.values(ASSETS).flat().find((a) => a.id === id);
+      return json({ id, name: 'x', status: 'active', ...known, relationships: [], created_at: '2026-11-01T00:00:00Z' });
     }
     return json([]);
   });

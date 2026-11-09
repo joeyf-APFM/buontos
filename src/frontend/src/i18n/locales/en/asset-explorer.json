@@ -12,6 +12,11 @@
     }
   },
   "breadcrumb": "Breadcrumb",
+  "branches": {
+    "uc": "Unity Catalog",
+    "internal": "Internal",
+    "external": "External"
+  },
   "newAsset": "New asset",
   "chooseType": "Asset type",
   "filter": {
@@ -49,6 +54,7 @@
     "close": "Close details",
     "type": "Type",
     "fullName": "Full name",
+    "branch": "Branch",
     "owner": "Owner",
     "status": "Status",
     "columns": "Columns",
@@ -57,6 +63,8 @@
     "updated": "Updated",
     "description": "Description",
     "noDescription": "No description.",
-    "openFullPage": "Open full page"
+    "openFullPage": "Open full page",
+    "edit": "Edit",
+    "editError": "Couldn’t open the asset for editing: {{message}}"
   }
 }
