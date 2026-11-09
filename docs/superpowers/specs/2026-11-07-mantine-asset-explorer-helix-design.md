@@ -89,7 +89,11 @@ Two mockups were approved:
 **Sidebar categories:** the existing five stay at the top level, in this order: Data Assets, Analytics, Integration, System, Custom.
 
 **Data Assets tree:** three branches.
-- **Unity Catalog:** Databricks Unity Catalog only. Real catalogs → their schemas → type groups (Tables, Views, Volumes, Metric Views) with counts. Nodes are real assets, built from the `hasCatalog`, `hasSchema`, `hasTable`, `hasView` and new `hasVolume` relationships. Columns don't appear in the tree; they belong on a table's details. There's no Datasets group, because no Schema→Dataset relationship exists *(my call)*.
+- **Unity Catalog:** Databricks Unity Catalog only, as a full hierarchy: catalog → schema → table / view / metric view / volume → column *(owner, 2026-11-09; replaces the earlier type groups under each schema)*.
+  - **Nodes:** every node is a real asset with its count. They're built from the `hasCatalog`, `hasSchema`, `hasTable`, `hasView`, new `hasVolume` and `hasColumn` relationships, read from `entity_relationships`.
+  - **Columns** are leaves and load when a table or view is expanded.
+  - **Datasets:** there's no Datasets level, because no Schema→Dataset relationship exists *(my call)*.
+  - **Icons:** each kind of node has its own icon *(owner)*.
 - **Internal** *(owner's definition)*: systems inside the business, such as SQL Servers on the company network and the business's own Snowflake.
 - **External** *(owner's definition)*: anything remote that the business ingests, such as API calls, SFTP sources and Snowflake data from outside parties.
 - **Non-Databricks catalogs:** the importer stores Snowflake and BigQuery catalogs as the same Catalog type as UC catalogs. They go under Internal or External, not Unity Catalog. Under each branch, the tree groups assets by source system (for example, a SQL Server instance or a Snowflake account), then follows that system's own hierarchy (catalog → schema → table).
@@ -99,7 +103,7 @@ Two mockups were approved:
 
 **Row style:** icon, name, and a count right-aligned. The selected row gets an accent-subtle background with a 2px accent bar. Rows expand and collapse with a chevron.
 
-**Clicking a node:** the table shows the node and everything under it. For example, clicking a schema lists its tables, views and volumes. *(The builder's call, taken from the approved mockup.)*
+**Clicking a node:** the table shows the node and everything under it, without columns. For example, clicking a schema lists its tables, views and volumes. A table or view lists its columns, and a column shows itself. *(The builder's call, taken from the approved mockup; the column rule follows the owner's 2026-11-09 hierarchy change.)*
 
 **Table:** filter box; Type, Status and Concept filters; columns Name (monospace), Type, Owner, Status (coloured dot), Concepts, Updated. Server-side paging, using the existing `/api/assets` paging. `GET /api/assets` gains a parent filter (the node and everything under it) and a concept filter. Owner shows the asset's first business owner, with "+N" when there are more; Concepts come from its semantic links *(my calls)*.
 
