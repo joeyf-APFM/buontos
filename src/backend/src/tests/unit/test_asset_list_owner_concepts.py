@@ -92,7 +92,7 @@ def test_concept_iri_filters_list_and_total(world):
     assert result.total == 2
 
 
-def test_owners_and_links_load_in_two_extra_queries(world):
+def test_owners_and_links_load_in_two_extra_queries(world, monkeypatch):
     for a in world.assets.values():
         world.owner(a, f"{a.name}@x.com")
         world.link(a, CUSTOMER, "Customer")
@@ -105,15 +105,14 @@ def test_owners_and_links_load_in_two_extra_queries(world):
         return listener
 
     # Baseline: the same page without the owner/link loads.
-    original = assets_manager._attach_owners_and_concepts
-    assets_manager._attach_owners_and_concepts = lambda *a, **k: None
     l1 = count_into(baseline)
     event.listen(engine, "before_cursor_execute", l1)
     try:
-        assets_manager.get_all_assets(world.db)
+        with monkeypatch.context() as m:
+            m.setattr(assets_manager, "_attach_owners_and_concepts", lambda *a, **k: None)
+            assets_manager.get_all_assets(world.db)
     finally:
         event.remove(engine, "before_cursor_execute", l1)
-        assets_manager._attach_owners_and_concepts = original
     l2 = count_into(with_page)
     event.listen(engine, "before_cursor_execute", l2)
     try:
