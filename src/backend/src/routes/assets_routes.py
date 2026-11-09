@@ -397,12 +397,12 @@ def get_all_assets(
             children = asset_child_nodes(db, parent, restrict_ids)
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-        # The tree applied the user's scoping to the children.
+        # The tree applied the user's scoping to the children; rows it can't read show only names.
         return manager.get_child_assets(
             db=db, children=children, skip=skip, limit=limit,
             asset_type_id=asset_type_id, asset_type_names=type_names_list,
             platform=platform, domain_id=domain_id, domain_ids=domain_ids_list, status=asset_status,
-            name=name, concept_iri=concept_iri,
+            name=name, concept_iri=concept_iri, restrict_to_ids=restrict_ids,
         )
 
     scope = None

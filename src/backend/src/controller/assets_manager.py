@@ -384,11 +384,14 @@ class AssetsManager(SearchableAsset):
         domain_ids: Optional[List[str]] = None,
         status: Optional[str] = None, name: Optional[str] = None,
         concept_iri: Optional[str] = None,
+        restrict_to_ids: Optional[List[UUID]] = None,
     ) -> PaginatedAssetSummary:
         """A page of a tree node's asset children (``asset_tree.asset_child_nodes``), in tree order.
 
         The tree already applied the user's scoping to ``children``; the other filters narrow
-        them further. Each summary carries the child's tree ``has_children``.
+        them further. Each summary carries the child's tree ``has_children``. A child outside
+        ``restrict_to_ids`` (listed only because readable assets sit under it) shows no more
+        than the tree does: see ``_unreadable_summary``.
         """
         by_id = {c.asset_id: c for c in children}
         matching = self._asset_repo.get_filtered_ids(
@@ -403,11 +406,24 @@ class AssetsManager(SearchableAsset):
             scope_subquery=select(AssetDb.id).where(AssetDb.id.in_(page_ids)),
         ) if page_ids else []
         position = {asset_id: i for i, asset_id in enumerate(page_ids)}
-        db_assets = sorted(db_assets, key=lambda a: position[a.id])
-        summaries = self._page_summaries(db, db_assets)
+        readable_ids = None if restrict_to_ids is None else set(restrict_to_ids)
+        readable = [a for a in db_assets if readable_ids is None or a.id in readable_ids]
+        summaries = self._page_summaries(db, readable) + [
+            self._unreadable_summary(a) for a in db_assets if a not in readable
+        ]
+        summaries.sort(key=lambda s: position[s.id])
         for s in summaries:
             s.has_children = by_id[s.id].has_children
         return PaginatedAssetSummary(items=summaries, total=len(ordered), skip=skip, limit=limit)
+
+    @staticmethod
+    def _unreadable_summary(db_asset: AssetDb) -> AssetSummary:
+        """A row for an asset the user can't read: what the tree shows of it, every other field blank."""
+        return AssetSummary(
+            id=db_asset.id, name=db_asset.name, asset_type_id=db_asset.asset_type_id,
+            asset_type_name=db_asset.asset_type.name if db_asset.asset_type else None,
+            data_branch=db_asset.data_branch, status=db_asset.status,
+        )
 
     def _page_summaries(self, db: Session, db_assets: List[AssetDb]) -> List[AssetSummary]:
         """Summaries for a page of assets, with domains, owners and concepts batch-loaded."""

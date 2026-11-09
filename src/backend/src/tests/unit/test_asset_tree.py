@@ -490,3 +490,41 @@ def test_parent_children_follow_the_scoped_users_tree(api, graph, monkeypatch):
 ])
 def test_parent_rejects_keys_without_asset_children_and_node(api, unscoped_user, params):
     assert api.get("/api/assets", params=params).status_code == 400
+
+
+def test_a_consumer_sees_only_names_for_containers_it_cannot_read(api, graph, monkeypatch, db_session):
+    # R20: referrals is listed only because the readable leads sits under it.
+    referrals = db_session.get(AssetDb, graph.referrals)
+    referrals.description, referrals.platform, referrals.tags = "secret", "databricks", ["pii"]
+    referrals.properties = {"schema": {"column_count": 3}, "data_type": "STRING"}
+    leads = db_session.get(AssetDb, graph.leads)
+    leads.description = "lead rows"
+    db_session.flush()
+    monkeypatch.setattr(assets_routes, "_restrict_ids_for", lambda *args: [graph.leads])
+
+    [row] = _children(api, f"asset:{graph.insights}")["items"]
+    assert {k: row[k] for k in ("id", "name", "asset_type_name", "data_branch", "status", "has_children")} == {
+        "id": str(graph.referrals), "name": "referrals", "asset_type_name": "Schema",
+        "data_branch": "uc", "status": "active", "has_children": True,
+    }
+    assert row["asset_type_id"]
+    blank = {k: v for k, v in row.items() if k not in (
+        "id", "name", "asset_type_id", "asset_type_name", "data_branch", "status", "has_children")}
+    assert blank == {
+        "description": None, "platform": None, "location": None, "tags": None, "domain_ids": [],
+        "primary_domain_id": None, "domains": [], "parent_id": None, "parent_name": None,
+        "updated_at": None, "owner_display": None, "owner_extra_count": 0, "concepts": [],
+        "column_count": None, "data_type": None, "nullable": None,
+    }
+
+    [readable] = _children(api, f"asset:{graph.referrals}")["items"]
+    assert (readable["name"], readable["description"], readable["location"]) == (
+        "leads", "lead rows", "Table:leads",
+    )
+
+
+def test_an_unscoped_user_sees_full_container_rows(api, graph, unscoped_user, db_session):
+    db_session.get(AssetDb, graph.referrals).description = "schema notes"
+    db_session.flush()
+    rows = {a["name"]: a for a in _children(api, f"asset:{graph.insights}")["items"]}
+    assert (rows["referrals"]["description"], rows["referrals"]["location"]) == ("schema notes", "Schema:referrals")
