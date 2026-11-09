@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Button, Skeleton, Tree, useTree, type RenderTreeNodePayload, type TreeNodeData } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { Box, ChevronDown, ChevronRight, Database, Folder, Globe, Inbox, Layers, Server, type LucideIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { fetchTreeChildren, type TreeNode } from './api';
+import { nodeIcon } from './node-icons';
+import { shortLabel } from './format';
 import classes from './explorer.module.css';
 
 export type SectionId = 'data' | 'analytics' | 'integration' | 'system' | 'custom';
@@ -35,27 +37,20 @@ interface AssetTreeProps {
 /** Loaded children by parent key; a parent missing here hasn't been loaded. */
 type ChildrenMap = Record<string, TreeNode[]>;
 
-const BRANCH_ICONS: Record<string, LucideIcon> = {
-  'branch:uc': Database,
-  'branch:internal': Server,
-  'branch:external': Globe,
-};
-
-const iconFor = (node: TreeNode): LucideIcon =>
-  node.kind === 'branch' ? BRANCH_ICONS[node.key] ?? Inbox : node.kind === 'asset' ? Folder : node.kind === 'group' ? Layers : Box;
-
 /** Stands in for children that are still loading (or failed to). */
 const placeholderValue = (parent: string) => `${parent}\u0000loading`;
 
-function toTreeData(nodes: TreeNode[], children: ChildrenMap): TreeNodeData[] {
+function toTreeData(nodes: TreeNode[], children: ChildrenMap, parent?: TreeNode): TreeNodeData[] {
+  // Only an asset parent's name prefixes its children's
+  const parentLabel = parent && parent.kind !== 'branch' ? parent.label : undefined;
   return nodes.map((node) => ({
     value: node.key,
-    label: node.label,
+    label: shortLabel(node.label, parentLabel),
     nodeProps: { node },
     children: !node.hasChildren
       ? undefined
       : children[node.key]
-        ? toTreeData(children[node.key], children)
+        ? toTreeData(children[node.key], children, node)
         : [{ value: placeholderValue(node.key), label: '', nodeProps: { placeholderFor: node.key } }],
   }));
 }
@@ -218,7 +213,7 @@ function TreeSection({
       );
     }
     const item = node.nodeProps!.node as TreeNode;
-    const Icon = iconFor(item);
+    const { Icon, id: iconId } = nodeIcon(item);
     const Chevron = expanded ? ChevronDown : ChevronRight;
     const isSelected = item.key === selectedKey;
 
@@ -243,8 +238,10 @@ function TreeSection({
         <span className={classes.chevron} data-chevron={hasChildren || undefined}>
           {hasChildren && <Chevron size={11} aria-hidden />}
         </span>
-        <Icon className={classes.treeIcon} aria-hidden />
-        <span className={classes.treeLabel}>{item.label}</span>
+        <Icon className={classes.treeIcon} size={14} data-icon={iconId} aria-hidden />
+        <span className={classes.treeLabel} title={item.label}>
+          {node.label}
+        </span>
         <span className={classes.treeCount}>{item.count}</span>
       </div>
     );

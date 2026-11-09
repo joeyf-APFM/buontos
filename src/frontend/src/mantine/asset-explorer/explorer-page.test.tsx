@@ -47,7 +47,8 @@ function grant(level: FeatureAccessLevel) {
   });
 }
 
-const row = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}`) });
+// A row's accessible name is its label then its count (and, when open, its children)
+const row = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) });
 /** Clicks a tree row as a pointer would: on the row's content, not its list item. */
 const clickRow = async (user: ReturnType<typeof userEvent.setup>, name: string) =>
   user.click((await row(name)).firstElementChild!);
@@ -90,14 +91,14 @@ describe('ExplorerPage', () => {
     await openSchema(user);
 
     await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('node')).toBe('asset:sch1'));
-    expect(await screen.findByRole('heading', { name: 'referrals' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'insights.referrals' })).toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(crumbs).toHaveTextContent('Unity Catalog');
     expect(crumbs).toHaveTextContent('insights');
     const t = await table();
     expect(within(t).getByText('leads')).toBeInTheDocument();
     expect(within(t).getByText('data-eng +2')).toBeInTheDocument();
-    expect(useHelixStore.getState().context).toBe('referrals');
+    expect(useHelixStore.getState().context).toBe('insights.referrals');
   });
 
   it('shows none of the previous node’s rows while the next node loads', async () => {
@@ -154,6 +155,38 @@ describe('ExplorerPage', () => {
     expect(lastAssetCall(fetchMock).searchParams.get('skip')).toBe('0');
     expect(await screen.findByText('37 assets')).toBeInTheDocument();
     expect(within(screen.getByRole('table')).queryByText('lead_events')).toBeNull();
+  });
+
+  it('selects a column: the table lists it, with the full path, its type and full name', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await clickRow(user, 'insights');
+    await clickRow(user, 'referrals');
+    await clickRow(user, 'leads');
+    await clickRow(user, 'event_ts');
+
+    await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('node')).toBe('asset:col2'));
+    const heading = await screen.findByRole('heading', { name: 'event_ts' });
+    expect(within(heading.parentElement!).getByText('Column')).toBeInTheDocument();
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(crumbs).toHaveTextContent('Unity Catalog / insights / insights.referrals / insights.referrals.leads / event_ts');
+    const t = await table();
+    expect(await within(t).findByText('event_ts')).toBeInTheDocument();
+    expect(within(t).getAllByRole('row')).toHaveLength(2);
+    // The column's context is its full name, from the asset itself
+    await waitFor(() => expect(useHelixStore.getState().context).toBe('insights.referrals.leads.event_ts'));
+  });
+
+  it('shows the full name of a schema in the header and breadcrumb', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await clickRow(user, 'insights');
+    await clickRow(user, 'referrals');
+    await clickRow(user, 'leads');
+
+    expect(await screen.findByRole('heading', { name: 'insights.referrals.leads' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Unity Catalog / insights / insights.referrals / insights.referrals.leads');
+    expect(within(screen.getByRole('heading').parentElement!).getByText('Table')).toBeInTheDocument();
   });
 
   it('debounces the text filter into the name parameter', async () => {

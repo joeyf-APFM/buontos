@@ -9,22 +9,40 @@ const node = (key: string, label: string, kind: string, count: number, hasChildr
   key, label, kind, count, has_children: hasChildren, ...extra,
 });
 
+const asset = (id: string, label: string, type: string, count: number, hasChildren: boolean) =>
+  node(`asset:${id}`, label, 'asset', count, hasChildren, { asset_id: id, asset_type_name: type });
+
+/**
+ * The tree as the API serves it: Unity Catalog is catalog → schema → table /
+ * view / metric view / volume → column, with names stored fully qualified
+ * (columns may be short).
+ */
 export const TREE: Record<string, unknown[]> = {
   '': [
     node('branch:uc', 'Unity Catalog', 'branch', 12, true),
     node('branch:internal', 'Internal', 'branch', 0, false),
     node('branch:external', 'External', 'branch', 3, true),
+    node('branch:unsorted', 'Unsorted', 'branch', 9, false),
   ],
-  'branch:uc': [node('asset:cat1', 'insights', 'asset', 12, true, { asset_id: 'cat1', asset_type_name: 'Catalog' })],
+  'branch:uc': [asset('cat1', 'insights', 'Catalog', 12, true)],
   'asset:cat1': [
-    node('asset:sch1', 'referrals', 'asset', 2, true, { asset_id: 'sch1', asset_type_name: 'Schema' }),
-    node('asset:sch2', 'empty_schema', 'asset', 0, false, { asset_id: 'sch2', asset_type_name: 'Schema' }),
+    asset('sch1', 'insights.referrals', 'Schema', 2, true),
+    asset('sch2', 'insights.empty_schema', 'Schema', 0, false),
   ],
-  'asset:sch1': [node('group:sch1:Table', 'Tables', 'group', 2, false, { asset_id: 'sch1', asset_type_name: 'Table' })],
+  'asset:sch1': [
+    asset('t1', 'insights.referrals.leads', 'Table', 2, true),
+    asset('v1', 'insights.referrals.referrals_daily', 'View', 0, false),
+    asset('mv1', 'insights.referrals.referral_kpis', 'Metric View', 0, false),
+    asset('vol1', 'insights.referrals.raw_exports', 'Volume', 0, false),
+  ],
+  'asset:t1': [
+    asset('col1', 'insights.referrals.leads.lead_id', 'Column', 1, false),
+    asset('col2', 'event_ts', 'Column', 1, false),
+  ],
   'branch:external': [],
   'category:analytics': [node('type:Dashboard', 'Dashboards', 'type', 4, false, { asset_type_name: 'Dashboard' })],
   'category:integration': [],
-  'category:system': [],
+  'category:system': [node('type:System', 'System', 'type', 2, false, { asset_type_name: 'System' })],
   'category:custom': [],
 };
 
@@ -48,11 +66,23 @@ export const summary = (over: Partial<AssetSummary> & { id: string; name: string
 export const LEADS = summary({ id: 'a1', name: 'leads', owner_extra_count: 2 });
 export const LEAD_EVENTS = summary({ id: 'a2', name: 'lead_events', status: 'draft', concepts: ['Event', 'Lead'] });
 
+export const LEAD_ID = summary({
+  id: 'col1', name: 'insights.referrals.leads.lead_id', asset_type_name: 'Column',
+  location: 'insights.referrals.leads.lead_id', concepts: [], column_count: null,
+});
+
+export const EVENT_TS = summary({
+  id: 'col2', name: 'event_ts', asset_type_name: 'Column',
+  location: 'insights.referrals.leads.event_ts', concepts: [], column_count: null,
+});
+
 export const ASSETS: Record<string, AssetSummary[]> = {
   'branch:uc': [LEADS, LEAD_EVENTS],
   'asset:cat1': [LEADS, LEAD_EVENTS],
   'asset:sch1': [LEADS, LEAD_EVENTS],
   'asset:sch2': [],
+  'asset:col1': [LEAD_ID],
+  'asset:col2': [EVENT_TS],
 };
 
 export const CONCEPTS = [

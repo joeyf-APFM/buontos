@@ -63,9 +63,9 @@
 
 .treeIcon {
   flex: none;
-  width: 13px;
-  height: 13px;
-  color: var(--aura-text-secondary);
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-muted);
 }
 
 .treeRow[data-selected] .treeIcon {

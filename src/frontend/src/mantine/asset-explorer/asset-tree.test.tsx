@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { AssetTree, type TreeSelection } from './asset-tree';
-import { json, mockBackend, treeCalls } from './test-fixtures';
+import { calledUrls, json, mockBackend, treeCalls } from './test-fixtures';
 
 function Harness({ onSelect }: { onSelect: (s: TreeSelection) => void }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -18,7 +18,8 @@ function Harness({ onSelect }: { onSelect: (s: TreeSelection) => void }) {
   );
 }
 
-const row = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}`) });
+// A row's accessible name is its label then its count (and, when open, its children)
+const row = (name: string) => screen.findByRole('treeitem', { name: new RegExp(`^${name}(?![a-z_.])`) });
 /** Clicks a tree row as a pointer would: on the row's content, not its list item. */
 const clickRow = async (user: ReturnType<typeof userEvent.setup>, name: string) =>
   user.click((await row(name)).firstElementChild!);
@@ -105,5 +106,83 @@ describe('AssetTree', () => {
     await user.click(retry);
     expect(await row('referrals')).toBeInTheDocument();
     expect(treeCalls(fetchMock, 'asset:cat1')).toBe(2);
+  });
+
+  const iconOf = async (name: string) =>
+    (await row(name)).firstElementChild!.querySelector('[data-icon]')!.getAttribute('data-icon');
+
+  async function openToColumns(user: ReturnType<typeof userEvent.setup>) {
+    await clickRow(user, 'insights');
+    await clickRow(user, 'referrals');
+    await clickRow(user, 'leads');
+    await row('lead_id');
+  }
+
+  it('gives each kind of node its own icon', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Harness onSelect={() => {}} />);
+    await openToColumns(user);
+
+    const expected: Record<string, string> = {
+      'Unity Catalog': 'branch:uc',
+      Internal: 'branch:internal',
+      External: 'branch:external',
+      Unsorted: 'branch:unsorted',
+      insights: 'Catalog',
+      referrals: 'Schema',
+      leads: 'Table',
+      referrals_daily: 'View',
+      referral_kpis: 'Metric View',
+      raw_exports: 'Volume',
+      lead_id: 'Column',
+      System: 'System',
+      Dashboards: 'fallback',
+    };
+    for (const [name, icon] of Object.entries(expected)) expect(await iconOf(name)).toBe(icon);
+  });
+
+  it('falls back for other asset types and for a stray group node', async () => {
+    fetchMock = mockBackend((url) =>
+      url.pathname === '/api/assets/tree' && url.searchParams.get('parent') === 'asset:sch1'
+        ? json([
+            { key: 'asset:nb1', label: 'insights.referrals.nb', kind: 'asset', asset_id: 'nb1', asset_type_name: 'Notebook', count: 1, has_children: false },
+            { key: 'group:sch1:Table', label: 'Tables', kind: 'group', asset_id: 'sch1', asset_type_name: 'Table', count: 2, has_children: false },
+          ])
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderWithMantine(<Harness onSelect={() => {}} />);
+    await clickRow(user, 'insights');
+    await clickRow(user, 'referrals');
+
+    expect(await iconOf('nb')).toBe('fallback');
+    expect(await iconOf('Tables')).toBe('fallback');
+  });
+
+  it('expands a table into its columns, which are leaves', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Harness onSelect={() => {}} />);
+    await openToColumns(user);
+
+    expect((await row('leads')).firstElementChild!.querySelector('[data-chevron] svg')).not.toBeNull();
+    for (const column of ['lead_id', 'event_ts']) {
+      expect((await row(column)).firstElementChild!.querySelector('[data-chevron]')).toBeNull();
+    }
+    expect(treeCalls(fetchMock, 'asset:t1')).toBe(1);
+    expect(calledUrls(fetchMock).some((u) => (u.searchParams.get('parent') ?? '').startsWith('group:'))).toBe(false);
+  });
+
+  it('shows names without their parent’s prefix', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Harness onSelect={() => {}} />);
+    await openToColumns(user);
+
+    const label = async (name: string) => (await row(name)).firstElementChild!.querySelector('[title]')!;
+    expect(await label('referrals')).toHaveTextContent(/^referrals$/);
+    expect(await label('referrals')).toHaveAttribute('title', 'insights.referrals');
+    expect(await label('leads')).toHaveAttribute('title', 'insights.referrals.leads');
+    expect(await label('lead_id')).toHaveTextContent(/^lead_id$/);
+    // A column already short keeps its name
+    expect(await label('event_ts')).toHaveAttribute('title', 'event_ts');
   });
 });

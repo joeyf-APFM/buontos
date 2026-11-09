@@ -26,8 +26,8 @@ const BRANCHES: Record<string, DataBranch> = { 'branch:uc': 'uc', 'branch:intern
 const branchOf = ({ node, ancestors }: TreeSelection): DataBranch | undefined =>
   BRANCHES[(ancestors[0] ?? node).key];
 
-/** Type and type-group nodes stand for one asset type; new assets there are of that type. */
-const nodeTypeName = (node: TreeNode) => (node.kind === 'type' || node.kind === 'group' ? node.assetTypeName : undefined);
+/** Type nodes stand for one asset type; new assets there are of that type. */
+const nodeTypeName = (node: TreeNode) => (node.kind === 'type' ? node.assetTypeName : undefined);
 
 interface Page {
   items: AssetSummary[];
@@ -161,18 +161,25 @@ export default function ExplorerPage() {
   const page = current ? answer.page : EMPTY_PAGE;
   const error = !loading ? answer.error : null;
 
-  // An asset node's own status, for the header badge
+  // An asset node's own status, for the header badge. A column's Helix
+  // context is its full name, which only the asset itself has (columns' tree
+  // labels may be short).
   const nodeAssetId = node?.kind === 'asset' ? node.assetId : undefined;
+  const nodeIsColumn = node?.assetTypeName === 'Column';
   useEffect(() => {
     if (!nodeKey || !nodeAssetId) return;
     let cancelled = false;
     fetchAsset(nodeAssetId)
-      .then((a) => !cancelled && setNodeStatus({ key: nodeKey, status: a.status }))
+      .then((a) => {
+        if (cancelled) return;
+        setNodeStatus({ key: nodeKey, status: a.status });
+        if (nodeIsColumn && a.location && !selectedIdRef.current) setContext(a.location);
+      })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [nodeKey, nodeAssetId, treeToken]);
+  }, [nodeKey, nodeAssetId, nodeIsColumn, treeToken, setContext]);
 
   // Asset types, for the Type filter and New asset; ontology types for the create form
   useEffect(() => {
@@ -296,7 +303,7 @@ export default function ExplorerPage() {
                   ) : (
                     c.label
                   )}{' '}
-                  /
+                  /{' '}
                 </span>
               ))}
               <span>{node.label}</span>

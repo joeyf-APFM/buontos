@@ -8,7 +8,9 @@ import type { EntityTypeDefinition } from '@/types/ontology-schema';
 
 export interface TreeNode {
   key: string;
+  /** Asset nodes carry the asset's (fully qualified) name. */
   label: string;
+  /** The API no longer sends 'group'; one that arrives renders as a plain asset node. */
   kind: 'branch' | 'type' | 'asset' | 'group';
   assetId?: string;
   assetTypeName?: string;
