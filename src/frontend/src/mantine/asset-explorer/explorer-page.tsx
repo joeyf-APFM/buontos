@@ -58,7 +58,6 @@ export default function ExplorerPage() {
   const canRead = !permissionsLoading && hasPermission('assets', FeatureAccessLevel.READ_ONLY);
   const canWrite = !permissionsLoading && hasPermission('assets', FeatureAccessLevel.READ_WRITE);
 
-  const helixOpen = useHelixStore((s) => s.isOpen);
   const { setContext, clearContext } = useHelixStore((s) => s.actions);
   // What you were looking at here stops being Helix's context when you leave
   useEffect(() => clearContext, [clearContext]);
@@ -516,7 +515,7 @@ export default function ExplorerPage() {
         )}
       </section>
 
-      {shownAsset && !helixOpen && (
+      {shownAsset && (
         <DetailsPanel
           asset={shownAsset}
           onClose={closeDetails}

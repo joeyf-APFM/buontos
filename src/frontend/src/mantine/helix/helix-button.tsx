@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
+import { HelixMark } from './helix-mark';
 import { useHelixStore } from './helix-store';
 import classes from './helix.module.css';
 
@@ -18,7 +19,7 @@ export function HelixButton() {
   if (!enabled) return null;
   return (
     <UnstyledButton className={classes.button} aria-pressed={isOpen} onClick={isOpen ? close : open}>
-      <span className={classes.spark} aria-hidden />
+      <HelixMark />
       {t('button')}
     </UnstyledButton>
   );

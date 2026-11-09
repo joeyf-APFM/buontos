@@ -1,6 +1,6 @@
 /**
- * Helix as a floating, non-modal window, on every page but the explorer
- * (R24). It drags by its header, resizes from its bottom-left corner, stays
+ * Helix as a floating, non-modal window, on every page (R25). It drags by
+ * its header, resizes from its bottom-left corner, stays
  * inside the viewport, and keeps its place for the session.
  */
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';

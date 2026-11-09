@@ -73,7 +73,10 @@ function renderShell(route: string) {
   );
 }
 
-const helixButton = () => screen.findByRole('button', { name: 'Ask Helix' });
+/** The top-bar button. */
+const helixButton = async () => within(await screen.findByRole('banner')).findByRole('button', { name: 'Ask Helix' });
+/** The icon strip's button. */
+const stripButton = async () => within(await screen.findByRole('navigation', { name: 'Main menu' })).findByRole('button', { name: 'Ask Helix' });
 const dialog = () => screen.queryByRole('dialog', { name: /Helix/ });
 const pane = () => screen.queryByRole('complementary', { name: 'Helix' });
 
@@ -82,7 +85,7 @@ function setViewport(width: number, height: number) {
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
 }
 
-describe('Helix window and pane', () => {
+describe('Helix window', () => {
   beforeEach(() => {
     setViewport(1200, 800);
     useHelixStore.setState(HELIX_DEFAULTS);
@@ -100,7 +103,7 @@ describe('Helix window and pane', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('opens as a non-modal window, bottom-right, away from the explorer, and the page stays usable', async () => {
+  it('opens as a non-modal window, bottom-right, and the page stays usable', async () => {
     const user = userEvent.setup();
     mockBackend();
     renderShell('/search');
@@ -121,40 +124,43 @@ describe('Helix window and pane', () => {
     expect(dialog()).toBeInTheDocument();
   });
 
-  it('is the right-hand pane on /assets', async () => {
+  it('is the window on /assets too, not a pane', async () => {
     const user = userEvent.setup();
     mockBackend();
     renderShell('/assets');
 
     await user.click(await helixButton());
 
-    expect(pane()).toBeInTheDocument();
-    expect(dialog()).toBeNull();
+    expect(dialog()).toBeInTheDocument();
+    expect(pane()).toBeNull();
   });
 
-  it('keeps the conversation, context and draft while switching form on navigation', async () => {
+  it('keeps the window, its position, the conversation, context and draft while navigating', async () => {
     const user = userEvent.setup();
     mockBackend();
     useHelixStore.setState({ context: 'insights.referrals.leads' });
     renderShell('/assets');
 
     await user.click(await helixButton());
-    await user.type(within(pane()!).getByRole('textbox', { name: 'Ask Helix' }), 'How many?{Enter}');
-    expect(await within(pane()!).findByText('Twelve leads.')).toBeInTheDocument();
-    await user.type(within(pane()!).getByRole('textbox', { name: 'Ask Helix' }), 'And last week?');
+    const handle = within(dialog()!).getByRole('heading', { name: 'Helix · Genie One' });
+    fireEvent.pointerDown(handle, { clientX: 900, clientY: 300, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(window, { clientX: 700, clientY: 200, pointerId: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    const { left, top } = dialog()!.style;
+    await user.type(within(dialog()!).getByRole('textbox', { name: 'Ask Helix' }), 'How many?{Enter}');
+    expect(await within(dialog()!).findByText('Twelve leads.')).toBeInTheDocument();
+    await user.type(within(dialog()!).getByRole('textbox', { name: 'Ask Helix' }), 'And last week?');
+    const before = dialog();
 
     await user.click(screen.getByRole('link', { name: 'To search' }));
 
     const win = dialog()!;
-    expect(win).toBeInTheDocument();
-    expect(pane()).toBeNull();
+    expect(win).toBe(before); // the same window, not a new one
+    expect(win.style.left).toBe(left);
+    expect(win.style.top).toBe(top);
     expect(within(win).getByText('Twelve leads.')).toBeInTheDocument();
     expect(within(win).getByText('insights.referrals.leads')).toBeInTheDocument();
     expect(within(win).getByRole('textbox', { name: 'Ask Helix' })).toHaveValue('And last week?');
-
-    await user.click(screen.getByRole('link', { name: 'To assets' }));
-    expect(dialog()).toBeNull();
-    expect(within(pane()!).getByText('Twelve leads.')).toBeInTheDocument();
   });
 
   it('drags by its header and stays inside the viewport', async () => {
@@ -245,32 +251,17 @@ describe('Helix window and pane', () => {
     expect(dialog()!.style.top).toBe(top);
   });
 
-  it('leaves focus on the new page when navigating switches Helix to the window', async () => {
+  it('leaves focus on the new page when navigating with Helix open', async () => {
     const user = userEvent.setup();
     mockBackend();
     renderShell('/assets');
     await user.click(await helixButton());
-    expect(within(pane()!).getByRole('textbox', { name: 'Ask Helix' })).toHaveFocus(); // a user open focuses Helix
+    expect(within(dialog()!).getByRole('textbox', { name: 'Ask Helix' })).toHaveFocus(); // a user open focuses Helix
 
     await user.click(screen.getByRole('link', { name: 'To form' }));
 
     expect(dialog()).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Page field' })).toHaveFocus();
-  });
-
-  it('leaves focus where it is when it reappears on navigating back', async () => {
-    const user = userEvent.setup();
-    mockBackend();
-    renderShell('/search');
-    await user.click(await helixButton());
-    await user.click(screen.getByRole('link', { name: 'To assets' }));
-    const pageLink = screen.getByRole('link', { name: 'To search' });
-    pageLink.focus();
-
-    await user.click(pageLink);
-
-    expect(dialog()).toBeInTheDocument();
-    expect(dialog()!.contains(document.activeElement)).toBe(false);
   });
 
   it('labels shared mode in the window too', async () => {
@@ -302,7 +293,7 @@ describe('Helix window and pane', () => {
     expect(useHelixStore.getState().windowRect).toBeNull();
   });
 
-  it('closes when Ask Ontos opens, in the window form too', async () => {
+  it('closes when Ask Ontos opens', async () => {
     const user = userEvent.setup();
     mockBackend();
     renderShell('/search');
@@ -315,15 +306,15 @@ describe('Helix window and pane', () => {
   });
 });
 
-describe('Ask Helix in the Discover menu', () => {
+describe('Ask Helix in the icon strip', () => {
   beforeEach(() => {
     setViewport(1200, 800);
     useHelixStore.setState(HELIX_DEFAULTS);
     useCopilotStore.setState({ isOpen: false });
-    useShellStore.setState({ ...SHELL_DEFAULTS, openGroup: 'Discover' });
+    useShellStore.setState(SHELL_DEFAULTS);
     useFeatureVisibilityStore.setState({ allowedMaturities: ['ga'] });
     usePermissionsStore.setState({
-      permissions: { search: FeatureAccessLevel.READ_ONLY },
+      permissions: { search: FeatureAccessLevel.READ_ONLY, assets: FeatureAccessLevel.READ_ONLY, settings: FeatureAccessLevel.READ_ONLY, 'settings-general': FeatureAccessLevel.READ_ONLY },
       appliedRoleId: null,
       isLoading: false,
       _initAttempted: true,
@@ -332,35 +323,76 @@ describe('Ask Helix in the Discover menu', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const menu = () => screen.getByRole('navigation', { name: 'Discover' });
+  const strip = () => screen.getByRole('navigation', { name: 'Main menu' });
 
-  it('is the first Discover item, opens Helix without navigating, and is never active', async () => {
-    const user = userEvent.setup();
+  it('sits directly below Discover, labelled Helix, with the Dna icon', async () => {
     mockBackend();
     renderShell('/search');
 
-    const item = await within(menu()).findByRole('button', { name: 'Ask Helix' });
-    // In document order: the panel's Pin button, then the group's items
-    const entries = [...menu().querySelectorAll('a, button')];
-    expect(entries[0]).toBe(within(menu()).getByRole('button', { name: /Pin/ }));
-    expect(entries[1]).toBe(item);
-    expect(item).not.toHaveAttribute('data-active');
-
-    await user.click(item);
-
-    expect(dialog()).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/search');
-    expect(item).not.toHaveAttribute('data-active');
+    const button = await stripButton();
+    const names = [...strip().querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(names).toEqual(['Discover', 'Ask Helix', 'Build', 'Settings']);
+    expect(button).toHaveTextContent('Helix');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(button.querySelector('[data-helix-icon="dna"]')).not.toBeNull();
   });
 
-  it('opens the pane on /assets', async () => {
+  it('uses the same Dna icon on the top-bar button and the window header', async () => {
+    const user = userEvent.setup();
+    mockBackend();
+    renderShell('/search');
+    const top = await helixButton();
+    expect(top.querySelector('[data-helix-icon="dna"]')).not.toBeNull();
+
+    await user.click(top);
+
+    const header = within(dialog()!).getByRole('heading', { name: 'Helix · Genie One' }).parentElement!;
+    expect(header.querySelector('[data-helix-icon="dna"]')).not.toBeNull();
+  });
+
+  it('opens the window as a user open (focusing its input), without a group panel, and closes it again', async () => {
+    const user = userEvent.setup();
+    mockBackend();
+    renderShell('/search');
+    const button = await stripButton();
+
+    await user.click(button);
+
+    expect(dialog()).toBeInTheDocument();
+    expect(within(dialog()!).getByRole('textbox', { name: 'Ask Helix' })).toHaveFocus();
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(button).not.toHaveAttribute('data-open');
+    expect(useShellStore.getState().openGroup).toBeNull();
+    expect(window.location.pathname).toBe('/search');
+
+    await user.click(button);
+
+    expect(dialog()).toBeNull();
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('opens the window on /assets too', async () => {
     const user = userEvent.setup();
     mockBackend();
     renderShell('/assets');
 
-    await user.click(await within(menu()).findByRole('button', { name: 'Ask Helix' }));
+    await user.click(await stripButton());
 
-    expect(pane()).toBeInTheDocument();
+    expect(dialog()).toBeInTheDocument();
+    expect(pane()).toBeNull();
+  });
+
+  it('is not in the Discover panel', async () => {
+    const user = userEvent.setup();
+    mockBackend();
+    renderShell('/search');
+    await stripButton();
+
+    await user.click(within(strip()).getByRole('button', { name: 'Discover' }));
+
+    const menu = screen.getByRole('navigation', { name: 'Discover' });
+    expect(within(menu).getByRole('link', { name: 'Search' })).toBeInTheDocument();
+    expect(within(menu).queryByRole('button', { name: 'Ask Helix' })).toBeNull();
   });
 
   it('is hidden while Helix is disabled', async () => {
@@ -368,8 +400,8 @@ describe('Ask Helix in the Discover menu', () => {
     renderShell('/search');
 
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u) === '/api/settings/helix')).toBe(true));
-    expect(within(menu()).getByRole('link', { name: 'Search' })).toBeInTheDocument();
-    expect(within(menu()).queryByRole('button', { name: 'Ask Helix' })).toBeNull();
+    expect(within(strip()).getByRole('button', { name: 'Discover' })).toBeInTheDocument();
+    expect(within(strip()).queryByRole('button', { name: 'Ask Helix' })).toBeNull();
   });
 });
 

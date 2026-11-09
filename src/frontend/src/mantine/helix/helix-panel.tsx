@@ -1,10 +1,8 @@
-/**
- * Ask Helix's content, and its right-hand pane form (on /assets). The floating
- * window (helix-window.tsx) renders the same content.
- */
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+/** Ask Helix's content, which the floating window (helix-window.tsx) renders. */
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Anchor, Button, CloseButton, Textarea, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
+import { HelixMark } from './helix-mark';
 import { HelixMarkdown } from './helix-markdown';
 import { useHelixStore, type HelixResult, type Turn } from './helix-store';
 import classes from './helix.module.css';
@@ -99,7 +97,7 @@ interface HelixContentProps {
   onHeaderPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
 }
 
-/** Helix's header, context chip, conversation and input, for either form. */
+/** Helix's header, context chip, conversation and input. */
 export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps) {
   const { t } = useTranslation('helix');
   const context = useHelixStore((s) => s.context);
@@ -136,7 +134,7 @@ export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps
         data-drag-handle={onHeaderPointerDown ? true : undefined}
         onPointerDown={onHeaderPointerDown}
       >
-        <span className={classes.spark} aria-hidden />
+        <HelixMark className={classes.headMark} />
         <h2 id={titleId} className={classes.headTitle}>
           {t('panel.title')} <span className={classes.headSub}>{t('panel.subtitle')}</span>
         </h2>
@@ -207,25 +205,5 @@ export function HelixContent({ titleId, onHeaderPointerDown }: HelixContentProps
         )}
       </div>
     </>
-  );
-}
-
-/** Helix as the right-hand pane of the shell. */
-export function HelixPanel() {
-  const { t } = useTranslation('helix');
-  const titleId = useId();
-  const root = useRef<HTMLElement>(null);
-  const focusRequested = useHelixStore((s) => s.focusRequested);
-  const takeFocusRequest = useHelixStore((s) => s.actions.takeFocusRequest);
-
-  // Only a user's open moves focus in
-  useEffect(() => {
-    if (focusRequested && takeFocusRequest()) root.current?.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus();
-  }, [focusRequested, takeFocusRequest]);
-
-  return (
-    <aside ref={root} className={classes.panel} aria-label={t('panel.label')}>
-      <HelixContent titleId={titleId} />
-    </aside>
   );
 }

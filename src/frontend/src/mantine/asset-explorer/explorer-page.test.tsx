@@ -208,7 +208,7 @@ describe('ExplorerPage', () => {
     await waitFor(() => expect(within(screen.getByRole('treegrid')).queryByText('leads')).toBeNull());
   });
 
-  it('opens the details panel for a clicked row, and hides it while Helix is open', async () => {
+  it('opens the details panel for a clicked row, and the details stay visible with Helix open', async () => {
     const user = userEvent.setup();
     renderWithMantine(<ExplorerPage />, { route: '/assets' });
 
@@ -222,8 +222,6 @@ describe('ExplorerPage', () => {
     expect(useHelixStore.getState().context).toBe('insights.referrals.leads');
 
     act(() => useHelixStore.getState().actions.open());
-    expect(screen.queryByRole('complementary', { name: 'leads' })).toBeNull();
-    act(() => useHelixStore.getState().actions.close());
     expect(screen.getByRole('complementary', { name: 'leads' })).toBeInTheDocument();
   });
 

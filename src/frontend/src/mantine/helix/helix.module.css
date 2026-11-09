@@ -22,26 +22,9 @@
   background: var(--aura-accent);
 }
 
-.spark {
+.headMark {
   flex: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: conic-gradient(#4f6ac5, #1baf7a, #eda100, #4f6ac5);
-}
-
-/* The panel, on the right of the shell body */
-.panel {
-  position: sticky;
-  top: var(--shell-top-height);
-  height: calc(100vh - var(--shell-top-height));
-  width: 300px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid var(--aura-border);
-  background: var(--aura-canvas);
-  z-index: 30;
+  color: var(--aura-accent);
 }
 
 .head {

@@ -9,7 +9,7 @@ import { SHELL_DEFAULTS, useShellStore } from '@/mantine/shell/use-shell-store';
 import ExplorerPage from '@/mantine/asset-explorer/explorer-page';
 import { json, mockBackend } from '@/mantine/asset-explorer/test-fixtures';
 import { HELIX_DEFAULTS, useHelixStore, type HelixConfig } from './helix-store';
-import { HelixPanel } from './helix-panel';
+import { HelixWindow } from './helix-window';
 import { frame, openStream, sseResponse } from './test-fixtures';
 import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 
@@ -45,7 +45,7 @@ const answers = () => screen.queryAllByRole('article', { name: 'Helix’s answer
 
 function renderPanel(config: HelixConfig = USER_MODE, context: string | null = 'insights.referrals.leads') {
   useHelixStore.setState({ ...HELIX_DEFAULTS, isOpen: true, config, context });
-  return renderWithMantine(<HelixPanel />);
+  return renderWithMantine(<HelixWindow />);
 }
 
 async function send(user: ReturnType<typeof userEvent.setup>, question: string) {
@@ -53,7 +53,7 @@ async function send(user: ReturnType<typeof userEvent.setup>, question: string) 
   await user.keyboard('{Enter}');
 }
 
-describe('HelixPanel', () => {
+describe('Helix content', () => {
   beforeEach(() => useHelixStore.setState(HELIX_DEFAULTS));
   afterEach(() => vi.unstubAllGlobals());
 
@@ -260,7 +260,7 @@ describe('Ask Helix in the shell', () => {
     expect(useHelixStore.getState().isOpen).toBe(false);
   });
 
-  it('hides the explorer’s details while Helix is open and brings them back when it closes', async () => {
+  it('floats over the explorer, whose details stay visible, with the selection as context', async () => {
     const user = userEvent.setup();
     mockBackend((url) => (url.pathname === '/api/settings/helix' ? json(USER_MODE) : undefined));
     renderExplorer();
@@ -268,13 +268,14 @@ describe('Ask Helix in the shell', () => {
     await user.click(await within(await screen.findByRole('treegrid')).findByText('leads'));
     expect(await screen.findByRole('complementary', { name: 'leads' })).toBeInTheDocument();
 
-    await user.click(await screen.findByRole('button', { name: 'Ask Helix' }));
-    const helix = screen.getByRole('complementary', { name: 'Helix' });
+    await user.click(await within(screen.getByRole('banner')).findByRole('button', { name: 'Ask Helix' }));
+    const helix = screen.getByRole('dialog', { name: /Helix/ });
     expect(within(helix).getByText('insights.referrals.leads')).toBeInTheDocument();
-    expect(screen.queryByRole('complementary', { name: 'leads' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Helix' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'leads' })).toBeInTheDocument();
 
     await user.click(within(helix).getByRole('button', { name: 'Close Helix' }));
-    expect(screen.queryByRole('complementary', { name: 'Helix' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: /Helix/ })).toBeNull();
     expect(screen.getByRole('complementary', { name: 'leads' })).toBeInTheDocument();
   });
 });

@@ -6,10 +6,6 @@
  * components/settings/settings-layout.tsx. Every item is hidden without
  * READ_ONLY on its permission id.
  *
- * An action item (e.g. Ask Helix) has no path and no permission id: clicking
- * it runs its action, it is never the active item, and it shows only while
- * its action is available.
- *
  * A parent with children shows when any child shows. Its own `path`, if it
  * has one, is kept only when its own permission allows it; without a path,
  * clicking the parent just expands it.
@@ -59,18 +55,13 @@ import { features, type FeatureMaturity } from '@/config/features';
 
 export type NavGroupId = 'Discover' | 'Build' | 'Govern' | 'Deploy' | 'Settings';
 
-/** What an action item does instead of navigating. */
-export type NavAction = 'helix';
-
 export interface NavItem {
   id: string;
   labelKey: string;
   path?: string;
-  /** Required unless the item is an action. */
-  permissionId?: string;
+  permissionId: string;
   icon: LucideIcon;
   children?: NavItem[];
-  action?: NavAction;
 }
 
 export interface NavSection {
@@ -93,7 +84,6 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
   Discover: [
     {
       items: [
-        { id: 'ask-helix', labelKey: 'shell:items.askHelix', icon: Sparkles, action: 'helix' },
         { id: 'marketplace', labelKey: 'shell:items.marketplace', path: '/marketplace', permissionId: 'data-products', icon: ShoppingCart },
         { id: 'search', labelKey: 'features:search.name', path: '/search', permissionId: 'search', icon: Search },
         { id: 'data-catalog', labelKey: 'shell:items.dataCatalog', path: '/data-catalog', permissionId: 'data-catalog', icon: BookOpen },
@@ -236,18 +226,13 @@ function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean): NavIte
 /**
  * The menu as one user sees it: items need READ_ONLY on their permission
  * (`has`) and a feature maturity the user shows (`showMaturity`, as the old
- * sidebar did with the beta/alpha toggles). Action items show only when
- * `showAction` says their action is available.
+ * sidebar did with the beta/alpha toggles).
  */
 export function visibleNav(
   has: (permissionId: string) => boolean,
   showMaturity: (maturity: FeatureMaturity) => boolean = () => true,
-  showAction: (action: NavAction) => boolean = () => false,
 ): Record<NavGroupId, NavSection[]> {
-  const allowed = (item: NavItem) =>
-    item.action
-      ? showAction(item.action)
-      : !!item.permissionId && has(item.permissionId) && showMaturity(maturityOf(item.id));
+  const allowed = (item: NavItem) => has(item.permissionId) && showMaturity(maturityOf(item.id));
   const result = {} as Record<NavGroupId, NavSection[]>;
   for (const { id } of NAV_GROUPS) {
     if (id === 'Settings' && !has(SETTINGS_GATE)) continue;

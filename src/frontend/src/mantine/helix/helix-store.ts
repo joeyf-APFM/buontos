@@ -52,13 +52,13 @@ interface HelixState {
   busy: boolean;
   /** Helix's settings, or null while unknown or when Helix is off. */
   config: HelixConfig | null;
-  /** The unsent question, kept while Helix switches between pane and window. */
+  /** The unsent question, kept while the window stays open across pages. */
   draft: string;
   /** Where the floating window was last put, or null for its default place. */
   windowRect: WindowRect | null;
   /**
-   * The user just opened Helix, so it may take focus. Only that does: a pane
-   * turning into a window as you navigate leaves focus on the new page.
+   * The user just opened Helix, so it may take focus. Only that does: the
+   * window staying open as you navigate leaves focus on the new page.
    */
   focusRequested: boolean;
   actions: {
@@ -122,7 +122,7 @@ export const useHelixStore = create<HelixState>()((set, get) => {
     ...HELIX_DEFAULTS,
     actions: {
       open: () => {
-        // One right-hand panel at a time: Helix replaces Ask Ontos
+        // One assistant at a time: Helix replaces Ask Ontos
         if (useCopilotStore.getState().isOpen) useCopilotStore.getState().actions.closePanel();
         set({ isOpen: true, focusRequested: true });
       },

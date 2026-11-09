@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import appSource from '@/app.tsx?raw';
-import { NAV, activeLocation, matchInGroup, visibleNav, type NavItem, type NavGroupId } from './nav-config';
+import { NAV, activeLocation, visibleNav, type NavItem, type NavGroupId } from './nav-config';
 
 // Full route paths declared in app.tsx, nested routes joined to their parent.
 function routePaths(source: string): Set<string> {
@@ -50,15 +50,13 @@ describe('NAV', () => {
     expect(missing).toEqual([]);
   });
 
-  it('gives every item a page, sub-items or an action', () => {
-    const inert = allItems().filter((i) => !i.path && !i.children?.length && !i.action);
+  it('gives every item a page or sub-items', () => {
+    const inert = allItems().filter((i) => !i.path && !i.children?.length);
     expect(inert).toEqual([]);
   });
 
-  it('starts Discover with the path-less Ask Helix action', () => {
-    const first = NAV.Discover[0].items[0];
-    expect(first).toMatchObject({ id: 'ask-helix', action: 'helix' });
-    expect(first.path).toBeUndefined();
+  it('has no Ask Helix item (it lives in the icon strip)', () => {
+    expect(allItems().map((i) => i.id)).not.toContain('ask-helix');
   });
 
   it('uses each id once', () => {
@@ -72,11 +70,6 @@ function itemIds(nav: Record<NavGroupId, unknown[]>, group: NavGroupId): string[
 }
 
 describe('visibleNav', () => {
-  it('shows an action item only when its action is available, whatever the permissions', () => {
-    expect(itemIds(visibleNav(() => true), 'Discover')).not.toContain('ask-helix');
-    expect(itemIds(visibleNav(() => false, () => true, (a) => a === 'helix'), 'Discover')).toEqual(['ask-helix']);
-  });
-
   it('hides Settings → Roles when both role pages are denied', () => {
     const denied = new Set(['settings-roles', 'business-roles']);
     const nav = visibleNav((id) => !denied.has(id));
@@ -149,10 +142,6 @@ describe('activeLocation', () => {
     expect(activeLocation('/assets/123')).toEqual({ group: 'Build', itemId: 'assets', childId: 'explorer' });
     expect(activeLocation('/my-products/9')).toEqual({ group: 'Build', itemId: 'products', childId: 'my-products' });
     expect(activeLocation('/concepts/generator')).toEqual({ group: 'Build', itemId: 'concepts' });
-  });
-
-  it('never makes an action item active', () => {
-    expect(matchInGroup(NAV.Discover, '/')).toBeNull();
   });
 
   it('only matches whole path segments', () => {
