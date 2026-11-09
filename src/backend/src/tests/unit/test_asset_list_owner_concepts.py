@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import event
 
-from src.controller.assets_manager import assets_manager
+from src.controller.assets_manager import AssetsManager, assets_manager
 from src.db_models.assets import AssetDb, AssetTypeDb
 from src.db_models.business_owners import BusinessOwnerDb
 from src.db_models.business_roles import BusinessRoleDb
@@ -109,10 +109,11 @@ def test_owners_and_links_load_in_two_extra_queries(world, monkeypatch):
     event.listen(engine, "before_cursor_execute", l1)
     try:
         with monkeypatch.context() as m:
-            m.setattr(assets_manager, "_attach_owners_and_concepts", lambda *a, **k: None)
+            m.setattr(AssetsManager, "_attach_owners_and_concepts", staticmethod(lambda *a, **k: None))
             assets_manager.get_all_assets(world.db)
     finally:
         event.remove(engine, "before_cursor_execute", l1)
+    assert "_attach_owners_and_concepts" not in vars(assets_manager)
     l2 = count_into(with_page)
     event.listen(engine, "before_cursor_execute", l2)
     try:
