@@ -5,7 +5,13 @@
   "button \"Go to last page\"",
   "button \"Go to next page\"",
   "button \"Go to previous page\"",
+  "button \"Open\"",
+  "button \"Open\"",
+  "button \"Open\"",
   "checkbox \"Select all\"",
+  "checkbox \"Select row\"",
+  "checkbox \"Select row\"",
+  "checkbox \"Select row\"",
   "combobox \"\"",
   "link \"\""
 ]

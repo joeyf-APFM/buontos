@@ -6,8 +6,8 @@
  * - Controls: `controlInventory` of <main> must equal __controls__/<persona>/<id>.json
  *   exactly. A missing file is written from the current UI. --update-snapshots
  *   never rewrites one: to re-record an inventory, delete its file.
- * - Look: a screenshot of <main> at 1280×800 must match
- *   __screenshots__/restyle/<persona>/<id>.png within 1% of its pixels.
+ * - Look: a screenshot of <main> at 1280×800, with the app's top bar hidden,
+ *   must match __screenshots__/restyle/<persona>/<id>.png within 1% of its pixels.
  *   Re-record with --update-snapshots, only once the inventories pass.
  *
  * Every /api call is answered by fixtures/api.ts; nothing reaches a backend.
@@ -20,10 +20,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { mockApi, unmockedRequests } from './fixtures/api';
+import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
 import { RESTYLE_PAGES, controlInventory } from './restyle-pages';
 
-const CONTROLS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__controls__');
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const CONTROLS_DIR = path.join(HERE, '__controls__');
 
 test.afterAll(() => {
   if (unmockedRequests.length) {
@@ -39,7 +41,7 @@ for (const persona of Object.values(PERSONAS)) {
 
       // Relative dates and clocks render from a fixed now
       await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
-      await mockApi(page, persona);
+      await mockApi(page, persona, DATA_FIXTURES);
       await page.goto(restylePage.route);
       await page.waitForLoadState('networkidle');
       const main = page.locator('main');
@@ -65,6 +67,8 @@ for (const persona of Object.values(PERSONAS)) {
         animations: 'disabled',
         caret: 'hide',
         maxDiffPixelRatio: 0.01,
+        // Hides the app's top bar
+        stylePath: path.join(HERE, 'restyle-capture.css'),
       });
     });
   }

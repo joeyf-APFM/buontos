@@ -1,7 +1,12 @@
 [
+  "button \"\"",
+  "button \"\"",
   "button \"Import\"",
   "button \"Preview (0 selected)\"",
   "button \"Small View\"",
+  "checkbox \"\"",
+  "checkbox \"\"",
+  "combobox \"\"",
   "link \"\"",
   "tab \"Define\"",
   "tab \"Enrich\"",

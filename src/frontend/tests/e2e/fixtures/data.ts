@@ -86,7 +86,132 @@ const TABLE = {
   tags: null,
 };
 
+const member = (team: string, n: number, identifier: string, name: string, type = 'user') => ({
+  id: `${team}-m${n}`, team_id: team, member_type: type, member_identifier: identifier, member_name: name,
+  app_role_override: null, created_at: CREATED, updated_at: UPDATED, added_by: 'e2e.user@example.com',
+});
+
+const team = (id: string, name: string, description: string, members: unknown[]) => ({
+  id, name, title: null, description, domain_ids: [], domains: [], tags: [], metadata: null,
+  created_at: CREATED, updated_at: UPDATED, created_by: 'e2e.user@example.com', updated_by: 'e2e.user@example.com', members,
+});
+
+const TEAMS = [
+  team('e2e-team-1', 'Sales Analytics', 'Owns the sales reporting products', [
+    member('e2e-team-1', 1, 'e2e.user@example.com', 'E2E User'),
+    member('e2e-team-1', 2, 'analysts', 'Analysts', 'group'),
+  ]),
+  team('e2e-team-2', 'Data Platform', 'Runs the shared pipelines', [
+    member('e2e-team-2', 1, 'e2e.engineer@example.com', 'E2E Engineer'),
+  ]),
+  team('e2e-team-3', 'Finance', 'Finance reporting', []),
+];
+
+const product = (id: string, name: string, status: string, tags: string[], teamName: string) => ({
+  apiVersion: 'v1.0.0', kind: 'DataProduct', id, status, name, version: '1.0.0', domain_ids: [], domains: [], tags,
+  inputPorts: [], managementPorts: [], support: [], customProperties: [], authoritativeDefinitions: [],
+  outputPorts: [{ id: `${id}-out`, name: `${name} output`, version: '1.0.0', type: 'table' }],
+  description: { purpose: `${name} for reporting` },
+  team: { name: teamName, members: [{ username: 'e2e.user@example.com', name: 'E2E User', role: 'owner' }] },
+  created_at: CREATED, updated_at: UPDATED,
+});
+
+const PRODUCTS = [
+  product('e2e-product-1', 'Sales orders', 'active', ['sales'], 'Sales Analytics'),
+  product('e2e-product-2', 'Customer 360', 'draft', ['customers', 'pii'], 'Data Platform'),
+  product('e2e-product-3', 'Monthly revenue', 'deprecated', [], 'Finance'),
+];
+
+const policy = (id: string, name: string, severity: string, category: string, compliance: number, isActive: boolean) => ({
+  id, name, description: `${name} across every product`, failure_message: `${name} failed`,
+  rule: "MATCH (obj:Object) ASSERT obj.owner IS NOT NULL", compliance, history: [compliance - 5, compliance],
+  created_at: CREATED, updated_at: UPDATED, is_active: isActive, severity, category,
+});
+
+const COMPLIANCE = {
+  policies: [
+    policy('e2e-policy-1', 'Owner assigned', 'high', 'Governance', 92, true),
+    policy('e2e-policy-2', 'PII is tagged', 'critical', 'Security', 64, true),
+    policy('e2e-policy-3', 'Descriptions present', 'low', 'Quality', 80, false),
+  ],
+  stats: { overall_compliance: 79, active_policies: 2, critical_issues: 1 },
+};
+
+const CONNECTION = {
+  id: 'e2e-conn-1', name: 'Workspace catalog', connector_type: 'databricks', description: 'Unity Catalog of this workspace',
+  config: {}, enabled: true, is_default: true, system_asset_id: null, data_branch: 'uc', created_by: 'e2e.user@example.com',
+  created_at: CREATED, updated_at: UPDATED,
+};
+
+const browseNode = (name: string, nodeType: string, path: string, hasChildren: boolean, assetType: string | null) => ({
+  name, node_type: nodeType, path, has_children: hasChildren, description: null, asset_type: assetType, connector_type: 'databricks',
+});
+
+// The schema browser asks for one level at a time with ?path=
+const BROWSE: Record<string, unknown[]> = {
+  '': [browseNode('main', 'catalog', 'main', true, 'Catalog'), browseNode('finance', 'catalog', 'finance', true, 'Catalog')],
+  main: [browseNode('sales', 'schema', 'main.sales', true, 'Schema')],
+  'main.sales': [
+    browseNode('orders', 'table', 'main.sales.orders', false, 'Table'),
+    browseNode('order_lines', 'table', 'main.sales.order_lines', false, 'Table'),
+  ],
+};
+
+const treeNode = (key: string, label: string, kind: string, count: number, hasChildren: boolean, extra = {}) => ({
+  key, label, kind, count, has_children: hasChildren, ...extra,
+});
+const treeAsset = (id: string, label: string, type: string, count: number, hasChildren: boolean) =>
+  treeNode(`asset:${id}`, label, 'asset', count, hasChildren, { asset_id: id, asset_type_name: type });
+
+// The Asset Explorer asks for one tree level at a time with ?parent=
+const ASSET_TREE: Record<string, unknown[]> = {
+  '': [
+    treeNode('branch:uc', 'Unity Catalog', 'branch', 3, true),
+    treeNode('branch:internal', 'Internal', 'branch', 0, false),
+    treeNode('branch:external', 'External', 'branch', 1, true),
+  ],
+  'branch:uc': [treeAsset('e2e-cat-1', 'main', 'Catalog', 3, true)],
+  'asset:e2e-cat-1': [treeAsset('e2e-sch-1', 'main.sales', 'Schema', 2, true)],
+  'asset:e2e-sch-1': [
+    treeAsset('e2e-asset-1', 'main.sales.orders', 'Table', 0, false),
+    treeAsset('e2e-asset-2', 'main.sales.order_lines', 'Table', 0, false),
+  ],
+  'branch:external': [treeAsset('e2e-asset-3', 'Revenue dashboard', 'Dashboard', 0, false)],
+};
+
+const assetSummary = (id: string, name: string, type: string, status: string, hasChildren: boolean) => ({
+  id, name, description: `${name} description`, asset_type_id: `e2e-type-${type.toLowerCase()}`, asset_type_name: type,
+  location: name, status, data_branch: 'uc', domains: [], primary_domain_id: null, updated_at: UPDATED,
+  owner_display: 'Sales Analytics', owner_extra_count: 0, concepts: ['Order'], column_count: 2, has_children: hasChildren,
+});
+
+// The first row has children, so the grid shows its expand button
+const ASSET_PAGE = {
+  items: [
+    assetSummary('e2e-asset-1', 'main.sales.orders', 'Table', 'active', true),
+    assetSummary('e2e-asset-2', 'main.sales.order_lines', 'Table', 'draft', false),
+  ],
+  total: 2,
+};
+
 export const DATA_FIXTURES: Record<string, unknown> = {
+  // Spot-check pages (Ruling R1)
+  '/api/teams': TEAMS,
+  '/api/data-products': PRODUCTS,
+  '/api/compliance/policies': COMPLIANCE,
+
+  // Schema Importer: one connection, so it is picked, and its browse tree
+  '/api/connections': [CONNECTION],
+  '/api/schema-import/browse/e2e-conn-1': (url: URL) => {
+    const path = url.searchParams.get('path') ?? '';
+    return { connection_id: 'e2e-conn-1', path: path || null, nodes: BROWSE[path] ?? [], truncated: false };
+  },
+
+  // Asset Explorer: its tree and the grid page under a node. Other /api/assets
+  // callers (pickers, search) get the same envelope.
+  '/api/assets/tree': (url: URL) => ASSET_TREE[url.searchParams.get('parent') ?? ''] ?? [],
+  '/api/assets': ASSET_PAGE,
+
   // Settings → Asset Types
   '/api/asset-types': ASSET_TYPES,
 

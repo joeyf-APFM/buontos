@@ -1,6 +1,8 @@
 import type { Page, Route } from '@playwright/test';
 import { PERSONAS, type Persona } from './personas';
-import { DATA_FIXTURES } from './data';
+
+/** Answers by exact /api path: a JSON body, or a function of the request URL that returns one. */
+export type Fixtures = Record<string, unknown>;
 
 // Answers about the signed-in user, by exact path
 function personaFixtures(persona: Persona): Record<string, unknown> {
@@ -17,7 +19,7 @@ function personaFixtures(persona: Persona): Record<string, unknown> {
 
 // Exact-path answers. Anything else under /api gets an empty list, which every
 // list view renders as its empty state.
-const FIXTURES: Record<string, unknown> = {
+const FIXTURES: Fixtures = {
   '/api/health': { db_ok: true, ws_ok: true, seed_ok: true, warnings: [], warning_details: [], db_error: null },
   '/api/settings': {
     job_cluster_id: null,
@@ -29,7 +31,6 @@ const FIXTURES: Record<string, unknown> = {
   },
   '/api/settings/ui-customization': {},
   '/api/cache-version': { version: 1 },
-  ...DATA_FIXTURES,
 };
 
 // Endpoints the app treats as switched off when they answer 404
@@ -37,23 +38,28 @@ const NOT_FOUND = new Set(['/api/test/personas']);
 
 export const unmockedRequests: string[] = [];
 
-function answerFor(persona: Persona) {
-  const fixtures = { ...FIXTURES, ...personaFixtures(persona) };
+function answerFor(persona: Persona, data: Fixtures) {
+  const fixtures: Fixtures = { ...FIXTURES, ...data, ...personaFixtures(persona) };
   return async (route: Route) => {
     const url = new URL(route.request().url());
     if (NOT_FOUND.has(url.pathname)) {
       return route.fulfill({ status: 404, json: { detail: 'Not Found' } });
     }
     if (url.pathname in fixtures) {
-      return route.fulfill({ json: fixtures[url.pathname] });
+      const fixture = fixtures[url.pathname];
+      return route.fulfill({ json: typeof fixture === 'function' ? fixture(url) : fixture });
     }
     unmockedRequests.push(`${route.request().method()} ${url.pathname}`);
     return route.fulfill({ json: [] });
   };
 }
 
-/** Answers every /api call from fixtures, signed in as `persona` (admin by default). */
-export async function mockApi(page: Page, persona: Persona = PERSONAS.admin) {
+/**
+ * Answers every /api call from fixtures, signed in as `persona` (admin by
+ * default). `data` adds records by path (the restyle check passes
+ * fixtures/data.ts); without it, lists come back empty.
+ */
+export async function mockApi(page: Page, persona: Persona = PERSONAS.admin, data: Fixtures = {}) {
   // A predicate, not a glob: '**/api/**' would also catch Vite module URLs
-  await page.route((url) => url.pathname.startsWith('/api/'), answerFor(persona));
+  await page.route((url) => url.pathname.startsWith('/api/'), answerFor(persona, data));
 }

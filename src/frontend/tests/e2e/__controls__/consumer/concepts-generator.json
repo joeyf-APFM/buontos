@@ -1,6 +1,11 @@
 [
+  "button \"\"",
+  "button \"\"",
   "button \"Generate Ontology (0 selected)\"",
   "button \"Small View\"",
+  "checkbox \"\"",
+  "checkbox \"\"",
+  "combobox \"\"",
   "link \"\"",
   "link \"Concepts\"",
   "link \"Define\"",
