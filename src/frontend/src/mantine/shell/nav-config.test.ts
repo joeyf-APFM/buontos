@@ -90,6 +90,13 @@ describe('the side strip groups (Task 16a)', () => {
     expect(label('Workflows')).toBe('settings:tabs.workflows');
   });
 
+  it('links the Workflows button to the Workflows item, never to a copy of its path', () => {
+    const link = NAV_GROUPS.find((g) => g.id === 'Workflows')!.link;
+    const items = NAV.Workflows.flatMap((s) => s.items);
+    expect(items).toHaveLength(1);
+    expect(link).toBe(items[0].path);
+  });
+
   it('makes Workflows a direct link to its page, and only Workflows', () => {
     expect(NAV_GROUPS.filter((g) => g.link).map((g) => [g.id, g.link])).toEqual([['Workflows', '/settings/workflows']]);
     expect(tree('Workflows')).toEqual(['workflows']);

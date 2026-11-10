@@ -91,13 +91,16 @@ export interface NavGroup {
   settingsArea?: boolean;
 }
 
+/** The Workflows group's one item; the strip's Workflows button links to its path. */
+const WORKFLOWS_ITEM = { id: 'workflows', labelKey: 'settings:tabs.workflows', path: '/settings/workflows', permissionId: 'settings-workflows', icon: GitBranch } satisfies NavItem;
+
 // Strip order, top to bottom (Helix and Ontos follow Workflows; side-strip.tsx)
 export const NAV_GROUPS: NavGroup[] = [
   { id: 'Discover', labelKey: 'navigation:groups.discover', icon: Compass },
   { id: 'Build', labelKey: 'navigation:groups.build', icon: LayoutGrid },
   { id: 'Organization', labelKey: 'shell:sections.organization', icon: Building2, settingsArea: true },
   { id: 'Semantics', labelKey: 'shell:sections.semantics', icon: Network, settingsArea: true },
-  { id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: '/settings/workflows', settingsArea: true },
+  { id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: WORKFLOWS_ITEM.path, settingsArea: true },
   { id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true },
 ];
 
@@ -189,7 +192,7 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
   Workflows: [
     {
       items: [
-        { id: 'workflows', labelKey: 'settings:tabs.workflows', path: '/settings/workflows', permissionId: 'settings-workflows', icon: GitBranch },
+        WORKFLOWS_ITEM,
       ],
     },
   ],

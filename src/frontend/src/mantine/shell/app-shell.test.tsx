@@ -255,9 +255,16 @@ describe('the side strip', () => {
     expect(workflows).not.toHaveAttribute('aria-current');
     expect(workflows).not.toHaveAttribute('aria-expanded');
 
+    // An unpinned panel is open first
+    act(() => useShellStore.setState({ pinned: false }));
+    await user.click(within(strip()).getByRole('button', { name: 'Build' }));
+    expect(screen.getByRole('navigation', { name: 'Build' })).toBeInTheDocument();
+
     await user.click(workflows);
 
     expect(window.location.pathname).toBe('/settings/workflows');
+    expect(screen.queryByRole('navigation', { name: 'Build' })).toBeNull();
+    expect(useShellStore.getState().openGroup).not.toBe('Workflows');
     expect(useShellStore.getState().openGroup).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Workflows' })).toBeNull();
     expect(workflows).toHaveAttribute('aria-current', 'page');
