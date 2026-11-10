@@ -16,6 +16,7 @@ import { useApi } from '@/hooks/use-api';
 import { RelativeDate } from '@/components/common/relative-date';
 import { DataAssetReviewRequest, ReviewRequestStatus } from '@/types/data-asset-review';
 import { Breadcrumb, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { focusIsFree } from '@/mantine/focus-free';
 
 // Import the Create Dialog
 import CreateReviewRequestDialog from '@/components/data-asset-reviews/create-review-request-dialog';
@@ -67,6 +68,8 @@ export default function DataAssetReviews() {
     const tableArea = useRef<HTMLDivElement>(null);
     /** Where focus goes: Create, or a row's delete button (by the request's id). */
     const focusTarget = useRef<string | null>(null);
+    /** The create dialog's content once it has closed: focus left in it is free. */
+    const closedDialog = useRef<HTMLElement | null>(null);
     const focusPending = useRef(false);
     const dialogGone = useRef(true);
     const awaitingReload = useRef(false);
@@ -127,9 +130,7 @@ export default function DataAssetReviews() {
     // found again by its data attribute
     useEffect(() => {
         if (focusRequest === 0) return;
-        const active = document.activeElement;
-        const free = !active || active === document.body || active.closest('[data-modal-content]') !== null;
-        if (!free) return;
+        if (!focusIsFree(closedDialog.current)) return;
         const area = tableArea.current;
         const row = focusTarget.current;
         const find = (selector: string) => {
@@ -151,6 +152,7 @@ export default function DataAssetReviews() {
     /** Focus goes to `row`'s delete button or Create once the dialog (if one is open) and any reload are done. */
     const expectFocusReturn = (dialog: boolean, row: string | null = null) => {
         focusTarget.current = row;
+        closedDialog.current = null;
         focusPending.current = true;
         dialogGone.current = !dialog;
     };
@@ -160,7 +162,8 @@ export default function DataAssetReviews() {
         setIsCreateDialogOpen(true);
     };
 
-    const handleCreateDialogExited = () => {
+    const handleCreateDialogExited = (content: HTMLElement | null) => {
+        closedDialog.current = content;
         dialogGone.current = true;
         maybeReturnFocus();
     };

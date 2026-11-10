@@ -359,8 +359,13 @@ export default function AssetReviewEditor({
         );
     }
 
-    // One option per status, as before (by its value)
-    const statusOptions = Object.values(ReviewedAssetStatus).map((status) => ({ value: status, label: status }));
+    // One option per status, as before (by its value); a status the list
+    // doesn't know still shows, by its value, as the overall status does
+    const statusValues: string[] = Object.values(ReviewedAssetStatus);
+    if (asset.status && !statusValues.includes(asset.status)) statusValues.push(asset.status);
+    const statusOptions = statusValues
+        .filter((value, i) => statusValues.indexOf(value) === i)
+        .map((value) => ({ value, label: value }));
 
     return (
         <div className={classes.root}>

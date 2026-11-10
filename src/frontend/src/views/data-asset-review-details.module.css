@@ -127,6 +127,17 @@ button.copy {
   height: 12px;
 }
 
+/* The request's details: the labels keep to one line ("Current Status" is
+   wider than the 86px column), so the label column grows to the longest
+   label, never below 86px. `.info dl` outranks the shared .kv (R10) */
+.info dl {
+  grid-template-columns: minmax(86px, max-content) minmax(0, 1fr);
+}
+
+.info dt {
+  white-space: nowrap;
+}
+
 /* Details values: long ones wrap, so they read in full */
 .wrap {
   overflow-wrap: anywhere;

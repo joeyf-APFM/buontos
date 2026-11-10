@@ -394,7 +394,9 @@ test.describe('the create dialog', () => {
     })).toBe(true);
     await page.keyboard.press('Escape');
     await expect(result).toHaveCount(0);
-    await expect(dialog).toBeVisible();
+    // Past the Modal's 200ms exit transition: still open
+    await page.waitForTimeout(500);
+    await expect(dialog).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
   });
@@ -424,6 +426,15 @@ test.describe('the detail page', () => {
     expect(Math.round((await box(assets)).y)).toBe(Math.round((await box(info)).y + (await box(info)).height));
     expect(await style(assets, ['border-top-width'])).toEqual({ 'border-top-width': '0px' });
     expect(await style(info.locator('dt').first(), ['color'])).toEqual({ color: TEXT_SECONDARY });
+    // Every label on one line, as tall as "Requester", and the labels keep at least the 86px column
+    const labelHeight = Math.round((await box(info.locator('dt').first())).height);
+    for (const dt of await info.locator('dt').all()) {
+      if ((await dt.innerText()) === 'Notes') continue;
+      expect(Math.round((await box(dt)).height)).toBe(labelHeight);
+    }
+    expect(Math.round((await box(info.locator('dt', { hasText: 'Current Status' }))).width)).toBeGreaterThan(86);
+    expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBe(
+      Math.round((await box(info.locator('dt', { hasText: 'Current Status' }))).width));
     // The notes read in full
     const notes = info.getByText(LONG_NOTES, { exact: true });
     expect(await notes.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -514,7 +525,11 @@ test.describe('the asset review editor', () => {
     await expect(page.getByRole('option', { name: 'rejected' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('option', { name: 'rejected' })).toHaveCount(0);
-    await expect(editor).toBeVisible();
+    // Past the Modal's 200ms exit transition: still open, with the choice kept
+    await page.waitForTimeout(500);
+    await expect(editor).toHaveCount(1);
+    await expect(status).toHaveValue('approved');
+    expect(await focusInDialog(page)).toBe(true);
     await editor.getByRole('textbox', { name: 'Comments' }).fill('Fine');
     await editor.getByRole('button', { name: 'Save Review' }).click();
     await expect.poll(() => put).toEqual([{ status: 'approved', comments: 'Fine' }]);

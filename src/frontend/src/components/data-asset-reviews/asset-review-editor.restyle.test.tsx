@@ -87,6 +87,17 @@ describe('the asset review editor on Mantine', () => {
     expect(toast).toHaveBeenCalledWith({ title: 'Success', description: 'Review for main.sales.orders saved.' });
   });
 
+  it('shows a status the list doesn\'t know by its value, as the overall status does', async () => {
+    renderEditor(asset('main.sales.orders', AssetType.TABLE, { status: 'escalated' as ReviewedAssetStatus }));
+    await screen.findByText('7');
+    const status = screen.getByLabelText('Status *');
+    expect(status).toHaveValue('escalated');
+    await userEvent.setup().click(status);
+    const list = document.getElementById(status.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(within(list).getAllByRole('option', { hidden: true }).map((o) => o.textContent))
+      .toEqual(['pending', 'approved', 'rejected', 'needs_clarification', 'escalated']);
+  });
+
   it('treats a preview without schema or rows as empty', async () => {
     renderEditor(asset('main.sales.orders', AssetType.TABLE), { preview: { schema: null, data: 'none' } });
     expect(await screen.findByText('No results.')).toBeInTheDocument();

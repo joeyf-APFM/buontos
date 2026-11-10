@@ -28,6 +28,7 @@ import { RelativeDate } from '@/components/common/relative-date';
 import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
 import { Z_INDEX } from '@/mantine/z-index';
 import { useLayeredEscape } from '@/mantine/use-layered-escape';
+import { focusIsFree } from '@/mantine/focus-free';
 import classes from './data-asset-review-details.module.css';
 
 // Import Asset Review Editor Component
@@ -113,6 +114,11 @@ export default function DataAssetReviewDetails() {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState('');
     const [isSavingTitle, setIsSavingTitle] = useState(false);
+    // The asset the editor is on (its id), for focus once it closes: set on
+    // opening and on "Save & Next"
+    const editorAsset = useRef<string | null>(null);
+    // The editor's content, so focus left in it after it closes counts as free
+    const editorContent = useRef<HTMLDivElement | null>(null);
 
     // Navigation helpers for asset review
     const requestAssets = request?.assets;
@@ -132,6 +138,7 @@ export default function DataAssetReviewDetails() {
         if (hasNextAsset) {
             const nextAsset = pendingAssets[currentAssetIndexInPending + 1];
             setSelectedAsset(nextAsset);
+            editorAsset.current = nextAsset.id ?? null;
             setSelectedAssetIndex(currentAssetIndexInPending + 2); // 1-based
         }
     };
@@ -262,19 +269,16 @@ export default function DataAssetReviewDetails() {
         }
     };
 
-    // Once the editor has closed, focus goes back to the row's Review button
-    // it was opened from, found again by its asset id (the table re-renders
-    // its cells while the editor is open, so the original button may be
-    // gone). Only if focus is nowhere (body) or still in the closed editor:
-    // focus the user has moved stays where they put it
-    const editorOpener = useRef<string | null>(null);
+    // Once the editor has closed, focus goes to the Review button of the asset
+    // it was on, found again by its asset id (the table re-renders its cells
+    // while the editor is open, so the original button may be gone). Only if
+    // focus is nowhere (body) or still in the closed editor: focus the user
+    // has moved, such as into another Modal, stays where they put it
     const editorExited = () => {
-        const id = editorOpener.current;
-        editorOpener.current = null;
+        const id = editorAsset.current;
+        editorAsset.current = null;
         if (id === null) return;
-        const active = document.activeElement;
-        const free = !active || active === document.body || active.closest('[data-modal-content]') !== null;
-        if (!free) return;
+        if (!focusIsFree(editorContent.current)) return;
         document.querySelector<HTMLButtonElement>(`[data-review-asset="${CSS.escape(id)}"]`)?.focus();
     };
 
@@ -311,7 +315,7 @@ export default function DataAssetReviewDetails() {
             id: "actions",
             cell: ({ row }) => (
                 <Button variant="outline" size="sm" className={classes.reviewButton} data-review-asset={row.original.id} onClick={() => {
-                    editorOpener.current = row.original.id ?? null;
+                    editorAsset.current = row.original.id ?? null;
                     setSelectedAsset(row.original);
                     // Find the index in the pending assets for navigation
                     const idx = pendingAssets.findIndex(a => a.id === row.original.id);
@@ -501,7 +505,9 @@ export default function DataAssetReviewDetails() {
             >
                 <PaneStack>
                     <Pane title={t('data-asset-reviews:details.requestInformation')}>
-                        <DetailsGrid rows={infoRows} />
+                        <div className={classes.info}>
+                            <DetailsGrid rows={infoRows} />
+                        </div>
                     </Pane>
                     <Pane flush title={t('data-asset-reviews:details.assetsForReview', { count: assets.length })}>
                         <div className={classes.tableBody}>
@@ -531,7 +537,7 @@ export default function DataAssetReviewDetails() {
             >
                 <Modal.Overlay />
                 {selectedAsset && (
-                    <Modal.Content className={classes.editor}>
+                    <Modal.Content ref={editorContent} className={classes.editor}>
                         <Modal.Header className={classes.editorHeader}>
                             <div className={classes.editorHeading}>
                                 <Modal.Title className={classes.editorTitle}>

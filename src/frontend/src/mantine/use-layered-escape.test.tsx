@@ -45,4 +45,19 @@ describe('useLayeredEscape', () => {
     fireEvent.keyDown(field, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('leaves it when the combobox drops its mark before the key reaches the window, as a browser does', () => {
+    // React commits the list's close in a microtask after its own handler,
+    // before the event bubbles to the window: the mark is gone by then
+    const onClose = vi.fn();
+    render(<Harness opened onClose={onClose} />);
+    const field = screen.getByRole('textbox', { name: 'field' });
+    field.setAttribute('data-mantine-stop-propagation', 'true');
+    field.addEventListener('keydown', () => field.removeAttribute('data-mantine-stop-propagation'));
+    fireEvent.keyDown(field, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    // The next Escape, with the list closed, closes
+    fireEvent.keyDown(field, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

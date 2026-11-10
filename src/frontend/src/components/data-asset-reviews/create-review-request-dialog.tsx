@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Input, Loader, Modal, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
@@ -34,9 +34,11 @@ interface CreateReviewRequestDialogProps {
     /**
      * Called once the dialog has closed and its exit transition has ended:
      * the caller then puts focus where it belongs (the list may have reloaded
-     * behind it). Without it, focus goes back to what had it when it opened.
+     * behind it). It gets the dialog's content element, so the caller can tell
+     * focus left in the closed dialog from focus the user moved elsewhere.
+     * Without it, focus goes back to what had it when it opened.
      */
-    onExited?: () => void;
+    onExited?: (content: HTMLElement | null) => void;
 }
 
 const checkApiResponse = <T,>(response: { data?: T | { detail?: string }, error?: string | null | undefined }, name: string): T => {
@@ -334,6 +336,7 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
     useLayeredEscape(isOpen, () => onOpenChange(false));
 
     const fieldClassNames = { label: classes.label };
+    const contentRef = useRef<HTMLDivElement | null>(null);
 
     return (
         <Modal.Root
@@ -348,10 +351,10 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
             closeOnClickOutside={false}
             closeOnEscape={false}
             returnFocus={!onExited}
-            onExitTransitionEnd={onExited}
+            onExitTransitionEnd={() => onExited?.(contentRef.current)}
         >
             <Modal.Overlay />
-            <Modal.Content className={classes.content}>
+            <Modal.Content ref={contentRef} className={classes.content}>
                 <Modal.Header className={classes.header}>
                     <Modal.Title className={classes.title}>{t('data-asset-reviews:createRequest')}</Modal.Title>
                 </Modal.Header>
