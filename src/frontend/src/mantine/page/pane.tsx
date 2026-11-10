@@ -31,7 +31,8 @@ export function Pane({ title, actions, flush = false, children, 'aria-label': ar
       {head && (
         <div className={classes.paneHead}>
           {title && (
-            <h2 id={titleId} className={classes.paneTitle}>
+            // A long title keeps to one line; its title shows it in full
+            <h2 id={titleId} className={classes.paneTitle} title={title}>
               {title}
             </h2>
           )}

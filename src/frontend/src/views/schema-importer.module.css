@@ -1,0 +1,151 @@
+/*
+ * The Schema Importer on the page kit: the options pane (300px) and the
+ * resources pane side by side, sharing one border. On its own route the page
+ * is full bleed and the panes fill the window; inside the Concepts layout
+ * (/concepts/import) it sits in that layout's padding, with framed panes of
+ * a fixed height.
+ */
+
+/* Under the header, in text-secondary; on the full-bleed page it rules the
+   header off from the panes, as the explorer's filter bar does */
+.intro {
+  margin: 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.intro[data-ruled] {
+  border-bottom: 1px solid var(--aura-border);
+}
+
+/* `section.` outranks the kit's .pane (flex: 1) whatever the order (R10) */
+section.optionsPane {
+  flex: none;
+  width: 300px;
+}
+
+.group + .group {
+  margin-top: 14px;
+}
+
+/* A group's label: text-secondary, as the explorer's section titles (R11) */
+.groupTitle {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--aura-text-secondary);
+}
+
+.groupHint {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+/* The connector type in a connection's option */
+.option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.optionName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tag {
+  composes: tag from '../mantine/asset-explorer/explorer.module.css';
+  flex: none;
+}
+
+.radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.radioLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.radioName {
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.radioHint {
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+/* The resources pane's flush body: its hint, then the browser filling the
+   rest (the browser's height: 100% shrinks to fit, as a flex item) */
+.resourcesBody {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.paneHint {
+  flex: none;
+  margin: 0;
+  padding: 6px 10px 0;
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+}
+
+/* Inside the Concepts layout: no surface or padding of its own */
+.embedded {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+/* The kit header, flush with the layout's padding, so the title lines up
+   with the section tabs above it (`div:first-child` outranks the kit's
+   .header:first-child) */
+.embedded > div:first-child {
+  padding: 0 0 4px;
+}
+
+.embedded .intro {
+  padding: 0 0 12px;
+}
+
+/* The panes' row: the kit's content row (side by side, one shared border),
+   at a fixed height so the tree scrolls inside its pane */
+.row {
+  composes: content from '../mantine/page/page.module.css';
+}
+
+div.row {
+  flex: none;
+  height: 600px;
+}

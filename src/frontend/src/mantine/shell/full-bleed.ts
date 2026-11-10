@@ -7,7 +7,15 @@ import { matchPath } from 'react-router-dom';
  * detail route, '/data-catalog/*' for a route and everything under it. Each
  * restyle wave adds its pages' routes here.
  */
-export const FULL_BLEED_ROUTES: readonly string[] = ['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*'];
+export const FULL_BLEED_ROUTES: readonly string[] = [
+  '/assets',
+  '/assets/:assetId',
+  '/data-catalog',
+  '/data-catalog/*',
+  // Its own route only: at /concepts/import the importer sits inside the
+  // Concepts layout, which keeps the shell's padding and breadcrumb
+  '/schema-importer',
+];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>
   routes.some((path) => matchPath({ path, caseSensitive: true, end: true }, pathname) !== null);

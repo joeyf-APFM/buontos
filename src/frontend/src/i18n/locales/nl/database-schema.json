@@ -30,7 +30,8 @@
     "resources": "Resources",
     "resourcesTitle": "{{name}} — Resources",
     "resourcesDescription": "Vouw knooppunten uit en vink de resources aan die u wilt importeren",
-    "selectedCount": "{{count}} geselecteerd"
+    "selectedCount": "{{count}} geselecteerd",
+    "options": "Importopties"
   },
   "browser": {
     "selectConnection": "Selecteer een verbinding om de resources te doorbladeren",

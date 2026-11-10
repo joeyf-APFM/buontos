@@ -177,6 +177,19 @@ describe('page kit', () => {
   });
 });
 
+it('a pane title shows its whole text in a title, as the page title does', () => {
+  const long = 'Workspace catalog with a very long name that will not fit in the pane head — Resources';
+  renderWithMantine(
+    <PageLayout header={<PageHeader title="Orders" />}>
+      <Pane title={long}>body</Pane>
+    </PageLayout>,
+  );
+  const heading = screen.getByRole('heading', { level: 2, name: long });
+  expect(heading).toHaveAttribute('title', long);
+  // The pane is still named by its heading's text
+  expect(screen.getByRole('region', { name: long })).toContainElement(heading);
+});
+
 it('pane stack lays panes out in one column, each at its own height', () => {
   renderWithMantine(
     <PageLayout header={<PageHeader title="Orders" />}>

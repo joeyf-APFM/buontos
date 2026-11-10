@@ -30,7 +30,8 @@
     "resources": "Ressources",
     "resourcesTitle": "{{name}} — Ressources",
     "resourcesDescription": "Développez les nœuds et cochez les ressources à importer",
-    "selectedCount": "{{count}} sélectionné(s)"
+    "selectedCount": "{{count}} sélectionné(s)",
+    "options": "Options d'importation"
   },
   "browser": {
     "selectConnection": "Sélectionnez une connexion pour parcourir ses ressources",

@@ -30,7 +30,8 @@
     "resources": "Resources",
     "resourcesTitle": "{{name}} — Resources",
     "resourcesDescription": "Expand nodes and check the resources you want to import",
-    "selectedCount": "{{count}} selected"
+    "selectedCount": "{{count}} selected",
+    "options": "Import options"
   },
   "browser": {
     "selectConnection": "Select a connection to browse its resources",

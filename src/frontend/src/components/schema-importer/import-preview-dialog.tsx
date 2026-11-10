@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { asyncRunProgressText, asyncRunStatusLabel } from '@/lib/schema-import-run-text';
 import {
-  Loader2,
   CheckCircle2,
   XCircle,
   MinusCircle,
@@ -19,23 +18,10 @@ import {
   Link2,
   Unlink,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Loader, Modal, Tooltip } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { AssetSelector, type SelectedAsset } from '@/components/common/asset-selector';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
@@ -48,6 +34,7 @@ import type {
   StartImportRunResponse,
   SchemaImportRunDetail,
 } from '@/types/schema-import';
+import classes from './import-preview-dialog.module.css';
 
 // ---------------------------------------------------------------------------
 // Tree helpers
@@ -117,9 +104,19 @@ const assetTypeIconMap: Record<string, typeof Database> = {
 };
 
 function getAssetIcon(assetType: string) {
-  const Icon = assetTypeIconMap[assetType.toLowerCase()] || Box;
-  return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  const Icon = assetTypeIconMap[String(assetType ?? '').toLowerCase()] || Box;
+  return <Icon className={classes.icon} />;
 }
+
+/** The array in an API answer, or none for a malformed one. */
+const listOf = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+/**
+ * Sits one below the Radix dialogs' z-50, so the shared asset selector (a
+ * Radix Dialog) opens above this one, as it did over the Radix dialog this
+ * replaces; still above the shell's top bar (z-index 40).
+ */
+const MODAL_Z_INDEX = 49;
 
 // ---------------------------------------------------------------------------
 // Mapped asset info (id + display name)
@@ -187,7 +184,7 @@ export default function ImportPreviewDialog({
       };
       const resp = await apiPost<ImportPreviewItem[]>('/api/schema-import/preview', payload);
       if (resp.data) {
-        setPreviewItems(resp.data);
+        setPreviewItems(listOf<ImportPreviewItem>(resp.data));
         setHasLoaded(true);
       }
     } catch (err) {
@@ -364,7 +361,7 @@ export default function ImportPreviewDialog({
   );
 
   const resultTree = useMemo(
-    () => (importResult ? buildTree(importResult.items, (i) => i.path, (i) => i.parent_path) : []),
+    () => (importResult ? buildTree(listOf<ImportResultItem>(importResult.items), (i) => i.path, (i) => i.parent_path) : []),
     [importResult],
   );
 
@@ -439,6 +436,16 @@ export default function ImportPreviewDialog({
   // Tree renderers
   // ---------------------------------------------------------------------------
 
+  /** The expand toggle of a parent row, or the space it would take. */
+  function renderToggle(path: string, hasKids: boolean) {
+    if (!hasKids) return <span className={classes.spacer} />;
+    return (
+      <button onClick={() => toggleCollapse(path)} className={classes.toggle}>
+        {collapsed.has(path) ? <ChevronRight /> : <ChevronDown />}
+      </button>
+    );
+  }
+
   function renderPreviewNode(node: TreeNode<ImportPreviewItem>) {
     const { item, children, level } = node;
     const hasKids = children.length > 0;
@@ -447,96 +454,71 @@ export default function ImportPreviewDialog({
     const mapped = pathMappings[item.path];
     const isMapped = !!mapped;
     const canLink = item.is_ancestor && item.will_create && !isExcluded;
+    const label = isMapped ? mapped.name : item.name;
 
     return (
       <div key={item.path}>
         <div
-          className={`flex items-center gap-2 py-1.5 px-3 text-sm rounded-sm hover:bg-muted/50 ${isExcluded ? 'opacity-40' : ''}`}
-          style={{ paddingLeft: `${level * 20 + 12}px` }}
+          data-tree-row
+          data-excluded={isExcluded || undefined}
+          className={classes.row}
+          style={{ '--label-offset': `${level * 16}px` } as CSSProperties}
         >
-          {hasKids ? (
-            <button
-              onClick={() => toggleCollapse(item.path)}
-              className="p-0.5 hover:bg-muted rounded shrink-0"
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </button>
-          ) : (
-            <span className="w-[22px] shrink-0" />
-          )}
+          {renderToggle(item.path, hasKids)}
 
           {item.is_ancestor && (
             <Checkbox
               checked={!isExcluded}
               onCheckedChange={() => toggleExclude(item.path)}
-              className="shrink-0"
             />
           )}
 
           {isExcluded ? (
-            <MinusCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+            <MinusCircle className={classes.muted} />
           ) : isMapped ? (
-            <Link2 className="h-4 w-4 text-blue-500 shrink-0" />
+            <Link2 className={classes.linked} />
           ) : item.will_create ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+            <CheckCircle2 className={classes.good} />
           ) : (
-            <MinusCircle className="h-4 w-4 text-yellow-500 shrink-0" />
+            <MinusCircle className={classes.warning} />
           )}
 
           {getAssetIcon(item.asset_type)}
 
-          {isMapped ? (
-            <span className="truncate flex-1 text-blue-500">
-              {mapped.name}
-            </span>
-          ) : (
-            <span className={`truncate flex-1 ${item.is_ancestor ? 'text-muted-foreground' : ''}`}>
-              {item.name}
-            </span>
-          )}
+          {/* A long name keeps to one line; its title shows it in full */}
+          <span
+            className={classes.label}
+            title={label}
+            data-linked={isMapped || undefined}
+            data-ancestor={(!isMapped && item.is_ancestor) || undefined}
+          >
+            {label}
+          </span>
 
           {/* Link / unlink icon for ancestors that would be created */}
           {canLink && !isMapped && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setSelectorOpenForPath(item.path)}
-                  className="p-1 rounded hover:bg-muted shrink-0"
-                >
-                  <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t('database-schema:preview.linkToExisting')}</TooltipContent>
+            <Tooltip label={t('database-schema:preview.linkToExisting')} position="top" withArrow>
+              <button onClick={() => setSelectorOpenForPath(item.path)} className={classes.iconButton}>
+                <Link2 />
+              </button>
             </Tooltip>
           )}
           {isMapped && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => clearMapping(item.path)}
-                  className="p-1 rounded hover:bg-muted shrink-0"
-                >
-                  <Unlink className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t('database-schema:preview.unlinkCreateNew')}</TooltipContent>
+            <Tooltip label={t('database-schema:preview.unlinkCreateNew')} position="top" withArrow>
+              <button onClick={() => clearMapping(item.path)} className={classes.iconButton}>
+                <Unlink />
+              </button>
             </Tooltip>
           )}
 
-          <Badge variant="outline" className="text-xs shrink-0">
-            {item.asset_type}
-          </Badge>
+          <Badge variant="outline" className={classes.badge}>{item.asset_type}</Badge>
 
           {isExcluded ? (
-            <span className="text-xs text-muted-foreground shrink-0">{t('database-schema:preview.statusSkip')}</span>
+            <span className={classes.status}>{t('database-schema:preview.statusSkip')}</span>
           ) : isMapped ? (
-            <span className="text-xs text-blue-500 shrink-0">{t('database-schema:preview.statusLinked')}</span>
+            <span className={`${classes.status} ${classes.statusLinked}`}>{t('database-schema:preview.statusLinked')}</span>
           ) : (
-            <span className="text-xs text-muted-foreground shrink-0">
+            <span className={classes.status}>
               {item.will_create
                 ? (item.is_ancestor ? t('database-schema:preview.statusAuto') : t('database-schema:preview.statusNew'))
                 : t('database-schema:preview.statusExists')}
@@ -557,39 +539,26 @@ export default function ImportPreviewDialog({
     return (
       <div key={item.path}>
         <div
-          className="flex items-center gap-2 py-1.5 px-3 text-sm rounded-sm hover:bg-muted/50"
-          style={{ paddingLeft: `${level * 20 + 12}px` }}
+          data-tree-row
+          className={classes.row}
+          style={{ '--label-offset': `${level * 16}px` } as CSSProperties}
         >
-          {hasKids ? (
-            <button
-              onClick={() => toggleCollapse(item.path)}
-              className="p-0.5 hover:bg-muted rounded shrink-0"
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </button>
-          ) : (
-            <span className="w-[22px] shrink-0" />
-          )}
+          {renderToggle(item.path, hasKids)}
 
           {item.action === 'created' ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+            <CheckCircle2 className={classes.good} />
           ) : item.action === 'skipped' ? (
-            <MinusCircle className="h-4 w-4 text-yellow-500 shrink-0" />
+            <MinusCircle className={classes.warning} />
           ) : (
-            <XCircle className="h-4 w-4 text-destructive shrink-0" />
+            <XCircle className={classes.critical} />
           )}
 
           {getAssetIcon(item.asset_type)}
-          <span className="truncate flex-1">{item.name}</span>
+          <span className={classes.label} title={item.name}>{item.name}</span>
 
-          <Badge variant="outline" className="text-xs shrink-0">
-            {item.asset_type}
-          </Badge>
+          <Badge variant="outline" className={classes.badge}>{item.asset_type}</Badge>
           <Badge
+            className={classes.badge}
             variant={
               item.action === 'created'
                 ? 'default'
@@ -597,7 +566,6 @@ export default function ImportPreviewDialog({
                   ? 'destructive'
                   : 'secondary'
             }
-            className="text-xs shrink-0"
           >
             {item.action}
           </Badge>
@@ -612,117 +580,111 @@ export default function ImportPreviewDialog({
   // Render
   // ---------------------------------------------------------------------------
 
+  const asyncRunning = !!asyncRun && (asyncRun.status === 'pending' || asyncRun.status === 'running');
+
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {importResult ? t('database-schema:preview.resultsTitle') : t('database-schema:preview.previewTitle')}
-            </DialogTitle>
-            <DialogDescription>
-              {importResult
-                ? t('database-schema:preview.resultSummary', {
-                    created: importResult.created,
-                    skipped: importResult.skipped,
-                    errors: importResult.errors,
-                  })
-                : t('database-schema:preview.previewSummary', { toCreate, toSkip })}
-            </DialogDescription>
-          </DialogHeader>
+      <Modal
+        opened={open}
+        onClose={() => handleOpenChange(false)}
+        title={importResult ? t('database-schema:preview.resultsTitle') : t('database-schema:preview.previewTitle')}
+        size={672}
+        centered
+        zIndex={MODAL_Z_INDEX}
+        // As the Radix dialog: a click outside leaves it open; Escape closes
+        // it, unless the asset selector above it is open (Escape is its own)
+        closeOnClickOutside={false}
+        closeOnEscape={!selectorOpenForPath}
+        closeButtonProps={{ 'aria-label': t('common:actions.close') }}
+        classNames={{ content: classes.content, header: classes.header, title: classes.title, body: classes.body }}
+      >
+        <p className={classes.description}>
+          {importResult
+            ? t('database-schema:preview.resultSummary', {
+                created: importResult.created,
+                skipped: importResult.skipped,
+                errors: importResult.errors,
+              })
+            : t('database-schema:preview.previewSummary', { toCreate, toSkip })}
+        </p>
 
-          {isLoadingPreview ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="ml-2 text-sm text-muted-foreground">{t('database-schema:preview.analyzing')}</span>
-            </div>
-          ) : importResult ? (
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-0.5 py-1">
-                {resultTree.map(renderResultNode)}
-                {resultTree.length === 0 && (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    {t('database-schema:preview.noResultItems')}
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          ) : (
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-0.5 py-1">
-                {previewTree.map(renderPreviewNode)}
-                {previewTree.length === 0 && (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    {t('database-schema:preview.noImportable')}
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          )}
-
-          {/* Background-run progress (while an async import is in flight) */}
-          {asyncRun && !importResult && (
-            <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
-              <div className="flex items-center gap-2">
-                {(asyncRun.status === 'pending' || asyncRun.status === 'running') && (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-                <span className="font-medium">{asyncRunStatusLabel(asyncRun.status, t)}</span>
-                {asyncRun.total_items ? (
-                  <span className="text-muted-foreground">
-                    {asyncRunProgressText(asyncRun, t)}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">{asyncRun.progress_message || t('database-schema:preview.async.starting')}</span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t('database-schema:preview.async.closeHint')}
-              </p>
-            </div>
-          )}
-
-          <DialogFooter>
-            {importResult ? (
-              <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                {t('common:actions.close')}
-              </Button>
-            ) : asyncRun && (asyncRun.status === 'pending' || asyncRun.status === 'running') ? (
-              <>
-                <Button variant="outline" onClick={cancelAsyncImport}>
-                  {t('database-schema:preview.async.cancel')}
-                </Button>
-                <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                  {t('database-schema:preview.async.closeKeepRunning')}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                  {t('common:actions.cancel')}
-                </Button>
-                {toCreate >= asyncThreshold && (
-                  <Button
-                    variant="secondary"
-                    onClick={startAsyncImport}
-                    disabled={isStartingAsync || isImporting || toCreate === 0}
-                  >
-                    {isStartingAsync && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t('database-schema:preview.async.runInBackground')}
-                  </Button>
-                )}
-                <Button
-                  onClick={executeImport}
-                  disabled={isImporting || isStartingAsync || toCreate === 0}
-                >
-                  {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('database-schema:preview.importAssets', { count: toCreate })}
-                </Button>
-              </>
+        {isLoadingPreview ? (
+          <div className={classes.loading}>
+            <Loader size={18} />
+            <span>{t('database-schema:preview.analyzing')}</span>
+          </div>
+        ) : importResult ? (
+          <div className={classes.tree}>
+            {resultTree.map(renderResultNode)}
+            {resultTree.length === 0 && (
+              <div className={classes.empty}>{t('database-schema:preview.noResultItems')}</div>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        ) : (
+          <div className={classes.tree}>
+            {previewTree.map(renderPreviewNode)}
+            {previewTree.length === 0 && (
+              <div className={classes.empty}>{t('database-schema:preview.noImportable')}</div>
+            )}
+          </div>
+        )}
+
+        {/* Background-run progress (while an async import is in flight) */}
+        {asyncRun && !importResult && (
+          <div className={classes.run}>
+            <div className={classes.runLine}>
+              {asyncRunning && <Loader size={14} />}
+              <span className={classes.runStatus}>{asyncRunStatusLabel(asyncRun.status, t)}</span>
+              <span className={classes.runText}>
+                {asyncRun.total_items
+                  ? asyncRunProgressText(asyncRun, t)
+                  : asyncRun.progress_message || t('database-schema:preview.async.starting')}
+              </span>
+            </div>
+            <p className={classes.runHint}>{t('database-schema:preview.async.closeHint')}</p>
+          </div>
+        )}
+
+        <div className={classes.footer}>
+          {importResult ? (
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
+              {t('common:actions.close')}
+            </Button>
+          ) : asyncRunning ? (
+            <>
+              <Button variant="outline" onClick={cancelAsyncImport}>
+                {t('database-schema:preview.async.cancel')}
+              </Button>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                {t('database-schema:preview.async.closeKeepRunning')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                {t('common:actions.cancel')}
+              </Button>
+              {toCreate >= asyncThreshold && (
+                <Button
+                  variant="secondary"
+                  onClick={startAsyncImport}
+                  disabled={isStartingAsync || isImporting || toCreate === 0}
+                >
+                  {isStartingAsync && <Loader size={12} color="currentColor" />}
+                  {t('database-schema:preview.async.runInBackground')}
+                </Button>
+              )}
+              <Button
+                onClick={executeImport}
+                disabled={isImporting || isStartingAsync || toCreate === 0}
+              >
+                {isImporting && <Loader size={12} color="currentColor" />}
+                {t('database-schema:preview.importAssets', { count: toCreate })}
+              </Button>
+            </>
+          )}
+        </div>
+      </Modal>
 
       {/* Asset selector opened from a link icon */}
       <AssetSelector

@@ -3,7 +3,7 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer']);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);
@@ -20,6 +20,17 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/data-catalogue')).toBe(false);
     expect(isFullBleed('/Data-Catalog')).toBe(false);
     expect(isFullBleed('/data-contracts')).toBe(false);
+  });
+
+  it('matches the Schema Importer route, but not the importer inside the Concepts layout', () => {
+    // Task 13
+    expect(isFullBleed('/schema-importer')).toBe(true);
+    expect(isFullBleed('/schema-importer/')).toBe(true);
+    expect(isFullBleed('/schema-importer/x')).toBe(false);
+    expect(isFullBleed('/Schema-Importer')).toBe(false);
+    expect(isFullBleed('/schema-imports')).toBe(false);
+    expect(isFullBleed('/concepts/import')).toBe(false);
+    expect(isFullBleed('/concepts')).toBe(false);
   });
 
   it('takes route patterns, such as a detail route', () => {
