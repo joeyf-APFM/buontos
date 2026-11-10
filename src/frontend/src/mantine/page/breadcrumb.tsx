@@ -24,7 +24,7 @@ export interface BreadcrumbProps {
   label: string;
   /** The name of the "…" button that lists the collapsed crumbs. */
   moreLabel?: string;
-  /** More crumbs than this collapse their middle into "…". */
+  /** More crumbs than this fold between the sub-topic and the previous page, into "…". */
   max?: number;
   /** The last item is the current page (plain text, aria-current); off, it keeps its link. */
   lastIsCurrent?: boolean;
@@ -68,8 +68,9 @@ function Crumb({ item, current }: { item: BreadcrumbItem; current: boolean }) {
 /**
  * The breadcrumb the shell draws on every page: Home, then each crumb behind
  * a ">", one line. Long labels end in an ellipsis (their full text is the
- * title); a trail longer than `max` keeps its first crumb and last `max - 2`,
- * listing the others in the "…" menu.
+ * title); a trail longer than `max` folds between the sub-topic and the
+ * previous page (Home > main > sub-topic > … > previous > current), listing
+ * the folded crumbs in the "…" menu.
  */
 export function Breadcrumb({ items, label, moreLabel, max = 6, lastIsCurrent = true }: BreadcrumbProps) {
   const trail = collapseTrail(items, max);
@@ -81,7 +82,7 @@ export function Breadcrumb({ items, label, moreLabel, max = 6, lastIsCurrent = t
   if (!trail.collapsed) {
     trail.crumbs.forEach(add);
   } else {
-    add(trail.head, 0);
+    trail.head.forEach(add);
     entries.push({
       key: 'more',
       node: (

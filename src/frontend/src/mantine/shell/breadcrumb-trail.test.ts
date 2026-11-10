@@ -299,6 +299,11 @@ describe('the trail: following the user', () => {
     expect(trailCrumbs(record)[0].label).toBe('Home');
     // The first page, then the steps from P3 on (each project a sibling of the last)
     expect(text(record)).toBe('Home > Build > Data Contracts > Orders > P3 > P4 > P5 > P6 > P7 > P8 > P9 > P10 > P11');
+    // Folded, it still shows main and the sub-topic, then the last two pages
+    const folded = collapseTrail(trailCrumbs(record));
+    expect(folded.collapsed && [...folded.head, { label: '…' }, ...folded.tail].map((c) => c.label)).toEqual([
+      'Home', 'Build', 'Data Contracts', '…', 'P10', 'P11',
+    ]);
   });
 
   it('keeps no actions in a stored trail', () => {
@@ -324,10 +329,17 @@ describe('collapseTrail', () => {
 
   it('keeps a trail of up to six crumbs whole', () => {
     expect(collapseTrail(crumbs(6))).toEqual({ collapsed: false, crumbs: crumbs(6) });
+    expect(collapseTrail(crumbs(3))).toEqual({ collapsed: false, crumbs: crumbs(3) });
   });
 
-  it('collapses the middle of a longer one, keeping Home and the last four', () => {
-    const result = collapseTrail(crumbs(9));
-    expect(result).toEqual({ collapsed: true, head: { label: 'c0' }, hidden: crumbs(5).slice(1), tail: crumbs(9).slice(5) });
+  it('folds a longer one between the sub-topic and the previous page (the owner, 2026-11-10)', () => {
+    // Home > main > sub-topic > … > previous page > current page
+    expect(collapseTrail(crumbs(9))).toEqual({
+      collapsed: true, head: crumbs(3), hidden: crumbs(7).slice(3), tail: crumbs(9).slice(7),
+    });
+    // Seven: just one past the threshold, two folded
+    expect(collapseTrail(crumbs(7))).toEqual({
+      collapsed: true, head: crumbs(3), hidden: crumbs(5).slice(3), tail: crumbs(7).slice(5),
+    });
   });
 });

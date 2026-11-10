@@ -129,15 +129,16 @@ test('a long trail collapses its middle into "…" and stays on one line (the ex
     await tree.getByRole('treeitem', { name, exact: true }).locator('[title]').first().click();
   }
   // Home > Build > Assets > Explorer > Unity Catalog > main > main.sales > main.sales.orders: eight crumbs
-  await expect.poll(() => trail(page)).toBe('Home > … > Unity Catalog > main > main.sales > main.sales.orders');
+  // Folded between the sub-topic and the previous page (the owner, 2026-11-10)
+  await expect.poll(() => trail(page)).toBe('Home > Build > Assets > … > main.sales > main.sales.orders');
   const height = await crumbs(page).evaluate((el) => el.getBoundingClientRect().height);
   expect(height).toBeLessThanOrEqual(20);
   await crumbs(page).getByRole('button', { name: 'Show the hidden levels' }).click();
   const hidden = page.getByRole('menu').getByRole('menuitem');
-  await expect(hidden).toHaveText(['Build', 'Assets', 'Explorer']);
+  await expect(hidden).toHaveText(['Explorer', 'Unity Catalog', 'main']);
   await capture(page, 'collapsed-long-trail');
   // An ancestor's crumb selects it
   await page.keyboard.press('Escape');
-  await crumbs(page).getByRole('button', { name: 'main', exact: true }).click();
-  await expect.poll(() => trail(page)).toBe('Home > Build > Assets > Explorer > Unity Catalog > main');
+  await crumbs(page).getByRole('button', { name: 'main.sales', exact: true }).click();
+  await expect.poll(() => trail(page)).toBe('Home > Build > Assets > … > main > main.sales');
 });

@@ -246,12 +246,12 @@ describe('the shell breadcrumb', () => {
   it('cuts the trail at a crumb in the "…" menu, by its place in the trail', async () => {
     const user = userEvent.setup();
     await renderApp('/settings/data-domains/d4');
-    // Home > Organization > Data domains > s1 > s2 > s3 > s4: seven, so collapsed
-    await waitFor(() => expect(trail()).toEqual(['Home', '…', 's1', 's2', 's3', 's4']));
+    // Home > Organization > Data domains > s1 > s2 > s3 > s4: seven, so folded
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', '…', 's3', 's4']));
     await user.click(within(crumbNavs()[0]).getByRole('button', { name: 'Show the hidden levels' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Organization', hidden: true }));
-    // Cut right after Organization (an ordinary link to its page would show its own place)
-    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization']));
+    await user.click(await screen.findByRole('menuitem', { name: 's1', hidden: true }));
+    // Cut right after s1 (an ordinary link to the same page would start over from its own place)
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', 's1']));
   });
 
   it('shows no placeholder while a name loads, and lets no late name onto the next page', async () => {

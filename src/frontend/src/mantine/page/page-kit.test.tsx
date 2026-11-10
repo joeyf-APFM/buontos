@@ -144,12 +144,15 @@ describe('page kit', () => {
     );
     await user.tab();
     expect(screen.getByRole('link', { name: 'Home' })).toHaveFocus();
+    // Past main and the sub-topic
+    await user.tab();
+    await user.tab();
     await user.tab();
     const more = screen.getByRole('button', { name: 'Show the hidden levels' });
     expect(more).toHaveFocus();
     await user.keyboard('{Enter}');
-    await user.click(await screen.findByRole('menuitem', { name: 'Level 2', hidden: true }));
-    expect(seen).toEqual({ nav: 'crumb', crumbIndex: 2 });
+    await user.click(await screen.findByRole('menuitem', { name: 'Level 4', hidden: true }));
+    expect(seen).toEqual({ nav: 'crumb', crumbIndex: 4 });
   });
 
   it('breadcrumb: a long trail collapses its middle crumbs into "…", listing them in a menu', async () => {
@@ -157,15 +160,16 @@ describe('page kit', () => {
     const items = [{ label: 'Home', to: '/', home: true }, ...Array.from({ length: 7 }, (_, i) => ({ label: `Level ${i + 1}`, to: `/l${i + 1}` }))];
     renderWithMantine(<Breadcrumb label="Breadcrumb" moreLabel="Show the hidden levels" items={items} />);
     const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    // Home, "…", then the last four
+    // Home > main > sub-topic > … > previous page > current page
     expect(within(nav).getAllByRole('listitem').map((li) => li.textContent?.replace('>', ''))).toEqual([
-      'Home', '…', 'Level 4', 'Level 5', 'Level 6', 'Level 7',
+      'Home', 'Level 1', 'Level 2', '…', 'Level 6', 'Level 7',
     ]);
+    expect(within(nav).getByText('Level 7')).toHaveAttribute('aria-current', 'page');
     await user.click(within(nav).getByRole('button', { name: 'Show the hidden levels' }));
     expect(within(nav).getByRole('button', { name: 'Show the hidden levels' })).toHaveAttribute('aria-expanded', 'true');
     // (Mantine's dropdown is still in its opening transition, display: none, in jsdom)
     expect((await screen.findAllByRole('menuitem', { hidden: true })).map((m) => [m.textContent, m.getAttribute('href')])).toEqual([
-      ['Level 1', '/l1'], ['Level 2', '/l2'], ['Level 3', '/l3'],
+      ['Level 3', '/l3'], ['Level 4', '/l4'], ['Level 5', '/l5'],
     ]);
   });
 

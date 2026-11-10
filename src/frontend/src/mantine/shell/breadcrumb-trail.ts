@@ -138,7 +138,7 @@ export function pageCrumbs(input: PageCrumbsInput): Crumb[] {
     !crumbs!.some((k) => same(k.label, c.label) || (c.path && k.to && pathOf(k.to) === pathOf(c.path))) &&
     c.path !== '/';
   const middle = extras.filter(shown).map((s) => ({ label: s.label, to: s.path, onSelect: s.onSelect }));
-  const all = [...crumbs, ...middle];
+  const all: Crumb[] = [...crumbs, ...middle];
   // The title is the page's own name: kept unless a crumb already is this page,
   // or it only repeats the crumb just above it (a sub-page of Search titled
   // Search). An entity may share another crumb's label: a domain named Organization.
