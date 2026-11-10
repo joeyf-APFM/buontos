@@ -54,8 +54,13 @@ describe('AssetTree', () => {
     renderWithMantine(<Harness onSelect={onSelect} />);
 
     expect(await row('insights')).toBeInTheDocument();
-    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ node: expect.objectContaining({ key: 'branch:uc' }) }));
-    expect(await row('Unity Catalog')).toHaveAttribute('aria-selected', 'true');
+    // The initial selection runs in an effect after the rows render, so wait for it
+    await waitFor(() =>
+      expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ node: expect.objectContaining({ key: 'branch:uc' }) })),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('treeitem', { name: /^Unity Catalog/ })[0]).toHaveAttribute('aria-selected', 'true'),
+    );
   });
 
   it('loads a node’s children on first expand only', async () => {

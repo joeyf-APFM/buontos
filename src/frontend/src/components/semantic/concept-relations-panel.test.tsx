@@ -117,13 +117,10 @@ describe('ConceptRelationsPanel', () => {
   it('renders only meaningful relations (drops rdf:type, label, predicate-direction)', async () => {
     renderPanel()
 
-    await waitFor(() => {
-      expect(screen.getByTestId('concept-relations-list')).toBeInTheDocument()
-    })
-
     // Three meaningful relations: 2 outgoing + 1 incoming
+    // (wait for a row: the list itself renders while loading)
     expect(
-      screen.getByTestId('relation-outgoing-subClassOf-WeatherObservation'),
+      await screen.findByTestId('relation-outgoing-subClassOf-WeatherObservation'),
     ).toBeInTheDocument()
     expect(
       screen.getByTestId('relation-outgoing-equivalentClass-Measurement'),
@@ -142,11 +139,8 @@ describe('ConceptRelationsPanel', () => {
 
   it('shows total count and outgoing/incoming breakdown in the header', async () => {
     renderPanel()
-    await waitFor(() => {
-      expect(screen.getByTestId('concept-relations-list')).toBeInTheDocument()
-    })
     // Total is 3 (the visible ones); outgoing 2, incoming 1
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(await screen.findByText('3')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
   })
