@@ -402,4 +402,50 @@ test.describe('focus after a save or delete', () => {
     await expect(page.locator('main').getByText('Backend down')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: 'Asset Types' })).toBeFocused();
   });
+
+  test('a slow reload: focus the user moved elsewhere stays there', async ({ page }) => {
+    await setUp(page);
+    await acceptWrites(page);
+    await page.getByRole('button', { name: 'Add Asset Type' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Create Asset Type' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Dashboard');
+
+    // Hold the reload until the user has moved on
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reloads = 0;
+    await page.route((url) => url.pathname === '/api/asset-types', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      reloads += 1;
+      await held;
+      return route.fallback();
+    });
+    await dialog.getByRole('button', { name: 'Create' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => reloads).toBe(1);
+
+    // While the list is loading, the user goes to the app's search
+    const search = page.getByPlaceholder(/^Search assets, concepts, contracts/);
+    await search.focus();
+    await expect(search).toBeFocused();
+
+    release();
+    await expect(page.getByRole('button', { name: 'Add Asset Type' })).toBeVisible();
+    await expect(openMenu(page, 'Report')).toBeVisible();
+    // Give any late focus move a chance to happen
+    await page.waitForTimeout(300);
+    await expect(search).toBeFocused();
+  });
+
+  test('a failed delete: back on the row\'s menu button, once', async ({ page }) => {
+    await setUp(page);
+    await page.route((url) => url.pathname.startsWith('/api/asset-types/'), (route) =>
+      route.request().method() === 'DELETE' ? route.fulfill({ status: 409, json: { detail: 'In use' } }) : route.fallback());
+    await openMenu(page, 'Report').click();
+    await page.getByRole('menuitem', { name: 'Delete Asset Type' }).click();
+    await page.getByRole('alertdialog', { name: 'Delete Asset Type?' }).getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(openMenu(page, 'Report')).toBeFocused();
+  });
 });
+

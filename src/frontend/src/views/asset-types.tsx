@@ -100,18 +100,28 @@ export default function AssetTypesView() {
   // Only the latest load may set the list: an earlier one that answers late is dropped
   const loadId = useRef(0);
 
-  // Focus once a dialog closes. The control that opened it (Add, or a row's
-  // menu button) is found again by its data attribute, because a save or
-  // delete reloads the list behind a skeleton, which remounts the table.
-  // After a save or delete, focus waits for that reload; after Cancel or
-  // Escape, it goes back at once.
+  // Focus once a dialog closes, at most once per dialog. The control that
+  // opened it (Add, or a row's menu button) is found again by its data
+  // attribute, because a save or delete reloads the list behind a skeleton,
+  // which remounts the table. Focus moves when the dialog has gone (its exit
+  // transition has ended) and no reload is pending: at once after Cancel or
+  // Escape, after the reload after a save or delete.
   const titleId = useId();
   const tableArea = useRef<HTMLDivElement>(null);
   const focusTarget = useRef<FocusTarget>(ADD);
+  const focusPending = useRef(false);
+  const dialogGone = useRef(true);
   const awaitingReload = useRef(false);
   const [focusRequest, setFocusRequest] = useState(0);
-  const requestFocus = useCallback((target: FocusTarget) => {
+  /** A dialog opens from `target`: focus returns there (or near) once, later. */
+  const dialogOpening = useCallback((target: FocusTarget) => {
     focusTarget.current = target;
+    focusPending.current = true;
+    dialogGone.current = false;
+  }, []);
+  const maybeReturnFocus = useCallback(() => {
+    if (!focusPending.current || !dialogGone.current || awaitingReload.current) return;
+    focusPending.current = false;
     setFocusRequest((n) => n + 1);
   }, []);
 
@@ -125,12 +135,12 @@ export default function AssetTypesView() {
   const canWrite = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
   const canAdmin = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.ADMIN);
 
-  // A save or delete is waiting for this reload to put focus back
+  // A save or delete may be waiting for this reload to put focus back
   const settleReload = useCallback(() => {
     if (!awaitingReload.current) return;
     awaitingReload.current = false;
-    requestFocus(focusTarget.current);
-  }, [requestFocus]);
+    maybeReturnFocus();
+  }, [maybeReturnFocus]);
 
   const fetchAssetTypes = useCallback(async () => {
     const id = ++loadId.current;
@@ -156,9 +166,14 @@ export default function AssetTypesView() {
   }, [canRead, permissionsLoading, apiGet, toast, t, settleReload]);
 
   // Focus the target once the page has rendered after the request: the
-  // control if it is there and enabled, else Add, else the page title
+  // control if it is there and enabled, else Add, else the page title. Only
+  // if focus is nowhere (body) or still in the closed dialog: if the user
+  // has moved it during a slow reload, it stays where they put it
   useEffect(() => {
     if (focusRequest === 0) return;
+    const active = document.activeElement;
+    const free = !active || active === document.body || active.closest('[data-modal-content]') !== null;
+    if (!free) return;
     const target = focusTarget.current;
     const area = tableArea.current;
     const find = (selector: string) => {
@@ -178,10 +193,11 @@ export default function AssetTypesView() {
     }
   }, [focusRequest, titleId]);
 
-  /** A dialog has closed: focus goes back now, unless a reload is on its way. */
+  /** A dialog's exit transition has ended: focus goes back, unless a reload is on its way. */
   const dialogExited = useCallback(() => {
-    if (!awaitingReload.current) requestFocus(focusTarget.current);
-  }, [requestFocus]);
+    dialogGone.current = true;
+    maybeReturnFocus();
+  }, [maybeReturnFocus]);
 
   const saved = useCallback(() => {
     awaitingReload.current = true;
@@ -193,20 +209,20 @@ export default function AssetTypesView() {
   }, [fetchAssetTypes]);
 
   const openDeleteDialog = useCallback((id: string) => {
-    focusTarget.current = { row: id };
     if (!canAdmin) {
       toast({ variant: 'destructive', title: t('permissions.permissionDenied'), description: t('permissions.deniedDelete') });
       return;
     }
+    dialogOpening({ row: id });
     setDeletingId(id);
     setIsDeleteDialogOpen(true);
-  }, [canAdmin, toast, t]);
+  }, [canAdmin, toast, t, dialogOpening]);
 
   const openEditForm = useCallback((assetType: AssetTypeRead) => {
-    focusTarget.current = { row: assetType.id };
+    dialogOpening({ row: assetType.id });
     setEditingAssetType(assetType);
     setIsFormOpen(true);
-  }, []);
+  }, [dialogOpening]);
 
   const handleDeleteConfirm = async () => {
     if (!deletingId || !canAdmin) return;
@@ -222,8 +238,11 @@ export default function AssetTypesView() {
       fetchAssetTypes();
     } catch (err: any) {
       toast({ variant: 'destructive', title: t('messages.errorDeleting'), description: err.message });
+      // Back to the row's button, once the dialog's exit has ended (it
+      // closed on the click; maybeReturnFocus waits for dialogExited)
       awaitingReload.current = false;
-      requestFocus(row);
+      focusTarget.current = row;
+      maybeReturnFocus();
     } finally {
       setIsDeleteDialogOpen(false);
       setDeletingId(null);
@@ -316,7 +335,7 @@ export default function AssetTypesView() {
         <Button
           data-add-asset-type=""
           onClick={() => {
-            focusTarget.current = ADD;
+            dialogOpening(ADD);
             setEditingAssetType(null);
             setIsFormOpen(true);
           }}
