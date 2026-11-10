@@ -41,6 +41,17 @@ const ASSET = {
   updated_at: '2026-11-02T00:00:00Z',
 };
 
+// One downstream entity of a business term, for the impact panel's chips
+const IMPACT = {
+  center_entity_type: 'BusinessTerm',
+  center_entity_id: 'a1',
+  nodes: [
+    { id: 'BusinessTerm:a1', entity_type: 'BusinessTerm', entity_id: 'a1', name: 'orders', is_center: true },
+    { id: 'DataProduct:p1', entity_type: 'DataProduct', entity_id: 'p1', name: 'Sales product', is_center: false },
+  ],
+  edges: [{ source: 'BusinessTerm:a1', target: 'DataProduct:p1', relationship_type: 'uses' }],
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -53,6 +64,7 @@ function mockBackend(asset: Record<string, unknown> = ASSET) {
       return json({ outgoing: [], incoming: [], total: 0 });
     }
     if (url.pathname.includes('/ratings')) return json({ average_rating: 0, total_ratings: 0, distribution: {} });
+    if (url.pathname.endsWith('/impact')) return json(IMPACT);
     if (url.pathname.startsWith('/api/business-lineage/')) return json({ nodes: [], edges: [] });
     return json([]);
   });
@@ -242,8 +254,38 @@ describe('asset detail on the page kit', () => {
     expect(within(definition).getByText('purchase')).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Impact Analysis' }));
-    // The impact panel's panes (its graph only shows when something is affected)
+    // The impact panel's panes: the summary, then the downstream graph
     expect(await screen.findByRole('region', { name: 'Impact Summary' })).toHaveClass(kit.pane);
+    expect(screen.getByRole('region', { name: 'Impact graph' })).toHaveClass(kit.pane);
+  });
+
+  it('asset detail impact chips are buttons that open the affected entity', async () => {
+    mockBackend({ ...ASSET, asset_type_name: 'Business Term', properties: { definition: 'A placed order' } });
+    const user = userEvent.setup();
+    renderPage();
+    await findHeading();
+    await user.click(screen.getByRole('tab', { name: 'Impact Analysis' }));
+    const summary = await screen.findByRole('region', { name: 'Impact Summary' });
+
+    // A button now (it was a mouse-only badge), with the same click: the entity's page
+    const chip = await within(summary).findByRole('button', { name: 'Sales product' });
+    expect(chip.tagName).toBe('BUTTON');
+    expect(chip).toHaveAttribute('type', 'button');
+    await user.click(chip);
+    expect(screen.getByRole('status', { name: 'location' })).toHaveTextContent('/data-products/p1');
+  });
+
+  it('asset detail impact chips open from the keyboard', async () => {
+    mockBackend({ ...ASSET, asset_type_name: 'Business Term', properties: { definition: 'A placed order' } });
+    const user = userEvent.setup();
+    renderPage();
+    await findHeading();
+    await user.click(screen.getByRole('tab', { name: 'Impact Analysis' }));
+    const summary = await screen.findByRole('region', { name: 'Impact Summary' });
+    within(summary).getByText('1 affected entity');
+    (await within(summary).findByRole('button', { name: 'Sales product' })).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('status', { name: 'location' })).toHaveTextContent('/data-products/p1');
   });
 
   it('asset detail lists properties in the details grid', async () => {

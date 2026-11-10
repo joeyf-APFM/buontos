@@ -74,7 +74,12 @@
   color: var(--aura-navy);
 }
 
-.mono {
+/* The location keeps to one line, as before (truncate); the title has it all */
+.location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: ui-monospace, Menlo, monospace;
 }
 
@@ -111,10 +116,21 @@
   background: var(--aura-surface-strong);
 }
 
-/* Relationships: the table / graph toggle above the view */
+/* Relationships: the table / graph toggle above the view's stack */
 .viewToggle {
   display: flex;
   gap: 4px;
+  margin-bottom: 8px;
+}
+
+/* Under the header: the tabs and their panes, then the panes on every tab,
+   12px under the tab content */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* The graphs' height, in their flush panes */

@@ -208,7 +208,7 @@ export function RatingPanel({
 
   if (pane) {
     return (
-      <Pane title={resolvedTitle} actions={youRated || undefined}>
+      <Pane title={resolvedTitle} actions={youRated || undefined} className={className}>
         <div className="space-y-4">{body}</div>
       </Pane>
     );

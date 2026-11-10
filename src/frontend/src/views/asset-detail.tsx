@@ -249,7 +249,7 @@ export default function AssetDetailView() {
 
   const domainLabel = asset.domains && asset.domains.length > 1 ? t('assets:detail.domains') : t('common:labels.domain');
   const detailRows = rowsOf([
-    asset.location && { label: t('assets:table.location'), value: <span className={classes.mono}>{asset.location}</span> },
+    asset.location && { label: t('assets:table.location'), value: <span className={classes.location}>{asset.location}</span> },
     asset.platform && { label: t('assets:table.platform'), value: asset.platform },
     ((asset.domains && asset.domains.length > 0) || asset.domain_id) && {
       label: domainLabel,
@@ -339,7 +339,7 @@ export default function AssetDetailView() {
           </>
         }
       >
-        <PaneStack>
+        <div className={classes.body}>
           <Tabs defaultValue="overview" classNames={{ tabSection: classes.tabIcon }}>
             <Tabs.List>
               <Tabs.Tab value="overview">{t('assets:detail.tabs.overview')}</Tabs.Tab>
@@ -454,27 +454,28 @@ export default function AssetDetailView() {
             </Tabs.Panel>
 
             <Tabs.Panel value="relationships">
+              {/* The view toggle sits above the stack, which holds only panes */}
+              <div className={classes.viewToggle}>
+                <Button
+                  variant={relViewMode === 'table' ? 'default' : 'outline'}
+                  size="icon"
+                  aria-label={t('assets:detail.tableView')}
+                  aria-pressed={relViewMode === 'table'}
+                  onClick={() => setRelViewMode('table')}
+                >
+                  <LayoutGrid />
+                </Button>
+                <Button
+                  variant={relViewMode === 'graph' ? 'default' : 'outline'}
+                  size="icon"
+                  aria-label={t('assets:detail.graphView')}
+                  aria-pressed={relViewMode === 'graph'}
+                  onClick={() => setRelViewMode('graph')}
+                >
+                  <Share2 />
+                </Button>
+              </div>
               <PaneStack>
-                <div className={classes.viewToggle}>
-                  <Button
-                    variant={relViewMode === 'table' ? 'default' : 'outline'}
-                    size="icon"
-                    aria-label={t('assets:detail.tableView')}
-                    aria-pressed={relViewMode === 'table'}
-                    onClick={() => setRelViewMode('table')}
-                  >
-                    <LayoutGrid />
-                  </Button>
-                  <Button
-                    variant={relViewMode === 'graph' ? 'default' : 'outline'}
-                    size="icon"
-                    aria-label={t('assets:detail.graphView')}
-                    aria-pressed={relViewMode === 'graph'}
-                    onClick={() => setRelViewMode('graph')}
-                  >
-                    <Share2 />
-                  </Button>
-                </div>
                 {relViewMode === 'table' ? (
                   <EntityTreePanel
                     entityType={ontologyTypeName}
@@ -523,20 +524,23 @@ export default function AssetDetailView() {
             )}
           </Tabs>
 
-          {/* The shared panels (Task 8), and the ratings, costs and quality panes */}
-          <OwnershipPanel objectType="asset" objectId={assetId!} canAssign={canWrite} />
-          <EntityMetadataPanel entityId={assetId!} entityType="asset" />
-          <RatingPanel
-            entityType="asset"
-            entityId={assetId!}
-            title={t('assets:detail.ratingsReviews')}
-            showDistribution
-            allowSubmit
-            pane
-          />
-          <EntityCostsPanel entityId={assetId!} entityType="asset" pane />
-          <EntityQualityPanel entityId={assetId!} entityType="asset" pane />
-        </PaneStack>
+          {/* The panes under the tabs, on every tab: the shared panels (Task 8),
+              then the ratings, costs and quality panes */}
+          <PaneStack>
+            <OwnershipPanel objectType="asset" objectId={assetId!} canAssign={canWrite} />
+            <EntityMetadataPanel entityId={assetId!} entityType="asset" />
+            <RatingPanel
+              entityType="asset"
+              entityId={assetId!}
+              title={t('assets:detail.ratingsReviews')}
+              showDistribution
+              allowSubmit
+              pane
+            />
+            <EntityCostsPanel entityId={assetId!} entityType="asset" pane />
+            <EntityQualityPanel entityId={assetId!} entityType="asset" pane />
+          </PaneStack>
+        </div>
       </PageLayout>
 
       {/* Edit dialog */}

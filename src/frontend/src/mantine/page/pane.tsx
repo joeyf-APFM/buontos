@@ -11,18 +11,20 @@ export interface PaneProps {
   children: ReactNode;
   /** Names the pane when it has no title. */
   'aria-label'?: string;
+  /** Added to the pane's own class, such as a caller's margin. */
+  className?: string;
 }
 
 /**
  * A region of the page with a 1px border and no shadow. Panes side by side
  * share one border and drop their corners (page.module.css).
  */
-export function Pane({ title, actions, flush = false, children, 'aria-label': ariaLabel }: PaneProps) {
+export function Pane({ title, actions, flush = false, children, 'aria-label': ariaLabel, className }: PaneProps) {
   const titleId = useId();
   const head = title || actions;
   return (
     <section
-      className={classes.pane}
+      className={className ? `${classes.pane} ${className}` : classes.pane}
       aria-label={ariaLabel}
       aria-labelledby={!ariaLabel && title ? titleId : undefined}
     >

@@ -100,6 +100,18 @@ function getEdgeStyle(relType: string, isDark: boolean): Partial<Edge> {
   }
 }
 
+/**
+ * The response as a lineage graph, or null (shown as no lineage) when it is
+ * not one: an array, an empty object, or a graph without nodes. Missing edges
+ * are none.
+ */
+function asLineageGraph(data: unknown): LineageGraph | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const graph = data as Partial<LineageGraph>;
+  if (!Array.isArray(graph.nodes)) return null;
+  return { ...(graph as LineageGraph), edges: Array.isArray(graph.edges) ? graph.edges : [] };
+}
+
 // ─── Props ──────────────────────────────────────────────────────────────
 
 export interface BusinessLineageViewProps {
@@ -192,8 +204,8 @@ function BusinessLineageViewInner({
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         return res.json();
       })
-      .then((data: LineageGraph) => {
-        if (!cancelled) setGraph(data);
+      .then((data: unknown) => {
+        if (!cancelled) setGraph(asLineageGraph(data));
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);

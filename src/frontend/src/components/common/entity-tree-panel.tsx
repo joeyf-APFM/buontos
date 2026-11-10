@@ -514,7 +514,7 @@ export function EntityTreePanel({
   // Loading and error: the same head, without the count and Add
   const simple = (body: React.ReactNode) =>
     pane ? (
-      <Pane title={resolvedTitle}>{body}</Pane>
+      <Pane title={resolvedTitle} className={className}>{body}</Pane>
     ) : (
       <Card className={className}>
         <CardHeader className="pb-3">
@@ -609,6 +609,7 @@ export function EntityTreePanel({
       {pane ? (
         <Pane
           title={resolvedTitle}
+          className={className}
           actions={<><Badge variant="secondary">{total}</Badge>{addButton}</>}
         >
           {body}

@@ -135,22 +135,23 @@
   box-shadow: none;
 }
 
-.pane + .pane {
+/* Side by side, in the content row (a PaneStack has its own rules below) */
+.content > .pane + .pane {
   border-left-width: 0;
 }
 
-.pane:has(+ .pane),
-.pane + .pane {
+.content > .pane:has(+ .pane),
+.content > .pane + .pane {
   border-radius: 0;
 }
 
 /* Full bleed: only the borders between panes; the shell frames the rest */
-.page[data-full-bleed] .pane {
+.page[data-full-bleed] .content > .pane {
   border-width: 0;
   border-radius: 0;
 }
 
-.page[data-full-bleed] .pane + .pane {
+.page[data-full-bleed] .content > .pane + .pane {
   border-left-width: 1px;
 }
 
@@ -196,23 +197,36 @@
   padding: 0;
 }
 
-/* A column of panes, 12px apart. Each keeps its content height (a pane's
-   flex: 1 would share the column's height out equally instead), and its own
-   full border and corners: the shared-border rules above are for panes side
-   by side. These tie with those rules on specificity and win by coming after
-   them. */
+/* A column of panes sharing 1px borders: each pane after the first drops its
+   top border, so a seam is one line; only the stack's outer corners are
+   rounded. Each pane keeps its content height (a pane's flex: 1 would share
+   the column's height out equally). `section` matches the kit's Pane and the
+   shared panels' panes (components/common/panel.module.css) alike, and its
+   specificity (0,1,1) is above either's own .pane rule. */
 .stack {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.stack > .pane {
+.stack > section {
   flex: none;
-  border-left-width: 1px;
-  border-radius: 6px;
+  border-radius: 0;
+}
+
+.stack > section + section {
+  border-top-width: 0;
+}
+
+.stack > section:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.stack > section:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
 /* Details grid: the shared panels' .kv (components/common/panel.module.css), at

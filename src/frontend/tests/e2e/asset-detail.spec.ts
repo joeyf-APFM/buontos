@@ -1,8 +1,8 @@
 /**
  * Task 11: asset detail (/assets/:assetId) on the page kit, measured in a real
  * browser (ruling R10: jsdom ignores the cascade). Full bleed (no layout
- * padding), the kit's breadcrumb and one-line header, panes stacked 12px
- * apart at their own heights, the explorer's details grid, the kit tabs, and
+ * padding), the kit's breadcrumb and one-line header, panes stacked with
+ * shared 1px borders at their own heights, the explorer's details grid, the kit tabs, and
  * the lineage view framed only by its pane.
  */
 import { expect, test, type Locator } from '@playwright/test';
@@ -74,34 +74,62 @@ test('header: one line with the 16px navy title, its badges and every action', a
   expect((await style(page.getByText('One row per customer order'), ['color'])).color).toBe(TEXT_SECONDARY);
 });
 
-test('panes: stacked 12px apart at their own heights, 1px borders, no shadow', async ({ page }) => {
-  const names = ['Details', 'Relationships', 'Owners', 'Metadata', 'Ratings & Reviews', 'Cost Management', 'Data Quality'];
-  const regions = names.map((name) => page.getByRole('region', { name, exact: true }));
-  await expect(regions[6]).toBeVisible();
-  const boxes = await Promise.all(regions.map(async (r) => (await r.boundingBox())!));
-  for (const r of regions) {
-    expect(await style(r, ['border-top-width', 'border-left-width', 'border-top-color', 'border-top-left-radius', 'box-shadow'])).toEqual({
-      'border-top-width': '1px', 'border-left-width': '1px', 'border-top-color': BORDER,
-      'border-top-left-radius': '6px', 'box-shadow': 'none',
-    });
+test('panes: stacked panes share 1px borders, square inner corners, no shadow', async ({ page }) => {
+  // Two stacks: the Overview tab's panes, then the panes under the tabs
+  const groups = [
+    ['Details', 'Relationships'],
+    ['Owners', 'Metadata', 'Ratings & Reviews', 'Cost Management', 'Data Quality'],
+  ];
+  const all = groups.flat().map((name) => page.getByRole('region', { name, exact: true }));
+  await expect(all[all.length - 1]).toBeVisible();
+  const props = [
+    'border-top-width', 'border-bottom-width', 'border-left-width', 'border-right-width', 'border-top-color',
+    'border-top-left-radius', 'border-top-right-radius', 'border-bottom-left-radius', 'border-bottom-right-radius', 'box-shadow',
+  ];
+  const boxes = await Promise.all(all.map(async (r) => (await r.boundingBox())!));
+  // Same left edge and width, inside the kit's 14px margin
+  const main = (await page.locator('main').boundingBox())!;
+  for (const b of boxes) {
+    expect(b.x).toBe(boxes[0].x);
+    expect(b.width).toBe(boxes[0].width);
   }
+  expect(boxes[0].x - main.x).toBe(14);
+
+  let at = 0;
+  for (const group of groups) {
+    const panes = all.slice(at, at + group.length);
+    const box = boxes.slice(at, at + group.length);
+    const s = await Promise.all(panes.map((p) => style(p, props)));
+    group.forEach((_, i) => {
+      const first = i === 0;
+      const last = i === group.length - 1;
+      expect(s[i]['box-shadow']).toBe('none');
+      expect(s[i]['border-top-color']).toBe(BORDER);
+      expect(s[i]['border-left-width']).toBe('1px');
+      expect(s[i]['border-right-width']).toBe('1px');
+      expect(s[i]['border-bottom-width']).toBe('1px');
+      // One 1px seam: a following pane has no top border of its own
+      expect(s[i]['border-top-width']).toBe(first ? '1px' : '0px');
+      // Only the stack's outer corners are rounded
+      const top = first ? '6px' : '0px';
+      const bottom = last ? '6px' : '0px';
+      expect([s[i]['border-top-left-radius'], s[i]['border-top-right-radius']]).toEqual([top, top]);
+      expect([s[i]['border-bottom-left-radius'], s[i]['border-bottom-right-radius']]).toEqual([bottom, bottom]);
+      // Touching: no gap between stacked panes
+      if (!first) expect(box[i].y).toBe(box[i - 1].y + box[i - 1].height);
+    });
+    at += group.length;
+  }
+  // The persistent panes sit 12px under the tab content
+  expect(boxes[2].y - (boxes[1].y + boxes[1].height)).toBe(12);
+
   // Each pane is as tall as its content: no inner scrolling, and not one share of the column
-  for (const r of regions) {
+  for (const r of all) {
     const body = r.locator(':scope > div').last();
     const { scrollHeight, clientHeight } = await body.evaluate((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }));
     expect(scrollHeight).toBeLessThanOrEqual(clientHeight + 1);
   }
   expect(new Set(boxes.map((b) => Math.round(b.height))).size).toBeGreaterThan(3);
-  // Same left edge and width, 12px apart (the tab list sits between Relationships and Owners)
-  for (const b of boxes) {
-    expect(b.x).toBe(boxes[0].x);
-    expect(b.width).toBe(boxes[0].width);
-  }
-  expect(boxes[1].y - (boxes[0].y + boxes[0].height)).toBe(12);
-  for (let i = 3; i < boxes.length; i++) expect(boxes[i].y - (boxes[i - 1].y + boxes[i - 1].height)).toBe(12);
-  // The page keeps the kit's 14px margin around the panes
-  const main = (await page.locator('main').boundingBox())!;
-  expect(boxes[0].x - main.x).toBe(14);
 });
 
 test('details: the explorer details grid', async ({ page }) => {
@@ -116,6 +144,17 @@ test('details: the explorer details grid', async ({ page }) => {
   const b = (await terms.nth(2).boundingBox())!;
   expect(Math.abs(b.y - a.y - 23)).toBeLessThanOrEqual(1);
   expect((await style(terms.first(), ['border-bottom-width']))['border-bottom-width']).toBe('0px');
+  // The location keeps to one line with an ellipsis, as before (truncate)
+  const location = details.getByText('main.sales.orders', { exact: true });
+  expect(await style(location, ['white-space', 'text-overflow', 'overflow-x'])).toEqual({
+    'white-space': 'nowrap', 'text-overflow': 'ellipsis', 'overflow-x': 'hidden',
+  });
+  const narrow = await location.evaluate((el) => {
+    el.textContent = 'main.sales.' + 'very_long_table_name_'.repeat(20);
+    return { scroll: el.scrollWidth, client: el.clientWidth, height: el.getBoundingClientRect().height };
+  });
+  expect(narrow.scroll).toBeGreaterThan(narrow.client);
+  expect(narrow.height).toBeLessThan(20);
   // The pane head is the kit's: 36px, 12.5px navy title
   const head = details.getByRole('heading', { name: 'Details' });
   expect(await style(head, ['font-size', 'color'])).toEqual({ 'font-size': '12.5px', color: NAVY });
