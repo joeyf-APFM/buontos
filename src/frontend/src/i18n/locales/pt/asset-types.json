@@ -1,6 +1,7 @@
 {
   "title": "Tipos de ativos",
   "subtitle": "Modelos reutilizáveis que definem como diferentes tipos de ativos são estruturados.",
+  "listPane": "Lista de tipos de ativos",
   "addNew": "Adicionar tipo de ativo",
   "editAssetType": "Editar tipo de ativo",
   "deleteAssetType": "Excluir tipo de ativo",

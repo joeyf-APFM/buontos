@@ -1,6 +1,7 @@
 {
   "title": "Types d'actifs",
   "subtitle": "Modèles réutilisables définissant la structure des différents types d'actifs.",
+  "listPane": "Liste des types d'actifs",
   "addNew": "Ajouter un type d'actif",
   "editAssetType": "Modifier le type d'actif",
   "deleteAssetType": "Supprimer le type d'actif",

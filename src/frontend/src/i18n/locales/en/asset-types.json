@@ -1,6 +1,7 @@
 {
   "title": "Asset Types",
   "subtitle": "Reusable templates that define how different kinds of assets are structured.",
+  "listPane": "Asset type list",
   "addNew": "Add Asset Type",
   "editAssetType": "Edit Asset Type",
   "deleteAssetType": "Delete Asset Type",

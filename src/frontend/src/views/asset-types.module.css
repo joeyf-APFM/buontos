@@ -1,0 +1,150 @@
+/*
+ * Settings → Asset Types (/settings/asset-types) on the page kit (Task 14):
+ * full bleed in the Settings layout, the kit's breadcrumb and header, then one
+ * flush pane holding the shared DataTable (components/ui/data-table.tsx),
+ * with its toolbar, bordered grid and pager, 14px in from the page's edges.
+ * What is left here is the page's own.
+ */
+
+/* Under the title, in text-secondary */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
+   pane scrolls a long list */
+.body {
+  padding: 4px 14px 14px;
+}
+
+/* Sortable headers: the grid's header label (11px, 600, text-secondary,
+   inherited from the cell) with a sort mark; `button.` outranks Mantine's
+   UnstyledButton reset (R10) */
+button.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 3px;
+}
+
+button.sort:hover {
+  color: var(--aura-text-body);
+}
+
+button.sort:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.sortIcon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.4;
+}
+
+.sortIcon[data-active] {
+  opacity: 1;
+}
+
+/* The name and its System badge; a long name wraps */
+.name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  max-width: 320px;
+  padding: 4px 0;
+}
+
+.nameText {
+  min-width: 0;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  flex: none;
+}
+
+/* Descriptions wrap, so a long one reads in full; table cells ignore
+   max-width, so the text's own box sets the measure. Rows without one keep
+   the 28px height */
+.description {
+  display: block;
+  min-width: 200px;
+  max-width: 420px;
+  padding: 4px 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--aura-text-secondary);
+}
+
+.count {
+  color: var(--aura-text-secondary);
+}
+
+/* The row's menu button: 24px, so the row stays 28px */
+button.menuButton {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-text-secondary);
+}
+
+.menuButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The menu's "Actions" label, in text-secondary (R11: muted is 3.3:1) */
+.menuLabel {
+  color: var(--aura-text-secondary);
+}
+
+/* The menu's Delete, in the critical colour (dimmed when disabled, as
+   before); `button.` outranks Mantine's item colour */
+button.danger {
+  color: var(--aura-critical);
+}
+
+button.danger:not([data-disabled]):hover,
+button.danger:not([data-disabled])[data-hovered] {
+  background: var(--aura-critical-bg);
+}
+
+.alertTitle {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The delete confirmation: the form dialog's look */
+.dialog {
+  composes: content from '../components/schema-importer/import-preview-dialog.module.css';
+}
+
+.dialogHeader {
+  composes: header from '../components/schema-importer/import-preview-dialog.module.css';
+}
+
+.dialogTitle {
+  composes: title from '../components/schema-importer/import-preview-dialog.module.css';
+}
+
+.dialogDescription {
+  composes: description from '../components/schema-importer/import-preview-dialog.module.css';
+}
+
+.dialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+}

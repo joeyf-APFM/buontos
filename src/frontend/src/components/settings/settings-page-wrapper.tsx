@@ -7,6 +7,8 @@ import usePermissionsStore, { usePermissions } from '@/stores/permissions-store'
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { SettingsFormSkeleton } from '@/components/common/list-view-skeleton';
+import { Breadcrumb } from '@/mantine/page';
+import kit from '@/mantine/page/page.module.css';
 import classes from './settings-page-wrapper.module.css';
 
 interface SettingsPageWrapperProps {
@@ -18,6 +20,13 @@ interface SettingsPageWrapperProps {
    * sub-page permission.
    */
   permissionId: string;
+  /**
+   * The page is in FULL_BLEED_ROUTES (mantine/shell/full-bleed.ts), so the
+   * layout draws no padding or breadcrumb: the loading and access-denied
+   * states then get the page kit's breadcrumb and a margin of their own.
+   * Off by default; the page itself draws both once it renders.
+   */
+  fullBleed?: boolean;
   children: React.ReactNode;
 }
 
@@ -25,7 +34,7 @@ interface SettingsPageWrapperProps {
  * Shared wrapper for standalone settings pages.
  * Handles permission check, loading state, and breadcrumb setup.
  */
-export default function SettingsPageWrapper({ title, permissionId, children }: SettingsPageWrapperProps) {
+export default function SettingsPageWrapper({ title, permissionId, fullBleed = false, children }: SettingsPageWrapperProps) {
   const { t } = useTranslation(['settings', 'common']);
   const { isLoading: permissionsLoading, hasPermission } = usePermissions();
   // Distinguish "store not yet initialized" from "user lacks access" — without
@@ -49,15 +58,28 @@ export default function SettingsPageWrapper({ title, permissionId, children }: S
     };
   }, [title, setStaticSegments, setDynamicTitle]);
 
+  // On a full-bleed page, a state the wrapper draws instead of the page
+  const frame = (state: React.ReactNode) =>
+    fullBleed ? (
+      <div className={classes.state} data-settings-state="">
+        <div className={kit.crumb}>
+          <Breadcrumb items={[{ label: title }]} />
+        </div>
+        <div className={classes.stateBody}>{state}</div>
+      </div>
+    ) : (
+      state
+    );
+
   if (permissionsLoading || isInitializing || !initAttempted) {
     // Render a generic settings form skeleton while permissions resolve.
     // Individual settings pages render their own content-shaped skeletons
     // afterwards if they have additional async loads.
-    return <SettingsFormSkeleton sections={2} fieldsPerSection={3} />;
+    return frame(<SettingsFormSkeleton sections={2} fieldsPerSection={3} />);
   }
 
   if (!hasSettingsAccess) {
-    return (
+    return frame(
       <div className={classes.denied}>
         <Alert variant="destructive" className={classes.alert}>
           <ShieldX size={16} />
@@ -77,7 +99,7 @@ export default function SettingsPageWrapper({ title, permissionId, children }: S
             </p>
           </AlertDescription>
         </Alert>
-      </div>
+      </div>,
     );
   }
 

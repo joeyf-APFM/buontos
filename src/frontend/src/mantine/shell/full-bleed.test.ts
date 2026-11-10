@@ -3,7 +3,7 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types']);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);
@@ -31,6 +31,18 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/schema-imports')).toBe(false);
     expect(isFullBleed('/concepts/import')).toBe(false);
     expect(isFullBleed('/concepts')).toBe(false);
+  });
+
+  it('matches Settings → Asset Types, but no other Settings page', () => {
+    // Task 14; the rest of Settings is wave 4
+    expect(isFullBleed('/settings/asset-types')).toBe(true);
+    expect(isFullBleed('/settings/asset-types/')).toBe(true);
+    expect(isFullBleed('/settings/asset-types/x')).toBe(false);
+    expect(isFullBleed('/settings')).toBe(false);
+    expect(isFullBleed('/settings/teams')).toBe(false);
+    expect(isFullBleed('/settings/tags')).toBe(false);
+    // The old route only redirects
+    expect(isFullBleed('/asset-types')).toBe(false);
   });
 
   it('takes route patterns, such as a detail route', () => {

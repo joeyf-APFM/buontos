@@ -15,6 +15,10 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   // Its own route only: at /concepts/import the importer sits inside the
   // Concepts layout, which keeps the shell's padding and breadcrumb
   '/schema-importer',
+  // One Settings page: the Settings layout draws no padding or menu of its
+  // own, so the page can own the area; the other Settings pages keep the
+  // layout's padding and breadcrumb until their wave
+  '/settings/asset-types',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

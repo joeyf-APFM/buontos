@@ -1,6 +1,7 @@
 {
   "title": "Tipi di Asset",
   "subtitle": "Modelli riutilizzabili che definiscono come sono strutturati i diversi tipi di asset.",
+  "listPane": "Elenco dei tipi di asset",
   "addNew": "Aggiungi Tipo di Asset",
   "editAssetType": "Modifica Tipo di Asset",
   "deleteAssetType": "Elimina Tipo di Asset",

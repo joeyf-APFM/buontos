@@ -29,3 +29,15 @@
   text-decoration: underline;
   color: inherit;
 }
+
+/* A full-bleed page's loading or access-denied state (the fullBleed prop):
+   the white page surface under the kit's breadcrumb, with the kit's 14px
+   margin, since the layout draws neither */
+.state {
+  min-height: calc(100vh - var(--shell-top-height, 44px));
+  background: var(--aura-surface);
+}
+
+.stateBody {
+  padding: 14px;
+}

@@ -1,6 +1,7 @@
 {
   "title": "Asset-Typen",
   "subtitle": "Wiederverwendbare Vorlagen, die festlegen, wie verschiedene Arten von Assets strukturiert sind.",
+  "listPane": "Liste der Asset-Typen",
   "addNew": "Asset-Typ hinzufügen",
   "editAssetType": "Asset-Typ bearbeiten",
   "deleteAssetType": "Asset-Typ löschen",
