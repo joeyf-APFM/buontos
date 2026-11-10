@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
-import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
 import classes from './asset-detail.module.css';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -229,7 +229,6 @@ export default function AssetDetailView() {
   if (error || !asset) {
     return (
       <div className={classes.state}>
-        <Breadcrumb />
         <div className={classes.stateBack}>{backButton}</div>
         <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:states.error')}>
           {error || t('assets:detail.notFound')}
@@ -271,7 +270,6 @@ export default function AssetDetailView() {
   return (
     <>
       <PageLayout
-        breadcrumb={<Breadcrumb items={[{ label: t('assets:explorer.title'), to: '/assets' }, { label: asset.name }]} />}
         header={
           <>
             <PageHeader

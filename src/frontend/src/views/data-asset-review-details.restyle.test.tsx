@@ -90,13 +90,11 @@ describe('a data asset review on the page kit', () => {
     const { container } = renderPage();
     await loaded();
 
-    // The layout's padding and breadcrumb give way to the page's
+    // The layout's padding gives way to the page's
     expect(isFullBleed('/data-asset-reviews/r-1234567890')).toBe(true);
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(crumb).toHaveTextContent('/Data Asset Reviews/Review sales tables');
-    expect(within(crumb).getByRole('link', { name: 'Data Asset Reviews' })).toHaveAttribute('href', '/data-asset-reviews');
-    // The breadcrumb store still gets the trail, as before
+    // No breadcrumb of its own: the shell draws the one breadcrumb (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
+    // The page names itself to the shell's breadcrumb through the store, as before
     expect(useBreadcrumbStore.getState().staticSegments).toEqual([{ label: 'Data Asset Reviews', path: '/data-asset-reviews' }]);
     expect(useBreadcrumbStore.getState().dynamicTitle).toBe('Review sales tables');
 
@@ -146,8 +144,8 @@ describe('a data asset review on the page kit', () => {
     expect(screen.getByPlaceholderText('Filter items...').tagName).toBe('INPUT');
     expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
     expect(screen.getAllByRole('checkbox', { name: 'Select row' })).toHaveLength(3);
-    // Home (unnamed, R16), the list, and the data product's page
-    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/', '/data-asset-reviews', '/data-products/p-1']);
+    // The data product's page (Home and the list are the shell breadcrumb's now)
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/data-products/p-1']);
     expect(screen.getByRole('link', { name: 'product:p-1' })).toBeInTheDocument();
 
     // The cells: type and status badges, plain FQNs for tables
@@ -268,14 +266,15 @@ describe('a data asset review on the page kit', () => {
     expect(diff).toHaveTextContent('Used by: 4 places');
   });
 
-  it('data asset review details shows a load error with the breadcrumb', async () => {
+  it('data asset review details shows a load error, naming itself to the breadcrumb', async () => {
     mockBackend({ detail: 'No such review' }, 404);
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     renderPage();
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveClass('mantine-Alert-root');
     expect(alert).toHaveTextContent('Review Request Details fetch failed: No such review');
-    expect(screen.getByRole('navigation', { name: 'breadcrumb' })).toHaveTextContent('/Data Asset Reviews');
+    expect(useBreadcrumbStore.getState().staticSegments).toEqual([{ label: 'Data Asset Reviews', path: '/data-asset-reviews' }]);
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
     expect(toast).toHaveBeenCalledWith({
       title: 'Error',
       description: 'Failed to load request: Review Request Details fetch failed: No such review',

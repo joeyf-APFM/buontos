@@ -25,9 +25,9 @@
   "button \"Suggested\"",
   "combobox \"\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Build\"",
   "link \"Concepts\"",
-  "link \"Enrich\"",
+  "link \"Home\"",
   "link \"Manage connections ↗\"",
   "textbox \"Filter schemes...\""
 ]

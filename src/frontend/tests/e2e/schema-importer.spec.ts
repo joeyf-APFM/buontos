@@ -159,7 +159,7 @@ test.describe('its own route', () => {
     await expect(page.locator('main').getByText('finance', { exact: true })).toBeVisible();
   });
 
-  test('full bleed: one kit breadcrumb, the 16px navy title, and two panes sharing a border', async ({ page }) => {
+  test('full bleed: one breadcrumb (the shell\'s), the 16px navy title, and two panes sharing a border', async ({ page }) => {
     const main = page.locator('main');
     expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
     await expect(main.getByRole('navigation', { name: 'breadcrumb' })).toHaveCount(1);
@@ -350,20 +350,22 @@ test.describe('linking to an existing asset', () => {
 });
 
 test.describe('inside the Concepts layout', () => {
-  test('keeps the layout padding and breadcrumb, with framed panes under its tabs', async ({ page }) => {
+  test('keeps the layout padding, under the shell breadcrumb, with framed panes', async ({ page }) => {
     await setUp(page);
     await page.goto('/concepts/import');
     const main = page.locator('main');
     await expect(main.getByText('finance', { exact: true })).toBeVisible();
-    // The layout keeps its padding and its breadcrumb; the importer adds none
-    expect((await style(main, ['padding-left']))['padding-left']).not.toBe('0px');
-    await expect(main.getByRole('navigation', { name: 'breadcrumb' })).toHaveCount(1);
-    await expect(main.getByRole('tab', { name: 'Define' })).toBeVisible();
+    // The layout keeps its padding; the one breadcrumb is the shell's.
+    // (The Concepts layout's section tabs went in Task 16c.)
+    const content = main.locator('> :nth-child(2)');
+    const padding = parseFloat((await style(content, ['padding-left']))['padding-left']);
+    expect(padding).toBeGreaterThan(0);
+    await expect(main.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1);
     const title = main.getByRole('heading', { level: 1, name: 'Schema Importer' });
     expect((await style(title, ['font-size', 'color']))).toEqual({ 'font-size': '16px', color: NAVY });
-    // The title lines up with the section tabs: no padding of its own at the sides
-    const tabs = await box(main.getByRole('tablist').first());
-    expect(Math.abs((await box(title)).x - tabs.x)).toBeLessThanOrEqual(1);
+    // The title lines up with the layout's padding: no padding of its own at the sides
+    const left = (await box(content)).x + padding;
+    expect(Math.abs((await box(title)).x - left)).toBeLessThanOrEqual(1);
 
     const options = main.getByRole('region', { name: 'Import options' });
     const resources = main.getByRole('region', { name: 'Workspace catalog — Resources' });
@@ -377,6 +379,6 @@ test.describe('inside the Concepts layout', () => {
     expect((await style(resources, ['border-left-width']))['border-left-width']).toBe('0px');
     const o = await box(options);
     expect(Math.abs((await box(resources)).x - (o.x + o.width))).toBeLessThanOrEqual(1);
-    expect(Math.abs(o.x - tabs.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(o.x - left)).toBeLessThanOrEqual(1);
   });
 });

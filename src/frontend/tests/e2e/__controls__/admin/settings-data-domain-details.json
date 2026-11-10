@@ -29,10 +29,10 @@
   "checkbox \"Select row\"",
   "checkbox \"Select row\"",
   "combobox \"\"",
-  "link \"\"",
-  "link \"Data Domains\"",
   "link \"Data Platform\"",
   "link \"Finance\"",
+  "link \"Home\"",
+  "link \"Organization\"",
   "link \"Sales Analytics\"",
   "textbox \"Filter names...\""
 ]

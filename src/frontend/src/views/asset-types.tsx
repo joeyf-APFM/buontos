@@ -15,7 +15,7 @@ import { FeatureAccessLevel } from '@/types/settings';
 import SettingsPageWrapper from '@/components/settings/settings-page-wrapper';
 import { useTranslation } from 'react-i18next';
 import { AssetTypeFormDialog } from '@/components/asset-types/asset-type-form-dialog';
-import { Breadcrumb, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
 import { alertDialogRole } from '@/mantine/alert-dialog-role';
 import classes from './asset-types.module.css';
 
@@ -351,7 +351,6 @@ export default function AssetTypesView() {
     <SettingsPageWrapper title={title} permissionId="settings-asset-types" fullBleed>
       <PageLayout
         fullBleed
-        breadcrumb={<Breadcrumb items={[{ label: title }]} />}
         header={
           <>
             <PageHeader title={title} titleId={titleId} />

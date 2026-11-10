@@ -1,7 +1,7 @@
 /*
  * The page kit: the Asset Explorer's page anatomy (mantine/asset-explorer),
- * measured from what the explorer renders. Breadcrumb, a one-line header, a
- * filter bar, panes with shared 1px borders and an aside.
+ * measured from what the explorer renders. A one-line header, a filter bar,
+ * panes with shared 1px borders and an aside (the shell draws the breadcrumb).
  */
 
 /* Layout: the main column, and an aside on its right */
@@ -16,8 +16,8 @@
 
 /* Full bleed: fills the main area under the top bar; panes scroll inside */
 .page[data-full-bleed] {
-  min-height: calc(100vh - var(--shell-top-height, 44px));
-  height: calc(100vh - var(--shell-top-height, 44px));
+  min-height: calc(100vh - var(--shell-top-height, 44px) - var(--shell-crumb-height, 0px));
+  height: calc(100vh - var(--shell-top-height, 44px) - var(--shell-crumb-height, 0px));
 }
 
 .main {
@@ -37,7 +37,7 @@
 /* Away from full bleed, the white surface still fills the window under a
    short page, so the canvas doesn't show below it */
 .page:not([data-full-bleed]) {
-  min-height: calc(100vh - var(--shell-top-height, 44px));
+  min-height: calc(100vh - var(--shell-top-height, 44px) - var(--shell-crumb-height, 0px));
 }
 
 /* Away from full bleed, the panes sit in a margin of their own */
@@ -60,41 +60,78 @@
   min-height: 0;
 }
 
-/* Breadcrumb */
-.crumb {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 10px 14px 0;
-  font-size: 11.5px;
+/* Breadcrumb (the shell's, on every page): one line of 12px crumbs behind
+   ">" separators, links in the accent, the current page in the secondary
+   text colour; long labels end in an ellipsis */
+.crumbTrail {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--aura-text-muted);
 }
 
-.crumb a,
-.crumb button {
-  color: var(--aura-accent);
+.crumbList {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.crumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+/* Home and the separators keep their size; the labels give way */
+.crumbItem:first-child,
+.crumbSeparator {
+  flex: none;
+}
+
+.crumbLink,
+.crumbText,
+.crumbCurrent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: inherit;
 }
 
-.crumb a:hover,
-.crumb button:hover {
+.crumbLink {
+  color: var(--aura-accent);
+  text-decoration: none;
+}
+
+.crumbLink:hover {
   text-decoration: underline;
 }
 
-/* Breadcrumb: the Home icon link, then items behind "/" separators */
-.crumbTrail {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
+.crumbLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.crumbHome {
-  display: inline-flex;
-  align-items: center;
+.crumbCurrent {
+  display: inline-block;
+  color: var(--aura-text-secondary);
 }
 
-.crumbHome svg {
+.crumbHomeIcon {
+  flex: none;
   width: 13px;
   height: 13px;
 }
@@ -107,7 +144,7 @@
   padding: 4px 14px 8px;
 }
 
-/* Without a breadcrumb above it, the header takes the breadcrumb's top space */
+/* At the top of the page, the header keeps a 10px top margin */
 .header:first-child {
   padding-top: 10px;
 }

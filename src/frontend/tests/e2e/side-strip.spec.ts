@@ -25,8 +25,15 @@ for (const persona of Object.values(PERSONAS)) {
       els.map((el) => ({ label: el.textContent, weight: getComputedStyle(el).fontWeight, width: el.getBoundingClientRect().width })),
     );
     expect(styles.map((s) => s.label)).toEqual(expect.arrayContaining(['Discover', 'Build']));
-    // The bottom button: Settings, or Govern without the Settings gate
-    expect(styles.some((s) => s.label === 'Settings' || s.label === 'Govern'), 'bottom button').toBe(true);
+    if (persona.id === 'admin') {
+      // Every group, Settings at the bottom
+      expect(styles.map((s) => s.label)).toEqual(
+        expect.arrayContaining(['Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Settings']),
+      );
+    } else {
+      // The bottom button: Settings, or Govern without the Settings gate
+      expect(styles.some((s) => s.label === 'Settings' || s.label === 'Govern'), 'bottom button').toBe(true);
+    }
     for (const { label, weight, width } of styles) {
       expect(weight, `${label} weight`).toBe('700');
       // The strip less the same 2px each side as before

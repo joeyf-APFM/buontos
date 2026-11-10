@@ -91,15 +91,14 @@ describe('asset types on the page kit', () => {
     const { container } = renderPage();
     await loaded();
 
-    // Full bleed in the Settings layout: the page draws the breadcrumb
+    // Full bleed in the Settings layout, under the shell's breadcrumb
     expect(isFullBleed('/settings/asset-types')).toBe(true);
     // Its neighbours in the Settings area keep the layout's padding (wave 4)
     expect(isFullBleed('/settings/teams')).toBe(false);
     expect(isFullBleed('/settings')).toBe(false);
     expect(container.querySelector(`.${kit.page}`)).toHaveAttribute('data-full-bleed');
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(crumb).toHaveTextContent('/Asset Types');
+    // No breadcrumb of its own: the shell draws the one breadcrumb (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Asset Types' });
     expect(heading.parentElement).toHaveClass(kit.header);
@@ -145,8 +144,8 @@ describe('asset types on the page kit', () => {
       'Go to first page', 'Go to previous page', 'Go to next page', 'Go to last page',
     ]);
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
-    // The unnamed Home link (R16), the only link
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    // No links: Home, named, is the shell breadcrumb's now
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
 
     // Cells: the system badge, the category and status, the count
     expect(within(rowOf('Table')).getByText('System')).toBeInTheDocument();
@@ -305,7 +304,7 @@ describe('asset types on the page kit', () => {
 describe('the Settings wrapper around a full-bleed page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('frames its access-denied notice with the breadcrumb and the layout padding', async () => {
+  it('frames its access-denied notice with the layout padding, leaving the breadcrumb to the shell', async () => {
     mockBackend();
     usePermissionsStore.setState({
       permissions: { settings: FeatureAccessLevel.READ_ONLY, assets: FeatureAccessLevel.ADMIN },
@@ -315,7 +314,7 @@ describe('the Settings wrapper around a full-bleed page', () => {
     const denied = await screen.findByText('Access Denied');
     const frame = container.querySelector('[data-settings-state]') as HTMLElement;
     expect(frame).toContainElement(denied);
-    expect(within(frame).getByRole('navigation', { name: 'breadcrumb' })).toHaveTextContent('/Asset Types');
+    expect(within(frame).queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
   });
 
@@ -331,7 +330,7 @@ describe('the Settings wrapper around a full-bleed page', () => {
     );
     expect(await screen.findByText('Access Denied')).toBeInTheDocument();
     expect(container.querySelector('[data-settings-state]')).toBeNull();
-    expect(screen.queryByRole('navigation', { name: 'breadcrumb' })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
     expect(screen.queryByText('page')).toBeNull();
   });
 });

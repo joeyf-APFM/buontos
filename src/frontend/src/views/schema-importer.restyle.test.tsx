@@ -139,11 +139,10 @@ describe('schema importer on the page kit', () => {
     const { container } = renderPage();
     await treeLoaded();
 
-    // Its own route is full bleed: it draws the breadcrumb and the padding
+    // Its own route is full bleed: it draws the padding, under the shell's breadcrumb
     expect(isFullBleed('/schema-importer')).toBe(true);
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(within(crumb).getByText('Schema Importer')).toBeInTheDocument();
+    // No breadcrumb of its own: the shell draws the one breadcrumb (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
     expect(container.querySelector(`.${kit.page}`)).toHaveAttribute('data-full-bleed');
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Schema Importer' });
@@ -166,9 +165,9 @@ describe('schema importer on the page kit', () => {
   it('schema importer renders inside the Concepts layout without a breadcrumb of its own', async () => {
     const { container } = renderPage('/concepts/import');
     await treeLoaded();
-    // The Concepts layout keeps the shell's padding and breadcrumb
+    // The Concepts layout keeps the shell's padding
     expect(isFullBleed('/concepts/import')).toBe(false);
-    expect(screen.queryByRole('navigation', { name: 'breadcrumb' })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
     expect(container.querySelector(`.${kit.page}`)).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Schema Importer' }).parentElement).toHaveClass(kit.header);
     // The same panes, side by side in the kit's content row

@@ -1,7 +1,7 @@
 /**
  * Task 11: asset detail (/assets/:assetId) on the page kit, measured in a real
  * browser (ruling R10: jsdom ignores the cascade). Full bleed (no layout
- * padding), the kit's breadcrumb and one-line header, panes stacked with
+ * padding) under the shell's breadcrumb, the kit's one-line header, panes stacked with
  * shared 1px borders at their own heights, the explorer's details grid, the kit tabs, and
  * the lineage view framed only by its pane.
  */
@@ -38,14 +38,15 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'orders' })).toBeVisible();
 });
 
-test('full bleed: no layout padding, the page draws its own breadcrumb', async ({ page }) => {
+test('full bleed: no layout padding, under the shell breadcrumb', async ({ page }) => {
   const main = page.locator('main');
   expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
-  // One breadcrumb: the page's, not the layout's as well
-  const crumbs = main.getByRole('navigation', { name: 'breadcrumb' });
+  // One breadcrumb, the shell's (Task 16d): Home > Build > Assets > orders
+  const crumbs = main.getByRole('navigation', { name: 'Breadcrumb' });
   await expect(crumbs).toHaveCount(1);
-  const explorer = crumbs.getByRole('link', { name: 'Asset Explorer' });
-  expect(await style(explorer, ['color', 'font-size'])).toEqual({ color: ACCENT, 'font-size': '11.5px' });
+  await expect(crumbs.getByRole('listitem')).toHaveText(['Home', '>Build', '>Assets', '>orders']);
+  const assets = crumbs.getByRole('link', { name: 'Assets' });
+  expect(await style(assets, ['color', 'font-size'])).toEqual({ color: ACCENT, 'font-size': '12px' });
 });
 
 test('header: one line with the 16px navy title, its badges and every action', async ({ page }) => {
@@ -54,8 +55,8 @@ test('header: one line with the 16px navy title, its badges and every action', a
     'font-size': '16px', 'font-weight': '700', color: NAVY, 'white-space': 'nowrap',
   });
   const header = title.locator('..');
-  // Under a breadcrumb the header keeps its 4px top padding (10px only as the first child)
-  expect(await style(header, ['padding-top'])).toEqual({ 'padding-top': '4px' });
+  // The page's first child, under the shell's breadcrumb: a 10px top padding
+  expect(await style(header, ['padding-top'])).toEqual({ 'padding-top': '10px' });
   const t = (await title.boundingBox())!;
   for (const name of ['Back', 'Comments', 'View in Hierarchy', 'Manage Lineage', 'Edit', 'Delete']) {
     const b = (await header.getByRole('button', { name }).boundingBox())!;

@@ -1,6 +1,6 @@
 [
   "button \"Load\"",
-  "link \"\"",
+  "link \"Home\"",
   "textbox \"e.g. DataProduct\"",
   "textbox \"e.g. uuid\""
 ]

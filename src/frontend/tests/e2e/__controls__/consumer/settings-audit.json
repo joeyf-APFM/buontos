@@ -3,7 +3,7 @@
   "button \"Clear Filters\"",
   "button \"Export CSV\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Home\"",
   "textbox \"Filter by action\"",
   "textbox \"Filter by feature\"",
   "textbox \"Filter by username\""

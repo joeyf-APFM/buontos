@@ -63,10 +63,12 @@ test.describe('the list', () => {
   test('full bleed: no layout padding, one breadcrumb, and the page fills the main area', async ({ page }) => {
     const main = page.locator('main');
     expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
-    const crumbs = main.getByRole('navigation', { name: 'breadcrumb' });
+    // One breadcrumb, the shell's (Task 16d)
+    const crumbs = main.getByRole('navigation', { name: 'Breadcrumb' });
     await expect(crumbs).toHaveCount(1);
-    expect(await style(crumbs.getByRole('link', { name: 'Data Catalog' }), ['color', 'font-size'])).toEqual({
-      color: ACCENT, 'font-size': '11.5px',
+    await expect(crumbs.getByRole('listitem')).toHaveText(['Home', '>Discover', '>Data Catalog']);
+    expect(await style(crumbs.getByRole('link', { name: 'Discover' }), ['color', 'font-size'])).toEqual({
+      color: ACCENT, 'font-size': '12px',
     });
     // The pager sits at the bottom of the window, under the grid
     const pager = main.getByText('Page 1 of 1');
@@ -255,7 +257,8 @@ test.describe('a table', () => {
 
   test('the white page surface fills the window under a short page', async ({ page }) => {
     const main = await box(page.locator('main'));
-    const surface = page.locator('main > *').first();
+    // The page, under the shell's breadcrumb
+    const surface = page.locator('main > *').last();
     expect((await style(surface, ['background-color']))['background-color']).toBe('rgb(255, 255, 255)');
     const s = await box(surface);
     expect(Math.round(s.y + s.height)).toBeGreaterThanOrEqual(Math.round(main.y + main.height) - 1);

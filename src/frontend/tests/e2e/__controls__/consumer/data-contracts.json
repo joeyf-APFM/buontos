@@ -12,7 +12,9 @@
   "button \"Version\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Build\"",
+  "link \"Data Contracts\"",
+  "link \"Home\"",
   "switch \"Show all versions\"",
   "textbox \"Filter names...\""
 ]

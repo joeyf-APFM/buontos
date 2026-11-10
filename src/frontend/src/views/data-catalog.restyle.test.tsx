@@ -113,7 +113,7 @@ describe('data catalog on the page kit', () => {
     const { container } = renderPage();
     const grid = await findGrid();
 
-    // A full-bleed route: the page draws its own breadcrumb and padding
+    // A full-bleed route: the page draws its own padding, under the shell's breadcrumb
     expect(isFullBleed('/data-catalog')).toBe(true);
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Data Catalog' });
@@ -122,11 +122,8 @@ describe('data catalog on the page kit', () => {
     expect(await within(header).findByText('(2 Tables)')).toBeInTheDocument();
     expect(within(header).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
 
-    // The layout breadcrumb's trail: Home icon, Home, Data Catalog
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(within(crumb).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-    expect(within(crumb).getByRole('link', { name: 'Data Catalog' })).toHaveAttribute('href', '/data-catalog');
+    // No breadcrumb of its own: the shell draws the one breadcrumb (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
 
     // The filters sit in the kit's filter bar
     expect(screen.getByPlaceholderText('Search columns...').closest(`.${kit.bar}`)).not.toBeNull();

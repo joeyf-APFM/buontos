@@ -1,7 +1,7 @@
 /**
  * Task 15: Data Asset Reviews (/data-asset-reviews and
  * /data-asset-reviews/:requestId) on the page kit, measured in a real browser
- * (ruling R10: jsdom ignores the cascade). The list is full bleed: the kit's
+ * (ruling R10: jsdom ignores the cascade). The list is full bleed: the shell's
  * breadcrumb and header, then one pane holding the shared DataTable. The
  * detail page stacks the request's panes. The create dialog and the asset
  * review editor are Mantine Modals; the editor keeps its syntax highlighter
@@ -166,18 +166,20 @@ test.describe('captures', () => {
 });
 
 test.describe('the list', () => {
-  test('is full bleed, with the kit breadcrumb, header and one pane', async ({ page }) => {
+  test('is full bleed, under the shell breadcrumb, with the kit header and one pane', async ({ page }) => {
     await setUpList(page);
     const main = page.locator('main');
     expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
     const kitPage = main.locator('[data-full-bleed]');
     await expect(kitPage).toHaveCount(1);
+    // It fills the main area under the shell's breadcrumb: no page scroll
     const mainBox = await box(main);
-    expect(Math.round((await box(kitPage)).height)).toBe(Math.round(mainBox.height));
+    const crumbBar = await box(main.getByRole('navigation', { name: 'Breadcrumb' }).locator('..'));
+    expect(Math.round(crumbBar.height + (await box(kitPage)).height)).toBe(Math.round(mainBox.height));
     expect(await main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBe(0);
 
-    const crumb = page.getByRole('navigation', { name: 'breadcrumb' });
-    await expect(crumb).toHaveText(/Data Asset Reviews/);
+    const crumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+    await expect(crumb.getByRole('listitem')).toHaveText(['Home', '>Settings', '>Asset Reviews']);
     await expect(crumb.getByRole('link')).toHaveCount(1);
 
     const title = page.getByRole('heading', { level: 1, name: 'Data Asset Reviews' });
@@ -403,13 +405,13 @@ test.describe('the create dialog', () => {
 });
 
 test.describe('the detail page', () => {
-  test('the kit breadcrumb and header, and the request panes stacked', async ({ page }) => {
+  test('the shell breadcrumb, the kit header, and the request panes stacked', async ({ page }) => {
     await setUpDetail(page);
     const main = page.locator('main');
     expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
-    const crumb = page.getByRole('navigation', { name: 'breadcrumb' });
-    await expect(crumb).toHaveText(/Data Asset Reviews\s*\/\s*Review sales tables/);
-    await expect(crumb.getByRole('link', { name: 'Data Asset Reviews' })).toHaveAttribute('href', '/data-asset-reviews');
+    const crumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+    await expect(crumb.getByRole('listitem')).toHaveText(['Home', '>Settings', '>Asset Reviews', '>Review sales tables']);
+    await expect(crumb.getByRole('link', { name: 'Asset Reviews' })).toHaveAttribute('href', '/data-asset-reviews');
 
     const title = page.getByRole('heading', { level: 1, name: 'Review sales tables' });
     expect(await style(title, ['font-size', 'color'])).toEqual({ 'font-size': '16px', color: NAVY });

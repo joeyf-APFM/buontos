@@ -2,5 +2,6 @@
   "button \"Create Token\"",
   "button \"Refresh\"",
   "checkbox \"Show revoked tokens\"",
-  "link \"\""
+  "link \"Connectors\"",
+  "link \"Home\""
 ]

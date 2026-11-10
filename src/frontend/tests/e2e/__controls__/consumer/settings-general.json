@@ -1,5 +1,5 @@
 [
-  "link \"\"",
+  "link \"Home\"",
   "spinbutton \"Max objects fetched per level\"",
   "switch \"Allow users to request background job enablement\"",
   "switch \"Enable AI Features\"",

@@ -1,8 +1,8 @@
 [
   "button \"\"",
   "button \"Back to List\"",
-  "link \"\"",
   "link \"Data Catalog\"",
+  "link \"Discover\"",
   "link \"Home\"",
   "tab \"Data Details\"",
   "tab \"Lineage\"",

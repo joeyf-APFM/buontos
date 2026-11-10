@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import classes from './page.module.css';
 
 export interface PageLayoutProps {
-  /** Above the header, in the explorer's breadcrumb style (links in the accent). */
-  breadcrumb?: ReactNode;
   /** A PageHeader. */
   header: ReactNode;
   /** A FilterBar, under the header. */
@@ -26,16 +24,15 @@ export interface PageLayoutProps {
 }
 
 /**
- * A page laid out like the Asset Explorer: breadcrumb, a one-line header, the
- * filter bar, then panes, with an optional aside. Its route goes in
- * FULL_BLEED_ROUTES (mantine/shell/full-bleed.ts), so the layout's padding and
- * breadcrumbs give way to these.
+ * A page laid out like the Asset Explorer: a one-line header, the filter bar,
+ * then panes, with an optional aside, under the shell's breadcrumb. Its route
+ * goes in FULL_BLEED_ROUTES (mantine/shell/full-bleed.ts), so the layout's
+ * padding gives way to these.
  */
-export function PageLayout({ breadcrumb, header, filters, aside, fullBleed = false, stackBelow, children }: PageLayoutProps) {
+export function PageLayout({ header, filters, aside, fullBleed = false, stackBelow, children }: PageLayoutProps) {
   return (
     <div className={classes.page} data-full-bleed={fullBleed || undefined}>
       <div className={classes.main}>
-        {breadcrumb && <div className={classes.crumb}>{breadcrumb}</div>}
         {header}
         {filters}
         <div className={classes.content} data-stack-below={stackBelow}>

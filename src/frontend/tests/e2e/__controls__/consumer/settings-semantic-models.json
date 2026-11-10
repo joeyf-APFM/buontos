@@ -11,6 +11,7 @@
   "button \"Upload\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Home\"",
+  "link \"Semantics\"",
   "textbox \"Filter names...\""
 ]

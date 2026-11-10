@@ -12,6 +12,7 @@ import usePermissionsStore from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { isFullBleed } from '@/mantine/shell/full-bleed';
 import kit from '@/mantine/page/page.module.css';
+import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import panel from '@/components/common/panel.module.css';
 import AssetDetailView from './asset-detail';
 
@@ -115,7 +116,7 @@ describe('asset detail on the page kit', () => {
     const { container } = renderPage();
     const heading = await findHeading();
 
-    // A full-bleed route: the page draws its own breadcrumb and padding
+    // A full-bleed route: the page draws its own padding, under the shell's breadcrumb
     expect(isFullBleed('/assets/a1')).toBe(true);
     expect(isFullBleed('/assets')).toBe(true);
 
@@ -126,10 +127,9 @@ describe('asset detail on the page kit', () => {
     expect(within(header).getByText('Table')).toBeInTheDocument();
     expect(within(header).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
 
-    // The breadcrumb, in the kit's slot, above the header
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(within(crumb).getByRole('link', { name: 'Asset Explorer' })).toHaveAttribute('href', '/assets');
+    // No breadcrumb of its own: the page names itself to the shell's (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
+    expect(useBreadcrumbStore.getState().dynamicTitle).toBe(heading.textContent);
 
     // The page's parts are panes: kit panes, or the shared panels' panes (Task 8)
     const details = screen.getByRole('region', { name: 'Details' });

@@ -10,7 +10,7 @@
   "button \"Refresh (hold Shift for force refresh)\"",
   "button \"Rename\"",
   "button \"View Data\"",
-  "link \"\"",
+  "link \"Home\"",
   "textbox \"Filter catalogs...\"",
   "textbox \"Select an item first...\""
 ]

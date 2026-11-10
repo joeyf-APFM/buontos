@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApi } from '@/hooks/use-api';
 import { RelativeDate } from '@/components/common/relative-date';
 import { DataAssetReviewRequest, ReviewRequestStatus } from '@/types/data-asset-review';
-import { Breadcrumb, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
 import { focusIsFree } from '@/mantine/focus-free';
 
 // Import the Create Dialog
@@ -293,7 +293,6 @@ export default function DataAssetReviews() {
         <>
             <PageLayout
                 fullBleed
-                breadcrumb={<Breadcrumb items={[{ label: title }]} />}
                 header={<PageHeader title={title} titleId={titleId} />}
             >
                 <Pane flush aria-label={t('data-asset-reviews:listPane')}>

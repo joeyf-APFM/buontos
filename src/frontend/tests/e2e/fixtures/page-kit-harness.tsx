@@ -18,7 +18,6 @@ function Layout({ fullBleed, id }: { fullBleed?: boolean; id: string }) {
     <div data-testid={id} style={{ display: 'flex', width: 900, height: 320 }}>
       <PageLayout
         fullBleed={fullBleed}
-        breadcrumb={<span>Data / Tables</span>}
         header={<PageHeader title="Orders with a long title" badges={<span>Table</span>} actions={<button>New</button>} />}
         filters={<FilterBar hint="2 assets"><input aria-label="Filter" /></FilterBar>}
         aside={<div>aside</div>}

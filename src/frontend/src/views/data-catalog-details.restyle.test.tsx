@@ -11,6 +11,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { isFullBleed } from '@/mantine/shell/full-bleed';
 import kit from '@/mantine/page/page.module.css';
+import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import panel from '@/components/common/panel.module.css';
 import explorer from '@/mantine/asset-explorer/explorer.module.css';
 import DataCatalogDetails from './data-catalog-details';
@@ -114,12 +115,10 @@ describe('data catalog details on the page kit', () => {
     expect(within(header).getByText('MANAGED')).toBeInTheDocument();
     expect(within(header).getByRole('button', { name: 'Back to List' })).toBeInTheDocument();
 
-    // The layout breadcrumb's trail, ending with the table
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(within(crumb).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-    expect(within(crumb).getByRole('link', { name: 'Data Catalog' })).toHaveAttribute('href', '/data-catalog');
-    expect(within(crumb).getByText('orders')).toBeInTheDocument();
+    // No breadcrumb of its own: the shell draws the one breadcrumb (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
+    // It names the table to the shell's: Home > Discover > Data Catalog > orders
+    expect(useBreadcrumbStore.getState().dynamicTitle).toBe('orders');
 
     // The full name, in monospace, under the header
     expect(screen.getByText('main.sales.orders', { selector: 'code' })).toHaveClass(explorer.mono);
@@ -214,21 +213,19 @@ describe('data catalog details on the page kit', () => {
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true'));
   });
 
-  it('data catalog details shows its breadcrumb while loading', async () => {
+  it('data catalog details names its table to the breadcrumb while loading', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
     const inner = fetchMock;
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => { await gate; return inner(input); }));
     renderPage();
 
-    const crumb = await screen.findByRole('navigation', { name: 'breadcrumb' });
-    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
-    expect(within(crumb).getByRole('link', { name: 'Data Catalog' })).toHaveAttribute('href', '/data-catalog');
     // The table's name from the URL, until the table has loaded
-    expect(within(crumb).getByText('orders')).toBeInTheDocument();
+    await waitFor(() => expect(useBreadcrumbStore.getState().dynamicTitle).toBe('orders'));
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     release();
     await findHeading();
-    expect(screen.getAllByRole('navigation', { name: 'breadcrumb' })).toHaveLength(1);
+    expect(screen.queryAllByRole('navigation', { name: /breadcrumb/i })).toHaveLength(0);
   });
 
   it('data catalog details shows an error with Back and Retry', async () => {

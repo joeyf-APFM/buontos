@@ -83,9 +83,8 @@ describe('data asset reviews on the page kit', () => {
 
     expect(isFullBleed('/data-asset-reviews')).toBe(true);
     expect(container.querySelector(`.${kit.page}`)).toHaveAttribute('data-full-bleed');
-    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
-    expect(crumb.closest(`.${kit.crumb}`)).not.toBeNull();
-    expect(crumb).toHaveTextContent('/Data Asset Reviews');
+    // No breadcrumb of its own: the shell draws the one breadcrumb (Task 16d)
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Data Asset Reviews' });
     expect(heading.parentElement).toHaveClass(kit.header);
@@ -117,8 +116,8 @@ describe('data asset reviews on the page kit', () => {
     expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
     expect(screen.getAllByRole('checkbox', { name: 'Select row' })).toHaveLength(2);
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
-    // The unnamed Home link (R16), the only link
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    // No links: Home, named, is the shell breadcrumb's now
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
 
     // Cells: the title (or untitled), the status, the people, the asset count
     expect(within(rowOf('Review sales tables')).getByText('In Review')).toBeInTheDocument();

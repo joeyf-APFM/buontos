@@ -12,8 +12,9 @@
   "button \"Type\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Build\"",
   "link \"Concept Browser\"",
-  "link \"Schemes\"",
+  "link \"Concepts\"",
+  "link \"Home\"",
   "textbox \"Filter labels...\""
 ]

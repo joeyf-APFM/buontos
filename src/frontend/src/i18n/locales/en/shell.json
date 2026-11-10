@@ -55,5 +55,10 @@
   "search": {
     "placeholder": "Search assets, concepts, contracts…",
     "label": "Search"
+  },
+  "breadcrumb": {
+    "label": "Breadcrumb",
+    "home": "Home",
+    "more": "Show the hidden levels"
   }
 }

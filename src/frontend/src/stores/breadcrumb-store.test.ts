@@ -407,4 +407,31 @@ describe('Breadcrumb Store', () => {
       expect(result.current.staticSegments[1].path).toBe('/results#top');
     });
   });
+
+  describe('the page segments (Task 16d)', () => {
+    it('keeps trailing segments, with actions, apart from the static ones', () => {
+      const onSelect = () => {};
+      act(() => {
+        useBreadcrumbStore.getState().setStaticSegments([{ label: 'Data Contracts', path: '/data-contracts' }]);
+        useBreadcrumbStore.getState().setTrailingSegments([{ label: 'Unity Catalog', onSelect }, { label: 'insights' }]);
+      });
+      const state = useBreadcrumbStore.getState();
+      expect(state.staticSegments).toEqual([{ label: 'Data Contracts', path: '/data-contracts' }]);
+      expect(state.trailingSegments).toEqual([{ label: 'Unity Catalog', onSelect }, { label: 'insights' }]);
+    });
+
+    it('clears everything a page set when the page changes', () => {
+      act(() => {
+        const s = useBreadcrumbStore.getState();
+        s.setStaticSegments([{ label: 'Compliance', path: '/compliance' }]);
+        s.setDynamicTitle('PII check');
+        s.setTrailingSegments([{ label: 'Runs' }]);
+      });
+      act(() => useBreadcrumbStore.getState().clearPage());
+      const state = useBreadcrumbStore.getState();
+      expect(state.staticSegments).toEqual([]);
+      expect(state.dynamicTitle).toBeNull();
+      expect(state.trailingSegments).toEqual([]);
+    });
+  });
 });

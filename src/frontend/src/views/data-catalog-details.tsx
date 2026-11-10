@@ -28,7 +28,7 @@ import { TabsDetailSkeleton } from '@/components/common/list-view-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import LineageGraphComponent from '@/components/data-catalog/lineage-graph';
-import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
 // The Asset Explorer's grid: 28px header and rows, monospace names
 import grid from '@/mantine/asset-explorer/explorer.module.css';
 import classes from './data-catalog-details.module.css';
@@ -220,16 +220,6 @@ const DataCatalogDetails: React.FC = () => {
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
-  // The layout breadcrumb's trail (Home icon, Home, Data Catalog, the table), in the kit's slot
-  const breadcrumb = (
-    <Breadcrumb
-      items={[
-        { label: t('common:home'), to: '/' },
-        { label: t('data-catalog:title', 'Data Catalog'), to: '/data-catalog' },
-        { label: tableInfo?.name || decodedFqn.split('.').pop() || t('data-catalog:details.fallbackTitle') },
-      ]}
-    />
-  );
 
   const backButton = (
     <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
@@ -242,7 +232,6 @@ const DataCatalogDetails: React.FC = () => {
     // (Overview / Data Details / Lineage), and the overview panes.
     return (
       <div className={classes.state}>
-        {breadcrumb}
         <TabsDetailSkeleton tabs={3} actionButtons={1} contentVariant="two-col" />
       </div>
     );
@@ -251,7 +240,6 @@ const DataCatalogDetails: React.FC = () => {
   if (error) {
     return (
       <div className={classes.state}>
-        {breadcrumb}
         <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:error')} role="alert">
           {error}
         </Alert>
@@ -306,7 +294,6 @@ const DataCatalogDetails: React.FC = () => {
 
   return (
     <PageLayout
-      breadcrumb={breadcrumb}
       header={
         <>
           <PageHeader

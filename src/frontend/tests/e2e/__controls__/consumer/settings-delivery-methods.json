@@ -9,6 +9,7 @@
   "button \"Name\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Connectors\"",
+  "link \"Home\"",
   "textbox \"Filter names...\""
 ]

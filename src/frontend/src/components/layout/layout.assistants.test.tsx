@@ -8,7 +8,7 @@ import Layout from './layout';
 vi.mock('@/mantine/shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('@/components/ui/breadcrumbs', () => ({ Breadcrumbs: () => null }));
+vi.mock('@/mantine/shell/shell-breadcrumb', () => ({ ShellBreadcrumb: () => null }));
 vi.mock('@/stores/ui-customization-store', () => ({
   useUICustomizationStore: (select: (s: { getShortName: () => string }) => unknown) =>
     select({ getShortName: () => 'Ontos' }),

@@ -7,6 +7,6 @@
   "button \"New Configuration\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Home\"",
   "textbox \"Filter names...\""
 ]

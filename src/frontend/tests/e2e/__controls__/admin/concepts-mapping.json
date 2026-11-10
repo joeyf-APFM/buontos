@@ -3,5 +3,7 @@
   "button \"New run\"",
   "button \"Refresh\"",
   "button \"Small View\"",
-  "link \"\""
+  "link \"Build\"",
+  "link \"Concepts\"",
+  "link \"Home\""
 ]

@@ -10,6 +10,7 @@
   "button \"Name\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Home\"",
+  "link \"Organization\"",
   "textbox \"Filter names...\""
 ]

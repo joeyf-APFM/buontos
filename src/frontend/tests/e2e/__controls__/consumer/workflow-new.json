@@ -3,7 +3,7 @@
   "button \"Back\"",
   "button \"Process Workflow Background automation triggered by events — validate, notify, tag, run scripts.\"",
   "button \"Save\"",
-  "link \"\"",
+  "link \"Home\"",
   "link \"Workflows\"",
   "switch \"\"",
   "textbox \"Workflow name\""

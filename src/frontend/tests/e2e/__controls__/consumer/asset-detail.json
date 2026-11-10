@@ -25,8 +25,9 @@
   "button \"Rate 4 out of 5 stars\"",
   "button \"Rate 5 out of 5 stars\"",
   "button \"View in Hierarchy\"",
-  "link \"\"",
-  "link \"Asset Explorer\"",
+  "link \"Assets\"",
+  "link \"Build\"",
+  "link \"Home\"",
   "tab \"Lineage\"",
   "tab \"Overview\"",
   "tab \"Relationships\""

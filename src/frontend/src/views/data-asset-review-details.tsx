@@ -25,7 +25,7 @@ import {
 } from '@/components/common/list-view-skeleton';
 import { Toaster } from "@/components/ui/toaster";
 import { RelativeDate } from '@/components/common/relative-date';
-import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
 import { Z_INDEX } from '@/mantine/z-index';
 import { useLayeredEscape } from '@/mantine/use-layered-escape';
 import { focusIsFree } from '@/mantine/focus-free';
@@ -343,20 +343,10 @@ export default function DataAssetReviewDetails() {
     useLayeredEscape(isEditorOpen && !!selectedAsset, () => setIsEditorOpen(false));
 
     // --- Render Logic --- //
-    const listTitle = t('data-asset-reviews:title');
-    const breadcrumb = (current?: string) => (
-        <Breadcrumb
-            items={[
-                { label: listTitle, to: '/data-asset-reviews' },
-                ...(current ? [{ label: current }] : []),
-            ]}
-        />
-    );
 
     if (loading) {
         return (
             <div className={classes.state}>
-                {breadcrumb()}
                 <DetailHeaderSkeleton actionButtons={1} />
                 <CardSkeleton titleWidth="w-56" descriptionWidth="w-72" contentRows={4} />
                 <TableSkeleton columns={5} rows={5} />
@@ -366,7 +356,6 @@ export default function DataAssetReviewDetails() {
     if (error) {
         return (
             <div className={classes.state}>
-                {breadcrumb()}
                 <Alert color="red" variant="light" icon={<AlertCircle />}>{error}</Alert>
             </div>
         );
@@ -374,7 +363,6 @@ export default function DataAssetReviewDetails() {
     if (!request) {
         return (
             <div className={classes.state}>
-                {breadcrumb()}
                 <Alert color="gray" variant="light">{t('data-asset-reviews:details.notFound')}</Alert>
             </div>
         );
@@ -483,7 +471,6 @@ export default function DataAssetReviewDetails() {
     return (
         <>
             <PageLayout
-                breadcrumb={breadcrumb(displayTitle)}
                 header={
                     <div className={classes.headerArea}>
                         {header}

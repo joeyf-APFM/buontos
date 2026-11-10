@@ -15,6 +15,7 @@
   "button \"Re-evaluate maturity\"",
   "button \"Request...\"",
   "button \"S\"",
-  "link \"\"",
-  "link \"Data Products\""
+  "link \"Build\"",
+  "link \"Home\"",
+  "link \"Products\""
 ]

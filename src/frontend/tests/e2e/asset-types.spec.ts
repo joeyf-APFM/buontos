@@ -2,7 +2,7 @@
  * Task 14: Settings → Asset Types (/settings/asset-types) on the page kit,
  * measured in a real browser (ruling R10: jsdom ignores the cascade). The
  * page is full bleed inside the Settings layout (which draws no padding or
- * sub-navigation of its own): the kit's breadcrumb and header, then one pane
+ * sub-navigation of its own): the shell's breadcrumb, the kit's header, then one pane
  * holding the shared DataTable. The row menu is a Mantine Menu, and the form
  * and delete dialogs are Mantine Modals.
  *
@@ -113,20 +113,21 @@ test.describe('captures', () => {
 });
 
 test.describe('the page', () => {
-  test('is full bleed in the Settings layout, with the kit breadcrumb and header', async ({ page }) => {
+  test('is full bleed in the Settings layout, under the shell breadcrumb, with the kit header', async ({ page }) => {
     await setUp(page);
     const main = page.locator('main');
     expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
     const kitPage = main.locator('[data-full-bleed]');
     await expect(kitPage).toHaveCount(1);
-    // It fills the main area under the top bar: no page scroll
+    // It fills the main area under the shell's breadcrumb: no page scroll
     const mainBox = await box(main);
-    expect(Math.round((await box(kitPage)).height)).toBe(Math.round(mainBox.height));
+    const crumbBar = await box(main.getByRole('navigation', { name: 'Breadcrumb' }).locator('..'));
+    expect(Math.round(crumbBar.height + (await box(kitPage)).height)).toBe(Math.round(mainBox.height));
     expect(await main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBe(0);
 
-    const crumb = page.getByRole('navigation', { name: 'breadcrumb' });
-    await expect(crumb).toHaveText(/Asset Types/);
-    await expect(crumb.getByRole('link')).toHaveCount(1);
+    const crumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+    await expect(crumb.getByRole('listitem')).toHaveText(['Home', '>Semantics', '>Asset types']);
+    await expect(crumb.getByRole('link')).toHaveCount(2);
 
     const title = page.getByRole('heading', { level: 1, name: 'Asset Types' });
     expect(await style(title, ['font-size', 'color'])).toEqual({ 'font-size': '16px', color: NAVY });

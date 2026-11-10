@@ -4,7 +4,7 @@
   "button \"Small View\"",
   "button \"Start guided build\"",
   "button \"Upload files\"",
-  "link \"\"",
-  "link \"Concept Browser\"",
-  "link \"Define\""
+  "link \"Build\"",
+  "link \"Concepts\"",
+  "link \"Home\""
 ]

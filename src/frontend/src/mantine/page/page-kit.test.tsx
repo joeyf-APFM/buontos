@@ -14,10 +14,9 @@ import classes from './page.module.css';
 vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
 
 describe('page kit', () => {
-  it('page layout renders breadcrumb, a one-line header, filters and panes with shared borders', () => {
+  it('page layout renders a one-line header, filters and panes with shared borders', () => {
     renderWithMantine(
       <PageLayout
-        breadcrumb={<nav aria-label="Breadcrumb">Data / Tables</nav>}
         header={
           <PageHeader
             title="Orders"
@@ -40,13 +39,12 @@ describe('page kit', () => {
       </PageLayout>,
     );
 
-    // Breadcrumb, then the header, then the filters, then the panes, in that order
-    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    // The header, then the filters, then the panes, in that order (the shell draws the breadcrumb)
     const heading = screen.getByRole('heading', { level: 1, name: 'Orders' });
     const filter = screen.getByRole('textbox', { name: 'Filter assets' });
     const columns = screen.getByRole('region', { name: 'Columns' });
     const preview = screen.getByRole('region', { name: 'Preview' });
-    const order = [crumb, heading, filter, columns, preview];
+    const order = [heading, filter, columns, preview];
     order.slice(1).forEach((el, i) =>
       expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(),
     );
@@ -76,30 +74,71 @@ describe('page kit', () => {
     expect(screen.getByRole('complementary', { name: 'Details' })).toBeInTheDocument();
   });
 
-  it('breadcrumb draws the Home icon link, then each item after a "/", the last as text', () => {
+  it('breadcrumb: Home as a named link, ">" separators hidden from assistive tech, the current page as text', () => {
     renderWithMantine(
-      <Breadcrumb items={[{ label: 'Home', to: '/' }, { label: 'Data Catalog', to: '/data-catalog' }, { label: 'orders' }]} />,
+      <Breadcrumb
+        label="Breadcrumb"
+        items={[
+          { label: 'Home', to: '/', home: true },
+          { label: 'Discover', to: '/marketplace', state: { nav: 'crumb', crumbIndex: 1 } },
+          { label: 'Data Catalog', to: '/data-catalog' },
+          { label: 'orders', to: '/data-catalog/orders' },
+        ]}
+      />,
     );
-    const nav = screen.getByRole('navigation', { name: 'breadcrumb' });
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(nav).toHaveClass(classes.crumbTrail);
     const links = within(nav).getAllByRole('link');
-    // The Home icon link stays unnamed (R16), then the items' links
+    // Home is named (R16), with its icon before the word
     expect(links.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
-      ['', '/'],
       ['Home', '/'],
+      ['Discover', '/marketplace'],
       ['Data Catalog', '/data-catalog'],
     ]);
-    expect(links[0]).toHaveClass(classes.crumbHome);
-    expect(links[0].querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-    // Separators are hidden from assistive tech; the last item is plain text
-    const children = Array.from(nav.children);
-    expect(children.map((c) => c.tagName)).toEqual(['A', 'SPAN', 'A', 'SPAN', 'A', 'SPAN', 'SPAN']);
-    expect(children.filter((c) => c.textContent === '/').every((c) => c.getAttribute('aria-hidden') === 'true')).toBe(true);
-    expect(children[6]).toHaveTextContent('orders');
+    expect(screen.getByRole('link', { name: 'Home' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    // One list item per crumb; each after the first behind a hidden ">"
+    const items = within(nav).getAllByRole('listitem');
+    expect(items).toHaveLength(4);
+    const separators = nav.querySelectorAll('[data-crumb-separator]');
+    expect(Array.from(separators).map((s) => [s.textContent, s.getAttribute('aria-hidden')])).toEqual(
+      Array(3).fill(['>', 'true']),
+    );
+    // The current page is plain text, marked current, with its full label as a title
+    const current = within(items[3]).getByText('orders');
+    expect(current.tagName).toBe('SPAN');
+    expect(current).toHaveAttribute('aria-current', 'page');
+    expect(current).toHaveAttribute('title', 'orders');
+    expect(current).toHaveClass(classes.crumbCurrent);
+    expect(links[2]).toHaveClass(classes.crumbLink);
+  });
 
-    // With no items: only the Home icon link
-    renderWithMantine(<Breadcrumb />);
-    expect(within(screen.getAllByRole('navigation', { name: 'breadcrumb' })[1]).getAllByRole('link')).toHaveLength(1);
+  it('breadcrumb: a crumb with an action is a button, one with neither is plain text', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    renderWithMantine(
+      <Breadcrumb label="Breadcrumb" items={[{ label: 'Home', to: '/', home: true }, { label: 'Settings' }, { label: 'Unity Catalog', onSelect }, { label: 'insights' }]} />,
+    );
+    expect(screen.getByText('Settings').tagName).toBe('SPAN');
+    expect(screen.getByText('Settings')).not.toHaveAttribute('aria-current');
+    await user.click(screen.getByRole('button', { name: 'Unity Catalog' }));
+    expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it('breadcrumb: a long trail collapses its middle crumbs into "…", listing them in a menu', async () => {
+    const user = userEvent.setup();
+    const items = [{ label: 'Home', to: '/', home: true }, ...Array.from({ length: 7 }, (_, i) => ({ label: `Level ${i + 1}`, to: `/l${i + 1}` }))];
+    renderWithMantine(<Breadcrumb label="Breadcrumb" moreLabel="Show the hidden levels" items={items} />);
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    // Home, "…", then the last four
+    expect(within(nav).getAllByRole('listitem').map((li) => li.textContent?.replace('>', ''))).toEqual([
+      'Home', '…', 'Level 4', 'Level 5', 'Level 6', 'Level 7',
+    ]);
+    await user.click(within(nav).getByRole('button', { name: 'Show the hidden levels' }));
+    expect(within(nav).getByRole('button', { name: 'Show the hidden levels' })).toHaveAttribute('aria-expanded', 'true');
+    // (Mantine's dropdown is still in its opening transition, display: none, in jsdom)
+    expect((await screen.findAllByRole('menuitem', { hidden: true })).map((m) => [m.textContent, m.getAttribute('href')])).toEqual([
+      ['Level 1', '/l1'], ['Level 2', '/l2'], ['Level 3', '/l3'],
+    ]);
   });
 
   it('details grid renders label/value rows', () => {

@@ -5,7 +5,7 @@ import { Loader, Select } from '@mantine/core';
 import { Import, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Breadcrumb, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
 import { isFullBleed } from '@/mantine/shell/full-bleed';
 import { useApi } from '@/hooks/use-api';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
@@ -29,7 +29,7 @@ export default function SchemaImporterView() {
   const { get: apiGet } = useApi();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  // On its own route the page fills the main area and draws its breadcrumb;
+  // On its own route the page fills the main area, under the shell's breadcrumb;
   // at /concepts/import it sits inside the Concepts layout's padding
   const ownsPage = isFullBleed(useLocation().pathname);
   const setStaticSegments = useBreadcrumbStore((s) => s.setStaticSegments);
@@ -267,7 +267,6 @@ export default function SchemaImporterView() {
         <PageLayout
           fullBleed
           stackBelow="lg"
-          breadcrumb={<Breadcrumb items={[{ label: title }]} />}
           header={<>{header}{intro}</>}
         >
           {options}

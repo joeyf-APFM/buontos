@@ -7,7 +7,7 @@
   "button \"Name\"",
   "checkbox \"Select all\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Home\"",
   "textbox \"Filter names...\"",
   "textbox \"Job Cluster ID (optional)\"",
   "textbox \"Workspace Deployment Path\""

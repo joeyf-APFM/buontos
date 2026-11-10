@@ -30,7 +30,9 @@
   "checkbox \"Select row\"",
   "checkbox \"Select row\"",
   "combobox \"\"",
-  "link \"\"",
+  "link \"Build\"",
+  "link \"Home\"",
+  "link \"Products\"",
   "switch \"Show all versions\"",
   "textbox \"Filter info > titles...\""
 ]

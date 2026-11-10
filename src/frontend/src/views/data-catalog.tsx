@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
-import { Breadcrumb, FilterBar, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { FilterBar, PageHeader, PageLayout, Pane } from '@/mantine/page';
 // The Asset Explorer's grid: 28px header and rows, monospace names, its hover
 // and selection highlight
 import grid from '@/mantine/asset-explorer/explorer.module.css';
@@ -387,15 +387,6 @@ const DataCatalog: React.FC = () => {
   const currentPage = Math.floor(offset / pageSize) + 1;
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // The layout breadcrumb's trail (Home icon, Home, Data Catalog), in the kit's slot
-  const breadcrumb = (
-    <Breadcrumb
-      items={[
-        { label: t('common:home'), to: '/' },
-        { label: t('data-catalog:title', 'Data Catalog'), to: '/data-catalog' },
-      ]}
-    />
-  );
 
   const allOption = (label: string) => ({ value: ALL, label });
   const options = (values: string[]) => values.map((v) => ({ value: v, label: v }));
@@ -489,7 +480,6 @@ const DataCatalog: React.FC = () => {
   return (
     <PageLayout
       fullBleed
-      breadcrumb={breadcrumb}
       header={
         <>
           <PageHeader

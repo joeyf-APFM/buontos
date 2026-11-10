@@ -7,8 +7,6 @@ import usePermissionsStore, { usePermissions } from '@/stores/permissions-store'
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { SettingsFormSkeleton } from '@/components/common/list-view-skeleton';
-import { Breadcrumb } from '@/mantine/page';
-import kit from '@/mantine/page/page.module.css';
 import classes from './settings-page-wrapper.module.css';
 
 interface SettingsPageWrapperProps {
@@ -22,9 +20,9 @@ interface SettingsPageWrapperProps {
   permissionId: string;
   /**
    * The page is in FULL_BLEED_ROUTES (mantine/shell/full-bleed.ts), so the
-   * layout draws no padding or breadcrumb: the loading and access-denied
-   * states then get the page kit's breadcrumb and a margin of their own.
-   * Off by default; the page itself draws both once it renders.
+   * layout draws no padding: the loading and access-denied states then get
+   * the page surface and a margin of their own. Off by default; the page
+   * itself draws both once it renders.
    */
   fullBleed?: boolean;
   children: React.ReactNode;
@@ -32,7 +30,8 @@ interface SettingsPageWrapperProps {
 
 /**
  * Shared wrapper for standalone settings pages.
- * Handles permission check, loading state, and breadcrumb setup.
+ * Handles permission check, loading state, and the page's title for the
+ * shell's breadcrumb.
  */
 export default function SettingsPageWrapper({ title, permissionId, fullBleed = false, children }: SettingsPageWrapperProps) {
   const { t } = useTranslation(['settings', 'common']);
@@ -62,9 +61,6 @@ export default function SettingsPageWrapper({ title, permissionId, fullBleed = f
   const frame = (state: React.ReactNode) =>
     fullBleed ? (
       <div className={classes.state} data-settings-state="">
-        <div className={kit.crumb}>
-          <Breadcrumb items={[{ label: title }]} />
-        </div>
         <div className={classes.stateBody}>{state}</div>
       </div>
     ) : (

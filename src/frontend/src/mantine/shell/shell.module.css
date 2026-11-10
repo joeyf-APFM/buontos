@@ -3,6 +3,7 @@
 
 .shell {
   --shell-top-height: 44px;
+  --shell-crumb-height: 30px;
   /* The owner's width (Task 16c): room for the longest label, Organization, in bold */
   --shell-strip-width: 90px;
   --shell-panel-width: 200px;
@@ -289,4 +290,21 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* The breadcrumb at the top of every page (shell-breadcrumb.tsx): one line,
+   --shell-crumb-height tall, which full-bleed pages leave out of their height */
+.crumbBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: var(--shell-crumb-height, 30px);
+  padding: 0 24px;
+  min-width: 0;
+}
+
+/* Over a full-bleed page: the page's white surface and 14px margin */
+.crumbBar[data-flush] {
+  padding: 0 14px;
+  background: var(--aura-surface);
 }
