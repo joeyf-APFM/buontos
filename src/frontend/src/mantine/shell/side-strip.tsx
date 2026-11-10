@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
-import { NAV_GROUPS, activeLocation, type NavGroupId } from './nav-config';
+import { NAV_GROUPS, activeLocation, groupFace, type NavGroupId } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import { HelixMark } from '@/mantine/helix/helix-mark';
@@ -67,9 +67,9 @@ function OntosStripButton() {
 /**
  * The icon strip: the top groups in NAV_GROUPS order (Discover, Build,
  * Organization, Semantics, Workflows), then Ask Helix and Ask Ontos, and
- * Settings alone at the bottom.
+ * Settings alone at the bottom (Govern, without the Settings gate).
  */
-export function SideStrip({ groups }: { groups: NavGroupId[] }) {
+export function SideStrip({ groups, settingsGate }: { groups: NavGroupId[]; settingsGate: boolean }) {
   const { t } = useTranslation(['shell', 'navigation', 'settings']);
   const { pathname } = useLocation();
   const openGroup = useShellStore((s) => s.openGroup);
@@ -78,6 +78,7 @@ export function SideStrip({ groups }: { groups: NavGroupId[] }) {
 
   const button = (id: NavGroupId) => {
     const group = NAV_GROUPS.find((g) => g.id === id)!;
+    const face = groupFace(group, settingsGate);
     if (group.link) {
       // A direct link (Workflows): goes to its page and opens no panel
       return (
@@ -88,8 +89,8 @@ export function SideStrip({ groups }: { groups: NavGroupId[] }) {
           className={classes.groupButton}
           aria-current={currentGroup === id ? 'page' : undefined}
         >
-          <group.icon size={17} strokeWidth={1.7} aria-hidden />
-          {t(group.labelKey)}
+          <face.icon size={17} strokeWidth={1.7} aria-hidden />
+          {t(face.labelKey)}
         </UnstyledButton>
       );
     }
@@ -103,8 +104,8 @@ export function SideStrip({ groups }: { groups: NavGroupId[] }) {
         aria-controls={open ? 'shell-group-panel' : undefined}
         onClick={() => toggleGroup(id)}
       >
-        <group.icon size={17} strokeWidth={1.7} aria-hidden />
-        {t(group.labelKey)}
+        <face.icon size={17} strokeWidth={1.7} aria-hidden />
+        {t(face.labelKey)}
       </UnstyledButton>
     );
   };

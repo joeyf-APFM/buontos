@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { usePermissions } from '@/stores/permissions-store';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
 import { FeatureAccessLevel } from '@/types/settings';
-import { NAV_GROUPS, isPanelGroup, visibleNav } from './nav-config';
+import { NAV_GROUPS, SETTINGS_GATE, isPanelGroup, visibleNav } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { SideStrip } from './side-strip';
 import { GroupPanel } from './group-panel';
@@ -42,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     [permissions, hasPermission, allowedMaturities],
   );
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
+  const settingsGate = hasPermission(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
 
   // An unpinned panel closes once you have gone somewhere
   const lastPath = useRef(pathname);
@@ -56,8 +57,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TopBar helixSlot={<HelixButton />} />
       <div className={classes.body}>
         <div className={`${classes.side} apfm-surface`}>
-          <SideStrip groups={groups} />
-          {isPanelGroup(openGroup) && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} />}
+          <SideStrip groups={groups} settingsGate={settingsGate} />
+          {isPanelGroup(openGroup) && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} settingsGate={settingsGate} />}
         </div>
         <div className={classes.main}>{children}</div>
       </div>

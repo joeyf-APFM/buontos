@@ -3,17 +3,19 @@ import { Link, useLocation } from 'react-router-dom';
 import { UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
-import { NAV_GROUPS, matchInGroup, type NavGroupId, type NavItem, type NavSection } from './nav-config';
+import { NAV_GROUPS, groupFace, matchInGroup, type NavGroupId, type NavItem, type NavSection } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import classes from './shell.module.css';
 
 interface GroupPanelProps {
   group: NavGroupId;
   sections: NavSection[];
+  /** Whether the user has the Settings gate (the panel is titled as its strip button). */
+  settingsGate: boolean;
 }
 
 /** The open group's menu: titled sections, items, and expandable sub-items. */
-export function GroupPanel({ group, sections }: GroupPanelProps) {
+export function GroupPanel({ group, sections, settingsGate }: GroupPanelProps) {
   const { t } = useTranslation(['shell', 'navigation', 'settings', 'features']);
   const { pathname } = useLocation();
   const pinned = useShellStore((s) => s.pinned);
@@ -21,7 +23,7 @@ export function GroupPanel({ group, sections }: GroupPanelProps) {
   const { setPinned, toggleExpanded } = useShellStore((s) => s.actions);
 
   const match = matchInGroup(sections, pathname);
-  const groupLabel = t(NAV_GROUPS.find((g) => g.id === group)!.labelKey);
+  const groupLabel = t(groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate).labelKey);
 
   // Show the sub-items of the page you arrive on (you can still fold them)
   const activeParent = match?.childId ? match.itemId : null;

@@ -169,7 +169,7 @@ describe('AppShell', () => {
     expect(within(settings()).getByRole('link', { name: 'Security Features' })).toBeInTheDocument();
   });
 
-  it('hides the settings-area strip entries without the settings gate, keeping Govern and Deploy under Settings', async () => {
+  it('hides the settings-area strip entries without the settings gate, keeping Govern and Deploy under the Govern button', async () => {
     useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] });
     usePermissionsStore.setState({
       permissions: Object.fromEntries(allPermissionIds.map((id) => [id, FeatureAccessLevel.ADMIN])),
@@ -183,25 +183,49 @@ describe('AppShell', () => {
     }
     expect(within(strip).queryByRole('link', { name: 'Workflows' })).toBeNull();
 
-    await user.click(within(strip).getByRole('button', { name: 'Settings' }));
-    const settings = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(strip).queryByRole('button', { name: 'Settings' })).toBeNull();
+    await user.click(within(strip).getByRole('button', { name: 'Govern' }));
+    const settings = screen.getByRole('navigation', { name: 'Govern' });
     expect(within(settings).queryByText('Platform')).toBeNull();
     expect(within(settings).queryByText('Process')).toBeNull();
     expect(within(settings).queryByRole('link', { name: 'General' })).toBeNull();
-    expect(within(settings).getByText('Govern')).toBeInTheDocument();
+    // The panel title and its Govern section
+    expect(within(settings).getAllByText('Govern')).toHaveLength(2);
     expect(within(settings).getByText('Deploy')).toBeInTheDocument();
     expect(within(settings).getByRole('link', { name: 'Compliance' })).toHaveAttribute('href', '/compliance');
   });
 
-  it('shows Settings with only Govern to a user with compliance access and no gate', async () => {
+  it('labels the bottom button Govern, with the Shield icon, for a user with compliance access and no gate', async () => {
     useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] }); // Compliance is beta
     usePermissionsStore.setState({ permissions: { compliance: FeatureAccessLevel.READ_ONLY } });
     const user = userEvent.setup();
     renderShell('/compliance');
-    await user.click(screen.getByRole('button', { name: 'Settings' }));
-    const settings = screen.getByRole('navigation', { name: 'Settings' });
-    expect([...settings.querySelectorAll('a')].map((a) => a.textContent)).toEqual(['Compliance']);
-    expect(within(settings).getByRole('link', { name: 'Compliance' })).toHaveAttribute('aria-current', 'page');
+    const strip = screen.getByRole('navigation', { name: 'Main menu' });
+    expect(within(strip).queryByRole('button', { name: 'Settings' })).toBeNull();
+    const govern = within(strip).getByRole('button', { name: 'Govern' });
+    expect(govern.querySelector('svg.lucide-shield')).not.toBeNull();
+    expect(govern.querySelector('svg.lucide-settings')).toBeNull();
+
+    await user.click(govern);
+    const panel = screen.getByRole('navigation', { name: 'Govern' });
+    expect(within(panel).getAllByText('Govern')).toHaveLength(2); // the title and the section
+    expect([...panel.querySelectorAll('a')].map((a) => a.textContent)).toEqual(['Compliance']);
+    expect(within(panel).getByRole('link', { name: 'Compliance' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps Settings, with its icon, for a user with the settings gate', async () => {
+    useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] }); // Compliance is beta
+    const user = userEvent.setup();
+    renderShell('/compliance');
+    const strip = screen.getByRole('navigation', { name: 'Main menu' });
+    expect(within(strip).queryByRole('button', { name: 'Govern' })).toBeNull();
+    const settingsButton = within(strip).getByRole('button', { name: 'Settings' });
+    expect(settingsButton.querySelector('svg.lucide-settings')).not.toBeNull();
+
+    await user.click(settingsButton);
+    const panel = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(panel).getByText('Platform')).toBeInTheDocument();
+    expect(within(panel).getByText('Govern')).toBeInTheDocument();
   });
 
   it('renders the brand and the page content', () => {

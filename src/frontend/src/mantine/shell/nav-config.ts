@@ -89,6 +89,11 @@ export interface NavGroup {
    * its `ungated` sections (Settings → Govern and Deploy).
    */
   settingsArea?: boolean;
+  /**
+   * The label and icon for a user without the Settings gate, who sees only
+   * the group's ungated sections (Settings shows them as Govern).
+   */
+  withoutGate?: { labelKey: string; icon: LucideIcon };
 }
 
 /** The Workflows group's one item; the strip's Workflows button links to its path. */
@@ -101,7 +106,10 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: 'Organization', labelKey: 'shell:sections.organization', icon: Building2, settingsArea: true },
   { id: 'Semantics', labelKey: 'shell:sections.semantics', icon: Network, settingsArea: true },
   { id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: WORKFLOWS_ITEM.path, settingsArea: true },
-  { id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true },
+  {
+    id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true,
+    withoutGate: { labelKey: 'navigation:groups.govern', icon: Shield },
+  },
 ];
 
 /** The groups whose strip button opens a panel (every group but a link). */
@@ -110,7 +118,12 @@ export function isPanelGroup(id: unknown): id is NavGroupId {
 }
 
 /** The Settings area's own gate (SettingsLayout redirects home without it). */
-const SETTINGS_GATE = 'settings';
+export const SETTINGS_GATE = 'settings';
+
+/** The label and icon a group's strip button and panel show to this user. */
+export function groupFace(group: NavGroup, settingsGate: boolean): { labelKey: string; icon: LucideIcon } {
+  return !settingsGate && group.withoutGate ? group.withoutGate : { labelKey: group.labelKey, icon: group.icon };
+}
 
 export const NAV: Record<NavGroupId, NavSection[]> = {
   Discover: [
