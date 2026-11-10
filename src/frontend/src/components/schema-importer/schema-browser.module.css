@@ -195,7 +195,7 @@ span.label {
   padding: 6px 8px;
   border-radius: 4px;
   background: var(--aura-surface-strong);
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--aura-font-mono);
   font-size: 11px;
   white-space: pre-wrap;
   word-break: break-all;

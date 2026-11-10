@@ -28,7 +28,9 @@ describe('AssetTable', () => {
 
     // Every cell keeps the formatting it has in an unselected row
     expect(cellStyles(selected)).toEqual(cellStyles(other));
-    expect(getComputedStyle(selected.querySelector('td')!).fontFamily).toMatch(/monospace/);
+    // The name cell is on the code font token (jsdom doesn't resolve var();
+    // fonts.spec.ts checks it resolves to monospace in a browser)
+    expect(getComputedStyle(selected.querySelector('td')!).fontFamily).toBe('var(--aura-font-mono)');
     const dot = (row: HTMLElement) => row.querySelector<HTMLElement>('[aria-hidden][style]')!.style.background;
     expect(dot(selected)).toBe('rgb(39, 113, 83)'); // active #277153
     expect(dot(other)).toBe('rgb(182, 127, 20)'); // draft #B67F14

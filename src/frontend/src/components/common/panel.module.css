@@ -326,7 +326,7 @@
 
 /* Table cells inside a pane */
 .level {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--aura-font-mono);
   font-size: 11px;
   color: var(--aura-text-secondary);
 }

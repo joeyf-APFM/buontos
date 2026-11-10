@@ -28,7 +28,7 @@ const CRITICAL = 'rgb(212, 28, 22)';
 const LONG_TITLE =
   'A review request with a very long title that goes on and on so that it can never fit on one line of the list at this width';
 const LONG_NOTES =
-  'Notes that run for a long while: check the order tables, the order lines and the returns before the release, and say which columns still need descriptions, owners and tags before the data product goes out.';
+  'Notes that run for a long while: check the order tables, the order lines and the returns before the release, and say which columns still need descriptions, owners and tags before the data product goes out, and that the contract, the quality rules and the lineage agree with what the consumers were promised.';
 const LONG_SQL = `SELECT ${Array.from({ length: 40 }, (_, i) => `o.column_number_${i}`).join(', ')} FROM main.sales.orders o`;
 
 const style = (loc: Locator, props: string[]) =>
@@ -432,7 +432,10 @@ test.describe('the detail page', () => {
       if ((await dt.innerText()) === 'Notes') continue;
       expect(Math.round((await box(dt)).height)).toBe(labelHeight);
     }
-    expect(Math.round((await box(info.locator('dt', { hasText: 'Current Status' }))).width)).toBeGreaterThan(86);
+    // In Optima, Current Status fits within 86px, so the column stays at its floor
+    const currentStatus = info.locator('dt', { hasText: 'Current Status' });
+    expect(Math.round((await box(currentStatus)).width)).toBeGreaterThanOrEqual(86);
+    expect(await currentStatus.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBe(
       Math.round((await box(info.locator('dt', { hasText: 'Current Status' }))).width));
     // The notes read in full

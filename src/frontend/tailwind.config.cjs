@@ -13,6 +13,11 @@ module.exports = {
   		}
   	},
   	extend: {
+  		// The app's one font stack and the code font: theme.ts BODY_FONT and MONO_FONT
+  		fontFamily: {
+  			sans: ['Optima', 'Candara', '"Segoe UI"', 'sans-serif'],
+  			mono: ['ui-monospace', 'Menlo', 'monospace']
+  		},
   		colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',

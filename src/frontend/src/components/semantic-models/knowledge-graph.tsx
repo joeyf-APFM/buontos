@@ -29,6 +29,7 @@ import {
 import { ZoomIn, ZoomOut, Maximize, RotateCcw, Expand, Group, Ungroup, ChevronDown, Tag, Workflow, CircleDot, MoveHorizontal } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { DISPLAY_FONT } from '@/mantine/theme';
 import { useGlossaryPreferencesStore } from '@/stores/glossary-preferences-store';
 import {
   Dialog,
@@ -524,7 +525,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       {
         selector: 'node',
         style: {
-          'font-family': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+          'font-family': DISPLAY_FONT,
           'font-size': 11,
           'font-weight': 500,
           'text-valign': 'bottom',
@@ -624,7 +625,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           'opacity': 0.6,
           'label': showEdgeLabels ? 'data(label)' : '',
           'font-size': 9,
-          'font-family': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+          'font-family': DISPLAY_FONT,
           'color': textColor,
           'text-outline-width': 1,
           'text-outline-color': textOutlineColor,

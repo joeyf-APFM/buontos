@@ -62,7 +62,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--aura-font-mono);
 }
 
 .chips {
@@ -92,7 +92,7 @@
   margin: 0;
   padding: 6px 8px;
   overflow: auto;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--aura-font-mono);
   font-size: 11px;
   border-radius: 4px;
   background: var(--aura-surface-strong);

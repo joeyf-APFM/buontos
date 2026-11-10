@@ -24,7 +24,7 @@
 }
 
 .markdown code {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--aura-font-mono);
   font-size: 11px;
 }
 

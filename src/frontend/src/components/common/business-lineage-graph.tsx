@@ -14,6 +14,7 @@ import {
 import type { LineageGraph, LineageGraphNode } from '@/types/ontology-schema';
 import { useFormatLabel } from '@/lib/format-label';
 import { cn } from '@/lib/utils';
+import { DISPLAY_FONT } from '@/mantine/theme';
 import classes from './business-lineage-graph.module.css';
 
 // ─── Shared color map — re-exported from lineage constants for backward compat
@@ -283,7 +284,7 @@ export function BusinessLineageGraph({
       {
         selector: 'node',
         style: {
-          'font-family': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+          'font-family': DISPLAY_FONT,
           'font-size': 11,
           'font-weight': 500,
           'color': textColor,
