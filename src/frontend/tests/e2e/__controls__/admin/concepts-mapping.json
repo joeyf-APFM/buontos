@@ -3,8 +3,5 @@
   "button \"New run\"",
   "button \"Refresh\"",
   "button \"Small View\"",
-  "link \"\"",
-  "tab \"Define\"",
-  "tab \"Enrich\"",
-  "tab \"Explore\""
+  "link \"\""
 ]

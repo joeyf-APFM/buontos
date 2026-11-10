@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import appSource from '@/app.tsx?raw';
+import { FeatureAccessLevel } from '@/types/settings';
 import { NAV, NAV_GROUPS, activeLocation, groupDefaultPath, visibleNav, type NavItem, type NavGroupId, type NavSection } from './nav-config';
 
 // Full route paths declared in app.tsx, nested routes joined to their parent.
@@ -44,8 +45,9 @@ describe('NAV', () => {
   it('points every item at a route in app.tsx', () => {
     const routes = routePaths(appSource);
     expect(routes.has('/settings/business-roles')).toBe(true); // the parser joins nested routes
+    // A query (New Contract's ?new=1) is not part of the route
     const missing = allItems()
-      .map((i) => i.path)
+      .map((i) => i.path?.split('?')[0])
       .filter((p): p is string => !!p && !routes.has(p));
     expect(missing).toEqual([]);
   });
@@ -259,6 +261,7 @@ describe('visibleNav maturity', () => {
     const nav = visibleNav(() => true, gaOnly);
     expect(itemIds(nav, 'Settings')).toContain('general');
     expect(nav.Build.flatMap((s) => s.items).find((i) => i.id === 'concepts')?.children).toHaveLength(6);
+    expect(nav.Build.flatMap((s) => s.items).find((i) => i.id === 'data-contracts')?.children).toHaveLength(2);
   });
 
   it('applies on top of the permission check', () => {
@@ -318,6 +321,68 @@ describe('activeLocation', () => {
 });
 
 // Task 16c: the owner's side-menu list (2026-11-10)
+const buildItem = (id: string) => NAV.Build.flatMap((s) => s.items).find((i) => i.id === id)!;
+// What a user who can only read data contracts, or also write them, has
+const reader = (id: string, level?: FeatureAccessLevel) =>
+  id === 'data-contracts' && (level ?? FeatureAccessLevel.READ_ONLY) === FeatureAccessLevel.READ_ONLY;
+const writer = (id: string, level?: FeatureAccessLevel) =>
+  id === 'data-contracts' && [FeatureAccessLevel.READ_ONLY, FeatureAccessLevel.READ_WRITE].includes(level ?? FeatureAccessLevel.READ_ONLY);
+
+
+describe('Build → Concepts (Task 16c)', () => {
+  it('lists Define, Explore, Search, Hierarchy Browser, Enrich and Term Mapping, in that order', () => {
+    const concepts = buildItem('concepts');
+    expect(concepts.children!.map((c) => [c.id, c.labelKey, c.path])).toEqual([
+      ['concept-define', 'concepts:sections.define', '/concepts/define'],
+      ['concept-browser', 'shell:items.conceptBrowser', '/concepts/browser'],
+      ['concept-search', 'shell:items.conceptSearch', '/concepts/search'],
+      ['concept-hierarchy', 'shell:items.conceptHierarchy', '/concepts/hierarchy'],
+      ['concept-enrich', 'shell:items.conceptEnrich', '/concepts/enrich'],
+      ['concept-mapping', 'shell:items.conceptMapping', '/concepts/mapping'],
+    ]);
+    expect(concepts.children!.every((c) => c.permissionId === 'semantic-models')).toBe(true);
+  });
+
+  it('labels them Explore, Hierarchy Browser and Term Mapping', async () => {
+    const shell = (await import('@/i18n/locales/en/shell.json')).default.items;
+    const concepts = (await import('@/i18n/locales/en/concepts.json')).default.sections;
+    expect([concepts.define, shell.conceptBrowser, shell.conceptSearch, shell.conceptHierarchy, shell.conceptEnrich, shell.conceptMapping])
+      .toEqual(['Define', 'Explore', 'Search', 'Hierarchy Browser', 'Enrich', 'Term Mapping']);
+  });
+
+  it('no longer lists Import (Build → Assets → Schema Importer is the same page)', () => {
+    expect(allItems().map((i) => i.path)).not.toContain('/concepts/import');
+    expect(allItems().map((i) => i.id)).not.toContain('concept-import');
+  });
+});
+
+describe('Build → Data Contracts (Task 16c)', () => {
+  it('is a parent labelled Data Contracts, with Explorer (its default) and New Contract', () => {
+    const contracts = buildItem('data-contracts');
+    expect(contracts.labelKey).toBe('shell:items.dataContracts');
+    expect(contracts.path).toBe('/data-contracts');
+    expect(contracts.children!.map((c) => [c.id, c.labelKey, c.path, c.permissionId])).toEqual([
+      ['contracts-explorer', 'shell:items.explorer', '/data-contracts', 'data-contracts'],
+      ['new-contract', 'data-contracts:newContract', '/data-contracts?new=1', 'data-contracts'],
+    ]);
+    expect(contracts.defaultChildId).toBe('contracts-explorer');
+  });
+
+  it('has its own label, so the feature name stays "Contracts"', async () => {
+    const shell = (await import('@/i18n/locales/en/shell.json')).default.items as Record<string, string>;
+    const features = (await import('@/i18n/locales/en/features.json')).default as Record<string, { name: string }>;
+    expect(shell.dataContracts).toBe('Data Contracts');
+    expect(features['data-contracts'].name).toBe('Contracts');
+  });
+
+  it('shows New Contract only with write access, as the page gates its create button', () => {
+    const children = (has: typeof reader) =>
+      visibleNav(has).Build.flatMap((s) => s.items).find((i) => i.id === 'data-contracts')!.children!.map((c) => c.id);
+    expect(children(reader)).toEqual(['contracts-explorer']);
+    expect(children(writer)).toEqual(['contracts-explorer', 'new-contract']);
+  });
+});
+
 describe('Directory (Task 16c)', () => {
   it('is the last Platform item in Settings, after Jobs', () => {
     const platform = NAV.Settings.find((s) => s.titleKey === 'shell:sections.platform')!;
@@ -367,7 +432,16 @@ describe('group defaults (Task 16c)', () => {
 });
 
 describe('activeLocation (Task 16c)', () => {
-  it('finds Directory in Settings', () => {
+  it('finds the new and moved items', () => {
+    expect(activeLocation('/concepts/define')).toEqual({ group: 'Build', itemId: 'concepts', childId: 'concept-define' });
+    expect(activeLocation('/data-contracts')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
+    expect(activeLocation('/data-contracts/abc')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
     expect(activeLocation('/settings/directory')).toEqual({ group: 'Settings', itemId: 'directory' });
+  });
+
+  it('finds New Contract only while ?new=1 is in the URL', () => {
+    expect(activeLocation('/data-contracts', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'new-contract' });
+    expect(activeLocation('/data-contracts', '?status=draft')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
+    expect(activeLocation('/data-contracts/abc', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
   });
 });

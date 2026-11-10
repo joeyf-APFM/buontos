@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { FeatureAccessLevel } from '@/types/settings';
 
 // ---------------------------------------------------------------------------
@@ -75,8 +75,14 @@ vi.mock('@/components/ui/data-table', () => ({
   ),
 }));
 
+// The create dialog, as a marker that is there while it's open
 vi.mock('@/components/data-contracts/data-contract-basic-form-dialog', () => ({
-  default: () => null,
+  default: ({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (open: boolean) => void }) =>
+    isOpen ? (
+      <div role="dialog" aria-label="create contract">
+        <button onClick={() => onOpenChange(false)}>close</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('@/components/metadata/entity-info-dialog', () => ({
@@ -114,13 +120,23 @@ afterEach(async () => {
 
 import DataContracts from './data-contracts';
 
-function renderView() {
+function UrlProbe() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="url">{pathname + search}</output>;
+}
+const url = () => screen.getByTestId('url').textContent;
+
+function renderView(url = '/data-contracts') {
   render(
-    <MemoryRouter initialEntries={['/data-contracts']}>
+    <MemoryRouter initialEntries={[url]}>
       <DataContracts />
+      <UrlProbe />
     </MemoryRouter>,
   );
 }
+
+const writer = (featureId: string, level: FeatureAccessLevel) =>
+  featureId === 'data-contracts' && (level === FeatureAccessLevel.READ_ONLY || level === FeatureAccessLevel.READ_WRITE);
 
 describe('DataContracts create-action permission gating (ONT-RBAC-007)', () => {
   it('hides the New Contract action for personas without write permission (Data Consumer)', async () => {
@@ -147,5 +163,50 @@ describe('DataContracts create-action permission gating (ONT-RBAC-007)', () => {
     await waitFor(() => expect(screen.getByTestId('data-table')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'newContract' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'uploadFile' })).toBeInTheDocument();
+  });
+});
+
+// Task 16c: the side menu's Build → Data Contracts → New Contract links to
+// /data-contracts?new=1, which opens the page's own create dialog
+describe('DataContracts ?new=1', () => {
+  it('opens the create dialog, and clears the param once it closes', async () => {
+    mockHasPermission = writer;
+    renderView('/data-contracts?new=1');
+
+    expect(await screen.findByRole('dialog', { name: 'create contract' })).toBeInTheDocument();
+    // New Contract stays highlighted in the menu while the dialog is open
+    expect(url()).toBe('/data-contracts?new=1');
+
+    await act(async () => screen.getByRole('button', { name: 'close' }).click());
+
+    expect(screen.queryByRole('dialog', { name: 'create contract' })).not.toBeInTheDocument();
+    await waitFor(() => expect(url()).toBe('/data-contracts'));
+    // and doesn't reopen
+    expect(screen.queryByRole('dialog', { name: 'create contract' })).not.toBeInTheDocument();
+  });
+
+  it('opens the same dialog as the New Contract button', async () => {
+    mockHasPermission = writer;
+    renderView();
+    await waitFor(() => expect(screen.getByTestId('data-table')).toBeInTheDocument());
+    await act(async () => screen.getByRole('button', { name: 'newContract' }).click());
+    expect(screen.getByRole('dialog', { name: 'create contract' })).toBeInTheDocument();
+  });
+
+  it('keeps other params when it clears new=1', async () => {
+    mockHasPermission = writer;
+    renderView('/data-contracts?status=draft&new=1');
+    await screen.findByRole('dialog', { name: 'create contract' });
+    await act(async () => screen.getByRole('button', { name: 'close' }).click());
+    await waitFor(() => expect(url()).toBe('/data-contracts?status=draft'));
+  });
+
+  it('opens no dialog for a user who cannot create contracts, and clears the param', async () => {
+    mockHasPermission = (_featureId, level) => level === FeatureAccessLevel.READ_ONLY;
+    renderView('/data-contracts?new=1');
+
+    await waitFor(() => expect(screen.getByTestId('data-table')).toBeInTheDocument());
+    await waitFor(() => expect(url()).toBe('/data-contracts'));
+    expect(screen.queryByRole('dialog', { name: 'create contract' })).not.toBeInTheDocument();
   });
 });

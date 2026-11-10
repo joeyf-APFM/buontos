@@ -6,8 +6,5 @@
   "button \"Upload files\"",
   "link \"\"",
   "link \"Concept Browser\"",
-  "link \"Define\"",
-  "tab \"Define\"",
-  "tab \"Enrich\"",
-  "tab \"Explore\""
+  "link \"Define\""
 ]

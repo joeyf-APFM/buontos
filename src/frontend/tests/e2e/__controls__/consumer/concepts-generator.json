@@ -13,9 +13,6 @@
   "switch \"Data properties\"",
   "switch \"Inheritance\"",
   "switch \"Relationships\"",
-  "tab \"Define\"",
-  "tab \"Enrich\"",
-  "tab \"Explore\"",
   "textbox \"Base URI\"",
   "textbox \"Guidelines\"",
   "textbox \"Search: t:catalog.schema.table\""

@@ -5,8 +5,5 @@
   "button \"Small View\"",
   "link \"\"",
   "link \"Concept Browser\"",
-  "link \"Explore\"",
-  "tab \"Define\"",
-  "tab \"Enrich\"",
-  "tab \"Explore\""
+  "link \"Explore\""
 ]

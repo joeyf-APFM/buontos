@@ -10,14 +10,15 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/concepts" element={<ConceptsLayout />}>
+          <Route path="define" element={<div>define-view</div>} />
           <Route path="browser" element={<div>browser-view</div>} />
           <Route path="browser/:iri" element={<div>concept-detail-view</div>} />
           <Route path="search" element={<div>search-view</div>} />
-          <Route path="graph" element={<div>graph-view</div>} />
           <Route path="hierarchy" element={<div>hierarchy-view</div>} />
           <Route path="collections" element={<div>collections-view</div>} />
           <Route path="generator" element={<div>generator-view</div>} />
           <Route path="import" element={<div>import-view</div>} />
+          <Route path="enrich" element={<div>enrich-view</div>} />
           <Route path="mapping" element={<div>mapping-view</div>} />
         </Route>
       </Routes>
@@ -25,50 +26,29 @@ function renderAt(path: string) {
   );
 }
 
-describe('ConceptsLayout — v2 3-section nav', () => {
-  it('renders the three primary sections as tabs', () => {
-    renderAt('/concepts/browser');
-    const tabs = screen.getAllByRole('tab');
-    const labels = tabs.map((t) => t.textContent);
-    // The compact S | L mode toggle is a button group, not tabs, so the only
-    // tabs in the header row are the three sections.
-    expect(labels).toEqual(['Define', 'Explore', 'Enrich']);
-    expect(screen.getByRole('group', { name: 'View mode' })).toBeInTheDocument();
-  });
+const PAGES = ['define', 'browser', 'search', 'hierarchy', 'collections', 'generator', 'import', 'enrich', 'mapping'];
 
-  it('marks Explore active on the browser (default) route with no legacy sub-nav', () => {
-    renderAt('/concepts/browser');
-    const exploreTab = screen.getByRole('tab', { name: 'Explore' });
-    expect(exploreTab).toHaveAttribute('aria-selected', 'true');
-    // v2: Explore is one unified browse surface. List/Tree/Graph live as an
-    // in-page view switch inside the view (not the layout), and the old
-    // per-view sub-nav tabs (Concepts/Search/Hierarchy) are gone.
-    expect(screen.queryByRole('tab', { name: 'Concepts' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Search' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Hierarchy' })).not.toBeInTheDocument();
-    // The three primary section tabs are present.
-    expect(screen.getByRole('tab', { name: 'Define' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Explore' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Enrich' })).toBeInTheDocument();
-  });
-
-  it('marks Define active on Collections/Generator/Import routes', () => {
-    for (const path of ['/concepts/collections', '/concepts/generator', '/concepts/import']) {
-      const { unmount } = renderAt(path);
-      expect(screen.getByRole('tab', { name: 'Define' })).toHaveAttribute('aria-selected', 'true');
+describe('ConceptsLayout', () => {
+  // The side menu's Build → Concepts lists the pages (Task 16c): the layout
+  // no longer draws its own Define / Explore / Enrich section switch
+  it('has no "Concept sections" switch on any concept page', () => {
+    for (const page of PAGES) {
+      const { unmount } = renderAt(`/concepts/${page}`);
+      expect(screen.queryByRole('tablist', { name: 'Concept sections' })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Concept sections')).not.toBeInTheDocument();
+      expect(screen.queryAllByRole('tab')).toHaveLength(0);
+      expect(screen.getByText(`${page}-view`)).toBeInTheDocument();
       unmount();
     }
   });
 
-  it('marks Enrich active on the Mapping route', () => {
-    renderAt('/concepts/mapping');
-    expect(screen.getByRole('tab', { name: 'Enrich' })).toHaveAttribute('aria-selected', 'true');
+  it('keeps the Simple/Advanced mode switch', () => {
+    renderAt('/concepts/browser');
+    expect(screen.getByRole('group', { name: 'View mode' })).toBeInTheDocument();
   });
 
   it('keeps the browser/:iri deep link working (outlet renders detail view)', () => {
     renderAt('/concepts/browser/some%3Airi');
     expect(screen.getByText('concept-detail-view')).toBeInTheDocument();
-    // Deep link still resolves to the Explore section.
-    expect(screen.getByRole('tab', { name: 'Explore' })).toHaveAttribute('aria-selected', 'true');
   });
 });

@@ -12,8 +12,5 @@
   "radio \"Full recursive Everything nested below selected nodes\"",
   "radio \"One level Selected items + immediate children\"",
   "radio \"Selected only Import only the selected items\"",
-  "tab \"Define\"",
-  "tab \"Enrich\"",
-  "tab \"Explore\"",
   "textbox \"Search: t:catalog.schema.table\""
 ]

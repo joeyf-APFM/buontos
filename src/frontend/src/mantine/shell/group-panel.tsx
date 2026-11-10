@@ -22,7 +22,7 @@ interface GroupPanelProps {
  * this group (Build's Asset types isn't highlighted: the page is Semantics').
  */
 export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelProps) {
-  const { t } = useTranslation(['shell', 'navigation', 'settings', 'features']);
+  const { t } = useTranslation(['shell', 'navigation', 'settings', 'features', 'concepts', 'data-contracts']);
   const { pathname } = useLocation();
   const pinned = useShellStore((s) => s.pinned);
   const expanded = useShellStore((s) => s.expanded);

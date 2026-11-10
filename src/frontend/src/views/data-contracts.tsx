@@ -75,7 +75,30 @@ export default function DataContracts() {
   const { currentProject, hasProjectContext } = useProjectContext();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // The side menu's Build → Data Contracts → New Contract links here with
+  // ?new=1: it opens the create dialog, as the New Contract button does, for
+  // the users who see that button. The param goes (replace) when the dialog
+  // closes, so the menu highlights New Contract while it's open, and once it
+  // is closed neither a reload nor back reopens it.
+  const wantsNewContract = searchParams.get('new') === '1';
+  const wizardOpen = openWizard || (wantsNewContract && canWrite);
+  const clearNewContractParam = () =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('new');
+      return next;
+    }, { replace: true });
+  const setWizardOpen = (open: boolean) => {
+    setOpenWizard(open);
+    if (!open && wantsNewContract) clearNewContractParam();
+  };
+  // Without the create permission, the param is dropped and nothing opens
+  useEffect(() => {
+    if (wantsNewContract && !permissionsLoading && !canWrite) clearNewContractParam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsNewContract, permissionsLoading, canWrite]);
 
   useEffect(() => {
     fetchContracts();
@@ -169,7 +192,7 @@ export default function DataContracts() {
         title: t('data-contracts:messages.success', 'Success'), 
         description: t('data-contracts:form.createSuccess', 'Data contract created successfully')
       });
-      setOpenWizard(false); // Close the wizard on success
+      setWizardOpen(false); // Close the wizard on success
     } catch (err) {
       const message = err instanceof Error ? err.message : t('data-contracts:form.createError', 'Failed to create data contract');
       setError(message);
@@ -801,8 +824,8 @@ export default function DataContracts() {
 
       {/* Basic Form Dialog */}
       <DataContractBasicFormDialog
-        isOpen={openWizard}
-        onOpenChange={setOpenWizard}
+        isOpen={wizardOpen}
+        onOpenChange={setWizardOpen}
         onSubmit={createContract}
       />
 

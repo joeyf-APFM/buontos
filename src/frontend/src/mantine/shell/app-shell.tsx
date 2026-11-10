@@ -22,7 +22,7 @@ import classes from './shell.module.css';
  * and Ask Ontos (strip button), each a floating window on every page (R25, R26).
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { permissions, hasPermission } = usePermissions();
   const allowedMaturities = useFeatureVisibilityStore((s) => s.allowedMaturities);
   const openGroup = useShellStore((s) => s.openGroup);
@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nav = useMemo(
     () =>
       visibleNav(
-        (id) => hasPermission(id, FeatureAccessLevel.READ_ONLY),
+        (id, level) => hasPermission(id, level),
         (maturity) => allowedMaturities.includes(maturity),
       ),
     // hasPermission reads the store; recompute when the permissions change
@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
   const settingsGate = hasPermission(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
   // The current page's place in the menu, in a group this user sees
-  const located = activeLocation(pathname);
+  const located = activeLocation(pathname, search);
   const here = located && nav[located.group] ? located : null;
   const shownGroup = isPanelGroup(openGroup) && nav[openGroup] ? openGroup : null;
 

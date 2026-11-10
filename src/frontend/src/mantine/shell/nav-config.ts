@@ -5,7 +5,8 @@
  *
  * Ids, paths and permission ids come from config/features.ts and
  * components/settings/settings-layout.tsx. Every item is hidden without
- * READ_ONLY on its permission id.
+ * READ_ONLY on its permission id, or the `level` it names (New Contract
+ * needs READ_WRITE, as the page's own create button does).
  *
  * A parent with children shows when any child shows. Its own `path`, if it
  * has one, is kept only when its own permission allows it; without a path,
@@ -38,7 +39,9 @@ import {
   Network,
   Package,
   Palette,
+  PenLine,
   Plug2,
+  Plus,
   ScrollText,
   Search,
   Settings,
@@ -58,6 +61,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { features, type FeatureMaturity } from '@/config/features';
+import { FeatureAccessLevel } from '@/types/settings';
 
 export type NavGroupId =
   | 'Discover'
@@ -70,8 +74,11 @@ export type NavGroupId =
 export interface NavItem {
   id: string;
   labelKey: string;
+  /** The page; it may carry a query (`/data-contracts?new=1`), matched as well. */
   path?: string;
   permissionId: string;
+  /** The access the item needs on its permission id; READ_ONLY unless set. */
+  level?: FeatureAccessLevel;
   icon: LucideIcon;
   children?: NavItem[];
   /** For a parent: the child that stands for it, at the parent's own path. */
@@ -163,16 +170,29 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
         },
         {
           id: 'concepts', labelKey: 'features:concepts.name', path: '/concepts', permissionId: 'semantic-models', icon: Network,
+          // No Import: /concepts/import is Build → Assets → Schema importer
+          // (the route stays, so existing links to it still work)
           children: [
+            { id: 'concept-define', labelKey: 'concepts:sections.define', path: '/concepts/define', permissionId: 'semantic-models', icon: PenLine },
             { id: 'concept-browser', labelKey: 'shell:items.conceptBrowser', path: '/concepts/browser', permissionId: 'semantic-models', icon: Network },
             { id: 'concept-search', labelKey: 'shell:items.conceptSearch', path: '/concepts/search', permissionId: 'semantic-models', icon: Search },
             { id: 'concept-hierarchy', labelKey: 'shell:items.conceptHierarchy', path: '/concepts/hierarchy', permissionId: 'semantic-models', icon: Network },
             { id: 'concept-enrich', labelKey: 'shell:items.conceptEnrich', path: '/concepts/enrich', permissionId: 'semantic-models', icon: Sparkles },
             { id: 'concept-mapping', labelKey: 'shell:items.conceptMapping', path: '/concepts/mapping', permissionId: 'semantic-models', icon: GitBranch },
-            { id: 'concept-import', labelKey: 'shell:items.conceptImport', path: '/concepts/import', permissionId: 'semantic-models', icon: Plug2 },
           ],
         },
-        { id: 'data-contracts', labelKey: 'features:data-contracts.name', path: '/data-contracts', permissionId: 'data-contracts', icon: FileTextIcon },
+        {
+          id: 'data-contracts', labelKey: 'shell:items.dataContracts', path: '/data-contracts', permissionId: 'data-contracts', icon: FileTextIcon,
+          defaultChildId: 'contracts-explorer',
+          children: [
+            { id: 'contracts-explorer', labelKey: 'shell:items.explorer', path: '/data-contracts', permissionId: 'data-contracts', icon: FileTextIcon },
+            // Opens the page's create dialog (views/data-contracts.tsx), for those who see its create button
+            {
+              id: 'new-contract', labelKey: 'data-contracts:newContract', path: '/data-contracts?new=1', permissionId: 'data-contracts',
+              level: FeatureAccessLevel.READ_WRITE, icon: Plus,
+            },
+          ],
+        },
         {
           id: 'products', labelKey: 'features:data-products.name', path: '/data-products', permissionId: 'data-products', icon: Package,
           children: [
@@ -293,17 +313,18 @@ function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean): NavIte
 }
 
 /**
- * The menu as one user sees it: items need READ_ONLY on their permission
- * (`has`) and a feature maturity the user shows (`showMaturity`, as the old
- * sidebar did with the beta/alpha toggles).
+ * The menu as one user sees it: items need their level (READ_ONLY unless set)
+ * on their permission (`has`) and a feature maturity the user shows
+ * (`showMaturity`, as the old sidebar did with the beta/alpha toggles).
  */
 export function visibleNav(
-  has: (permissionId: string) => boolean,
+  has: (permissionId: string, level: FeatureAccessLevel) => boolean,
   showMaturity: (maturity: FeatureMaturity) => boolean = () => true,
 ): Record<NavGroupId, NavSection[]> {
-  const allowed = (item: NavItem) => has(item.permissionId) && showMaturity(maturityOf(item.id));
+  const allowed = (item: NavItem) =>
+    has(item.permissionId, item.level ?? FeatureAccessLevel.READ_ONLY) && showMaturity(maturityOf(item.id));
   const result = {} as Record<NavGroupId, NavSection[]>;
-  const gated = !has(SETTINGS_GATE);
+  const gated = !has(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
   for (const { id, settingsArea } of NAV_GROUPS) {
     const sections = NAV[id]
       .filter((s) => !(settingsArea && gated) || s.ungated)
@@ -331,21 +352,34 @@ export interface ActiveLocation {
   childId?: string;
 }
 
-function covers(path: string | undefined, pathname: string): boolean {
-  return !!path && (pathname === path || pathname.startsWith(`${path}/`));
+/**
+ * How well an item's path covers the location: its length, or -1. A path
+ * covers its page and the pages under it; a path with a query covers only
+ * its own page, while the URL has every one of those params.
+ */
+function coverage(path: string | undefined, pathname: string, search: string): number {
+  if (!path) return -1;
+  const [base, query] = path.split('?');
+  if (query) {
+    const here = new URLSearchParams(search);
+    const needed = [...new URLSearchParams(query)];
+    return pathname === base && needed.every(([k, v]) => here.get(k) === v) ? path.length : -1;
+  }
+  return pathname === base || pathname.startsWith(`${base}/`) ? base.length : -1;
 }
 
-/** The best match for `pathname` within one group's sections, or null. */
-export function matchInGroup(sections: NavSection[], pathname: string): Omit<ActiveLocation, 'group'> | null {
-  let best: Omit<ActiveLocation, 'group'> | null = null;
+/** The best match for the location within one group's sections, or null. */
+function matchInGroup(sections: NavSection[], pathname: string, search: string): (Omit<ActiveLocation, 'group'> & { length: number }) | null {
+  let best: (Omit<ActiveLocation, 'group'> & { length: number }) | null = null;
   let bestScore = -1;
   const consider = (path: string | undefined, found: Omit<ActiveLocation, 'group'>, isChild: boolean) => {
-    if (!covers(path, pathname)) return;
+    const length = coverage(path, pathname, search);
+    if (length < 0) return;
     // Longer paths win; on a tie a sub-item beats its parent
-    const score = path!.length * 2 + (isChild ? 1 : 0);
+    const score = length * 2 + (isChild ? 1 : 0);
     if (score > bestScore) {
       bestScore = score;
-      best = found;
+      best = { ...found, length };
     }
   };
   for (const section of sections) {
@@ -361,17 +395,17 @@ export function matchInGroup(sections: NavSection[], pathname: string): Omit<Act
 // more specific one: Asset types (Build → Assets and Semantics) is Semantics'
 const SEARCH_ORDER: NavGroupId[] = ['Settings', 'Organization', 'Semantics', 'Workflows', 'Discover', 'Build'];
 
-export function activeLocation(pathname: string): ActiveLocation | null {
+/** The current page's place in the menu: `pathname` and `search` from the router's location. */
+export function activeLocation(pathname: string, search = ''): ActiveLocation | null {
   let best: ActiveLocation | null = null;
   let bestLength = -1;
   for (const group of SEARCH_ORDER) {
-    const found = matchInGroup(NAV[group], pathname);
+    const found = matchInGroup(NAV[group], pathname, search);
     if (!found) continue;
-    const item = NAV[group].flatMap((s) => s.items).find((i) => i.id === found.itemId)!;
-    const path = found.childId ? item.children!.find((c) => c.id === found.childId)!.path! : item.path!;
-    if (path.length > bestLength) {
-      bestLength = path.length;
-      best = { group, ...found };
+    const { length, ...location } = found;
+    if (length > bestLength) {
+      bestLength = length;
+      best = { group, ...location };
     }
   }
   return best;

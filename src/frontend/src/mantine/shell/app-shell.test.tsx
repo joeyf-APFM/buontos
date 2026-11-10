@@ -78,7 +78,7 @@ describe('AppShell', () => {
     await user.click(screen.getByRole('button', { name: 'Build' }));
     await user.click(within(panel()!).getByRole('button', { name: /Pinned/ }));
 
-    await user.click(within(panel()!).getByRole('link', { name: 'Contracts' }));
+    await user.click(within(panel()!).getByRole('link', { name: 'Data Contracts' }));
 
     expect(window.location.pathname).toBe('/data-contracts');
     expect(panel()).toBeNull();
@@ -89,7 +89,7 @@ describe('AppShell', () => {
     renderShell();
     await user.click(screen.getByRole('button', { name: 'Build' }));
 
-    await user.click(within(panel()!).getByRole('link', { name: 'Contracts' }));
+    await user.click(within(panel()!).getByRole('link', { name: 'Data Contracts' }));
 
     expect(panel()).not.toBeNull();
   });
@@ -118,7 +118,7 @@ describe('AppShell', () => {
     renderShell('/data-contracts');
     await user.click(screen.getByRole('button', { name: 'Build' }));
 
-    expect(within(panel()!).getByRole('link', { name: 'Contracts' })).toHaveAttribute('aria-current', 'page');
+    expect(within(panel()!).getByRole('link', { name: 'Explorer' })).toHaveAttribute('aria-current', 'page');
     expect(within(panel()!).getByRole('link', { name: 'My Requests' })).not.toHaveAttribute('aria-current');
   });
 
@@ -154,7 +154,7 @@ describe('AppShell', () => {
 
     expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Build' }));
-    expect(within(panel()!).getByRole('link', { name: 'Contracts' })).toBeInTheDocument();
+    expect(within(panel()!).getByRole('link', { name: 'Data Contracts' })).toBeInTheDocument();
     expect(within(panel()!).queryByText('Assets')).toBeNull();
   });
 
@@ -503,6 +503,24 @@ describe('the side menu (Task 16c)', () => {
       expect(build.querySelector('[aria-current]')).toBeNull();
     });
 
+    it('highlights only Explorer under Data Contracts on /data-contracts and its detail pages', () => {
+      for (const route of ['/data-contracts', '/data-contracts/abc']) {
+        const view = renderShell(route);
+        openPinned('Build');
+        const build = panelOf('Build')!;
+        expect(highlighted(build)).toEqual(['Explorer']);
+        expect(within(build).getByRole('link', { name: 'Data Contracts' })).not.toHaveAttribute('aria-current');
+        view.unmount();
+      }
+    });
+
+    it('highlights New Contract while ?new=1 is in the URL', () => {
+      renderShell('/data-contracts?new=1');
+      openPinned('Build');
+      expect(highlighted(panelOf('Build')!)).toEqual(['New Contract']);
+      expect(within(panelOf('Build')!).getByRole('link', { name: 'New Contract' })).toHaveAttribute('href', '/data-contracts?new=1');
+    });
+
     it('highlights Workflows alone on its page', () => {
       renderShell('/settings/workflows');
       expect(highlighted(strip())).toEqual(['Workflows']);
@@ -512,6 +530,36 @@ describe('the side menu (Task 16c)', () => {
       renderShell('/settings/workflows/new');
       openPinned('Settings');
       expect(highlighted(strip())).toEqual(['Settings']);
+    });
+  });
+
+  describe('Build → Data Contracts', () => {
+    it('offers New Contract to a user who can create contracts', () => {
+      renderShell('/data-contracts');
+      openPinned('Build');
+      expect(within(panelOf('Build')!).getByRole('link', { name: 'New Contract' })).toBeInTheDocument();
+    });
+
+    it('hides New Contract from a user who can only read contracts', () => {
+      usePermissionsStore.setState({ permissions: { 'data-contracts': FeatureAccessLevel.READ_ONLY } });
+      renderShell('/data-contracts');
+      openPinned('Build');
+      const build = panelOf('Build')!;
+      expect(within(build).getByRole('link', { name: 'Explorer' })).toBeInTheDocument();
+      expect(within(build).queryByRole('link', { name: 'New Contract' })).toBeNull();
+    });
+  });
+
+  describe('Build → Concepts', () => {
+    it('lists Define, Explore, Search, Hierarchy Browser, Enrich and Term Mapping, and no Import', () => {
+      renderShell('/concepts/define');
+      openPinned('Build');
+      const build = panelOf('Build')!;
+      const concepts = within(build).getByRole('link', { name: 'Concepts' }).parentElement!;
+      expect([...concepts.querySelectorAll('a')].map((a) => a.textContent)).toEqual([
+        'Concepts', 'Define', 'Explore', 'Search', 'Hierarchy Browser', 'Enrich', 'Term Mapping',
+      ]);
+      expect(highlighted(build)).toEqual(['Define']);
     });
   });
 

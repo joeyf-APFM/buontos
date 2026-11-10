@@ -15,8 +15,5 @@
   "link \"\"",
   "link \"Concept Browser\"",
   "link \"Schemes\"",
-  "tab \"Define\"",
-  "tab \"Enrich\"",
-  "tab \"Explore\"",
   "textbox \"Filter labels...\""
 ]
