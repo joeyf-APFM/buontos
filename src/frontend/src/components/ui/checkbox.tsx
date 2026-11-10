@@ -4,6 +4,8 @@ import { useMergedRef } from "@mantine/hooks"
 
 import { cn } from "@/lib/utils"
 
+import { ignoreEnter } from "./field-props"
+
 /** The Radix checkbox state: checked, unchecked or indeterminate. */
 export type CheckedState = boolean | "indeterminate"
 
@@ -23,7 +25,7 @@ export interface CheckboxProps
  * and `onCheckedChange` gets the new state. The ref is the <input>.
  */
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className, checked, defaultChecked, onCheckedChange, onChange, ...props }, ref) => {
+  ({ className, checked, defaultChecked, onCheckedChange, onChange, onKeyDown, ...props }, ref) => {
     // Mantine sets input.indeterminate only through an object ref, and the
     // caller's ref may be a callback, so it is set here
     const inputRef = React.useRef<HTMLInputElement>(null)
@@ -44,6 +46,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           onChange?.(event)
           onCheckedChange?.(event.currentTarget.checked)
         }}
+        onKeyDown={ignoreEnter(onKeyDown)}
         {...props}
       />
     )

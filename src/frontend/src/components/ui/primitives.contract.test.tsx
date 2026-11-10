@@ -4,7 +4,7 @@
  */
 import { useEffect, type ReactNode } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Link, Route, Routes } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { renderWithMantine, userEvent } from '@/test/utils';
@@ -109,6 +109,26 @@ describe('Button', () => {
     expect(await screen.findByText('Arrived')).toBeInTheDocument();
   });
 
+  it('button passes the root gap and justify-content to its inner and label spans', () => {
+    renderWithMantine(
+      <Button className="gap-3 justify-start" style={{ gap: '12px' }}>
+        <svg data-testid="icon" />
+        Create
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Create' });
+    const label = screen.getByTestId('icon').parentElement as HTMLElement;
+    const inner = label.parentElement as HTMLElement;
+    expect(inner.parentElement).toBe(button);
+    for (const span of [inner, label]) {
+      expect(span.style.gap).toBe('inherit');
+      expect(span.style.justifyContent).toBe('inherit');
+    }
+    // Content may overflow the label, as it overflowed the shadcn button
+    expect(label.style.overflow).toBe('visible');
+    expect(button).toHaveClass('gap-3', 'justify-start');
+  });
+
   it('button disabled and loading keep the native disabled attribute', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
@@ -190,6 +210,7 @@ describe('Input and Textarea', () => {
     expect(input).toHaveClass('h-8', 'pl-8', 'font-mono');
     expect(input).not.toHaveClass('mt-1');
     expect(input.parentElement).toHaveClass('mt-1', 'w-32');
+    expect(input.parentElement).not.toHaveClass('w-full');
   });
 
   it('textarea forwards rows, the ref and the value', async () => {
@@ -201,6 +222,8 @@ describe('Input and Textarea', () => {
     expect(textarea).toHaveAttribute('rows', '4');
     expect(textarea).toHaveClass('resize-none');
     expect(textarea.parentElement).toHaveClass('mt-1');
+    // The shadcn w-full baseline, which a caller's width class replaces
+    expect(textarea.parentElement).toHaveClass('w-full');
     await user.type(textarea, 'hello');
     expect(textarea).toHaveValue('hello');
   });
@@ -298,5 +321,97 @@ describe('Checkbox, Switch and RadioGroup', () => {
     );
     expect(screen.getByRole('radio', { name: 'A' })).toBeEnabled();
     expect(screen.getByRole('radio', { name: 'B' })).toBeDisabled();
+  });
+
+  it('a radio group puts id and aria attributes on the radiogroup element', () => {
+    const ref = { current: null as HTMLDivElement | null };
+    renderWithMantine(
+      <>
+        <p id="help">Pick one</p>
+        <RadioGroup ref={ref} id="choice" aria-describedby="help" aria-invalid={false} aria-label="Choice" className="flex gap-4">
+          <RadioGroupItem aria-label="A" value="a" />
+        </RadioGroup>
+      </>,
+    );
+    const group = screen.getByRole('radiogroup', { name: 'Choice' });
+    expect(ref.current).toBe(group);
+    expect(group).toHaveAttribute('id', 'choice');
+    expect(group).toHaveAttribute('aria-describedby', 'help');
+    expect(group).toHaveAttribute('aria-invalid', 'false');
+    expect(group).toHaveAccessibleDescription('Pick one');
+    expect(screen.getByRole('radio', { name: 'A' }).closest('.flex')).toHaveClass('gap-4');
+  });
+});
+
+describe('Enter on checkbox, radio and switch', () => {
+  function InForm({ children, onSubmit }: { children: ReactNode; onSubmit: () => void }) {
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        {children}
+        <button type="submit">Submit</button>
+      </form>
+    );
+  }
+
+  it('Enter on a checkbox or radio is prevented and does not submit the form', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onKeyDown = vi.fn();
+    const onCheckedChange = vi.fn();
+    renderWithMantine(
+      <InForm onSubmit={onSubmit}>
+        <Checkbox aria-label="Agree" onKeyDown={onKeyDown} onCheckedChange={onCheckedChange} />
+        <RadioGroup value="a" onValueChange={() => {}}>
+          <RadioGroupItem aria-label="A" value="a" onKeyDown={onKeyDown} />
+        </RadioGroup>
+      </InForm>,
+    );
+    for (const control of [screen.getByRole('checkbox', { name: 'Agree' }), screen.getByRole('radio', { name: 'A' })]) {
+      // fireEvent returns false when the default was prevented
+      expect(fireEvent.keyDown(control, { key: 'Enter' })).toBe(false);
+      control.focus();
+      await user.keyboard('{Enter}');
+    }
+    expect(onKeyDown).toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onCheckedChange).not.toHaveBeenCalled();
+  });
+
+  it('a submit button in the same form still submits (the check above is live)', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWithMantine(
+      <InForm onSubmit={onSubmit}>
+        <input aria-label="Plain" type="checkbox" />
+      </InForm>,
+    );
+    screen.getByRole('checkbox', { name: 'Plain' }).focus();
+    await user.keyboard('{Enter}');
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('Enter toggles a switch and calls onCheckedChange without submitting', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onCheckedChange = vi.fn();
+    renderWithMantine(
+      <InForm onSubmit={onSubmit}>
+        <Switch aria-label="Notify" onCheckedChange={onCheckedChange} />
+      </InForm>,
+    );
+    const toggle = screen.getByRole('switch', { name: 'Notify' });
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toBeChecked();
+    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    await user.keyboard('{Enter}');
+    expect(toggle).not.toBeChecked();
+    expect(onCheckedChange).toHaveBeenLastCalledWith(false);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

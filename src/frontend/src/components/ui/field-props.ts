@@ -1,4 +1,4 @@
-import type { AriaAttributes } from 'react'
+import type { AriaAttributes, KeyboardEvent, KeyboardEventHandler } from 'react'
 
 /** True for aria-invalid values that mark a field invalid. */
 export function isAriaInvalid(value: AriaAttributes['aria-invalid']): boolean {
@@ -35,4 +35,18 @@ export function splitFieldClassName(className: string | undefined): { root?: str
     if (token) (isFieldClass(token) ? field : root).push(token)
   }
   return { root: root.join(' ') || undefined, field: field.join(' ') || undefined }
+}
+
+/**
+ * Radix checkboxes and radios ignored Enter, so it never submitted the
+ * surrounding form; native inputs can. Runs the caller's handler, then
+ * prevents Enter's default.
+ */
+export function ignoreEnter<T extends HTMLElement>(
+  onKeyDown: KeyboardEventHandler<T> | undefined,
+): KeyboardEventHandler<T> {
+  return (event: KeyboardEvent<T>) => {
+    onKeyDown?.(event)
+    if (event.key === 'Enter') event.preventDefault()
+  }
 }

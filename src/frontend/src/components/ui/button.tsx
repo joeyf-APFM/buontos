@@ -59,13 +59,18 @@ const SIZE_VARS: Record<Size, Record<string, string>> = {
   icon: { "--button-height": "28px", "--button-padding-x": "0px", "--button-fz": "12px" },
 }
 
-// Mantine puts the children in inner and label spans. These classes let the
-// caller's flex classes on the root (justify-*, gap-*) reach the children,
-// keep svg icons at the shadcn size, and let badges overflow the button.
+// Mantine puts the children in inner and label spans. The root classes keep
+// svg icons at the shadcn size and let badges overflow the button; the span
+// styles pass the root's justify-content and gap (the default gap-1.5 or the
+// caller's gap-*/justify-*) down to the children, and let content overflow
+// the label as it overflowed the shadcn button. Mantine's loader is
+// positioned on the root, so a visible label overflow does not affect it.
 const ROOT_CLASSES =
   "inline-flex items-center justify-center gap-1.5 overflow-visible font-medium [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
-const INNER_CLASSES = "grow [justify-content:inherit]"
-const LABEL_CLASSES = "grow [justify-content:inherit] [gap:inherit]"
+const SPAN_STYLES = {
+  inner: { flexGrow: 1, justifyContent: "inherit", gap: "inherit" },
+  label: { flexGrow: 1, justifyContent: "inherit", gap: "inherit", overflow: "visible" },
+} as const
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -94,7 +99,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           v === "link" && "underline-offset-4 hover:underline",
           className
         )}
-        classNames={{ inner: INNER_CLASSES, label: LABEL_CLASSES }}
+        styles={SPAN_STYLES}
         // Mantine defaults to type="button"; the shadcn Button had the native
         // default, which submits inside a form
         type={type ?? "submit"}

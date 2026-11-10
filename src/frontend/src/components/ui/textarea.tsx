@@ -30,7 +30,8 @@ const Textarea = React.forwardRef<
       error={isAriaInvalid(props["aria-invalid"])}
       disabled={disabled}
       nativeProps={{ id, disabled }}
-      className={classes.root}
+      // The shadcn field was w-full; caller width classes still win
+      className={cn("w-full", classes.root)}
       // Mantine turns resizing off; the shadcn field kept the browser default
       classNames={{ input: cn("min-h-[60px] resize", classes.field) }}
       styles={style ? { input: style } : undefined}

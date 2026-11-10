@@ -14,7 +14,7 @@ export interface SwitchProps
  * `onCheckedChange` with the new state. The ref is the <input role="switch">.
  */
 const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
-  ({ className, onCheckedChange, onChange, ...props }, ref) => (
+  ({ className, onCheckedChange, onChange, onKeyDown, ...props }, ref) => (
     <MantineSwitch
       ref={ref}
       size="xs"
@@ -22,6 +22,15 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
       onChange={(event) => {
         onChange?.(event)
         onCheckedChange?.(event.currentTarget.checked)
+      }}
+      // The Radix switch was a button, so Enter toggled it; on a native
+      // checkbox Enter does nothing or submits the form
+      onKeyDown={(event) => {
+        onKeyDown?.(event)
+        if (event.key === "Enter" && !event.defaultPrevented) {
+          event.preventDefault()
+          event.currentTarget.click()
+        }
       }}
       {...props}
     />
