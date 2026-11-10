@@ -130,9 +130,15 @@
 }
 
 .state {
-  padding: 30px;
   text-align: center;
   color: var(--aura-text-muted);
+}
+
+/* The loading and empty rows: as tall as the old h-24 row (a table cell's
+   height is a minimum), with room around the message */
+.table > tbody > tr[data-placeholder] > td {
+  height: 96px;
+  padding: 30px;
 }
 
 .loader {

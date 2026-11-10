@@ -42,7 +42,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import classes from "./data-table.module.css";
 
-/** A click on these opens nothing: the row's checkbox (Radix or Mantine) and the actions cell. */
+/** A click on these opens nothing: the row's checkbox (Radix, or Mantine's input[type=checkbox]),
+ *  a Switch (Task 3's Mantine Switch is an input[type=checkbox][role=switch]) and the actions cell. */
 const NO_ROW_CLICK = '[role="checkbox"], input[type="checkbox"], [data-action-cell="true"]';
 
 
@@ -525,13 +526,9 @@ export function DataTable<TData, TValue>({
             {t('pagination.page')} {pageIndex + 1} {t('of')}{" "}
             {pageTotal ?? 0} {/* Handle zero pages */}
           </div>
-          {/* Only the edge controls: the table's own state decides what is enabled */}
-          <Pagination.Root
-            size="sm"
-            total={Math.max(pageTotal, 1)}
-            value={pageIndex + 1}
-            onChange={(page) => table.setPageIndex(page - 1)}
-          >
+          {/* Only the edge controls, each with its own onClick and disabled from the
+              table's state; Root just provides the size and styles */}
+          <Pagination.Root size="sm" total={Math.max(pageTotal, 1)} value={pageIndex + 1}>
             <Group gap={6} wrap="nowrap">
               <Pagination.First
                 className={classes.edge}

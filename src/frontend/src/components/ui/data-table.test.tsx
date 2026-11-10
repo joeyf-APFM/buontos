@@ -313,7 +313,8 @@ describe('DataTable', () => {
       const { container } = render(<DataTable columns={columns} data={items} />);
       expect(names(container)[0]).toBe('Item 00');
       const nameHeader = screen.getByRole('button', { name: 'Name' });
-      while (document.activeElement !== nameHeader) await user.tab();
+      for (let i = 0; i < 10 && document.activeElement !== nameHeader; i++) await user.tab();
+      expect(nameHeader).toHaveFocus();
       await user.keyboard('{Enter}');
       expect(names(container)[0]).toBe('Item 24');
       await user.keyboard(' ');
@@ -387,8 +388,17 @@ describe('DataTable', () => {
       const { container, rerender } = render(<DataTable columns={columns} data={[]} isLoading />);
       expect(container.querySelector('tbody')?.textContent).not.toContain('noResults');
       expect(container.querySelector('tbody [data-loading]')).not.toBeNull();
+      const roomy = (td: HTMLElement) => {
+        const cs = getComputedStyle(td);
+        expect(cs.paddingTop).toBe('30px');
+        expect(cs.paddingBottom).toBe('30px');
+        // A table cell's height is its minimum height
+        expect(cs.height).toBe('96px');
+      };
+      roomy(container.querySelector('tbody td') as HTMLElement);
       rerender(<DataTable columns={columns} data={[]} />);
       expect(screen.getByText('noResults')).toBeInTheDocument();
+      roomy(screen.getByText('noResults').closest('td') as HTMLElement);
     });
   });
 });
