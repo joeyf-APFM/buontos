@@ -13,10 +13,11 @@ module.exports = {
   		}
   	},
   	extend: {
-  		// The app's one font stack and the code font: theme.ts BODY_FONT and MONO_FONT
+  		// The app's one font stack (theme.ts BODY_FONT) and the code font, which
+  		// is written out once, as theme.ts MONO_FONT (--aura-font-mono on :root)
   		fontFamily: {
   			sans: ['Optima', 'Candara', '"Segoe UI"', 'sans-serif'],
-  			mono: ['ui-monospace', 'Menlo', 'monospace']
+  			mono: ['var(--aura-font-mono)']
   		},
   		colors: {
   			border: 'hsl(var(--border))',

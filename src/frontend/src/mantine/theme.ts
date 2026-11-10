@@ -53,7 +53,7 @@ export const DISPLAY_FONT = "Optima, Candara, 'Segoe UI', sans-serif";
 export const BODY_FONT = DISPLAY_FONT;
 /**
  * Code and machine identifiers only (SQL, markdown code, asset names, MCP
- * tokens), as --aura-font-mono; tailwind.config.cjs fontFamily.mono matches.
+ * tokens), as --aura-font-mono; tailwind.config.cjs fontFamily.mono uses that variable.
  */
 export const MONO_FONT = 'ui-monospace, Menlo, monospace';
 

@@ -189,8 +189,8 @@ describe('AppShell', () => {
     expect(within(settings).queryByText('Platform')).toBeNull();
     expect(within(settings).queryByText('Process')).toBeNull();
     expect(within(settings).queryByRole('link', { name: 'General' })).toBeNull();
-    // The panel title and its Govern section
-    expect(within(settings).getAllByText('Govern')).toHaveLength(2);
+    // The panel title only: the Govern section's heading would repeat it
+    expect(within(settings).getAllByText('Govern')).toHaveLength(1);
     expect(within(settings).getByText('Deploy')).toBeInTheDocument();
     expect(within(settings).getByRole('link', { name: 'Compliance' })).toHaveAttribute('href', '/compliance');
   });
@@ -208,7 +208,7 @@ describe('AppShell', () => {
 
     await user.click(govern);
     const panel = screen.getByRole('navigation', { name: 'Govern' });
-    expect(within(panel).getAllByText('Govern')).toHaveLength(2); // the title and the section
+    expect(within(panel).getAllByText('Govern')).toHaveLength(1); // the title; no repeated section heading
     expect([...panel.querySelectorAll('a')].map((a) => a.textContent)).toEqual(['Compliance']);
     expect(within(panel).getByRole('link', { name: 'Compliance' })).toHaveAttribute('aria-current', 'page');
   });

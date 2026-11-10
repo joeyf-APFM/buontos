@@ -432,16 +432,22 @@ test.describe('the detail page', () => {
       if ((await dt.innerText()) === 'Notes') continue;
       expect(Math.round((await box(dt)).height)).toBe(labelHeight);
     }
-    // In Optima, Current Status fits within 86px, so the column stays at its floor
-    const currentStatus = info.locator('dt', { hasText: 'Current Status' });
-    expect(Math.round((await box(currentStatus)).width)).toBeGreaterThanOrEqual(86);
-    expect(await currentStatus.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBeGreaterThanOrEqual(86);
+    // A label wider than 86px in any font (Current Status is narrower in
+    // Optima): it stays on one line, the column grows past 86px for every
+    // label, and nothing is clipped
+    const wide = info.locator('dt', { hasText: 'Current Status' });
+    await wide.evaluate((el) => { el.textContent = 'Current Status of this request for review'; });
+    expect(Math.round((await box(wide)).height)).toBe(labelHeight);
+    expect(Math.round((await box(wide)).width)).toBeGreaterThan(86);
     expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBe(
-      Math.round((await box(info.locator('dt', { hasText: 'Current Status' }))).width));
-    // The notes read in full
+      Math.round((await box(wide)).width));
+    expect(await wide.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    // The notes read in full, on at least two lines
     const notes = info.getByText(LONG_NOTES, { exact: true });
     expect(await notes.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    expect((await box(notes)).height).toBeGreaterThan(20);
+    const lineHeight = await notes.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+    expect((await box(notes)).height).toBeGreaterThanOrEqual(2 * lineHeight - 1);
 
     expect(Math.round((await box(rowOf(page, 'main.sales.orders'))).height)).toBe(28);
   });

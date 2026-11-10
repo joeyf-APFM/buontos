@@ -23,7 +23,8 @@ export function GroupPanel({ group, sections, settingsGate }: GroupPanelProps) {
   const { setPinned, toggleExpanded } = useShellStore((s) => s.actions);
 
   const match = matchInGroup(sections, pathname);
-  const groupLabel = t(groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate).labelKey);
+  const face = groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate);
+  const groupLabel = t(face.labelKey);
 
   // Show the sub-items of the page you arrive on (you can still fold them)
   const activeParent = match?.childId ? match.itemId : null;
@@ -112,7 +113,10 @@ export function GroupPanel({ group, sections, settingsGate }: GroupPanelProps) {
       <div className={classes.items}>
         {sections.map((section, i) => (
           <div key={section.titleKey ?? i}>
-            {section.titleKey && <div className={classes.section}>{t(section.titleKey)}</div>}
+            {/* A section titled as the panel (Govern, without the Settings gate) shows no heading of its own */}
+            {section.titleKey && section.titleKey !== face.labelKey && (
+              <div className={classes.section}>{t(section.titleKey)}</div>
+            )}
             {section.items.map(renderItem)}
           </div>
         ))}
