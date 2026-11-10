@@ -429,6 +429,7 @@
       "finalizing": "Wird finalisiert..."
     },
     "coSigners": {
+      "list": "Mitunterzeichner",
       "minRequired_one": "Mindestens {{count}} Mitunterzeichner erforderlich.",
       "minRequired_other": "Mindestens {{count}} Mitunterzeichner erforderlich.",
       "optional": "Mitunterzeichner sind für diesen Schritt optional.",

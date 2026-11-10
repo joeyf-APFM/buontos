@@ -3,8 +3,9 @@
  * Creates session, shows steps (user_action: fields, acceptances), submits until complete or abort.
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Group, Stack } from '@mantine/core';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,10 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Check, XCircle, ChevronRight, FileText, Eye, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { badgeToneStyle } from '@/components/common/aura-status';
+import badges from '@/components/common/badges.module.css';
+import { cn } from '@/lib/utils';
+import classes from './approval-wizard.module.css';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserStore } from '@/stores/user-store';
@@ -55,26 +60,22 @@ interface ReferenceDoc { label: string; url: string; }
 
 function ReferenceDocuments({ refs }: { refs?: ReferenceDoc[] }) {
   const { t } = useTranslation(['workflows', 'common']);
+  const titleId = useId();
   if (!refs || refs.length === 0) return null;
   return (
-    <div className="mt-4 border-t pt-3">
-      <p className="text-xs font-medium text-muted-foreground mb-2">{t('workflows:approvalWizard.referenceDocuments')}</p>
-      <ul className="space-y-1">
+    <section className={classes.refs} aria-labelledby={titleId}>
+      <h4 id={titleId} className={classes.refsTitle}>{t('workflows:approvalWizard.referenceDocuments')}</h4>
+      <ul className={classes.refList}>
         {refs.map((ref, i) => (
           <li key={i}>
-            <a
-              href={ref.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline flex items-center gap-1"
-            >
-              <ExternalLink className="h-3 w-3 flex-shrink-0" />
+            <a href={ref.url} target="_blank" rel="noopener noreferrer" className={classes.refLink}>
+              <ExternalLink />
               {ref.label}
             </a>
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
 
@@ -249,7 +250,7 @@ export function FetchedSelectField(props: {
           </SelectItem>
         ))}
         {options.length === 0 && !isLoading && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+          <div className={classes.optionsEmpty}>
             {fetchError ?? t('workflows:approvalWizard.noOptionsAvailable')}
           </div>
         )}
@@ -340,6 +341,7 @@ export default function ApprovalWizardDialog({
   const { t } = useTranslation(['workflows', 'common']);
   // Shipped default texts in the user's language (as configured once edited)
   const defaultText = useDefaultWorkflowText();
+  const stepTitleId = useId();
   const [workflows, setWorkflows] = useState<ApprovalWorkflowRef[]>([]);
   const [, setSelectedWorkflowId] = useState<string | null>(preselectedWorkflowId ?? null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -825,21 +827,23 @@ export default function ApprovalWizardDialog({
     : t('workflows:approvalWizard.proceed');
 
   const refs = currentStep?.config?.references as ReferenceDoc[] | undefined;
+  const stepTitle = currentStep?.config?.title as string | undefined;
+  const maxCoSigners = (currentStep?.config?.max_count as number) ?? 5;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={classes.content}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className={classes.titleRow}>
             {t('workflows:approvalWizard.title')}
             {previewMode && (
-              <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
-                <Eye className="h-3 w-3" />
+              <Badge variant="outline" className={badges.badge} style={badgeToneStyle('warning')}>
+                <Eye size={12} className={badges.mark} />
                 {t('workflows:approvalWizard.previewBadge')}
               </Badge>
             )}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={classes.description}>
             {previewMode ? (
               t('workflows:approvalWizard.dryRunDescription')
             ) : !sessionId ? t('workflows:approvalWizard.chooseWorkflow') : currentStep ? t('workflows:approvalWizard.stepPrefix', { name: defaultText(currentStep.name) }) : completeResult ? t('workflows:approvalWizard.completedShort') : t('workflows:approvalWizard.loadingEllipsis')}
@@ -848,22 +852,20 @@ export default function ApprovalWizardDialog({
 
         {/* Progress indicator — shown when a session is active and we know the step count */}
         {sessionId && totalSteps > 0 && (
-          <div className="flex items-center gap-2 px-1">
-            <div className="flex items-center gap-1.5">
+          <div className={classes.progress}>
+            <div className={classes.dots} aria-hidden="true">
               {Array.from({ length: totalSteps }, (_, i) => (
                 <div
                   key={i}
-                  className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                    i < currentStepIndex
-                      ? 'bg-primary'
-                      : i === currentStepIndex
-                        ? 'bg-primary ring-2 ring-primary ring-offset-2 ring-offset-background'
-                        : 'bg-muted'
-                  }`}
+                  className={cn(
+                    classes.dot,
+                    i < currentStepIndex && classes.dotDone,
+                    i === currentStepIndex && classes.dotCurrent,
+                  )}
                 />
               ))}
             </div>
-            <span className="text-xs text-muted-foreground ml-1">
+            <span className={classes.progressText}>
               {t('workflows:approvalWizard.progressStep', { number: currentStepIndex + 1, name: defaultText(stepNames[currentStepIndex] ?? currentStep?.name) ?? '' })}
             </span>
           </div>
@@ -871,20 +873,20 @@ export default function ApprovalWizardDialog({
 
         {/* Contextual header — shown when session is active */}
         {sessionId && !completeResult && entityName && !previewMode && (
-          <p className="text-sm text-muted-foreground px-1">
+          <p className={classes.context}>
             {t('workflows:approvalWizard.completeBefore', { action: actionLabel.toLowerCase() })} <strong>{entityName}</strong>
           </p>
         )}
 
         {completeResult && (
-          <div className="space-y-2 py-4">
-            <p className="text-sm text-muted-foreground">
+          <Stack gap={8} align="flex-start">
+            <p className={classes.text}>
               {previewMode
                 ? t('workflows:approvalWizard.previewCompleteScreen')
                 : t('workflows:approvalWizard.agreementRecorded')}
             </p>
             {!previewMode && completeResult.agreement_id && (
-              <p className="text-xs text-muted-foreground">{t('workflows:approvalWizard.agreementId', { id: completeResult.agreement_id })}</p>
+              <p className={classes.meta}>{t('workflows:approvalWizard.agreementId', { id: completeResult.agreement_id })}</p>
             )}
             {!previewMode && completeResult.pdf_url && (
               <Button
@@ -892,11 +894,11 @@ export default function ApprovalWizardDialog({
                 size="sm"
                 onClick={() => window.open(completeResult.pdf_url!, '_blank')}
               >
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText />
                 {t('workflows:approvalWizard.downloadAgreement')}
               </Button>
             )}
-            <DialogFooter>
+            <DialogFooter className={cn(classes.footer, classes.stretch)}>
               <Button onClick={() => {
                 if (!previewMode) {
                   onComplete?.(completeResult.agreement_id, completeResult.pdf_storage_path, { ...collectedFieldsRef.current });
@@ -904,13 +906,13 @@ export default function ApprovalWizardDialog({
                 onOpenChange(false);
               }}>{t('common:actions.close')}</Button>
             </DialogFooter>
-          </div>
+          </Stack>
         )}
 
         {!sessionId && (
-          <div className="space-y-2 py-4">
+          <Stack gap={6}>
             {workflows.length === 0 && !loading && workflowsLoaded && (
-              <p className="text-sm text-muted-foreground">{t('workflows:approvalWizard.noWorkflowsAvailable')}</p>
+              <p className={classes.secondary}>{t('workflows:approvalWizard.noWorkflowsAvailable')}</p>
             )}
             {workflows.map((wf) => (
               <Button
@@ -921,20 +923,20 @@ export default function ApprovalWizardDialog({
                 onClick={() => startSession(wf.id)}
               >
                 <span>{defaultText(wf.name)}</span>
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight />
               </Button>
             ))}
-            <DialogFooter>
+            <DialogFooter className={classes.footer}>
               <Button variant="ghost" onClick={() => { toast({ title: t('workflows:approvalWizard.messages.cancelled'), variant: 'default' }); onOpenChange(false); }}>{t('common:actions.cancel')}</Button>
             </DialogFooter>
-          </div>
+          </Stack>
         )}
 
         {/* Non-visual step: spinner with auto-advancing message */}
         {sessionId && currentStep && isNonVisualStep && (
-          <div className="flex flex-col items-center justify-center gap-3 py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
+          <Stack className={classes.waiting} align="center" justify="center" gap={8}>
+            <Loader2 className={cn(classes.spinner, 'animate-spin')} />
+            <p className={classes.secondary}>
               {previewMode ? (
                 t('workflows:approvalWizard.preview.skipped', {
                   action: currentStep.step_type === 'persist_agreement' ? t('workflows:approvalWizard.preview.wouldSaveAgreement') :
@@ -949,23 +951,23 @@ export default function ApprovalWizardDialog({
                  t('workflows:approvalWizard.progress.finalizing')
               )}
             </p>
-          </div>
+          </Stack>
         )}
 
         {/* Visual step: show form fields (dispatched by step_type) */}
         {sessionId && currentStep && !isNonVisualStep && (
-          <div className="space-y-4 py-4">
+          <Stack gap={12}>
             {/* Step header (title + description) — shown for all visual step types */}
-            {(currentStep.config?.title as string) && (
-              <div className="space-y-1">
-                <Label className="text-base">{defaultText(currentStep.config.title as string)}</Label>
+            {stepTitle && (
+              <Stack gap={2}>
+                <h3 id={stepTitleId} className={classes.stepTitle}>{defaultText(stepTitle)}</h3>
                 {(currentStep.config?.description as string) && (
-                  <p
-                    className="text-sm text-muted-foreground"
+                  <div
+                    className={classes.stepDescription}
                     dangerouslySetInnerHTML={{ __html: simpleMarkdown(defaultText(currentStep.config.description as string) ?? '') }}
                   />
                 )}
-              </div>
+              </Stack>
             )}
 
             {/* === user_action renderer ===
@@ -977,10 +979,13 @@ export default function ApprovalWizardDialog({
                     backend endpoints (e.g. /api/workspace/accessible-workspaces)
                   - default: single-line Input */}
             {currentStep.step_type === 'user_action' && (
-              <div className="space-y-2">
+              <Stack gap={10}>
                 {(requiredFields as UserActionField[]).map((f) => (
-                  <div key={f.id} className="space-y-1">
-                    <Label htmlFor={f.id}>{defaultText(f.label)}{f.required ? ' *' : ''}</Label>
+                  <Stack key={f.id} gap={4}>
+                    <Label htmlFor={f.id} className={classes.label}>
+                      {defaultText(f.label)}
+                      {f.required && <span className={classes.required}> *</span>}
+                    </Label>
                     {f.type === 'text' ? (
                       <Textarea
                         id={f.id}
@@ -1007,17 +1012,21 @@ export default function ApprovalWizardDialog({
                         disabled={loading}
                       />
                     )}
-                  </div>
+                  </Stack>
                 ))}
                 <ReferenceDocuments refs={refs} />
-              </div>
+              </Stack>
             )}
 
             {/* === legal_document renderer === */}
             {currentStep.step_type === 'legal_document' && (
-              <div className="space-y-3">
+              <Stack gap={10}>
                 <div
-                  className="max-h-64 overflow-y-auto border rounded-md p-4 text-sm prose prose-sm dark:prose-invert"
+                  role="region"
+                  // A scrolling region the keyboard can reach and scroll
+                  tabIndex={0}
+                  {...(stepTitle ? { 'aria-labelledby': stepTitleId } : { 'aria-label': defaultText(currentStep.name) })}
+                  className={classes.doc}
                   ref={(el) => {
                     // If content fits without scrolling, mark as scrolled immediately
                     if (el && !scrolledToEnd && el.scrollHeight <= el.clientHeight + 10) {
@@ -1036,32 +1045,32 @@ export default function ApprovalWizardDialog({
                   }} />
                 </div>
                 {(currentStep.config?.require_scroll_to_end as boolean) && !scrolledToEnd && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                  <p className={classes.hint}>
                     {t('workflows:approvalWizard.scrollToBottom')}
                   </p>
                 )}
                 {(currentStep.config?.require_acknowledgement_checkbox as boolean) && (
-                  <div className="flex items-start gap-2">
+                  <div className={classes.check}>
                     <Checkbox
                       id="legal-ack"
                       checked={acknowledged}
                       onCheckedChange={(checked) => setAcknowledged(checked === true)}
                       disabled={loading}
                     />
-                    <Label htmlFor="legal-ack" className="text-sm cursor-pointer leading-tight">
+                    <Label htmlFor="legal-ack" className={classes.checkLabel}>
                       {(currentStep.config?.acknowledgement_label as string) || t('workflows:approvalWizard.acknowledgeDefault')}
                     </Label>
                   </div>
                 )}
                 <ReferenceDocuments refs={refs} />
-              </div>
+              </Stack>
             )}
 
             {/* === acknowledgement_checklist renderer === */}
             {currentStep.step_type === 'acknowledgement_checklist' && (
-              <div className="space-y-3">
+              <Stack gap={10}>
                 {((currentStep.config?.items as Array<{ id: string; label: string; required?: boolean }>) ?? []).map((item) => (
-                  <div key={item.id} className="flex items-start gap-2">
+                  <div key={item.id} className={classes.check}>
                     <Checkbox
                       id={`checklist-${item.id}`}
                       checked={checklistState[item.id] ?? false}
@@ -1070,20 +1079,20 @@ export default function ApprovalWizardDialog({
                       }
                       disabled={loading}
                     />
-                    <Label htmlFor={`checklist-${item.id}`} className="text-sm cursor-pointer leading-tight">
-                      <span dangerouslySetInnerHTML={{ __html: simpleMarkdown(item.label || '') }} />
-                      {item.required !== false && <span className="text-destructive ml-1">*</span>}
+                    <Label htmlFor={`checklist-${item.id}`} className={classes.checkLabel}>
+                      <span className={classes.checkText} dangerouslySetInnerHTML={{ __html: simpleMarkdown(item.label || '') }} />
+                      {item.required !== false && <span className={cn(classes.required, classes.requiredAfter)}>*</span>}
                     </Label>
                   </div>
                 ))}
                 <ReferenceDocuments refs={refs} />
-              </div>
+              </Stack>
             )}
 
             {/* === co_signers renderer === */}
             {currentStep.step_type === 'co_signers' && (
-              <div className="space-y-3">
-                <div className="flex gap-2">
+              <Stack gap={8}>
+                <div className={classes.inputRow}>
                   <Input
                     value={coSignerInput}
                     onChange={(e) => setCoSignerInput(e.target.value)}
@@ -1092,8 +1101,7 @@ export default function ApprovalWizardDialog({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && coSignerInput.trim()) {
                         e.preventDefault();
-                        const maxCount = (currentStep.config?.max_count as number) ?? 5;
-                        if (coSigners.length < maxCount) {
+                        if (coSigners.length < maxCoSigners) {
                           setCoSigners((prev) => [...prev, coSignerInput.trim()]);
                           setCoSignerInput('');
                         }
@@ -1103,7 +1111,7 @@ export default function ApprovalWizardDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={loading || !coSignerInput.trim() || coSigners.length >= ((currentStep.config?.max_count as number) ?? 5)}
+                    disabled={loading || !coSignerInput.trim() || coSigners.length >= maxCoSigners}
                     onClick={() => {
                       if (coSignerInput.trim()) {
                         setCoSigners((prev) => [...prev, coSignerInput.trim()]);
@@ -1115,28 +1123,30 @@ export default function ApprovalWizardDialog({
                   </Button>
                 </div>
                 {coSigners.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                  <ul className={classes.chips} aria-label={t('workflows:approvalWizard.coSigners.list')}>
                     {coSigners.map((s, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-muted text-sm px-2 py-1 rounded-md">
+                      <li key={i} className={classes.chip}>
                         {s}
                         <button
-                          className="text-muted-foreground hover:text-foreground"
+                          type="button"
+                          className={classes.chipRemove}
+                          aria-label={t('common:actions.remove')}
                           onClick={() => setCoSigners((prev) => prev.filter((_, j) => j !== i))}
                         >
-                          <XCircle className="h-3 w-3" />
+                          <XCircle />
                         </button>
-                      </span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
-                <p className="text-xs text-muted-foreground">
+                <p className={classes.meta}>
                   {((currentStep.config?.min_count as number) ?? 0) > 0
                     ? t('workflows:approvalWizard.coSigners.minRequired', { count: (currentStep.config?.min_count as number) })
                     : t('workflows:approvalWizard.coSigners.optional')}
-                  {' '}{t('workflows:approvalWizard.coSigners.maximum', { count: (currentStep.config?.max_count as number) ?? 5 })}
+                  {' '}{t('workflows:approvalWizard.coSigners.maximum', { count: maxCoSigners })}
                   {' '}{t('workflows:approvalWizard.coSigners.auditNote')}
                 </p>
-              </div>
+              </Stack>
             )}
 
             {/* === on_behalf_of renderer === */}
@@ -1153,25 +1163,25 @@ export default function ApprovalWizardDialog({
               const requireJustification = cfg.require_justification === true;
               const myGroups = (userInfo?.groups ?? []).filter((g) => !!g);
               return (
-                <div className="space-y-3">
+                <Stack gap={10}>
                   <RadioGroup
-                    className="space-y-2"
+                    className={classes.options}
                     value={oboMode}
                     onValueChange={(v) => setOboMode(v as 'self' | 'my_group' | 'other')}
                     disabled={loading}
                   >
                     {allowSelf && (
-                      <div className="flex items-center space-x-2">
+                      <div className={classes.check}>
                         <RadioGroupItem value="self" id="wizard-obo-self" />
-                        <Label htmlFor="wizard-obo-self" className="font-normal cursor-pointer">
+                        <Label htmlFor="wizard-obo-self" className={classes.checkLabel}>
                           {t('workflows:approvalWizard.obo.forMyself')}
                         </Label>
                       </div>
                     )}
 
                     {allowUserGroups && (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
+                      <Stack gap={6}>
+                        <div className={classes.check}>
                           <RadioGroupItem
                             value="my_group"
                             id="wizard-obo-my-group"
@@ -1179,16 +1189,16 @@ export default function ApprovalWizardDialog({
                           />
                           <Label
                             htmlFor="wizard-obo-my-group"
-                            className={`font-normal cursor-pointer ${myGroups.length === 0 ? 'text-muted-foreground' : ''}`}
+                            className={cn(classes.checkLabel, myGroups.length === 0 && classes.unavailable)}
                           >
                             {t('workflows:approvalWizard.obo.forMyGroup')}
                             {myGroups.length === 0 && (
-                              <span className="ml-1 text-xs">{t('workflows:approvalWizard.obo.noGroupsAvailable')}</span>
+                              <span className={classes.unavailableNote}>{t('workflows:approvalWizard.obo.noGroupsAvailable')}</span>
                             )}
                           </Label>
                         </div>
                         {oboMode === 'my_group' && myGroups.length > 0 && (
-                          <div className="ml-6">
+                          <div className={classes.nested}>
                             <Select value={oboGroup} onValueChange={setOboGroup}>
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={t('workflows:approvalWizard.obo.selectGroup')} />
@@ -1203,19 +1213,19 @@ export default function ApprovalWizardDialog({
                             </Select>
                           </div>
                         )}
-                      </div>
+                      </Stack>
                     )}
 
                     {allowFreeText && (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
+                      <Stack gap={6}>
+                        <div className={classes.check}>
                           <RadioGroupItem value="other" id="wizard-obo-other" />
-                          <Label htmlFor="wizard-obo-other" className="font-normal cursor-pointer">
+                          <Label htmlFor="wizard-obo-other" className={classes.checkLabel}>
                             {t('workflows:approvalWizard.obo.otherGroupOrSp')}
                           </Label>
                         </div>
                         {oboMode === 'other' && (
-                          <div className="ml-6 space-y-2">
+                          <Stack className={classes.nested} gap={6}>
                             <Select
                               value={oboOtherType}
                               onValueChange={(v) => setOboOtherType(v as 'group' | 'service_principal')}
@@ -1234,19 +1244,19 @@ export default function ApprovalWizardDialog({
                               onChange={(e) => setOboOther(e.target.value)}
                               disabled={loading}
                             />
-                            <p className="text-xs text-muted-foreground">
+                            <p className={classes.meta}>
                               {t('workflows:approvalWizard.obo.validationNote')}
                             </p>
-                          </div>
+                          </Stack>
                         )}
-                      </div>
+                      </Stack>
                     )}
                   </RadioGroup>
 
                   {requireJustification && (
-                    <div className="space-y-1">
-                      <Label htmlFor="wizard-obo-justification">
-                        {t('workflows:approvalWizard.obo.justification')} <span className="text-destructive">*</span>
+                    <Stack gap={4}>
+                      <Label htmlFor="wizard-obo-justification" className={classes.label}>
+                        {t('workflows:approvalWizard.obo.justification')} <span className={classes.required}>*</span>
                       </Label>
                       <Textarea
                         id="wizard-obo-justification"
@@ -1256,45 +1266,44 @@ export default function ApprovalWizardDialog({
                         rows={3}
                         disabled={loading}
                       />
-                    </div>
+                    </Stack>
                   )}
-                </div>
+                </Stack>
               );
             })()}
 
             {/* Validation hints for user_action */}
-            {currentStep.step_type === 'user_action' && !isStepValid && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                {(() => {
-                  const cfg2 = (currentStep.config ?? {}) as { requires_input?: boolean; minimum_input_length?: number; primary_field_id?: string };
-                  const rfs = (currentStep.config?.required_fields as Array<{ id: string; label: string; type: string; required?: boolean }>) ?? [];
-                  const pfid = cfg2.primary_field_id || rfs.find((f) => f.required)?.id || rfs[0]?.id || 'reason';
-                  const pv = payload[pfid]?.trim() ?? '';
-                  if (cfg2.requires_input && !pv) return t('workflows:approvalWizard.validation.requiresInput');
-                  if (cfg2.minimum_input_length != null && cfg2.minimum_input_length > 0 && pv.length < cfg2.minimum_input_length)
-                    return t('workflows:approvalWizard.validation.minLength', { min: cfg2.minimum_input_length, entered: pv.length });
-                  return null;
-                })()}
-              </p>
-            )}
+            {currentStep.step_type === 'user_action' && !isStepValid && (() => {
+              const cfg2 = (currentStep.config ?? {}) as { requires_input?: boolean; minimum_input_length?: number; primary_field_id?: string };
+              const rfs = (currentStep.config?.required_fields as Array<{ id: string; label: string; type: string; required?: boolean }>) ?? [];
+              const pfid = cfg2.primary_field_id || rfs.find((f) => f.required)?.id || rfs[0]?.id || 'reason';
+              const pv = payload[pfid]?.trim() ?? '';
+              const hint =
+                cfg2.requires_input && !pv ? t('workflows:approvalWizard.validation.requiresInput') :
+                cfg2.minimum_input_length != null && cfg2.minimum_input_length > 0 && pv.length < cfg2.minimum_input_length
+                  ? t('workflows:approvalWizard.validation.minLength', { min: cfg2.minimum_input_length, entered: pv.length })
+                  : null;
+              // The fill only shows when there is a message
+              return hint ? <p className={classes.hint}>{hint}</p> : null;
+            })()}
 
-            <DialogFooter>
+            <DialogFooter className={classes.footer}>
               <Button variant="ghost" onClick={abortSession} disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                {loading ? <Loader2 className="animate-spin" /> : <XCircle />}
                 {t('common:actions.cancel')}
               </Button>
               <Button onClick={submitStep} disabled={loading || !isStepValid}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {loading ? <Loader2 className="animate-spin" /> : <Check />}
                 {isLastVisualStep ? t('workflows:approvalWizard.completeButton') : t('common:actions.next')}
               </Button>
             </DialogFooter>
-          </div>
+          </Stack>
         )}
 
         {sessionId && !currentStep && !completeResult && loading && (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <Group className={classes.waiting} justify="center">
+            <Loader2 className={cn(classes.spinner, 'animate-spin')} />
+          </Group>
         )}
       </DialogContent>
     </Dialog>

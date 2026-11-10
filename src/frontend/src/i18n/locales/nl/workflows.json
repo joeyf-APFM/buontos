@@ -429,6 +429,7 @@
       "finalizing": "Afronden..."
     },
     "coSigners": {
+      "list": "Medeondertekenaars",
       "minRequired_one": "Minimaal {{count}} medeondertekenaar vereist.",
       "minRequired_other": "Minimaal {{count}} medeondertekenaars vereist.",
       "optional": "Medeondertekenaars zijn optioneel voor deze stap.",

@@ -429,6 +429,7 @@
       "finalizing": "Finalizando..."
     },
     "coSigners": {
+      "list": "Cofirmantes",
       "minRequired_one": "Se requiere un mínimo de {{count}} cosignatario.",
       "minRequired_other": "Se requiere un mínimo de {{count}} cosignatarios.",
       "optional": "Los cosignatarios son opcionales para este paso.",
