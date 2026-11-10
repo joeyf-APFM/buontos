@@ -35,7 +35,19 @@ import PublicationBadge from './publication-badge';
 import { MaturityBadge } from './maturity-badge';
 import { QualityBadge } from '@/components/quality/quality-badge';
 import { RatingBadge } from '@/components/ratings/rating-badge';
-import { AURA_STATUS, contrastRatio } from './aura-status';
+import { AURA_STATUS, contrastRatio, hoverFill, toneForColour } from './aura-status';
+
+// The seeded level tables: certification_levels_repository.py and maturity_repository.py
+const SEEDED_CERTIFICATION = [
+  { id: 'a', level_order: 1, name: 'Bronze', description: null, icon: 'shield', color: 'amber' },
+  { id: 'b', level_order: 2, name: 'Silver', description: null, icon: 'shield-check', color: 'slate' },
+  { id: 'c', level_order: 3, name: 'Gold', description: null, icon: 'shield-check', color: 'yellow' },
+];
+const SEEDED_MATURITY: [string, string][] = [
+  ['Level 1', 'blue'], ['Level 2', 'cyan'], ['Level 3', 'green'], ['Level 4', 'amber'], ['Level 5', 'purple'],
+];
+// The colour options of the certification- and maturity-level settings
+const ALL_LEVEL_COLOURS = ['amber', 'slate', 'yellow', 'green', 'blue', 'purple', 'red', 'emerald', 'cyan'];
 
 const owner = (over: Record<string, unknown>) => ({
   object_type: 'data_product',
@@ -166,26 +178,49 @@ describe('shared panels restyle', () => {
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/api/comments/c1'));
   });
 
+  it('each seeded certification and maturity level renders its own tone', () => {
+    const look = (el: HTMLElement) =>
+      [el.dataset.tone, el.style.getPropertyValue('--badge-bg'), el.style.getPropertyValue('--badge-bd')].join(' ');
+    const badge = (name: string) => screen.getByText(name).closest('.mantine-Badge-root') as HTMLElement;
+
+    const { rerender } = renderWithProviders(<></>);
+    const certification = SEEDED_CERTIFICATION.map((level) => {
+      rerender(<CertificationBadge certificationLevel={level.level_order} levels={SEEDED_CERTIFICATION} />);
+      return look(badge(level.name));
+    });
+    expect(new Set(certification).size).toBe(SEEDED_CERTIFICATION.length);
+
+    const maturity = SEEDED_MATURITY.map(([name, color]) => {
+      rerender(<MaturityBadge levelName={name} levelColor={color} />);
+      return look(badge(name));
+    });
+    expect(new Set(maturity).size).toBe(SEEDED_MATURITY.length);
+
+    // Every colour the level settings offer has its own tone, readable on its fill
+    const tones = ALL_LEVEL_COLOURS.map((c) => toneForColour(c, 'neutral'));
+    expect(new Set(tones).size).toBe(ALL_LEVEL_COLOURS.length);
+    for (const tone of tones) {
+      expect(contrastRatio(AURA_STATUS[tone].fg, AURA_STATUS[tone].bg), tone).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it('badges use the Aura status colours', async () => {
-    const levels = [
-      { id: 'a', level_order: 1, name: 'Bronze', description: null, icon: null, color: 'amber' },
-      { id: 'b', level_order: 2, name: 'Gold', description: null, icon: null, color: 'green' },
-      { id: 'c', level_order: 3, name: 'Revoked', description: null, icon: null, color: 'red' },
-    ];
+    // The seeded levels (certification_levels_repository.py), plus a custom red one
+    const levels = [...SEEDED_CERTIFICATION, { id: 'd', level_order: 4, name: 'Revoked', description: null, icon: null, color: 'red' }];
     const vars = (el: HTMLElement) => ({
       color: el.style.getPropertyValue('--badge-color'),
       bg: el.style.getPropertyValue('--badge-bg'),
     });
 
-    const { rerender } = renderWithProviders(<CertificationBadge certificationLevel={2} levels={levels} />);
+    const { rerender } = renderWithProviders(<CertificationBadge certificationLevel={3} levels={levels} />);
     expect(vars(screen.getByText('Gold').closest('.mantine-Badge-root') as HTMLElement)).toEqual({
-      color: AURA_STATUS.good.fg, bg: AURA_STATUS.good.bg,
+      color: AURA_STATUS.gold.fg, bg: AURA_STATUS.gold.bg,
     });
     rerender(<CertificationBadge certificationLevel={1} levels={levels} />);
     expect(vars(screen.getByText('Bronze').closest('.mantine-Badge-root') as HTMLElement)).toEqual({
       color: AURA_STATUS.warning.fg, bg: AURA_STATUS.warning.bg,
     });
-    rerender(<CertificationBadge certificationLevel={3} levels={levels} />);
+    rerender(<CertificationBadge certificationLevel={4} levels={levels} />);
     expect(vars(screen.getByText('Revoked').closest('.mantine-Badge-root') as HTMLElement)).toEqual({
       color: AURA_STATUS.critical.fg, bg: AURA_STATUS.critical.bg,
     });
@@ -221,8 +256,14 @@ describe('shared panels restyle', () => {
     );
     const quality = await screen.findByText('75%');
     expect(quality).toHaveStyle({ color: AURA_STATUS.warning.fg });
-    expect(quality.closest('[title^="Data Quality"]')).toHaveStyle({ backgroundColor: AURA_STATUS.warning.bg });
+    const chipBg = (el: Element | null) => (el as HTMLElement).style.getPropertyValue('--chip-bg');
+    expect(chipBg(quality.closest('[title^="Data Quality"]'))).toBe(AURA_STATUS.warning.bg);
     const rating = await screen.findByText('4.2');
-    expect(rating.closest('[title*="out of 5 stars"]')).toHaveStyle({ backgroundColor: AURA_STATUS.warning.bg });
+    expect(chipBg(rating.closest('[title*="out of 5 stars"]'))).toBe(AURA_STATUS.warning.bg);
+    // Clickable chips tint on hover, and the text stays readable on the tint
+    for (const tone of ['good', 'warning', 'critical'] as const) {
+      expect(hoverFill(tone)).not.toBe(AURA_STATUS[tone].bg);
+      expect(contrastRatio(AURA_STATUS[tone].fg, hoverFill(tone)), tone).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

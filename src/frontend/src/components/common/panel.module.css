@@ -140,6 +140,10 @@
 }
 
 /* A part of the pane under its own heading, divided from the one before */
+.section {
+  padding: 2px 0 8px;
+}
+
 .section + .section {
   border-top: 1px solid var(--aura-border-subtle);
 }
@@ -316,10 +320,6 @@
 /* A row's remove button turns critical on hover */
 .remove:hover {
   color: var(--aura-critical);
-}
-
-.section {
-  padding: 2px 0 8px;
 }
 
 .stack {

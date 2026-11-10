@@ -115,6 +115,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-bottom: 4px;
 }
 
 .overrideIcon {
@@ -333,10 +334,6 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.labelRow {
-  margin-bottom: 4px;
 }
 
 .inlineHeader {

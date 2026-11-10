@@ -3,7 +3,7 @@ import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/hooks/use-api';
 import type { RatingAggregation } from '@/types/comments';
-import { AURA_STATUS } from '@/components/common/aura-status';
+import { AURA_STATUS, chipToneStyle } from '@/components/common/aura-status';
 import classes from '@/components/common/badges.module.css';
 
 export interface RatingBadgeProps {
@@ -69,7 +69,7 @@ export function RatingBadge({
   return (
     <div
       className={cn(classes.chip, size === 'md' && classes.chipMd, onClick && classes.clickable, className)}
-      style={{ background: colours.bg }}
+      style={chipToneStyle('warning')}
       onClick={onClick}
       title={`${rating.average_rating.toFixed(1)} out of 5 stars (${rating.total_ratings} ratings)`}
     >

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/hooks/use-api';
 import { type EntityKind, type QualitySummary } from '@/types/quality';
-import { AURA_STATUS, type StatusTone } from '@/components/common/aura-status';
+import { AURA_STATUS, chipToneStyle, type StatusTone } from '@/components/common/aura-status';
 import classes from '@/components/common/badges.module.css';
 
 export interface QualityBadgeProps {
@@ -98,7 +98,7 @@ export function QualityBadge({
   return (
     <div
       className={cn(classes.chip, size === 'md' && classes.chipMd, onClick && classes.clickable, className)}
-      style={{ background: colours.bg }}
+      style={chipToneStyle(tone)}
       data-tone={tone}
       onClick={onClick}
       title={`Data Quality: ${pct.toFixed(1)}% (${summary.items_count} measurement${summary.items_count === 1 ? '' : 's'})${measuredAtLabel}`}

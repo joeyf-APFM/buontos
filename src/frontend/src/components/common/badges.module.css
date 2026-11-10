@@ -38,6 +38,7 @@
   gap: 6px;
   padding: 2px 8px;
   border-radius: 999px;
+  background: var(--chip-bg);
   font-size: 12px;
   line-height: 1;
 }
@@ -48,6 +49,11 @@
 
 .clickable {
   cursor: pointer;
+  transition: background-color 120ms;
+}
+
+.clickable:hover {
+  background: var(--chip-hover, var(--chip-bg));
 }
 
 .gauge {

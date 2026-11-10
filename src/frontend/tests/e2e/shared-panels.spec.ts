@@ -135,14 +135,19 @@ test('comments sheet: entries are rows divided by border-subtle, changes ruled i
   await expect(buttons).toHaveCount(2);
   expect((await buttons.first().boundingBox())!.height).toBe(24);
   await expect(sheet.locator('[data-radix-scroll-area-viewport]')).toHaveCount(1);
+  // The delete button is critical red over Mantine's subtle button colour
+  expect((await style(buttons.last(), ['color']))['color']).toBe('rgb(212, 28, 22)');
   // The avatar is 20px round
   const avatar = comment.locator('.mantine-Avatar-root');
   expect(await avatar.evaluate((el) => [el.getBoundingClientRect().width, el.getBoundingClientRect().height])).toEqual([20, 20]);
 });
 
 test('badges: the Aura status colours, with text at least 4.5:1 on the fill', async ({ page }) => {
-  await page.setViewportSize({ width: 800, height: 300 });
-  await mockApi(page, PERSONAS.admin, DATA_FIXTURES);
+  await page.setViewportSize({ width: 1000, height: 300 });
+  await mockApi(page, PERSONAS.admin, {
+    ...DATA_FIXTURES,
+    '/api/entities/data_product/e2e-rated/ratings': { average_rating: 4.2, total_ratings: 3 },
+  });
   await page.goto('/assets');
   await expect(page.locator('main')).toBeVisible();
   await page.evaluate(async (path) => {
@@ -155,10 +160,12 @@ test('badges: the Aura status colours, with text at least 4.5:1 on the fill', as
 
   const badge = (name: string) => stage.locator('.mantine-Badge-root', { hasText: name });
   const expected: Record<string, [string, string]> = {
-    Gold: ['rgb(39, 113, 83)', 'rgb(221, 235, 228)'],
     Bronze: ['rgb(44, 47, 52)', 'rgb(255, 246, 233)'],
+    Silver: ['rgb(86, 93, 101)', 'rgb(243, 239, 228)'],
+    Gold: ['rgb(122, 84, 0)', 'rgb(255, 236, 194)'],
     Revoked: ['rgb(212, 28, 22)', 'rgb(255, 245, 243)'],
     Managed: ['rgb(30, 124, 161)', 'rgb(255, 255, 255)'],
+    Defined: ['rgb(12, 86, 110)', 'rgb(220, 242, 249)'],
   };
   for (const [name, [color, bg]] of Object.entries(expected)) {
     const s = await style(badge(name), ['color', 'background-color']);
@@ -168,7 +175,20 @@ test('badges: the Aura status colours, with text at least 4.5:1 on the fill', as
   // The warning's amber is on its border and icon
   expect((await style(badge('Bronze'), ['border-top-color']))['border-top-color']).toBe('rgb(182, 127, 20)');
   expect((await style(badge('Bronze').locator('svg'), ['color']))['color']).toBe('rgb(182, 127, 20)');
+  // Each seeded level looks different from its neighbours
+  const looks = await Promise.all(['Bronze', 'Silver', 'Gold'].map((n) => style(badge(n), ['background-color', 'border-top-color'])));
+  expect(new Set(looks.map((l) => JSON.stringify(l))).size).toBe(3);
   // External scope: the accent tone
   const external = await style(badge('External'), ['color', 'background-color']);
   expect(contrast(external.color, external['background-color'])).toBeGreaterThanOrEqual(4.5);
+
+  // A clickable rating chip tints on hover, and its value stays readable
+  const chip = stage.locator('[title*="out of 5 stars"]');
+  await expect(chip).toBeVisible();
+  const rest = (await style(chip, ['background-color']))['background-color'];
+  await chip.hover();
+  await expect.poll(async () => (await style(chip, ['background-color']))['background-color']).not.toBe(rest);
+  const hovered = (await style(chip, ['background-color']))['background-color'];
+  const value = (await style(chip.getByText('4.2'), ['color']))['color'];
+  expect(contrast(value, hovered)).toBeGreaterThanOrEqual(4.5);
 });
