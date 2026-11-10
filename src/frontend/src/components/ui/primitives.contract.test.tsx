@@ -488,6 +488,24 @@ describe('Badge', () => {
     badge.click();
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+  it('badge grows with its text from an 18px minimum and wraps unless the caller truncates', () => {
+    renderWithMantine(
+      <>
+        <Badge className="text-sm px-3 py-1">Running on a long estate name</Badge>
+        <Badge className="truncate max-w-24">Truncated</Badge>
+      </>,
+    );
+    const root = (text: string) => screen.getByText(text).closest('.mantine-Badge-root') as HTMLElement;
+    const wrapping = root('Running on a long estate name');
+    expect(wrapping).toHaveClass('h-auto', 'min-h-[18px]', 'text-sm', 'py-1');
+    // The label takes white-space and text-overflow from the root, so it wraps
+    // by default, without Mantine's nowrap and ellipsis
+    const label = screen.getByText('Running on a long estate name');
+    expect(label.style.whiteSpace).toBe('inherit');
+    expect(label.style.textOverflow).toBe('inherit');
+    expect(label.style.overflow).toBe('visible');
+    expect(root('Truncated')).toHaveClass('truncate', 'max-w-24');
+  });
 });
 
 describe('Card', () => {
@@ -648,6 +666,35 @@ describe('Skeleton, Progress, Separator and Avatar', () => {
     const separator = screen.getByRole('separator');
     expect(separator).toHaveAttribute('aria-orientation', 'vertical');
     expect(separator).toHaveAttribute('data-orientation', 'vertical');
+  });
+
+  it('separators span their flex parent: full width, or full height when vertical', () => {
+    renderWithMantine(
+      <div className="flex">
+        <Separator data-testid="horizontal" />
+        <Separator data-testid="vertical" orientation="vertical" />
+        <Separator data-testid="narrow" className="w-8" />
+      </div>,
+    );
+    expect(screen.getByTestId('horizontal')).toHaveClass('w-full', 'shrink-0');
+    expect(screen.getByTestId('horizontal')).not.toHaveClass('h-full');
+    expect(screen.getByTestId('vertical')).toHaveClass('h-full', 'shrink-0');
+    expect(screen.getByTestId('vertical')).not.toHaveClass('w-full');
+    expect(screen.getByTestId('narrow')).toHaveClass('w-8');
+    expect(screen.getByTestId('narrow')).not.toHaveClass('w-full');
+  });
+
+  it('avatar is sized by the caller classes, without Mantine\'s 38px min-width', () => {
+    renderWithMantine(
+      <Avatar data-testid="small" className="h-5 w-5">
+        <AvatarFallback>J</AvatarFallback>
+      </Avatar>,
+    );
+    const avatar = screen.getByTestId('small');
+    expect(avatar).toHaveClass('h-5', 'w-5', 'min-w-0', 'rounded-full');
+    expect(avatar).not.toHaveClass('h-10', 'w-10');
+    // The fallback fills it and stays a circle
+    expect(screen.getByText('J')).toHaveClass('h-full', 'w-full', 'rounded-full');
   });
 
   it('avatar shows its fallback without an image', () => {

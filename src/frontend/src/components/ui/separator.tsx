@@ -21,7 +21,7 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
       ref={ref}
       orientation={orientation}
       color={AURA.border}
-      className={cn("shrink-0", orientation === "vertical" && "h-full", className)}
+      className={cn("shrink-0", orientation === "vertical" ? "h-full" : "w-full", className)}
       renderRoot={(rootProps) => (
         <div
           {...rootProps}

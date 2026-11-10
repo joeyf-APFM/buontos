@@ -49,16 +49,23 @@ const OUTLINE_VARS = {
   "--badge-bd": `1px solid ${AURA.border}`,
 }
 
-// Mantine's badge is an uppercase, bold, letter-spaced grid; the shadcn badge
-// was none of these, so the root goes back to an inline-flex in sentence case.
-// Mantine puts the children in a label span, which lays them out in a row
-// with the root's gap (a caller's gap-1), as the shadcn badge did.
-const ROOT_CLASSES = "inline-flex items-center normal-case font-semibold tracking-normal"
+// Mantine's badge is a fixed-height, uppercase, bold, letter-spaced grid; the
+// shadcn badge was none of these, so the root goes back to an inline-flex in
+// sentence case, at least 18px but growing with its text (a caller's text-sm
+// or py-1). Mantine puts the children in a label span that is nowrap with an
+// ellipsis; here it lays them out in a row with the root's gap (a caller's
+// gap-1) and takes white-space and text-overflow from the root, so the text
+// wraps as before unless the caller opts out (truncate, whitespace-nowrap).
+const ROOT_CLASSES =
+  "inline-flex h-auto min-h-[18px] items-center normal-case font-semibold tracking-normal"
 const LABEL_STYLE = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "inherit",
   gap: "inherit",
+  whiteSpace: "inherit",
+  textOverflow: "inherit",
+  overflow: "visible",
 } as const
 
 export interface BadgeProps

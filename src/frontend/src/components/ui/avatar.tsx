@@ -11,7 +11,9 @@ const AvatarContext = React.createContext<{
 }>({ status: "idle", setStatus: () => {} })
 
 // Mantine wraps the children in a placeholder span that is bold, grey and
-// sized from the avatar; the parts style themselves, as with Radix
+// sized from the avatar; the parts style themselves, as with Radix. Mantine's
+// root also has min-width: var(--avatar-size) (38px), which min-w-0 removes,
+// so the h-10 w-10 baseline or the caller's h-*/w-* classes size it.
 const PLACEHOLDER_STYLE = {
   background: "transparent",
   border: 0,
@@ -35,7 +37,7 @@ const Avatar = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanEl
           ref={ref as React.Ref<HTMLDivElement>}
           component="span"
           radius="xl"
-          className={cn("relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full", className)}
+          className={cn("relative flex h-10 w-10 min-w-0 shrink-0 overflow-hidden rounded-full", className)}
           styles={{ placeholder: PLACEHOLDER_STYLE }}
           {...props}
         />
