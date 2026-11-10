@@ -258,6 +258,8 @@ test.describe('the form dialog', () => {
     await expect(message).toBeVisible();
     expect(await style(message, ['color'])).toEqual({ color: CRITICAL });
     await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveAttribute('aria-invalid', 'true');
+    // Focus goes to the first invalid field, inside the dialog
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused();
   });
 
   test('create posts the payload and closes', async ({ page }) => {
@@ -313,7 +315,7 @@ test.describe('the delete dialog', () => {
     const trigger = openMenu(page, 'Report');
     await trigger.click();
     await page.getByRole('menuitem', { name: 'Delete Asset Type' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Delete Asset Type?' });
+    const dialog = page.getByRole('alertdialog', { name: 'Delete Asset Type?' });
     await expect(dialog).toHaveClass(/mantine-Modal-content/);
     await expect(dialog).toHaveAccessibleDescription(/This action cannot be undone/);
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
@@ -329,8 +331,75 @@ test.describe('the delete dialog', () => {
 
     await trigger.click();
     await page.getByRole('menuitem', { name: 'Delete Asset Type' }).click();
-    await page.getByRole('dialog', { name: 'Delete Asset Type?' }).getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete Asset Type?' })).toHaveCount(0);
+    await page.getByRole('alertdialog', { name: 'Delete Asset Type?' }).getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByRole('alertdialog', { name: 'Delete Asset Type?' })).toHaveCount(0);
     expect(deleted).toEqual(['/api/asset-types/e2e-type-report']);
+  });
+});
+
+/** Answers the writes, so a save or delete succeeds; the list reloads from the fixtures. */
+async function acceptWrites(page: Page) {
+  await page.route((url) => url.pathname.startsWith('/api/asset-types'), async (route) => {
+    const method = route.request().method();
+    if (method === 'GET') return route.fallback();
+    return route.fulfill({ json: method === 'DELETE' ? {} : { ...ASSET_TYPES[1] } });
+  });
+}
+
+/** Waits for the list to load again after a save (the GET after the write). */
+const reloaded = (page: Page) =>
+  page.waitForResponse((r) => new URL(r.url()).pathname === '/api/asset-types' && r.request().method() === 'GET');
+
+test.describe('focus after a save or delete', () => {
+  test('create: back on Add Asset Type once the list has reloaded', async ({ page }) => {
+    await setUp(page);
+    await acceptWrites(page);
+    await page.getByRole('button', { name: 'Add Asset Type' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Create Asset Type' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Dashboard');
+    const reload = reloaded(page);
+    await dialog.getByRole('button', { name: 'Create' }).click();
+    await reload;
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add Asset Type' })).toBeFocused();
+  });
+
+  test('edit: back on the row\'s menu button once the list has reloaded', async ({ page }) => {
+    await setUp(page);
+    await acceptWrites(page);
+    await openMenu(page, 'Report').click();
+    await page.getByRole('menuitem', { name: 'Edit Asset Type' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Asset Type' });
+    const reload = reloaded(page);
+    await dialog.getByRole('button', { name: 'Save Changes' }).click();
+    await reload;
+    await expect(dialog).toHaveCount(0);
+    await expect(openMenu(page, 'Report')).toBeFocused();
+  });
+
+  test('delete: on Add Asset Type once the list has reloaded (the row\'s button is gone)', async ({ page }) => {
+    await setUp(page);
+    await acceptWrites(page);
+    await openMenu(page, 'Report').click();
+    await page.getByRole('menuitem', { name: 'Delete Asset Type' }).click();
+    const reload = reloaded(page);
+    await page.getByRole('alertdialog', { name: 'Delete Asset Type?' }).getByRole('button', { name: 'Delete' }).click();
+    await reload;
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add Asset Type' })).toBeFocused();
+  });
+
+  test('a failed reload: on the page title', async ({ page }) => {
+    await setUp(page);
+    await acceptWrites(page);
+    await page.getByRole('button', { name: 'Add Asset Type' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Create Asset Type' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Dashboard');
+    // The reload fails: the pane shows the error, without the table or Add
+    await page.route((url) => url.pathname === '/api/asset-types', (route) =>
+      route.request().method() === 'GET' ? route.fulfill({ status: 500, json: { detail: 'Backend down' } }) : route.fallback());
+    await dialog.getByRole('button', { name: 'Create' }).click();
+    await expect(page.locator('main').getByText('Backend down')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Asset Types' })).toBeFocused();
   });
 });

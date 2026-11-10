@@ -184,21 +184,24 @@ describe('asset types on the page kit', () => {
 
     await user.click(within(rowOf('Report')).getByRole('button', { name: 'Open menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Asset Type' }));
-    const confirm = await screen.findByRole('dialog', { name: 'Delete Asset Type?' });
+    const confirm = await screen.findByRole('alertdialog', { name: 'Delete Asset Type?' });
+    // An alertdialog, as the Radix AlertDialog was, and modal
+    expect(confirm).toHaveAttribute('aria-modal', 'true');
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(confirm).toHaveAccessibleDescription('This action cannot be undone. Existing assets of this type may become orphaned.');
     expect(names(within(confirm).getAllByRole('button'))).toEqual(['Cancel', 'Delete']);
 
     // Cancel: nothing deleted
     await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(calls('DELETE', '/api/asset-types/t-report')).toHaveLength(0);
 
     await user.click(within(rowOf('Report')).getByRole('button', { name: 'Open menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Asset Type' }));
-    await user.click(within(await screen.findByRole('dialog', { name: 'Delete Asset Type?' })).getByRole('button', { name: 'Delete' }));
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Delete Asset Type?' })).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(calls('DELETE', '/api/asset-types/t-report')).toHaveLength(1));
     await waitFor(() => expect(calls('GET', '/api/asset-types')).toHaveLength(2));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(toast).toHaveBeenLastCalledWith({ title: 'Asset Type Deleted', description: 'The asset type was successfully deleted.' });
   });
 
@@ -279,8 +282,18 @@ describe('asset types on the page kit', () => {
       await waitFor(() => expect(calls('GET', '/api/asset-types')).toHaveLength(2));
       expect(await screen.findByText('Report', { exact: true })).toBeInTheDocument();
 
-      // The first load answers last, with a list the page no longer wants
-      await act(async () => releaseFirst(json(TYPES)));
+      // The first load answers last, with a list the page no longer wants.
+      // Wait until the page has read that answer's body (useApi awaits
+      // response.json()) and every continuation after it has run, so a
+      // missing guard would have set the list by now
+      const late = json(TYPES);
+      const body = vi.spyOn(late, 'json');
+      releaseFirst(late);
+      await waitFor(() => expect(body).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        await body.mock.results[0].value;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
       expect(screen.queryByText('Table', { exact: true })).toBeNull();
       expect(screen.getByText('Report', { exact: true })).toBeInTheDocument();
     } finally {

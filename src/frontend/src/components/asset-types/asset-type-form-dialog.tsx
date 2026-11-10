@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type RefObject } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,11 +31,12 @@ interface AssetTypeFormDialogProps {
   assetType?: AssetTypeRead | null;
   onSubmitSuccess: () => void;
   /**
-   * Where focus goes once the dialog has closed, such as the row menu's
-   * button it was opened from (the menu item that had focus is gone by
-   * then). Without it, focus goes back to what had it when the dialog opened.
+   * Called once the dialog has closed and its exit transition has ended: the
+   * caller then puts focus where it belongs (such as the row menu's button
+   * it was opened from, which may have been re-rendered by then). Without it,
+   * focus goes back to what had it when the dialog opened.
    */
-  finalFocusRef?: RefObject<HTMLElement | null>;
+  onExited?: () => void;
 }
 
 /** One option per value, first one kept: Mantine's Select throws on a repeated value. */
@@ -43,7 +44,7 @@ const unique = (options: { value: string; label: string }[]) =>
   options.filter((o, i) => options.findIndex((p) => p.value === o.value) === i);
 
 export function AssetTypeFormDialog({
-  isOpen, onOpenChange, assetType, onSubmitSuccess, finalFocusRef,
+  isOpen, onOpenChange, assetType, onSubmitSuccess, onExited,
 }: AssetTypeFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { post: apiPost, put: apiPut } = useApi();
@@ -133,11 +134,8 @@ export function AssetTypeFormDialog({
       onClose={() => onOpenChange(false)}
       size={512}
       centered
-      returnFocus={!finalFocusRef}
-      onExitTransitionEnd={() => {
-        const target = finalFocusRef?.current;
-        if (target?.isConnected) target.focus();
-      }}
+      returnFocus={!onExited}
+      onExitTransitionEnd={onExited}
     >
       <Modal.Overlay />
       <Modal.Content className={classes.content}>
