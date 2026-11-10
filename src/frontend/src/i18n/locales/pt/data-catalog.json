@@ -85,6 +85,7 @@
     "both": "Ambas as Direções",
     "upstream": "Somente Upstream",
     "downstream": "Somente Downstream",
+    "direction": "Direção da linhagem",
     "legend": "Legenda",
     "impactSummary": "Resumo de Impacto",
     "impactWarning": "Alterações nesta tabela podem afetar:",

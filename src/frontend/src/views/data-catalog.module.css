@@ -1,0 +1,223 @@
+/*
+ * The Data Catalog list (/data-catalog) on the page kit (Task 12): full bleed,
+ * the kit's breadcrumb, header and filter bar, then one flush pane holding the
+ * Asset Explorer's grid (mantine/asset-explorer/explorer.module.css .table)
+ * and the pager. What is left here is the page's own.
+ */
+
+/* Breadcrumb: Home icon / Home / Data Catalog, in the kit's crumb slot */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.home {
+  display: inline-flex;
+  align-items: center;
+}
+
+.home svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Beside the title: the table count, as the explorer's tags */
+.tag {
+  flex: none;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-secondary);
+}
+
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Filter widths, in the kit's FilterBar */
+.filterNarrow {
+  width: 150px;
+}
+
+.filter {
+  width: 180px;
+}
+
+.search {
+  width: 280px;
+  margin-left: auto;
+}
+
+/* The pane's body: the grid scrolls, the pager stays under it */
+.gridColumn {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sortable headers (the explorer's header cells, with a sort mark) */
+table.grid > thead > tr > th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+table.grid > thead > tr > th.sortable:hover {
+  color: var(--aura-text-body);
+}
+
+.sortLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sortIcon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.4;
+}
+
+.sortIcon[data-active] {
+  opacity: 1;
+}
+
+table.grid > thead > tr > th.descriptionHead {
+  min-width: 250px;
+}
+
+/* A focused row takes the explorer's selection highlight: rows are in the tab
+   order and Enter opens them, as in the explorer */
+table.grid > tbody > tr:focus-visible {
+  outline: none;
+}
+
+table.grid > tbody > tr:focus-visible:not(.stateRow) > td {
+  background: var(--aura-accent-subtle);
+}
+
+table.grid > tbody > tr:focus-visible:not(.stateRow) > td:first-child {
+  box-shadow: inset 2px 0 0 var(--aura-accent);
+}
+
+.label {
+  font-weight: 500;
+}
+
+/* Descriptions keep to one line in the 28px row (the explorer's .truncate) */
+.description {
+  color: var(--aura-text-secondary);
+}
+
+.code {
+  font-size: inherit;
+}
+
+.type {
+  color: var(--aura-text-secondary);
+}
+
+.none {
+  color: var(--aura-text-muted);
+}
+
+.chips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.term {
+  cursor: pointer;
+}
+
+.termIcon {
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+}
+
+/* The row's "opens" mark */
+.open {
+  width: 40px;
+  color: var(--aura-text-muted);
+}
+
+.open svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* Loading, error and empty rows: not clickable */
+table.grid > tbody > tr.stateRow {
+  cursor: default;
+}
+
+table.grid > tbody > tr.stateRow:hover > td {
+  background: transparent;
+}
+
+table.grid > tbody > tr.stateRow > td.state {
+  height: auto;
+  padding: 30px;
+  text-align: center;
+  white-space: normal;
+  color: var(--aura-text-secondary);
+}
+
+.state p {
+  margin: 0;
+}
+
+.stateTitle {
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+/* Pager: the explorer's, with the count on the left */
+.pager {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px;
+  border-top: 1px solid var(--aura-border-subtle);
+}
+
+.pagerEnd {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pagerGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageSize {
+  width: 70px;
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}

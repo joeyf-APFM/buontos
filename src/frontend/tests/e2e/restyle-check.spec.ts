@@ -35,7 +35,8 @@ test.afterAll(() => {
 });
 
 // The inventory itself, on real Mantine 8.3.18 fields (the Asset Explorer's
-// filter bar) and a Radix Select (the Data Catalog's filters)
+// filter bar) and a Radix Select (the audit trail's filter; the Data
+// Catalog's moved to Mantine in Task 12)
 test.describe('controlInventory', () => {
   test.beforeEach(async ({ page }) => {
     await mockApi(page, PERSONAS.admin, DATA_FIXTURES);
@@ -92,11 +93,11 @@ test.describe('controlInventory', () => {
   });
 
   test('lists a Radix Select as combobox', async ({ page }) => {
-    await page.goto('/data-catalog');
+    await page.goto('/settings/audit');
     const trigger = page.locator('main button[role="combobox"]').first();
     await expect(trigger).toBeVisible();
     const controls = await controlInventory(page);
-    expect(controls.filter((c) => c.startsWith('combobox ')).length).toBeGreaterThanOrEqual(3);
+    expect(controls.filter((c) => c.startsWith('combobox ')).length).toBeGreaterThanOrEqual(1);
     await expect(trigger).toHaveAttribute('role', 'combobox');
   });
 });

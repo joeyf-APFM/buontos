@@ -85,6 +85,7 @@
     "both": "Les deux directions",
     "upstream": "Amont uniquement",
     "downstream": "Aval uniquement",
+    "direction": "Sens du lignage",
     "legend": "Légende",
     "impactSummary": "Résumé d'impact",
     "impactWarning": "Les modifications de cette table peuvent affecter :",

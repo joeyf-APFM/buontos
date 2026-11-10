@@ -1,0 +1,11 @@
+/* The Data Catalog lineage graph (Task 12): its direction field, and the
+   graph's frame inside the page's Data Lineage pane (1px, no shadow) */
+.direction {
+  width: 180px;
+}
+
+.frame {
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  background: var(--aura-surface);
+}

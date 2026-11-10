@@ -85,6 +85,7 @@
     "both": "Beide Richtungen",
     "upstream": "Nur vorgelagert",
     "downstream": "Nur nachgelagert",
+    "direction": "Lineage-Richtung",
     "legend": "Legende",
     "impactSummary": "Auswirkungszusammenfassung",
     "impactWarning": "Änderungen an dieser Tabelle können sich auswirken auf:",

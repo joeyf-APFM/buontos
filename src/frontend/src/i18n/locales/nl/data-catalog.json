@@ -85,6 +85,7 @@
     "both": "Beide Richtingen",
     "upstream": "Alleen Upstream",
     "downstream": "Alleen Downstream",
+    "direction": "Lineage-richting",
     "legend": "Legenda",
     "impactSummary": "Impact Samenvatting",
     "impactWarning": "Wijzigingen aan deze tabel kunnen beïnvloeden:",

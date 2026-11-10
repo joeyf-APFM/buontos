@@ -85,6 +85,7 @@
     "both": "両方向",
     "upstream": "上流のみ",
     "downstream": "下流のみ",
+    "direction": "リネージの方向",
     "legend": "凡例",
     "impactSummary": "影響サマリー",
     "impactWarning": "このテーブルへの変更は次に影響する可能性があります:",

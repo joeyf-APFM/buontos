@@ -85,6 +85,7 @@
     "both": "Both Directions",
     "upstream": "Upstream Only",
     "downstream": "Downstream Only",
+    "direction": "Lineage direction",
     "legend": "Legend",
     "impactSummary": "Impact Summary",
     "impactWarning": "Changes to this table may affect:",
