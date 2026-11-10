@@ -67,7 +67,6 @@ function mockUseToast() {
   vi.spyOn(useToastModule, 'useToast').mockReturnValue({
     toast: toastFn,
     dismiss: vi.fn(),
-    toasts: [],
   } as any);
   return toastFn;
 }

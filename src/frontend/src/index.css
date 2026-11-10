@@ -1,6 +1,7 @@
 /* Layer order first (tw-base, mantine, tw-app), then Mantine in its layer */
 @import './mantine/layers.css';
 @import '@mantine/core/styles.layer.css';
+@import '@mantine/notifications/styles.layer.css';
 
 /* Tailwind's preflight and base styles sit below Mantine; components and
    utilities stay unlayered, as before */
