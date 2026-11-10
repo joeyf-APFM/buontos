@@ -15,12 +15,25 @@ import { FeatureAccessLevel } from '@/types/settings';
 
 let mockHasPermission: (featureId: string, level: FeatureAccessLevel) => boolean = () => true;
 
-vi.mock('@/stores/permissions-store', () => ({
-  usePermissions: () => ({
-    hasPermission: (featureId: string, level: FeatureAccessLevel) => mockHasPermission(featureId, level),
-    isLoading: false,
-  }),
-}));
+// Whether the permissions are known (usePermissionsReady), in a store so a
+// change re-renders the page as the real one does. Not ready is a fresh load:
+// the real store is then not loading and empty, so it grants nothing.
+vi.mock('@/stores/permissions-store', async () => {
+  const { create } = await import('zustand');
+  const readyStore = create(() => ({ ready: true }));
+  return {
+    usePermissions: () => ({
+      hasPermission: (featureId: string, level: FeatureAccessLevel) =>
+        readyStore.getState().ready && mockHasPermission(featureId, level),
+      isLoading: false,
+    }),
+    usePermissionsReady: () => readyStore((s) => s.ready),
+    __readyStore: readyStore,
+  };
+});
+import * as permissionsStore from '@/stores/permissions-store';
+const setReady = (ready: boolean) =>
+  act(() => (permissionsStore as unknown as { __readyStore: { setState: (s: { ready: boolean }) => void } }).__readyStore.setState({ ready }));
 
 // `t` and `i18n` must be stable across renders. The DataContracts page lists
 // `t` in an effect dependency array; a fresh `t` each render would loop the
@@ -100,6 +113,7 @@ vi.mock('@/components/ui/tooltip', () => ({
 
 beforeEach(() => {
   mockHasPermission = () => true;
+  setReady(true);
   // setup.ts runs vi.clearAllMocks() between tests, which wipes the stable
   // get() implementation — restore it so it keeps returning a resolved promise.
   mockStableGet.mockImplementation(async () => ({ data: [] }));
@@ -199,6 +213,32 @@ describe('DataContracts ?new=1', () => {
     await screen.findByRole('dialog', { name: 'create contract' });
     await act(async () => screen.getByRole('button', { name: 'close' }).click());
     await waitFor(() => expect(url()).toBe('/data-contracts?status=draft'));
+  });
+
+  // Task 16e fix round 1: a typed URL or a reload, before the permissions arrive
+  it('keeps ?new=1 through a fresh load, and opens the dialog once the permissions are ready', async () => {
+    mockHasPermission = writer;
+    setReady(false);
+    renderView('/data-contracts?new=1');
+    await waitFor(() => expect(screen.getByTestId('data-table')).toBeInTheDocument());
+    expect(url()).toBe('/data-contracts?new=1');
+    expect(screen.queryByRole('dialog', { name: 'create contract' })).not.toBeInTheDocument();
+
+    setReady(true);
+    expect(await screen.findByRole('dialog', { name: 'create contract' })).toBeInTheDocument();
+    expect(url()).toBe('/data-contracts?new=1');
+  });
+
+  it('drops ?new=1 for a user who cannot create contracts only once the permissions are ready', async () => {
+    mockHasPermission = (_featureId, level) => level === FeatureAccessLevel.READ_ONLY;
+    setReady(false);
+    renderView('/data-contracts?new=1');
+    await waitFor(() => expect(screen.getByTestId('data-table')).toBeInTheDocument());
+    expect(url()).toBe('/data-contracts?new=1');
+
+    setReady(true);
+    await waitFor(() => expect(url()).toBe('/data-contracts'));
+    expect(screen.queryByRole('dialog', { name: 'create contract' })).not.toBeInTheDocument();
   });
 
   it('opens no dialog for a user who cannot create contracts, and clears the param', async () => {

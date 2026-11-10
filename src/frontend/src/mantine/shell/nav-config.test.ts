@@ -220,6 +220,15 @@ describe('visibleNav', () => {
     expect(itemIds(nav, 'Organization')).toContain('projects');
   });
 
+  // Task 16e fix round 1: one rule at every depth, by whose page the parent's path is
+  it("keeps a parent left with no children as a plain page when its path is its own, at any depth", () => {
+    const connectors = (nav: ReturnType<typeof visibleNav>) =>
+      nav.Settings.flatMap((s) => s.items).find((i) => i.id === 'connectors');
+    const onlyConnectors = connectors(visibleNav((id) => !['settings-git', 'settings-mcp', 'delivery-methods'].includes(id)))!;
+    expect(onlyConnectors.path).toBe('/settings/connectors');
+    expect(onlyConnectors.children).toBeUndefined();
+  });
+
   it('keeps a parent while one child is allowed', () => {
     const nav = visibleNav((id) => id !== 'settings-roles');
     const roles = nav.Organization.flatMap((s) => s.items).find((i) => i.id === 'roles');

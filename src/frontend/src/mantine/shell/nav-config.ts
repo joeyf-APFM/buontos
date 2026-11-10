@@ -10,10 +10,11 @@
  *
  * An item may have sub-items, and a sub-item its own (Build → Concepts →
  * Define → Author Concepts). A parent with children shows when any child
- * shows; a sub-item parent also shows, as a plain page, when its own
- * permission allows it (Define, for a user who can use none of its
- * children). Its own `path` is kept only when its own permission allows it;
- * without a path, clicking the parent just expands it.
+ * shows; with none, it shows as a plain page when its path is a page of its
+ * own and its permission allows it (Define, for a user who can use none of
+ * its children; not Entitlements, whose path is its child's page). Its own
+ * `path` is kept only when its own permission allows it; without a path,
+ * clicking the parent just expands it.
  *
  * Each group but Settings names a default page (`defaultItemId`), where its
  * strip button goes; a parent whose own page is one of its children names
@@ -331,14 +332,15 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
 const MATURITY = new Map(features.map((f) => [f.id, f.maturity]));
 const maturityOf = (id: string): FeatureMaturity => MATURITY.get(id) ?? 'ga';
 
-function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean, nested = false): NavItem | null {
+function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean): NavItem | null {
   if (!item.children) return allowed(item) ? item : null;
-  const children = item.children.map((c) => visibleItem(c, allowed, true)).filter((c): c is NavItem => c !== null);
+  const children = item.children.map((c) => visibleItem(c, allowed)).filter((c): c is NavItem => c !== null);
   const { path, children: _children, ...rest } = item;
   const ownPage = !!path && allowed(item);
-  // A sub-item left with no children is its own page, if the user may open it.
-  // A top-level parent without children goes (Entitlements' page is its child's).
-  if (children.length === 0) return nested && ownPage ? { ...rest, path } : null;
+  // Left with no children, a parent stays as a plain page only when its path
+  // is a page of its own (Define), not one of its children's (Entitlements)
+  const pageIsAChilds = item.children.some((c) => c.path === path || c.id === item.defaultChildId);
+  if (children.length === 0) return ownPage && !pageIsAChilds ? { ...rest, path } : null;
   return { ...rest, ...(ownPage ? { path } : {}), children };
 }
 

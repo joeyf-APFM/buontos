@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 // ---------------------------------------------------------------------------
@@ -63,17 +63,28 @@ vi.mock('@/components/concepts/mode-switch', () => ({
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
-// Write access, controllable per test (read-only users get disabled actions).
+// Write access on semantic-models, controllable per test (read-only users get
+// disabled actions). Readiness (usePermissionsReady) lives in a store so a change
+// re-renders the page as the real one does; not ready is a fresh load, when the
+// real store is empty and grants nothing.
 let canWriteMock = true;
-// permissionsSettled: false is a fresh load, before the store has asked the server.
-let permissionsSettled = true;
-vi.mock('@/stores/permissions-store', () => ({
-  usePermissions: () => ({
-    hasPermission: () => permissionsSettled && canWriteMock,
-    isLoading: false,
-    _initAttempted: permissionsSettled,
-  }),
-}));
+vi.mock('@/stores/permissions-store', async () => {
+  const { create } = await import('zustand');
+  const { FeatureAccessLevel: Level } = await import('@/types/feature-access-levels');
+  const readyStore = create(() => ({ ready: true }));
+  return {
+    usePermissions: () => ({
+      hasPermission: (featureId: string, level: string) =>
+        readyStore.getState().ready && featureId === 'semantic-models' && (level !== Level.READ_WRITE || canWriteMock),
+      isLoading: false,
+    }),
+    usePermissionsReady: () => readyStore((s) => s.ready),
+    __readyStore: readyStore,
+  };
+});
+import * as permissionsStore from '@/stores/permissions-store';
+const setReady = (ready: boolean) =>
+  act(() => (permissionsStore as unknown as { __readyStore: { setState: (s: { ready: boolean }) => void } }).__readyStore.setState({ ready }));
 
 import DefineView from './define';
 
@@ -101,7 +112,7 @@ beforeEach(() => {
   authorDialogOpen = false;
   guidedDialogOpen = false;
   canWriteMock = true;
-  permissionsSettled = true;
+  setReady(true);
   global.fetch = vi.fn(async (url: any) => {
     const u = String(url);
     if (u.includes('/api/ontology/runs')) {
@@ -273,12 +284,28 @@ describe('DefineView ?open=', () => {
     expect(location().search).toBe('?open=nonsense');
   });
 
-  it('waits for the permissions on a fresh load before it opens or drops the dialog', async () => {
-    permissionsSettled = false;
+  it('waits for the permissions on a fresh load, then opens the dialog', async () => {
+    setReady(false);
     const location = renderDefine('/concepts/define?open=author');
     await waitFor(() => expect(screen.getByText('156 draft terms from gold.*')).toBeInTheDocument());
     expect(location().search).toBe('?open=author');
     expect(screen.queryByTestId('author-dialog')).not.toBeInTheDocument();
+
+    setReady(true);
+    expect(await screen.findByTestId('author-dialog')).toBeInTheDocument();
+    expect(location().search).toBe('?open=author');
+  });
+
+  it('waits for the permissions on a fresh load, then drops the param for a reader', async () => {
+    canWriteMock = false;
+    setReady(false);
+    const location = renderDefine('/concepts/define?open=import');
+    await waitFor(() => expect(screen.getByText('156 draft terms from gold.*')).toBeInTheDocument());
+    expect(location().search).toBe('?open=import');
+
+    setReady(true);
+    await waitFor(() => expect(location().search).toBe(''));
+    expect(screen.queryByTestId('import-dialog')).not.toBeInTheDocument();
   });
 
   it.each(['author', 'generate', 'import'])(

@@ -31,7 +31,7 @@ import type {
 } from '@/types/ontology';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { useToast } from '@/hooks/use-toast';
-import { usePermissions } from '@/stores/permissions-store';
+import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/feature-access-levels';
 import { GuidedGenerateDialog } from '@/components/concepts/guided-generate-dialog';
 
@@ -157,12 +157,29 @@ function BuildsRow({ builds, note }: { builds: BuildsMap; note?: string }) {
 // The dialogs the side menu opens through ?open= (Build → Concepts → Define)
 type OpenParam = 'author' | 'generate' | 'import';
 
+/**
+ * One card's dialog: open from its button, or from ?open=<name> when allowed.
+ * Closing it also drops that param. The setter is stable while the URL is.
+ */
+function useUrlDialog(name: OpenParam, openParam: string | null, canOpenFromUrl: boolean, clearOpenParam: () => void) {
+  const [own, setOwn] = useState(false);
+  const fromUrl = openParam === name;
+  const setOpen = useCallback(
+    (open: boolean) => {
+      setOwn(open);
+      if (!open && fromUrl) clearOpenParam();
+    },
+    [fromUrl, clearOpenParam],
+  );
+  return [own || (fromUrl && canOpenFromUrl), setOpen] as const;
+}
+
 export default function DefineView() {
   const { t } = useTranslation(['semantic-models', 'common']);
   const navigate = useNavigate();
-  const { hasPermission, isLoading, permissions, _initAttempted: permissionsRequested } = usePermissions();
+  const { hasPermission } = usePermissions();
   // On a fresh load the store starts empty and not loading: wait for its answer
-  const permissionsLoading = isLoading || !(permissionsRequested || Object.keys(permissions ?? {}).length > 0);
+  const permissionsLoading = !usePermissionsReady();
 
   // Read-only users still see the three paths, but the actions are disabled.
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
@@ -171,9 +188,6 @@ export default function DefineView() {
     : t('semantic-models:define.requiresWrite', 'Requires write access');
 
   const { toast } = useToast();
-  const [importOpenState, setImportOpenState] = useState(false);
-  const [authorOpenState, setAuthorOpenState] = useState(false);
-  const [guidedOpenState, setGuidedOpenState] = useState(false);
 
   // The side menu's Author Concepts, Generate Ontology and Import RDF link
   // here with ?open=author|generate|import: each opens its card's dialog, for
@@ -195,17 +209,9 @@ export default function DefineView() {
       }, { replace: true }),
     [setSearchParams],
   );
-  const dialogState = (name: OpenParam, own: boolean, setOwn: (open: boolean) => void) =>
-    [
-      own || (wants(name) && canOpenFromUrl),
-      (open: boolean) => {
-        setOwn(open);
-        if (!open && wants(name)) clearOpenParam();
-      },
-    ] as const;
-  const [authorOpen, setAuthorOpen] = dialogState('author', authorOpenState, setAuthorOpenState);
-  const [guidedOpen, setGuidedOpen] = dialogState('generate', guidedOpenState, setGuidedOpenState);
-  const [importOpen, setImportOpen] = dialogState('import', importOpenState, setImportOpenState);
+  const [authorOpen, setAuthorOpen] = useUrlDialog('author', openParam, canOpenFromUrl, clearOpenParam);
+  const [guidedOpen, setGuidedOpen] = useUrlDialog('generate', openParam, canOpenFromUrl, clearOpenParam);
+  const [importOpen, setImportOpen] = useUrlDialog('import', openParam, canOpenFromUrl, clearOpenParam);
   // Without write access, the param is dropped and nothing opens
   useEffect(() => {
     if (wantsDialog && !permissionsLoading && !canWrite) clearOpenParam();

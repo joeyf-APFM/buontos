@@ -6,6 +6,8 @@ interface PermissionsState {
     permissions: UserPermissions; // User's effective permissions (may be overridden)
     actualPermissions: UserPermissions; // User's actual permissions based on groups (never overridden)
     isLoading: boolean;
+    /** True once the first load has finished, whether it succeeded or failed (see usePermissionsReady). */
+    isReady: boolean;
     error: string | null;
     availableRoles: AppRole[];    // List of all possible roles
     requestableRoles: AppRole[];  // List of roles the user can request
@@ -42,6 +44,7 @@ const usePermissionsStore = create<PermissionsState>((set, get) => ({
     permissions: {},
     actualPermissions: {},
     isLoading: false,
+    isReady: false,
     error: null,
     availableRoles: [],
     requestableRoles: [],
@@ -158,6 +161,7 @@ const usePermissionsStore = create<PermissionsState>((set, get) => ({
         const { isLoading, permissions, actualPermissions, availableRoles } = get();
         const alreadyLoaded = !isLoading && (Object.keys(permissions).length > 0 || Object.keys(actualPermissions).length > 0 || availableRoles.length > 0);
         if (alreadyLoaded) {
+            set({ isReady: true });
             return;
         }
 
@@ -178,7 +182,7 @@ const usePermissionsStore = create<PermissionsState>((set, get) => ({
             set({ error: error.message || "Initialization failed." }); // Set error state
             // NOTE: isLoading and _isInitializing are reset in finally block
         } finally {
-            set({ isLoading: false, _isInitializing: false }); // Reset flags regardless of outcome
+            set({ isLoading: false, _isInitializing: false, isReady: true }); // Reset flags regardless of outcome
         }
     },
 
@@ -242,5 +246,17 @@ export const usePermissions = () => {
 
     return state;
 };
+
+/**
+ * Whether the user's permissions are known: the first load has finished
+ * (even if it failed, so a page fails closed), or permissions were set
+ * directly and nothing is loading. On a fresh load the store starts not
+ * loading and empty, so `!isLoading` alone isn't enough: a page that acts on
+ * its URL (?new=1, ?open=) waits for this before it opens or drops anything.
+ */
+export const selectPermissionsReady = (s: PermissionsState) =>
+    s.isReady || (!s.isLoading && Object.keys(s.permissions).length > 0);
+
+export const usePermissionsReady = () => usePermissionsStore(selectPermissionsReady);
 
 export default usePermissionsStore;

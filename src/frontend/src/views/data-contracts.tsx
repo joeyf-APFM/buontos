@@ -27,7 +27,7 @@ import VersionCountBadge from '@/components/common/version-count-badge';
 import { Switch } from '@/components/ui/switch';
 import type { CertificationLevel } from '@/types/lifecycle';
 import { useApi } from '@/hooks/use-api';
-import { usePermissions } from '@/stores/permissions-store';
+import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { internalErrorText } from '@/lib/server-error-text';
 
@@ -67,9 +67,11 @@ export default function DataContracts() {
   // so we must also hide the create/upload controls from personas (e.g. Data
   // Consumer) that lack write access rather than letting them open a dialog
   // that only fails on save. See CUJ ONT-RBAC-007.
-  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const { hasPermission } = usePermissions();
+  // Known permissions only: on a fresh load the store is empty and not loading yet
+  const permissionsReady = usePermissionsReady();
   const featureId = 'data-contracts';
-  const canWrite = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
+  const canWrite = permissionsReady && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
   const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
   const { currentProject, hasProjectContext } = useProjectContext();
@@ -96,9 +98,9 @@ export default function DataContracts() {
   };
   // Without the create permission, the param is dropped and nothing opens
   useEffect(() => {
-    if (wantsNewContract && !permissionsLoading && !canWrite) clearNewContractParam();
+    if (wantsNewContract && permissionsReady && !canWrite) clearNewContractParam();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantsNewContract, permissionsLoading, canWrite]);
+  }, [wantsNewContract, permissionsReady, canWrite]);
 
   useEffect(() => {
     fetchContracts();
