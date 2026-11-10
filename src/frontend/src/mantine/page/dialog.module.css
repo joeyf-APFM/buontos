@@ -1,0 +1,71 @@
+/*
+ * The kit Dialog (dialog.tsx): the Task 7 dialog look on a Mantine Modal.
+ * 8px corners and a 1px border, Mantine's floating shadow, a 14px navy title,
+ * the description in text-secondary, a 16px gutter, and the footer's action
+ * row ruled off by a 1px border. Shared by every Modal in the app.
+ */
+.content {
+  position: relative;
+  border: 1px solid var(--aura-border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+/* Not sticky (Mantine's is, over the content): it scrolls with the content,
+   as Radix's did, so it never covers the corner close that follows the body */
+.header {
+  position: static;
+  align-items: flex-start;
+  padding: 16px 16px 0;
+  min-height: 0;
+}
+
+/* Room for the corner close */
+.header[data-with-close] {
+  padding-right: 40px;
+}
+
+/* A long title wraps, so it reads in full */
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--aura-text-navy);
+  overflow-wrap: anywhere;
+}
+
+/* The description: Mantine's Modal body, so it describes the dialog */
+.description {
+  padding: 4px 16px 0;
+  color: var(--aura-text-secondary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 16px 16px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--aura-border);
+}
+
+/* A confirm without a body: its description, then the footer */
+.description + .footer {
+  margin-top: 16px;
+}
+
+/* The corner close, last in the content (as Radix's), placed at the top right */
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}

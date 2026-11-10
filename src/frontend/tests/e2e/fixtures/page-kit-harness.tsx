@@ -5,13 +5,19 @@
  *
  *   const { mountPageKit } = await import('/tests/e2e/fixtures/page-kit-harness.tsx');
  *   mountPageKit();
+ *
+ * `mountDialog()` opens the kit Dialog over the running app instead (the
+ * shell stays), with a Mantine Select and a Radix Popover in it.
  */
 /* eslint-disable react-refresh/only-export-components -- a test fixture, never hot-reloaded */
+import { useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { Select } from '@mantine/core';
 import { AppMantineProvider } from '@/mantine/provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs as RadixTabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs } from '@/mantine/page';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs } from '@/mantine/page';
 
 function Layout({ fullBleed, id }: { fullBleed?: boolean; id: string }) {
   return (
@@ -75,4 +81,45 @@ export function mountPageKit() {
   root?.unmount();
   root = createRoot(host);
   root.render(<AppMantineProvider><TooltipProvider><Stage /></TooltipProvider></AppMantineProvider>);
+}
+
+/** What the dialog scene reports back to the spec. */
+export const dialogEvents = { closes: 0 };
+
+function DialogScene() {
+  const [opened, setOpened] = useState(true);
+  return (
+    <Dialog
+      opened={opened}
+      onClose={() => {
+        dialogEvents.closes += 1;
+        setOpened(false);
+      }}
+      title="Rename data product"
+      description="The new name shows everywhere the product is listed."
+      footer={<button type="button">Save</button>}
+    >
+      <input aria-label="Name" defaultValue="Customer 360" />
+      <Select aria-label="Status" data={['Active', 'Deprecated']} defaultValue="Active" />
+      <Popover>
+        <PopoverTrigger>More</PopoverTrigger>
+        <PopoverContent>Popover body</PopoverContent>
+      </Popover>
+    </Dialog>
+  );
+}
+
+let dialogRoot: Root | null = null;
+
+/** Opens the kit Dialog over the app, which stays mounted with its shell. */
+export function mountDialog() {
+  dialogEvents.closes = 0;
+  root?.unmount();
+  root = null;
+  document.getElementById('root')?.style.removeProperty('display');
+  const host = document.createElement('div');
+  document.body.append(host);
+  dialogRoot?.unmount();
+  dialogRoot = createRoot(host);
+  dialogRoot.render(<AppMantineProvider><TooltipProvider><DialogScene /></TooltipProvider></AppMantineProvider>);
 }

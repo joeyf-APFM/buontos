@@ -259,7 +259,8 @@ test.describe('the create dialog', () => {
     const dialog = await openCreate(page);
     await expect(dialog).toHaveClass(/mantine-Modal-content/);
     await expect(dialog).toHaveAccessibleDescription('Select assets and assign a reviewer.');
-    expect(Math.round((await box(dialog)).width)).toBe(600);
+    // The kit Dialog's md width
+    expect(Math.round((await box(dialog)).width)).toBe(560);
     expect(await style(dialog, ['border-top-left-radius'])).toEqual({ 'border-top-left-radius': '8px' });
     await expect(dialog.getByRole('textbox', { name: 'Reviewer' })).toBeFocused();
     await expect(dialog.getByRole('textbox', { name: 'Your Email' })).toHaveValue('e2e.user@example.com');
@@ -504,7 +505,8 @@ test.describe('the asset review editor', () => {
     await review.click();
     const editor = editorOf(page, 'main.sales.orders');
     await expect(editor).toHaveClass(/mantine-Modal-content/);
-    expect(Math.round((await box(editor)).width)).toBe(896);
+    // The kit Dialog's xl width
+    expect(Math.round((await box(editor)).width)).toBe(960);
     await expect(editor.getByText('Ada', { exact: true })).toBeVisible();
     expect(await focusInDialog(page)).toBe(true);
     const status = editor.getByLabel('Status *', { exact: true });
@@ -553,7 +555,7 @@ test.describe('the asset review editor', () => {
     const code = editor.locator('pre').first();
     await expect(code).toContainText('o.column_number_39');
     const editorWidth = Math.round((await box(editor)).width);
-    expect(editorWidth).toBe(896);
+    expect(editorWidth).toBe(960);
     expect(await code.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
     expect(Math.round((await box(code)).width)).toBeLessThan(editorWidth);
 

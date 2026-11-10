@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { reviewStatusLabel } from '@/lib/status-labels';
 import { Column, ColumnDef } from "@tanstack/react-table";
 import { AlertCircle, ArrowLeft, X, ArrowUpDown, Pencil, Check, Copy } from 'lucide-react';
-import { ActionIcon, Alert, Loader, Modal, Select, TextInput, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Alert, Loader, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from "@/hooks/use-toast";
 import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
@@ -25,9 +25,7 @@ import {
 } from '@/components/common/list-view-skeleton';
 import { Toaster } from "@/components/ui/toaster";
 import { RelativeDate } from '@/components/common/relative-date';
-import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
-import { Z_INDEX } from '@/mantine/z-index';
-import { useLayeredEscape } from '@/mantine/use-layered-escape';
+import { Dialog, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
 import { focusIsFree } from '@/mantine/focus-free';
 import classes from './data-asset-review-details.module.css';
 
@@ -117,8 +115,6 @@ export default function DataAssetReviewDetails() {
     // The asset the editor is on (its id), for focus once it closes: set on
     // opening and on "Save & Next"
     const editorAsset = useRef<string | null>(null);
-    // The editor's content, so focus left in it after it closes counts as free
-    const editorContent = useRef<HTMLDivElement | null>(null);
 
     // Navigation helpers for asset review
     const requestAssets = request?.assets;
@@ -274,11 +270,11 @@ export default function DataAssetReviewDetails() {
     // while the editor is open, so the original button may be gone). Only if
     // focus is nowhere (body) or still in the closed editor: focus the user
     // has moved, such as into another Modal, stays where they put it
-    const editorExited = () => {
+    const editorExited = (content: HTMLElement | null) => {
         const id = editorAsset.current;
         editorAsset.current = null;
         if (id === null) return;
-        if (!focusIsFree(editorContent.current)) return;
+        if (!focusIsFree(content)) return;
         document.querySelector<HTMLButtonElement>(`[data-review-asset="${CSS.escape(id)}"]`)?.focus();
     };
 
@@ -337,10 +333,6 @@ export default function DataAssetReviewDetails() {
             .filter((value, i) => values.indexOf(value) === i)
             .map((value) => ({ value, label: reviewStatusLabel(value, t) }));
     }, [requestStatus, t]);
-
-    // The editor Modal: Escape closes it unless a layer above it (its status
-    // list, the LLM consent dialog, a shared reviewer's Radix pieces) took it
-    useLayeredEscape(isEditorOpen && !!selectedAsset, () => setIsEditorOpen(false));
 
     // --- Render Logic --- //
 
@@ -508,74 +500,61 @@ export default function DataAssetReviewDetails() {
                 </PaneStack>
             </PageLayout>
 
-            {/* Asset Review Editor: a Modal over the page. As the overlay it
-                replaces, a click outside leaves it open */}
-            <Modal.Root
+            {/* Asset Review Editor: a kit Dialog over the page. Escape closes it
+                unless a layer above it took the key (its status list, the LLM
+                consent dialog, a shared reviewer's Radix pieces). As the
+                overlay it replaces, a click outside leaves it open */}
+            <Dialog
                 opened={isEditorOpen && !!selectedAsset}
                 onClose={() => setIsEditorOpen(false)}
-                size={896}
-                centered
-                // Below the shared Radix dialogs it may open (the LLM consent)
-                zIndex={Z_INDEX.modalUnderRadix}
-                closeOnClickOutside={false}
-                closeOnEscape={false}
-                returnFocus={false}
-                onExitTransitionEnd={editorExited}
+                size="xl"
+                title={selectedAsset ? t('data-asset-reviews:details.reviewing', { fqn: selectedAsset.asset_fqn }) : null}
+                // Unnamed, as before (R16)
+                closeLabel={null}
+                onExited={editorExited}
+                footer={
+                    // The save action is in AssetReviewEditor; this closes
+                    <Button variant="outline" onClick={() => setIsEditorOpen(false)}>{t('common:actions.close')}</Button>
+                }
             >
-                <Modal.Overlay />
                 {selectedAsset && (
-                    <Modal.Content ref={editorContent} className={classes.editor}>
-                        <Modal.Header className={classes.editorHeader}>
-                            <div className={classes.editorHeading}>
-                                <Modal.Title className={classes.editorTitle}>
-                                    {t('data-asset-reviews:details.reviewing', { fqn: selectedAsset.asset_fqn })}
-                                </Modal.Title>
-                                {/* Concept diff panel for knowledge concepts */}
-                                {selectedAsset.asset_fqn?.startsWith('knowledge-concept://') && request && (
-                                    <ConceptDiffPanel request={request} asset={selectedAsset} />
-                                )}
-                            </div>
-                            {/* Unnamed, as before (R16) */}
-                            <Modal.CloseButton />
-                        </Modal.Header>
-                        <div className={classes.editorBody}>
-                             {/* Render AssetReviewEditor component */}
-                             <AssetReviewEditor
-                                requestId={requestId!}
-                                asset={selectedAsset}
-                                api={api}
-                                onReviewSave={(updatedAsset) => {
-                                    // Update the asset list in the main request state
-                                    setRequest(prevRequest => {
-                                        if (!prevRequest) return null;
-                                        return {
-                                            ...prevRequest,
-                                            assets: (Array.isArray(prevRequest.assets) ? prevRequest.assets : []).map(a =>
-                                                a.id === updatedAsset.id ? updatedAsset : a
-                                            ),
-                                            // Optionally update the overall request updated_at timestamp
-                                            updated_at: new Date().toISOString(),
-                                        };
-                                    });
-                                    // Don't close dialog here - let Save & Next handle navigation
-                                    // Only close if no next or user explicitly closes
-                                    if (!hasNextAsset) {
-                                        setIsEditorOpen(false);
-                                    }
-                                }}
-                                onNext={goToNextAsset}
-                                hasNext={hasNextAsset}
-                                currentIndex={selectedAssetIndex}
-                                totalCount={pendingAssets.length}
-                             />
-                             {/* The save action is in AssetReviewEditor; this closes */}
-                             <div className={classes.editorFooter}>
-                                <Button variant="outline" onClick={() => setIsEditorOpen(false)}>{t('common:actions.close')}</Button>
-                            </div>
-                        </div>
-                    </Modal.Content>
+                    <>
+                        {/* Concept diff panel for knowledge concepts */}
+                        {selectedAsset.asset_fqn?.startsWith('knowledge-concept://') && request && (
+                            <ConceptDiffPanel request={request} asset={selectedAsset} />
+                        )}
+                        {/* Render AssetReviewEditor component */}
+                        <AssetReviewEditor
+                            requestId={requestId!}
+                            asset={selectedAsset}
+                            api={api}
+                            onReviewSave={(updatedAsset) => {
+                                // Update the asset list in the main request state
+                                setRequest(prevRequest => {
+                                    if (!prevRequest) return null;
+                                    return {
+                                        ...prevRequest,
+                                        assets: (Array.isArray(prevRequest.assets) ? prevRequest.assets : []).map(a =>
+                                            a.id === updatedAsset.id ? updatedAsset : a
+                                        ),
+                                        // Optionally update the overall request updated_at timestamp
+                                        updated_at: new Date().toISOString(),
+                                    };
+                                });
+                                // Don't close dialog here - let Save & Next handle navigation
+                                // Only close if no next or user explicitly closes
+                                if (!hasNextAsset) {
+                                    setIsEditorOpen(false);
+                                }
+                            }}
+                            onNext={goToNextAsset}
+                            hasNext={hasNextAsset}
+                            currentIndex={selectedAssetIndex}
+                            totalCount={pendingAssets.length}
+                        />
+                    </>
                 )}
-            </Modal.Root>
+            </Dialog>
 
             <Toaster />
         </>

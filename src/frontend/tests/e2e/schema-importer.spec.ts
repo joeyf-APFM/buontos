@@ -271,7 +271,12 @@ test.describe('its own route', () => {
     await page.keyboard.press('Escape');
     await expect(selector).toHaveCount(0);
     await expect(dialog).toBeVisible();
-    // Then Escape closes the preview
+    // The pointer is still on the Link button, so its tooltip is open: an
+    // Escape closes that first (the kit Dialog's layered Escape), then the preview
+    await expect(page.getByRole('tooltip')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
   });

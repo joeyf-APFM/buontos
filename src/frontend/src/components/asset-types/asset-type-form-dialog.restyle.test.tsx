@@ -94,9 +94,10 @@ describe('asset type form on Mantine', () => {
     const status = selectField(dialog, 'Status');
     expect(status).toHaveValue('Active');
 
-    // Exactly these buttons: the corner close, Cancel and Create
+    // Exactly these buttons: Cancel, Create and the corner close (last in the
+    // kit Dialog, as Radix's was)
     expect(within(dialog).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
-      'Close', 'Cancel', 'Create',
+      'Cancel', 'Create', 'Close',
     ]);
     expect(within(dialog).getByRole('button', { name: 'Create' })).toHaveAttribute('type', 'submit');
 
@@ -118,7 +119,7 @@ describe('asset type form on Mantine', () => {
     expect(selectField(dialog, 'Category')).toHaveValue('Analytics');
     expect(selectField(dialog, 'Status')).toHaveValue('Deprecated');
     expect(within(dialog).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
-      'Close', 'Cancel', 'Save Changes',
+      'Cancel', 'Save Changes', 'Close',
     ]);
   });
 

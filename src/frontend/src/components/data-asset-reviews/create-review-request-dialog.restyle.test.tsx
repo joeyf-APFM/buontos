@@ -9,6 +9,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import CreateReviewRequestDialog from './create-review-request-dialog';
 import classes from './create-review-request-dialog.module.css';
+import dialogClasses from '@/mantine/page/dialog.module.css';
 
 const { toast } = vi.hoisted(() => ({ toast: vi.fn() }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast, dismiss: vi.fn() }), toast }));
@@ -69,7 +70,8 @@ describe('the create review request dialog on Mantine', () => {
     renderDialog();
     const modal = await dialog();
     expect(modal).toHaveClass('mantine-Modal-content');
-    expect(modal).toHaveClass(classes.content);
+    // The dialog look is the kit Dialog's
+    expect(modal).toHaveClass(dialogClasses.content);
     expect(modal).toHaveAttribute('aria-modal', 'true');
     expect(modal).toHaveAccessibleDescription('Select assets and assign a reviewer.');
     // No Tailwind class in the dialog's own markup (the shared asset tree

@@ -124,27 +124,3 @@ button.danger:not([data-disabled])[data-hovered] {
   font-size: 12px;
   font-weight: 600;
 }
-
-/* The delete confirmation: the form dialog's look */
-.dialog {
-  composes: content from '../components/schema-importer/import-preview-dialog.module.css';
-}
-
-.dialogHeader {
-  composes: header from '../components/schema-importer/import-preview-dialog.module.css';
-}
-
-.dialogTitle {
-  composes: title from '../components/schema-importer/import-preview-dialog.module.css';
-}
-
-.dialogDescription {
-  composes: description from '../components/schema-importer/import-preview-dialog.module.css';
-}
-
-.dialogFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px;
-}

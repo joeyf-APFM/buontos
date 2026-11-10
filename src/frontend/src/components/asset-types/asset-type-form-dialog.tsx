@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useId, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader, Modal, Select, TextInput, Textarea } from '@mantine/core';
+import { Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { AssetTypeRead, AssetTypeCategory, AssetTypeStatus } from '@/types/asset';
+import { Dialog } from '@/mantine/page';
 import classes from './asset-type-form-dialog.module.css';
 
 const CATEGORIES: AssetTypeCategory[] = ['data', 'analytics', 'integration', 'system', 'custom'];
@@ -33,10 +34,12 @@ interface AssetTypeFormDialogProps {
   /**
    * Called once the dialog has closed and its exit transition has ended: the
    * caller then puts focus where it belongs (such as the row menu's button
-   * it was opened from, which may have been re-rendered by then). Without it,
-   * focus goes back to what had it when the dialog opened.
+   * it was opened from, which may have been re-rendered by then). It gets the
+   * dialog's content element, so the caller can tell focus left in the closed
+   * dialog from focus the user moved elsewhere. Without it, focus goes back to
+   * what had it when the dialog opened.
    */
-  onExited?: () => void;
+  onExited?: (content: HTMLElement | null) => void;
 }
 
 /** One option per value, first one kept: Mantine's Select throws on a repeated value. */
@@ -50,6 +53,7 @@ export function AssetTypeFormDialog({
   const { post: apiPost, put: apiPut } = useApi();
   const { toast } = useToast();
   const { t } = useTranslation(['asset-types', 'common']);
+  const formId = useId();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -129,108 +133,95 @@ export function AssetTypeFormDialog({
   const selectClassNames = { ...fieldClassNames, option: classes.option };
 
   return (
-    <Modal.Root
+    <Dialog
       opened={isOpen}
       onClose={() => onOpenChange(false)}
-      size={512}
-      centered
-      returnFocus={!onExited}
-      onExitTransitionEnd={onExited}
+      title={assetType ? t('form.editTitle') : t('form.createTitle')}
+      description={assetType ? t('form.editDescription') : t('form.createDescription')}
+      onExited={onExited}
+      // As before (Mantine's default on the Modal): a click outside closes it
+      closeOnClickOutside
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            {t('common:actions.cancel')}
+          </Button>
+          {/* In the footer, outside the form: it submits the form by its id */}
+          <Button type="submit" form={formId} disabled={isSubmitting}>
+            {isSubmitting && <Loader size={12} color="currentColor" />}
+            {assetType ? t('form.update') : t('form.create')}
+          </Button>
+        </>
+      }
     >
-      <Modal.Overlay />
-      <Modal.Content className={classes.content}>
-        <Modal.Header className={classes.header}>
-          <Modal.Title className={classes.title}>
-            {assetType ? t('form.editTitle') : t('form.createTitle')}
-          </Modal.Title>
-          <Modal.CloseButton aria-label={t('common:actions.close')} />
-        </Modal.Header>
-        {/* The Modal's body is only the description: the dialog's
-            aria-describedby points at the body, as Radix's did at its
-            DialogDescription. The form follows it. */}
-        <Modal.Body className={classes.description}>
-          {assetType ? t('form.editDescription') : t('form.createDescription')}
-        </Modal.Body>
+      <form id={formId} onSubmit={form.handleSubmit(handleSubmit)} className={classes.form}>
+        <TextInput
+          {...form.register('name')}
+          label={t('table.name')}
+          placeholder={t('form.placeholders.name')}
+          error={errors.name?.message}
+          classNames={fieldClassNames}
+          data-autofocus
+        />
 
-        <form onSubmit={form.handleSubmit(handleSubmit)} className={classes.form}>
-          <TextInput
-            {...form.register('name')}
-            label={t('table.name')}
-            placeholder={t('form.placeholders.name')}
-            error={errors.name?.message}
-            classNames={fieldClassNames}
-            data-autofocus
-          />
+        <Textarea
+          {...form.register('description')}
+          label={t('table.description')}
+          placeholder={t('form.placeholders.description')}
+          error={errors.description?.message}
+          classNames={fieldClassNames}
+          autosize
+          minRows={3}
+          maxRows={12}
+        />
 
-          <Textarea
-            {...form.register('description')}
-            label={t('table.description')}
-            placeholder={t('form.placeholders.description')}
-            error={errors.description?.message}
-            classNames={fieldClassNames}
-            autosize
-            minRows={3}
-            maxRows={12}
-          />
+        <Controller
+          control={form.control}
+          name="category"
+          render={({ field, fieldState }) => (
+            <Select
+              ref={field.ref}
+              name={field.name}
+              label={t('table.category')}
+              placeholder={t('form.placeholders.category')}
+              data={categoryOptions}
+              value={field.value ?? NO_CATEGORY}
+              onChange={(value) => field.onChange(value ?? NO_CATEGORY)}
+              onBlur={field.onBlur}
+              allowDeselect={false}
+              error={fieldState.error?.message}
+              classNames={selectClassNames}
+            />
+          )}
+        />
 
-          <Controller
-            control={form.control}
-            name="category"
-            render={({ field, fieldState }) => (
-              <Select
-                ref={field.ref}
-                name={field.name}
-                label={t('table.category')}
-                placeholder={t('form.placeholders.category')}
-                data={categoryOptions}
-                value={field.value ?? NO_CATEGORY}
-                onChange={(value) => field.onChange(value ?? NO_CATEGORY)}
-                onBlur={field.onBlur}
-                allowDeselect={false}
-                error={fieldState.error?.message}
-                classNames={selectClassNames}
-              />
-            )}
-          />
+        <TextInput
+          {...form.register('icon')}
+          label={t('form.labels.icon')}
+          placeholder={t('form.placeholders.icon')}
+          error={errors.icon?.message}
+          classNames={fieldClassNames}
+        />
 
-          <TextInput
-            {...form.register('icon')}
-            label={t('form.labels.icon')}
-            placeholder={t('form.placeholders.icon')}
-            error={errors.icon?.message}
-            classNames={fieldClassNames}
-          />
-
-          <Controller
-            control={form.control}
-            name="status"
-            render={({ field, fieldState }) => (
-              <Select
-                ref={field.ref}
-                name={field.name}
-                label={t('table.status')}
-                data={statusOptions}
-                value={field.value}
-                onChange={(value) => value && field.onChange(value)}
-                onBlur={field.onBlur}
-                allowDeselect={false}
-                error={fieldState.error?.message}
-                classNames={selectClassNames}
-              />
-            )}
-          />
-
-          <div className={classes.footer}>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader size={12} color="currentColor" />}
-              {assetType ? t('form.update') : t('form.create')}
-            </Button>
-          </div>
-        </form>
-      </Modal.Content>
-    </Modal.Root>
+        <Controller
+          control={form.control}
+          name="status"
+          render={({ field, fieldState }) => (
+            <Select
+              ref={field.ref}
+              name={field.name}
+              label={t('table.status')}
+              data={statusOptions}
+              value={field.value}
+              onChange={(value) => value && field.onChange(value)}
+              onBlur={field.onBlur}
+              allowDeselect={false}
+              error={fieldState.error?.message}
+              classNames={selectClassNames}
+            />
+          )}
+        />
+      </form>
+    </Dialog>
   );
 }

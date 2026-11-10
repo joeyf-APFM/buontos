@@ -5,7 +5,7 @@
  * details grid has the shared panels' 86px label column; the kit's Mantine
  * Tabs look like the Task 7 Radix tabs (components/ui/tabs.tsx).
  */
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi } from './fixtures/api';
 import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
@@ -152,4 +152,109 @@ test('tabs: the Task 7 look, and arrow keys switch them', async ({ page }) => {
   await expect(kit.getByRole('tab', { name: 'Lineage' })).toBeFocused();
   await expect(kit.getByRole('tab', { name: 'Lineage' })).toHaveAttribute('aria-selected', 'true');
   await expect(kit.getByRole('tabpanel')).toHaveText('B');
+});
+
+test.describe('kit Dialog', () => {
+  const harness = '/tests/e2e/fixtures/page-kit-harness.tsx';
+  const closes = (page: Page) =>
+    page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).dialogEvents.closes, harness);
+  const zIndex = (loc: Locator) => loc.evaluate((el) => Number(getComputedStyle(el).zIndex));
+
+  test.beforeEach(async ({ page }) => {
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog(), harness);
+    await expect(page.getByRole('dialog', { name: 'Rename data product' })).toBeVisible();
+  });
+
+  test('Dialog: the kit look, at the md width', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    expect(Math.round((await dialog.boundingBox())!.width)).toBe(560);
+    expect(await style(dialog, ['border-top-width', 'border-top-color', 'border-top-left-radius'])).toEqual({
+      'border-top-width': '1px', 'border-top-color': BORDER, 'border-top-left-radius': '8px',
+    });
+    expect(await style(dialog.getByRole('heading', { name: 'Rename data product' }), ['font-size', 'color'])).toEqual({
+      'font-size': '14px', color: 'rgb(31, 48, 102)',
+    });
+    const footer = dialog.getByRole('button', { name: 'Save' }).locator('..');
+    expect(await style(footer, ['border-top-width', 'justify-content'])).toEqual({
+      'border-top-width': '1px', 'justify-content': 'flex-end',
+    });
+    // Focus starts in the content, not on the corner close
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused();
+    // The look is the content's alone: the full-window layer that centres it
+    // stays fixed and unframed, and the dialog is on screen, on top
+    expect(await style(page.locator('.mantine-Modal-inner'), ['position', 'border-top-width', 'border-top-left-radius'])).toEqual({
+      position: 'fixed', 'border-top-width': '0px', 'border-top-left-radius': '0px',
+    });
+    const b = (await dialog.boundingBox())!;
+    expect(b.y + b.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[role="dialog"]'), [b.x + b.width / 2, b.y + 20])).toBe(true);
+    // The corner close, last in the content, shows at the top right, on top
+    const close = (await dialog.getByRole('button', { name: 'Close' }).boundingBox())!;
+    expect(close.x + close.width).toBeGreaterThan(b.x + b.width - 24);
+    expect(close.y).toBeLessThan(b.y + 24);
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('button')?.getAttribute('aria-label'), [close.x + close.width / 2, close.y + close.height / 2])).toBe('Close');
+  });
+
+  test('Dialog: Escape in an open Select closes only the Select', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Customer 361');
+    await dialog.getByLabel('Status', { exact: true }).click();
+    await expect(page.getByRole('option', { name: 'Deprecated' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('option', { name: 'Deprecated' })).toHaveCount(0);
+    // Past the Modal's 200ms exit transition: still open, the input kept
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Customer 361');
+    expect(await closes(page)).toBe(0);
+    // With the list closed, Escape closes the dialog
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in an open Radix popover closes only the popover', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('button', { name: 'More' }).click();
+    await expect(page.getByText('Popover body')).toBeVisible();
+    // The popover opens above the dialog
+    const body = (await page.getByText('Popover body').boundingBox())!;
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [body.x + 4, body.y + body.height / 2])).toBe('Popover body');
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Popover body')).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    expect(await closes(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog sits above the shell and below toasts', async ({ page }) => {
+    await page.evaluate(async () => {
+      const { toast } = await import('/src/hooks/use-toast.ts');
+      toast({ title: 'Saved over a dialog', duration: Infinity });
+    });
+    const toasts = page.locator('.mantine-Notifications-root', { hasText: 'Saved over a dialog' });
+    await expect(toasts).toBeVisible();
+
+    const modal = await zIndex(page.locator('.mantine-Modal-inner'));
+    expect(await zIndex(page.locator('.mantine-Modal-overlay'))).toBe(modal);
+    const shell = await page.locator('.apfm-surface').evaluateAll((els) => els.map((el) => Number(getComputedStyle(el).zIndex) || 0));
+    expect(shell.length).toBeGreaterThanOrEqual(2);
+    for (const level of shell) expect(modal).toBeGreaterThan(level);
+    expect(await zIndex(toasts)).toBeGreaterThan(modal);
+
+    // The pickers a dialog holds open above it: a Mantine Select's list and
+    // a Radix layer (the shadcn z-50)
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByLabel('Status', { exact: true }).click();
+    const list = page.locator('.mantine-Select-dropdown', { has: page.getByRole('option', { name: 'Deprecated' }) });
+    await expect(list).toBeVisible();
+    expect(await zIndex(list)).toBeGreaterThan(modal);
+    await page.keyboard.press('Escape');
+    await dialog.getByRole('button', { name: 'More' }).click();
+    await expect(page.getByText('Popover body')).toBeVisible();
+    expect(await zIndex(page.locator('[data-radix-popper-content-wrapper]'))).toBeGreaterThan(modal);
+  });
 });

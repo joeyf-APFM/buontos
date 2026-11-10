@@ -213,7 +213,8 @@ test.describe('the form dialog', () => {
     const dialog = page.getByRole('dialog', { name: 'Create Asset Type' });
     await expect(dialog).toHaveClass(/mantine-Modal-content/);
     await expect(dialog).toHaveAccessibleDescription('Add a new asset type template.');
-    expect(Math.round((await box(dialog)).width)).toBe(512);
+    // The kit Dialog's md width
+    expect(Math.round((await box(dialog)).width)).toBe(560);
     expect(await style(dialog, ['border-top-left-radius'])).toEqual({ 'border-top-left-radius': '8px' });
     const name = dialog.getByRole('textbox', { name: 'Name' });
     await expect(name).toBeFocused();

@@ -6,13 +6,15 @@
  */
 export const Z_INDEX = {
   /**
-   * A Mantine Modal that a shared Radix Dialog may open over, such as the
-   * import preview under the AssetSelector. One below the Radix dialogs'
-   * z-50, so the Radix dialog stacks above it as it did over the Radix dialog
-   * the Modal replaced; still above the top bar (40). Mantine's own popovers
-   * and tooltips (300) and notifications (400) stay above it. Drop it once
-   * those shared dialogs are on Mantine (their wave or wave 6), when the
-   * Modal can go back to Mantine's default (200).
+   * Every kit Dialog (mantine/page/dialog.tsx), one level for all of them.
+   * Above the top bar (40), so the overlay covers the shell. One below the
+   * shadcn/Radix layers' z-50, so a Radix picker or dialog a Dialog opens
+   * (the PrincipalPicker's results, the AssetSelector, a Radix Popover or
+   * Select) stacks above it, as it did over the Radix dialog the Modal
+   * replaced. Mantine's own popovers and tooltips (300), such as a Select's
+   * list, and the toasts (Mantine notifications, 400) stay above it. Mantine's
+   * default (200) would hide the Radix layers under the overlay. Raise it to
+   * 200 once no Dialog holds a Radix layer (wave 6).
    */
-  modalUnderRadix: 49,
+  modal: 49,
 } as const;

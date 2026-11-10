@@ -7,3 +7,4 @@ export { Pane, type PaneProps } from './pane';
 export { PaneStack, type PaneStackProps } from './pane-stack';
 export { DetailsGrid, type DetailsGridProps, type DetailsRow } from './details-grid';
 export { Tabs } from './tabs';
+export { Dialog, type DialogProps } from './dialog';
