@@ -61,6 +61,10 @@ describe('pageCrumbs: the hierarchy from the menu', () => {
     expect(text(visit({ path: '/assets' }))).toBe('Home > Build > Assets > Explorer');
   });
 
+  it('gives Collections its place under Concepts: Home > Build > Concepts > Collections', () => {
+    expect(text(visit({ path: '/concepts/collections' }))).toBe('Home > Build > Concepts > Collections');
+  });
+
   it('gives Settings pages the Settings group: Home > Settings > General', () => {
     expect(text(visit({ path: '/settings/general' }))).toBe('Home > Settings > General');
   });

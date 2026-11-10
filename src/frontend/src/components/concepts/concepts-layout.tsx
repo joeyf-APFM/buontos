@@ -4,9 +4,9 @@ import { ConceptModeSwitch } from '@/components/concepts/mode-switch';
 // ---------------------------------------------------------------------------
 // Concept Builder layout: the shared Simple/Advanced switch above the active
 // concept view. The side menu's Build → Concepts lists the pages (Define,
-// Explore, Search, Hierarchy Browser, Enrich, Term Mapping), so the layout no
+// Explore, Search, Hierarchy Browser, Enrich, Term Mapping, Collections), so the layout no
 // longer draws its own Define / Explore / Enrich section switch (Task 16c).
-// Collections and Generator are reached from the Define page.
+// Generator is reached from the Define page (Collections has its menu item).
 // ---------------------------------------------------------------------------
 
 export default function ConceptsLayout() {

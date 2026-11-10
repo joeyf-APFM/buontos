@@ -551,13 +551,13 @@ describe('the side menu (Task 16c)', () => {
   });
 
   describe('Build → Concepts', () => {
-    it('lists Define, Explore, Search, Hierarchy Browser, Enrich and Term Mapping, and no Import', () => {
+    it('lists Define, Explore, Search, Hierarchy Browser, Enrich, Term Mapping and Collections, and no Import', () => {
       renderShell('/concepts/define');
       openPinned('Build');
       const build = panelOf('Build')!;
       const concepts = within(build).getByRole('link', { name: 'Concepts' }).parentElement!;
       expect([...concepts.querySelectorAll('a')].map((a) => a.textContent)).toEqual([
-        'Concepts', 'Define', 'Explore', 'Search', 'Hierarchy Browser', 'Enrich', 'Term Mapping',
+        'Concepts', 'Define', 'Explore', 'Search', 'Hierarchy Browser', 'Enrich', 'Term Mapping', 'Collections',
       ]);
       expect(highlighted(build)).toEqual(['Define']);
     });

@@ -260,7 +260,7 @@ describe('visibleNav maturity', () => {
   it('treats items without a feature as ga', () => {
     const nav = visibleNav(() => true, gaOnly);
     expect(itemIds(nav, 'Settings')).toContain('general');
-    expect(nav.Build.flatMap((s) => s.items).find((i) => i.id === 'concepts')?.children).toHaveLength(6);
+    expect(nav.Build.flatMap((s) => s.items).find((i) => i.id === 'concepts')?.children).toHaveLength(7);
     expect(nav.Build.flatMap((s) => s.items).find((i) => i.id === 'data-contracts')?.children).toHaveLength(2);
   });
 
@@ -330,7 +330,7 @@ const writer = (id: string, level?: FeatureAccessLevel) =>
 
 
 describe('Build → Concepts (Task 16c)', () => {
-  it('lists Define, Explore, Search, Hierarchy Browser, Enrich and Term Mapping, in that order', () => {
+  it('lists Define, Explore, Search, Hierarchy Browser, Enrich, Term Mapping and Collections, in that order', () => {
     const concepts = buildItem('concepts');
     expect(concepts.children!.map((c) => [c.id, c.labelKey, c.path])).toEqual([
       ['concept-define', 'concepts:sections.define', '/concepts/define'],
@@ -339,8 +339,18 @@ describe('Build → Concepts (Task 16c)', () => {
       ['concept-hierarchy', 'shell:items.conceptHierarchy', '/concepts/hierarchy'],
       ['concept-enrich', 'shell:items.conceptEnrich', '/concepts/enrich'],
       ['concept-mapping', 'shell:items.conceptMapping', '/concepts/mapping'],
+      ['concept-collections', 'settings:personaNav.collections', '/concepts/collections'],
     ]);
     expect(concepts.children!.every((c) => c.permissionId === 'semantic-models')).toBe(true);
+  });
+
+  it('puts Collections (the owner, 2026-11-10) at /concepts/collections, with an icon of its own in Build', async () => {
+    const settings = (await import('@/i18n/locales/en/settings.json')).default.personaNav;
+    expect(settings.collections).toBe('Collections');
+    const build = NAV.Build.flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])]));
+    const collections = build.find((i) => i.id === 'concept-collections')!;
+    expect(build.filter((i) => i.icon === collections.icon).map((i) => i.id)).toEqual(['concept-collections']);
+    expect(activeLocation('/concepts/collections')).toEqual({ group: 'Build', itemId: 'concepts', childId: 'concept-collections' });
   });
 
   it('labels them Explore, Hierarchy Browser and Term Mapping', async () => {
