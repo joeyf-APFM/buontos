@@ -134,3 +134,25 @@ afterEach(() => {
 beforeEach(() => {
   localStorage.clear();
 });
+// The components/ui primitives (Button, Input, Checkbox, ...) are Mantine, so
+// every render needs a MantineProvider. Wrap RTL's render in one, around any
+// wrapper the test passes. It renders no <style> tags, so a test's container
+// holds only what the component rendered.
+vi.mock('@testing-library/react', async (importOriginal) => {
+  const rtl = await importOriginal<typeof import('@testing-library/react')>();
+  const { createElement } = await import('react');
+  const { MantineProvider } = await import('@mantine/core');
+  const { theme } = await import('../mantine/theme');
+  type Options = Parameters<typeof rtl.render>[1];
+  const render = (ui: Parameters<typeof rtl.render>[0], options?: Options) => {
+    const Inner = options?.wrapper;
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(
+        MantineProvider,
+        { theme, forceColorScheme: 'light', withCssVariables: false, withGlobalClasses: false },
+        Inner ? createElement(Inner, null, children) : children,
+      );
+    return rtl.render(ui, { ...options, wrapper });
+  };
+  return { ...rtl, render };
+});

@@ -424,7 +424,7 @@ describe('RequiredFieldsEditor', () => {
     expect(screen.queryByTestId('rfe-row-0-endpoint')).not.toBeInTheDocument();
     // Static radio is the checked one.
     const staticRadio = screen.getByTestId('rfe-row-0-mode-static');
-    expect(staticRadio).toHaveAttribute('data-state', 'checked');
+    expect(staticRadio).toBeChecked();
   });
 
   it('round-trips a YAML-authored 3-field config without mutation on noop', () => {
@@ -548,15 +548,15 @@ describe('RequiredFieldsEditor — primary field', () => {
     // Initially row 0 is primary.
     const row0Primary = screen.getByTestId('rfe-row-0-primary');
     const row1Primary = screen.getByTestId('rfe-row-1-primary');
-    expect(row0Primary).toHaveAttribute('data-state', 'checked');
-    expect(row1Primary).toHaveAttribute('data-state', 'unchecked');
+    expect(row0Primary).toBeChecked();
+    expect(row1Primary).not.toBeChecked();
 
     // Check row 1.
     fireEvent.click(row1Primary);
     // Mutex: only one row primary at a time.
     expect(readPrimary()).toBe('b');
-    expect(screen.getByTestId('rfe-row-0-primary')).toHaveAttribute('data-state', 'unchecked');
-    expect(screen.getByTestId('rfe-row-1-primary')).toHaveAttribute('data-state', 'checked');
+    expect(screen.getByTestId('rfe-row-0-primary')).not.toBeChecked();
+    expect(screen.getByTestId('rfe-row-1-primary')).toBeChecked();
   });
 
   it('sync: editing the primary row\'s id updates primary_field_id in lockstep', async () => {
