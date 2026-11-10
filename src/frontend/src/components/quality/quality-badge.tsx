@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/hooks/use-api';
-import { scoreColor, type EntityKind, type QualitySummary } from '@/types/quality';
+import { type EntityKind, type QualitySummary } from '@/types/quality';
+import { AURA_STATUS, type StatusTone } from '@/components/common/aura-status';
+import classes from '@/components/common/badges.module.css';
 
 export interface QualityBadgeProps {
   /** Entity type (data_product, data_contract, asset, ...) */
@@ -70,57 +72,41 @@ export function QualityBadge({
   }
 
   const pct = summary.overall_score_percent;
-  const color = scoreColor(pct);
+  // The score band's tone, so the chip reads at a glance
+  const tone: StatusTone = pct >= 90 ? 'good' : pct >= 70 ? 'warning' : 'critical';
+  const colours = AURA_STATUS[tone];
 
   const gaugePx = size === 'sm' ? 14 : 16;
   const innerPx = gaugePx - 4;
-  const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
 
   const measuredAtLabel = summary.measured_at
     ? `\nLast measured ${new Date(summary.measured_at).toLocaleString()}`
     : '';
 
-  // Tint background lightly based on score band so the chip reads at a glance.
-  const bandBg =
-    pct >= 90
-      ? 'bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-900/40'
-      : pct >= 70
-        ? 'bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/40'
-        : 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40';
-
   // Mini conic-gradient gauge — mirrors the large gauge in EntityQualityPanel.
   const gaugeStyle: React.CSSProperties = {
     width: gaugePx,
     height: gaugePx,
-    borderRadius: '50%',
-    background: `conic-gradient(${color} 0% ${pct}%, hsl(var(--muted-foreground) / 0.25) ${pct}% 100%)`,
-    flexShrink: 0,
+    background: `conic-gradient(${colours.mark} 0% ${pct}%, var(--aura-border) ${pct}% 100%)`,
   };
   const gaugeInnerStyle: React.CSSProperties = {
     width: innerPx,
     height: innerPx,
-    borderRadius: '50%',
-    background: 'hsl(var(--background))',
+    background: colours.bg,
   };
 
   return (
     <div
-      className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full leading-none',
-        bandBg,
-        onClick && 'cursor-pointer transition-colors',
-        className,
-      )}
+      className={cn(classes.chip, size === 'md' && classes.chipMd, onClick && classes.clickable, className)}
+      style={{ background: colours.bg }}
+      data-tone={tone}
       onClick={onClick}
       title={`Data Quality: ${pct.toFixed(1)}% (${summary.items_count} measurement${summary.items_count === 1 ? '' : 's'})${measuredAtLabel}`}
     >
-      <span style={gaugeStyle} aria-hidden>
-        <span style={gaugeInnerStyle} className="block m-[2px]" />
+      <span className={classes.gauge} style={gaugeStyle} aria-hidden>
+        <span className={classes.gaugeInner} style={gaugeInnerStyle} />
       </span>
-      <span
-        className={cn(textSize, 'font-semibold tabular-nums leading-none')}
-        style={{ color }}
-      >
+      <span className={classes.value} style={{ color: colours.fg }}>
         {pct.toFixed(0)}%
       </span>
     </div>

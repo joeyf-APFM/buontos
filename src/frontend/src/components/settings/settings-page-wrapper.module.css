@@ -1,0 +1,31 @@
+/* The access-denied notice: centred, at most 672px wide, as before */
+.denied {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.alert {
+  border-width: 1px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.description p {
+  margin: 0;
+}
+
+.link {
+  font-weight: 600;
+  text-decoration: underline;
+  color: inherit;
+}

@@ -7,6 +7,7 @@ import usePermissionsStore, { usePermissions } from '@/stores/permissions-store'
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { SettingsFormSkeleton } from '@/components/common/list-view-skeleton';
+import classes from './settings-page-wrapper.module.css';
 
 interface SettingsPageWrapperProps {
   title: string;
@@ -57,19 +58,19 @@ export default function SettingsPageWrapper({ title, permissionId, children }: S
 
   if (!hasSettingsAccess) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <Alert variant="destructive" className="border-2">
-          <ShieldX className="h-5 w-5" />
-          <AlertTitle className="text-lg font-semibold">
+      <div className={classes.denied}>
+        <Alert variant="destructive" className={classes.alert}>
+          <ShieldX size={16} />
+          <AlertTitle className={classes.title}>
             {t('settings:accessDenied.title', 'Access Denied')}
           </AlertTitle>
-          <AlertDescription className="mt-2">
-            <p className="mb-4">
+          <AlertDescription className={classes.description}>
+            <p>
               {t('settings:accessDenied.message', 'You do not have permission to access this page. This page is restricted to users with administrative privileges.')}
             </p>
-            <p className="text-sm">
+            <p>
               {t('settings:accessDenied.action', 'If you believe you should have access, please contact your administrator or ')}
-              <Link to="/" className="font-semibold underline hover:text-destructive-foreground">
+              <Link to="/" className={classes.link}>
                 {t('settings:accessDenied.returnHome', 'return to the home page')}
               </Link>
               {t('settings:accessDenied.requestRole', ' to request an appropriate role.')}

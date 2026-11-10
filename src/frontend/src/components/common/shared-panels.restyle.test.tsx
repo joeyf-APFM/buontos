@@ -1,0 +1,228 @@
+/**
+ * Task 8: the shared panels, skeletons and badges on Mantine and CSS modules,
+ * laid out like the explorer's details panel. The pixel values (the 86px
+ * label column, 12px text, border-subtle rows) are measured in a real browser
+ * in tests/e2e/shared-panels.spec.ts (ruling R10); these tests check the
+ * structure and that the controls still work.
+ */
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { renderWithProviders } from '@/test/utils';
+
+const api = {
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
+  loading: false,
+};
+vi.mock('@/hooks/use-api', () => ({ useApi: () => api }));
+const toast = vi.fn();
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
+vi.mock('@/stores/project-store', () => ({
+  useProjectContext: () => ({ currentProject: { id: 'p1', name: 'Sales' }, availableProjects: [] }),
+}));
+vi.mock('@/hooks/use-entity-metadata', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-entity-metadata')>()),
+  useSharedAssets: () => ({ richTexts: [], links: [], documents: [], loading: false }),
+}));
+
+import { OwnershipPanel } from './ownership-panel';
+import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
+import CommentSidebar from '@/components/comments/comment-sidebar';
+import CertificationBadge from './certification-badge';
+import PublicationBadge from './publication-badge';
+import { MaturityBadge } from './maturity-badge';
+import { QualityBadge } from '@/components/quality/quality-badge';
+import { RatingBadge } from '@/components/ratings/rating-badge';
+import { AURA_STATUS, contrastRatio } from './aura-status';
+
+const owner = (over: Record<string, unknown>) => ({
+  object_type: 'data_product',
+  object_id: 'p1',
+  user_email: 'x@example.com',
+  role_id: 'r1',
+  is_active: true,
+  assigned_at: '2026-11-01T00:00:00Z',
+  created_at: '2026-11-01T00:00:00Z',
+  updated_at: '2026-11-01T00:00:00Z',
+  ...over,
+});
+
+beforeEach(() => {
+  api.get.mockReset();
+  api.post.mockReset();
+  api.put.mockReset();
+  api.delete.mockReset();
+});
+
+describe('shared panels restyle', () => {
+  it('ownership panel lists owners in the details-panel grid', async () => {
+    api.get.mockResolvedValue({
+      data: [
+        owner({ id: 'o1', user_name: 'Alice Doe', role_name: 'Data Owner' }),
+        owner({ id: 'o2', user_name: 'Bob Roe', role_name: 'Steward' }),
+      ],
+    });
+    renderWithProviders(<OwnershipPanel objectType="data_product" objectId="p1" canAssign />);
+
+    const panel = await screen.findByRole('region', { name: 'Owners' });
+    await within(panel).findByText('Alice Doe');
+    // One label/value row per owner: the role in the label column
+    // (jsdom's ARIA tables give dt and dd no roles, so they are found by tag)
+    const terms = [...panel.querySelectorAll('dl > dt')].map((t) => t.textContent);
+    expect(terms).toEqual(['Data Owner', 'Steward']);
+    const values = [...panel.querySelectorAll<HTMLElement>('dl > dd')];
+    expect(values[0]).toHaveTextContent('Alice Doe');
+    expect(values[1]).toHaveTextContent('Bob Roe');
+    // The remove control stays on each row, and Assign Owner in the header
+    expect(within(values[0]).getByRole('button')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Assign Owner' })).toBeInTheDocument();
+    // A pane, not a Card: no Mantine Paper
+    expect(panel.closest('.mantine-Paper-root')).toBeNull();
+  });
+
+  it('metadata panel uses no nested cards', async () => {
+    const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    global.fetch = vi.fn((url: string) => {
+      if (url.includes('rich-texts')) {
+        return json([{ id: 'n1', title: 'Read me', short_description: 'About', content_markdown: '# hi', level: 10 }]);
+      }
+      if (url.includes('/links')) return json([{ id: 'l1', title: 'Wiki', url: 'https://example.com', level: 20 }]);
+      return json([]);
+    }) as unknown as typeof fetch;
+
+    renderWithProviders(<EntityMetadataPanel entityId="e1" entityType="data_product" />);
+
+    const panel = await screen.findByRole('region', { name: 'Metadata' });
+    await within(panel).findByText('Read me');
+    // Notes, links and documents are sections of the one pane, divided by
+    // rules rather than separators, with no card inside the panel
+    for (const name of ['Additional Notes', 'Related Links', 'Attached Documents']) {
+      expect(within(panel).getByRole('region', { name })).toBeInTheDocument();
+    }
+    expect(within(panel).queryAllByRole('separator')).toHaveLength(0);
+    expect(panel.closest('.mantine-Paper-root')).toBeNull();
+    expect(panel.querySelector('.mantine-Paper-root')).toBeNull();
+    // The section toolbars keep their add / attach / refresh buttons
+    const notes = within(panel).getByRole('region', { name: 'Additional Notes' });
+    expect(within(notes).getAllByRole('button').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('comments thread keeps add, edit and delete controls', async () => {
+    const timeline = {
+      timeline: [
+        {
+          id: 'c1', type: 'comment', entity_type: 'data_product', entity_id: 'p1',
+          title: 'First', content: 'Looks good', username: 'alice', timestamp: '2026-11-08T10:00:00Z',
+          audience: [],
+        },
+        {
+          id: 'h1', type: 'change', entity_type: 'data_product', entity_id: 'p1',
+          content: 'Status changed', username: 'bob', timestamp: '2026-11-07T10:00:00Z',
+        },
+      ],
+      total_count: 2,
+      filter_type: 'all',
+    };
+    api.get.mockImplementation((url: string) =>
+      Promise.resolve({ data: url.includes('timeline') ? timeline : [] }),
+    );
+    api.delete.mockResolvedValue({ data: null });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderWithProviders(
+      <CommentSidebar entityType="data_product" entityId="p1" isOpen onToggle={() => {}} fetchCountOnMount={false} />,
+    );
+
+    const thread = await screen.findByRole('list', { name: 'Activity Timeline' });
+    const items = await within(thread).findAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    // The comment has edit and delete; the change has neither
+    expect(within(items[0]).getAllByRole('button')).toHaveLength(2);
+    expect(within(items[1]).queryAllByRole('button')).toHaveLength(0);
+
+    // The scroll viewport is still Radix's: opening the composer scrolls it to the top
+    const viewport = document.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+    expect(viewport).not.toBeNull();
+    const scrollTo = vi.fn();
+    viewport!.scrollTo = scrollTo as unknown as HTMLElement['scrollTo'];
+
+    // Add opens the composer
+    fireEvent.click(screen.getByRole('button', { name: 'Add Comment' }));
+    expect(await screen.findByLabelText('Comment')).toBeInTheDocument();
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Comment' }));
+
+    // Edit opens the composer on the comment (it fills the title; the timeline
+    // entry has no `comment` field for the body, as before)
+    // (TimelineItem is defined in the render, so each render remounts the items)
+    const entry = () => within(screen.getByRole('list', { name: 'Activity Timeline' })).getAllByRole('listitem')[0];
+    fireEvent.click(within(entry()).getAllByRole('button')[0]);
+    expect(await screen.findByDisplayValue('First')).toBeInTheDocument();
+
+    // Delete calls the API
+    fireEvent.click(within(entry()).getAllByRole('button')[1]);
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/api/comments/c1'));
+  });
+
+  it('badges use the Aura status colours', async () => {
+    const levels = [
+      { id: 'a', level_order: 1, name: 'Bronze', description: null, icon: null, color: 'amber' },
+      { id: 'b', level_order: 2, name: 'Gold', description: null, icon: null, color: 'green' },
+      { id: 'c', level_order: 3, name: 'Revoked', description: null, icon: null, color: 'red' },
+    ];
+    const vars = (el: HTMLElement) => ({
+      color: el.style.getPropertyValue('--badge-color'),
+      bg: el.style.getPropertyValue('--badge-bg'),
+    });
+
+    const { rerender } = renderWithProviders(<CertificationBadge certificationLevel={2} levels={levels} />);
+    expect(vars(screen.getByText('Gold').closest('.mantine-Badge-root') as HTMLElement)).toEqual({
+      color: AURA_STATUS.good.fg, bg: AURA_STATUS.good.bg,
+    });
+    rerender(<CertificationBadge certificationLevel={1} levels={levels} />);
+    expect(vars(screen.getByText('Bronze').closest('.mantine-Badge-root') as HTMLElement)).toEqual({
+      color: AURA_STATUS.warning.fg, bg: AURA_STATUS.warning.bg,
+    });
+    rerender(<CertificationBadge certificationLevel={3} levels={levels} />);
+    expect(vars(screen.getByText('Revoked').closest('.mantine-Badge-root') as HTMLElement)).toEqual({
+      color: AURA_STATUS.critical.fg, bg: AURA_STATUS.critical.bg,
+    });
+
+    rerender(<MaturityBadge levelName="Managed" levelColor="blue" />);
+    expect(vars(screen.getByText('Managed').closest('.mantine-Badge-root') as HTMLElement).color).toBe(AURA_STATUS.info.fg);
+
+    rerender(<PublicationBadge publicationScope="organization" />);
+    expect(vars(screen.getByText('Organization').closest('.mantine-Badge-root') as HTMLElement).bg).toBe(AURA_STATUS.good.bg);
+
+    // The palette verbatim, and every badge's text readable on its fill
+    expect(AURA_STATUS.good).toMatchObject({ mark: '#277153', bg: '#DDEBE4' });
+    expect(AURA_STATUS.warning).toMatchObject({ mark: '#B67F14', bg: '#FFF6E9' });
+    expect(AURA_STATUS.critical.mark).toBe('#D41C16');
+    expect(AURA_STATUS.info.mark).toBe('#1E7CA1');
+    for (const tone of Object.values(AURA_STATUS)) {
+      expect(contrastRatio(tone.fg, tone.bg)).toBeGreaterThanOrEqual(4.5);
+    }
+
+    // Quality and rating chips: the score band's tone
+    api.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data: url.includes('quality')
+          ? { overall_score_percent: 75, items_count: 2, measured_at: null }
+          : { average_rating: 4.2, total_ratings: 3 },
+      }),
+    );
+    rerender(
+      <>
+        <QualityBadge entityType="data_product" entityId="p1" />
+        <RatingBadge entityType="data_product" entityId="p1" />
+      </>,
+    );
+    const quality = await screen.findByText('75%');
+    expect(quality).toHaveStyle({ color: AURA_STATUS.warning.fg });
+    expect(quality.closest('[title^="Data Quality"]')).toHaveStyle({ backgroundColor: AURA_STATUS.warning.bg });
+    const rating = await screen.findByText('4.2');
+    expect(rating.closest('[title*="out of 5 stars"]')).toHaveStyle({ backgroundColor: AURA_STATUS.warning.bg });
+  });
+});

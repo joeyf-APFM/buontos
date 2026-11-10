@@ -53,6 +53,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import classes from './principal-picker.module.css';
 import { useDirectoryStore } from '@/stores/directory-store';
 import type { Principal, PrincipalType } from '@/types/directory';
 
@@ -100,7 +101,7 @@ const ICON_FOR_TYPE: Record<PrincipalType, typeof User> = {
 
 function typeIcon(type: PrincipalType | undefined) {
   const Icon = ICON_FOR_TYPE[type ?? 'unknown'];
-  return <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />;
+  return <Icon size={14} className={classes.typeIcon} aria-hidden />;
 }
 
 /** Debounce a single value; returns the latest value after `delay` ms of quiet. */
@@ -204,14 +205,14 @@ export function PrincipalPicker(props: PrincipalPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn(classes.root, className)}>
       <SelectionBadges
         ids={selectedIds}
         resolved={resolved}
         disabled={disabled}
         onRemove={removeId}
       />
-      <div className="flex gap-1">
+      <div className={classes.inputRow}>
         {configured ? (
           <ConfiguredInput
             id={props.id ?? inputId}
@@ -242,7 +243,7 @@ export function PrincipalPicker(props: PrincipalPickerProps) {
             title={t('common:principalPicker.browseDirectory')}
             aria-label={t('common:principalPicker.browseDirectory')}
           >
-            <Search className="h-4 w-4" />
+            <Search />
           </Button>
         )}
       </div>
@@ -277,7 +278,7 @@ function SelectionBadges({ ids, resolved, disabled, onRemove }: SelectionBadgesP
   if (ids.length === 0) return null;
   return (
     <TooltipProvider>
-      <div className="flex flex-wrap gap-1.5">
+      <div className={classes.badges}>
         {ids.map((id) => {
           const p = resolved[id];
           const displayName = p?.display_name ?? id;
@@ -291,26 +292,26 @@ function SelectionBadges({ ids, resolved, disabled, onRemove }: SelectionBadgesP
               <TooltipTrigger asChild>
                 <Badge
                   variant="secondary"
-                  className="gap-1 pl-1.5 pr-1 font-normal"
+                  className={classes.badge}
                   title={tooltip}
                   data-testid="principal-badge"
                 >
-                  <Icon className="h-3 w-3 text-muted-foreground" aria-hidden />
-                  <span className="truncate max-w-[16rem]">{displayName}</span>
+                  <Icon size={12} className={classes.typeIcon} aria-hidden />
+                  <span className={classes.badgeName}>{displayName}</span>
                   {!disabled && (
                     <button
                       type="button"
                       onClick={() => onRemove(id)}
-                      className="ml-0.5 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
+                      className={classes.remove}
                       aria-label={t('common:principalPicker.removeAria', { name: displayName })}
                     >
-                      <X className="h-3 w-3" />
+                      <X size={12} />
                     </button>
                   )}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <span className="text-xs">{tooltip}</span>
+                <span>{tooltip}</span>
               </TooltipContent>
             </Tooltip>
           );
@@ -396,19 +397,19 @@ function ConfiguredInput({
         />
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-1"
+        style={{ width: 'var(--radix-popover-trigger-width)', padding: 4 }}
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {loading ? (
-          <div className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
+          <div className={classes.status}>
+            <Loader2 className={classes.spin} />
             {t('common:principalPicker.searching')}
           </div>
         ) : visible.length === 0 ? (
-          <div className="px-2 py-2 text-sm text-muted-foreground">{t('common:states.noMatches')}</div>
+          <div className={classes.status}>{t('common:states.noMatches')}</div>
         ) : (
-          <ul className="flex flex-col">
+          <ul className={classes.list}>
             {visible.map((p) => (
               <PrincipalRow
                 key={`${p.type}:${p.id}`}
@@ -486,14 +487,14 @@ function PrincipalRow({ principal, onPick }: PrincipalRowProps) {
       <button
         type="button"
         onClick={onPick}
-        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-left hover:bg-accent focus:bg-accent focus:outline-none"
+        className={classes.row}
         data-testid="principal-row"
       >
         {typeIcon(principal.type)}
-        <div className="flex flex-col min-w-0">
-          <span className="truncate text-sm font-medium">{principal.display_name}</span>
+        <div className={classes.rowText}>
+          <span className={classes.rowName}>{principal.display_name}</span>
           {principal.sub_label && (
-            <span className="truncate text-xs text-muted-foreground">{principal.sub_label}</span>
+            <span className={classes.rowSub}>{principal.sub_label}</span>
           )}
         </div>
       </button>
@@ -546,14 +547,14 @@ function PrincipalPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent style={{ maxWidth: 448 }}>
         <DialogHeader>
           <DialogTitle>{t('common:principalPicker.browseDirectory')}</DialogTitle>
           <DialogDescription>{t('common:principalPicker.browseDirectoryDescription')}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
+        <div className={classes.dialogBody}>
           {accepts.length > 1 && (
-            <div className="flex gap-2" role="group" aria-label={t('common:principalPicker.filterByType')}>
+            <div className={classes.chips} role="group" aria-label={t('common:principalPicker.filterByType')}>
               {accepts.map((kind) => {
                 const active = filter.includes(kind);
                 return (
@@ -571,12 +572,7 @@ function PrincipalPickerDialog({
                         return prev;
                       });
                     }}
-                    className={cn(
-                      'px-2.5 py-1 rounded-full text-xs border',
-                      active
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background text-foreground border-input',
-                    )}
+                    className={cn(classes.chip, active && classes.chipActive)}
                     data-testid={`type-chip-${kind}`}
                   >
                     {kind === 'user' ? t('common:principalPicker.users') : t('common:principalPicker.groups')}
@@ -593,20 +589,20 @@ function PrincipalPickerDialog({
             onChange={(e) => setQuery(e.target.value)}
             data-testid="principal-picker-dialog-input"
           />
-          <div className="max-h-72 overflow-y-auto rounded-md border">
+          <div className={classes.results}>
             {loading ? (
-              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <div className={classes.status}>
+                <Loader2 className={classes.spin} />
                 {t('common:principalPicker.searching')}
               </div>
             ) : debouncedQuery.trim().length < 2 ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
+              <div className={classes.status}>
                 {t('common:principalPicker.typeAtLeast2')}
               </div>
             ) : visible.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">{t('common:states.noMatches')}</div>
+              <div className={classes.status}>{t('common:states.noMatches')}</div>
             ) : (
-              <ul className="flex flex-col p-1">
+              <ul className={cn(classes.list, classes.listPadded)}>
                 {visible.map((p) => (
                   <PrincipalRow
                     key={`${p.type}:${p.id}`}

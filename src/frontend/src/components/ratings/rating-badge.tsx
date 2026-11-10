@@ -3,6 +3,8 @@ import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/hooks/use-api';
 import type { RatingAggregation } from '@/types/comments';
+import { AURA_STATUS } from '@/components/common/aura-status';
+import classes from '@/components/common/badges.module.css';
 
 export interface RatingBadgeProps {
   /** Entity type (data_product, dataset, etc.) */
@@ -60,30 +62,22 @@ export function RatingBadge({
     return null;
   }
 
-  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
-  const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
+  // Ratings were amber: the warning tone, with the star in its mark colour
+  const colours = AURA_STATUS.warning;
+  const iconSize = size === 'sm' ? 14 : 16;
 
   return (
     <div
-      className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full leading-none bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/40',
-        onClick && 'cursor-pointer transition-colors',
-        className
-      )}
+      className={cn(classes.chip, size === 'md' && classes.chipMd, onClick && classes.clickable, className)}
+      style={{ background: colours.bg }}
       onClick={onClick}
       title={`${rating.average_rating.toFixed(1)} out of 5 stars (${rating.total_ratings} ratings)`}
     >
-      <Star className={cn(iconSize, 'shrink-0 fill-amber-400 text-amber-400')} />
-      <span className={cn(
-        textSize,
-        'font-semibold tabular-nums leading-none text-amber-700 dark:text-amber-300'
-      )}>
+      <Star size={iconSize} className={classes.star} style={{ color: colours.mark, fill: colours.mark }} aria-hidden />
+      <span className={classes.value} style={{ color: colours.fg }}>
         {rating.average_rating.toFixed(1)}
       </span>
-      <span className={cn(
-        textSize,
-        'tabular-nums leading-none text-amber-600/70 dark:text-amber-400/70'
-      )}>
+      <span className={classes.total}>
         ({rating.total_ratings})
       </span>
     </div>

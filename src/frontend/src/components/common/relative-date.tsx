@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils'; // Assuming you have clsx/tailwind-merge utility
 
 interface RelativeDateProps {
   date: Date | string | number | null | undefined;
@@ -18,7 +17,7 @@ export const RelativeDate: React.FC<RelativeDateProps> = ({ date, className }) =
   const { t } = useTranslation('common');
 
   if (!date) {
-    return <span className={cn(className)} title={t('tooltips.noDateProvided')}>{t('states.notAvailable')}</span>;
+    return <span className={className} title={t('tooltips.noDateProvided')}>{t('states.notAvailable')}</span>;
   }
 
   let dateObj: Date;
@@ -30,7 +29,7 @@ export const RelativeDate: React.FC<RelativeDateProps> = ({ date, className }) =
     }
   } catch (error) {
     console.error("Error parsing date:", date, error);
-    return <span className={cn(className)} title={`${t('errors.invalidDate')}: ${date}`}>{t('errors.invalidDate')}</span>;
+    return <span className={className} title={`${t('errors.invalidDate')}: ${date}`}>{t('errors.invalidDate')}</span>;
   }
 
   const now = new Date();
@@ -66,7 +65,7 @@ export const RelativeDate: React.FC<RelativeDateProps> = ({ date, className }) =
   const tooltipString = dateObj.toLocaleString();
 
   return (
-    <span className={cn(className)} title={tooltipString}>
+    <span className={className} title={tooltipString}>
       {displayString}
     </span>
   );

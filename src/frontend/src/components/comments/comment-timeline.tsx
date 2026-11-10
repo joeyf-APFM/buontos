@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageSquare, Plus, Trash2, Edit, Send, Users, Filter, Clock, FileText, FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Avatar } from '@mantine/core';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
@@ -17,9 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
 import { RelativeDate } from '@/components/common/relative-date';
-import { Separator } from '@/components/ui/separator';
+import classes from './comments.module.css';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CommentFormData {
@@ -306,41 +306,39 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
   }, [isFormOpen]);
 
   const CommentForm = React.useMemo(() => (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 border-t">
-      <div>
+    <form onSubmit={handleSubmit} className={classes.form}>
+      <div className={classes.field}>
         <Label htmlFor="title">{t('comments:form.titleLabel')}</Label>
         <Input
           id="title"
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
           placeholder={t('comments:form.titlePlaceholder')}
-          className="mt-1"
         />
       </div>
 
-      <div>
+      <div className={classes.field}>
         <Label htmlFor="comment">{t('comments:form.commentLabel')}</Label>
         <Textarea
           id="comment"
           value={formData.comment}
           onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
           placeholder={t('comments:form.commentPlaceholder')}
-          className="mt-1"
           rows={3}
           required
         />
       </div>
 
-      <div className="space-y-3">
-        <div className="text-sm text-muted-foreground">
+      <div className={classes.audience}>
+        <div className={classes.help}>
           {t('comments:form.audienceHelp')}
         </div>
 
-        <div>
+        <div className={classes.field}>
           <Label htmlFor="teams">{t('comments:form.teamsLabel')}</Label>
-          <div className="mt-1 space-y-2">
+          <div className={classes.checks}>
             {availableTeams.map(team => (
-              <div key={team.id} className="flex items-center space-x-2">
+              <div key={team.id} className={classes.check}>
                 <input
                   type="checkbox"
                   id={`team-${team.id}`}
@@ -358,24 +356,23 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
                       });
                     }
                   }}
-                  className="rounded"
                 />
-                <Label htmlFor={`team-${team.id}`} className="text-sm font-normal">
+                <Label htmlFor={`team-${team.id}`}>
                   {team.name}
                 </Label>
               </div>
             ))}
             {availableTeams.length === 0 && (
-              <div className="text-xs text-muted-foreground">{t('comments:form.noTeams')}</div>
+              <div className={classes.hint}>{t('comments:form.noTeams')}</div>
             )}
           </div>
         </div>
 
-        <div>
+        <div className={classes.field}>
           <Label htmlFor="roles">{t('comments:form.appRolesLabel')}</Label>
-          <div className="mt-1 space-y-2">
+          <div className={classes.checks}>
             {availableRoles.map(role => (
-              <div key={role.name} className="flex items-center space-x-2">
+              <div key={role.name} className={classes.check}>
                 <input
                   type="checkbox"
                   id={`role-${role.name}`}
@@ -393,9 +390,8 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
                       });
                     }
                   }}
-                  className="rounded"
                 />
-                <Label htmlFor={`role-${role.name}`} className="text-sm font-normal">
+                <Label htmlFor={`role-${role.name}`}>
                   {role.name}
                 </Label>
               </div>
@@ -404,18 +400,18 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
         </div>
 
         {(formData.selectedTeams.length > 0 || formData.selectedRoles.length > 0) && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className={classes.chips}>
             {formData.selectedTeams.map(teamId => {
               const team = availableTeams.find(t => t.id === teamId);
               return team ? (
-                <Badge key={`team-${teamId}`} variant="secondary" className="text-xs">
-                  <Users className="w-3 h-3 mr-1" />
+                <Badge key={`team-${teamId}`} variant="secondary" className={classes.chip}>
+                  <Users size={12} aria-hidden />
                   {t('comments:badge.team', { name: team.name })}
                 </Badge>
               ) : null;
             })}
             {formData.selectedRoles.map(roleName => (
-              <Badge key={`role-${roleName}`} variant="outline" className="text-xs">
+              <Badge key={`role-${roleName}`} variant="outline" className={classes.chip}>
                 {t('comments:badge.role', { name: roleName })}
               </Badge>
             ))}
@@ -423,9 +419,9 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className={classes.buttons}>
         <Button type="submit" size="sm" disabled={loading}>
-          <Send className="w-4 h-4 mr-1" />
+          <Send />
           {editingComment ? t('common:actions.update') : t('comments:form.post')}
         </Button>
         {(editingComment || formData.title || formData.comment) && (
@@ -456,20 +452,20 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
       const action = entry.metadata?.action || '';
       if (action.startsWith('access_request_')) {
         return (
-          <div className="text-sm space-y-1">
+          <div className={classes.details}>
             {obj.requester_email && (
-              <div><span className="text-muted-foreground">{t('comments:change.requesterLabel')}</span> {obj.requester_email}</div>
+              <div><span className={classes.key}>{t('comments:change.requesterLabel')}</span> {obj.requester_email}</div>
             )}
             {obj.decision && (
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">{t('comments:change.decisionLabel')}</span>
-                <Badge variant={obj.decision === 'approve' ? 'secondary' : obj.decision === 'deny' ? 'destructive' : 'outline'} className="text-xs">
+              <div className={classes.detailRow}>
+                <span className={classes.key}>{t('comments:change.decisionLabel')}</span>
+                <Badge variant={obj.decision === 'approve' ? 'secondary' : obj.decision === 'deny' ? 'destructive' : 'outline'}>
                   {String(obj.decision)}
                 </Badge>
               </div>
             )}
             {obj.message && (
-              <div><span className="text-muted-foreground">{t('comments:change.messageLabel')}</span> {String(obj.message)}</div>
+              <div><span className={classes.key}>{t('comments:change.messageLabel')}</span> {String(obj.message)}</div>
             )}
           </div>
         );
@@ -484,23 +480,23 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
         const iri = typeof obj?.iri === 'string' ? obj.iri : undefined;
         const linkId = typeof obj?.link_id === 'string' ? obj.link_id : undefined;
         return (
-          <div className="text-sm space-y-1">
+          <div className={classes.details}>
             {iri && (
-              <div><span className="text-muted-foreground">{t('comments:change.iriLabel')}</span> {iri}</div>
+              <div><span className={classes.key}>{t('comments:change.iriLabel')}</span> {iri}</div>
             )}
             {linkId && (
-              <div><span className="text-muted-foreground">{t('comments:change.linkIdLabel')}</span> {linkId}</div>
+              <div><span className={classes.key}>{t('comments:change.linkIdLabel')}</span> {linkId}</div>
             )}
-            <div><span className="text-muted-foreground">{t('comments:change.operationLabel')}</span> {operation}</div>
+            <div><span className={classes.key}>{t('comments:change.operationLabel')}</span> {operation}</div>
           </div>
         );
       }
 
       return (
-        <div className="text-sm space-y-1">
+        <div className={classes.details}>
           {Object.entries(obj).map(([k, v]) => (
-            <div key={k} className="flex gap-1">
-              <span className="text-muted-foreground capitalize">{k.replace(/_/g, ' ')}:</span>
+            <div key={k} className={classes.detailRow}>
+              <span className={cn(classes.key, classes.capitalize)}>{k.replace(/_/g, ' ')}:</span>
               <span>{typeof v === 'string' ? v : JSON.stringify(v)}</span>
             </div>
           ))}
@@ -509,20 +505,13 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
     };
 
     return (
-      <div className={cn(
-        "p-3 border rounded-lg space-y-2",
-        entry.type === 'change' && "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20"
-      )}>
-        <div className="flex items-center gap-2">
-          {entry.type === 'comment' ? (
-            <MessageSquare className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <Clock className="w-4 h-4 text-blue-600" />
-          )}
+      <li className={cn(classes.entry, entry.type === 'change' && classes.change)}>
+        <div className={classes.entryHead}>
+          {entry.type === 'comment' ? <MessageSquare aria-hidden /> : <Clock aria-hidden />}
           {entry.title && (
-            <h4 className="font-medium text-sm">{entry.title}</h4>
+            <h4 className={classes.entryTitle}>{entry.title}</h4>
           )}
-          <Badge variant={entry.type === 'change' ? 'secondary' : 'outline'} className="text-xs">
+          <Badge variant={entry.type === 'change' ? 'secondary' : 'outline'}>
             {entry.type}
           </Badge>
         </div>
@@ -530,34 +519,34 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
         {parsed ? (
           renderParsedObject(parsed)
         ) : (
-          <p className="text-sm text-foreground whitespace-pre-wrap">
+          <p className={classes.content}>
             {entry.content}
           </p>
         )}
 
         {entry.audience && entry.audience.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className={classes.chips}>
             {entry.audience.map((token, idx) => {
               if (token.startsWith('team:')) {
                 const teamId = token.substring(5);
                 const team = availableTeams.find(t => t.id === teamId);
                 return (
-                  <Badge key={`${token}-${idx}`} variant="secondary" className="text-xs">
-                    <Users className="w-3 h-3 mr-1" />
+                  <Badge key={`${token}-${idx}`} variant="secondary" className={classes.chip}>
+                    <Users size={12} aria-hidden />
                     {t('comments:badge.team', { name: team?.name || teamId })}
                   </Badge>
                 );
               } else if (token.startsWith('role:')) {
                 const roleName = token.substring(5);
                 return (
-                  <Badge key={`${token}-${idx}`} variant="outline" className="text-xs">
+                  <Badge key={`${token}-${idx}`} variant="outline" className={classes.chip}>
                     {t('comments:badge.role', { name: roleName })}
                   </Badge>
                 );
               } else {
                 return (
-                  <Badge key={`${token}-${idx}`} variant="outline" className="text-xs">
-                    <Users className="w-3 h-3 mr-1" />
+                  <Badge key={`${token}-${idx}`} variant="outline" className={classes.chip}>
+                    <Users size={12} aria-hidden />
                     {token}
                   </Badge>
                 );
@@ -566,61 +555,55 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Avatar className="w-5 h-5">
-              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                {entry.username.charAt(0).toUpperCase()}
-              </div>
+        <div className={classes.entryFoot}>
+          <div className={classes.byline}>
+            <Avatar size={20} radius="xl" classNames={{ placeholder: classes.avatarInitial }}>
+              {entry.username.charAt(0).toUpperCase()}
             </Avatar>
             <span>{entry.username}</span>
             <RelativeDate date={new Date(entry.timestamp)} />
             {entry.updated_at && (
-              <span className="italic">{t('comments:timeline.edited')}</span>
+              <span className={classes.edited}>{t('comments:timeline.edited')}</span>
             )}
           </div>
 
           {canModify && entry.type === 'comment' && (
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => handleEdit(entry as any)}
-              >
-                <Edit className="w-3 h-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            <div className={classes.entryActions}>
+              <ActionIcon variant="subtle" color="gray" size={24} onClick={() => handleEdit(entry as any)}>
+                <Edit size={12} />
+              </ActionIcon>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size={24}
+                className={classes.delete}
                 onClick={() => handleDelete(entry.id)}
               >
-                <Trash2 className="w-3 h-3" />
-              </Button>
+                <Trash2 size={12} />
+              </ActionIcon>
             </div>
           )}
         </div>
-      </div>
+      </li>
     );
   };
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
+    <div className={cn(classes.inline, className)}>
       {showHeader && (
-        <div className="flex-none pb-2">
-          <div className="flex items-center gap-2 mb-1">
-            <MessageSquare className="w-5 h-5" />
-            <h3 className="font-semibold">{t('comments:timeline.heading')}</h3>
+        <div className={classes.inlineHeader}>
+          <div className={classes.heading}>
+            <MessageSquare aria-hidden />
+            <h3 className={classes.inlineTitle}>{t('comments:timeline.heading')}</h3>
             {totalCount > 0 && (
-              <Badge variant="secondary" className="h-5 px-2 text-xs">
+              <Badge variant="secondary">
                 {totalCount}
               </Badge>
             )}
           </div>
           {currentProject && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <FolderOpen className="w-3 h-3" />
+            <div className={classes.project}>
+              <FolderOpen aria-hidden />
               <span>{t('comments:project.label', { name: currentProject.name })}</span>
             </div>
           )}
@@ -628,63 +611,59 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
       )}
 
       {showFilters && (
-        <div className="flex-none pb-2">
-          <div className="flex items-center gap-2 mb-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">{t('comments:filter.label')}</span>
+        <div className={classes.inlineFilter}>
+          <div className={classes.filterLabel}>
+            <Filter aria-hidden />
+            <span>{t('comments:filter.label')}</span>
           </div>
-          <div className="flex gap-2">
+          <div className={classes.filterButtons}>
             <Button
               variant={filterType === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilterType('all')}
-              className="flex-1"
             >
-              <FileText className="w-3 h-3 mr-1" />
+              <FileText />
               {t('common:states.all')}
             </Button>
             <Button
               variant={filterType === 'comments' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilterType('comments')}
-              className="flex-1"
             >
-              <MessageSquare className="w-3 h-3 mr-1" />
+              <MessageSquare />
               {t('comments:filter.comments')}
             </Button>
             <Button
               variant={filterType === 'changes' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilterType('changes')}
-              className="flex-1"
             >
-              <Clock className="w-3 h-3 mr-1" />
+              <Clock />
               {t('comments:filter.changes')}
             </Button>
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-none pb-2">
+      <div className={classes.main}>
+        <div className={classes.inlineAdd}>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsFormOpen(!isFormOpen)}
-            className="w-full"
           >
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus />
             {t('comments:actions.addComment')}
           </Button>
         </div>
 
-        <Separator className="flex-none" />
+        <div className={classes.rule} role="presentation" />
 
-        <ScrollArea className="flex-1" ref={scrollAreaRef}>
+        <ScrollArea className={classes.scroll} ref={scrollAreaRef}>
           {isFormOpen && CommentForm}
 
           {timeline.length > 0 ? (
-            <div className="p-4 space-y-3">
+            <ul className={classes.thread} aria-label={t('comments:timeline.heading')}>
               {timeline.map(entry => (
                 <TimelineItem
                   key={entry.id}
@@ -692,26 +671,26 @@ export const CommentTimeline: React.FC<CommentTimelineProps> = ({
                   canModify={true}
                 />
               ))}
-            </div>
+            </ul>
           ) : (
-            <div className="p-4 text-center text-muted-foreground">
+            <div className={classes.empty}>
               {filterType === 'comments' ? (
                 <>
-                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">{t('comments:empty.commentsTitle')}</p>
-                  <p className="text-xs">{t('comments:empty.commentsSubtitle')}</p>
+                  <MessageSquare aria-hidden />
+                  <p>{t('comments:empty.commentsTitle')}</p>
+                  <p className={classes.emptyHint}>{t('comments:empty.commentsSubtitle')}</p>
                 </>
               ) : filterType === 'changes' ? (
                 <>
-                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">{t('comments:empty.changesTitle')}</p>
-                  <p className="text-xs">{t('comments:empty.changesSubtitle')}</p>
+                  <Clock aria-hidden />
+                  <p>{t('comments:empty.changesTitle')}</p>
+                  <p className={classes.emptyHint}>{t('comments:empty.changesSubtitle')}</p>
                 </>
               ) : (
                 <>
-                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">{t('comments:empty.allTitle')}</p>
-                  <p className="text-xs">{t('comments:empty.allSubtitle')}</p>
+                  <FileText aria-hidden />
+                  <p>{t('comments:empty.allTitle')}</p>
+                  <p className={classes.emptyHint}>{t('comments:empty.allSubtitle')}</p>
                 </>
               )}
             </div>

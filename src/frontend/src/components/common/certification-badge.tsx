@@ -2,6 +2,8 @@ import { Shield, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CertificationLevel } from '@/types/lifecycle';
+import { badgeToneStyle, toneForColour } from './aura-status';
+import classes from './badges.module.css';
 
 interface CertificationBadgeProps {
   certificationLevel: number | null | undefined;
@@ -11,17 +13,6 @@ interface CertificationBadgeProps {
   levels: CertificationLevel[];
   size?: 'sm' | 'md';
 }
-
-const COLOR_MAP: Record<string, string> = {
-  amber: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-  slate: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
-  yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  green: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  purple: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  red: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  emerald: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
-};
 
 export default function CertificationBadge({
   certificationLevel,
@@ -38,9 +29,9 @@ export default function CertificationBadge({
   if (!levelDef) return null;
 
   const isInherited = !certificationLevel && !!inheritedCertificationLevel;
-  const colorClass = COLOR_MAP[levelDef.color || 'amber'] || COLOR_MAP.amber;
+  const tone = toneForColour(levelDef.color || 'amber', 'warning');
   const IconComponent = levelDef.icon === 'shield' ? Shield : ShieldCheck;
-  const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
+  const iconSize = size === 'sm' ? 12 : 16;
 
   const tooltipLines = [
     `Level: ${levelDef.name}`,
@@ -53,14 +44,14 @@ export default function CertificationBadge({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className={`${colorClass} cursor-default`}>
-            <IconComponent className={`${iconSize} mr-1`} />
+          <Badge variant="outline" className={classes.badge} style={badgeToneStyle(tone)} data-tone={tone}>
+            <IconComponent size={iconSize} className={classes.mark} aria-hidden />
             {levelDef.name}
-            {isInherited && <span className="ml-1 opacity-60 text-[10px]">↓</span>}
+            {isInherited && <span className={classes.inherited}>↓</span>}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
-          <div className="text-xs space-y-0.5">
+          <div className={classes.tooltipLines}>
             {tooltipLines.map((line, i) => (
               <div key={i}>{line}</div>
             ))}

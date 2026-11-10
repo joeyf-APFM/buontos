@@ -38,9 +38,14 @@ export const AURA = {
   textBody: '#2C2F34',
   textSecondary: '#565D65',
   textMuted: '#828D96',
-  // Status: critical, as in the Aura globals.css
+  // Status, as in the Aura globals.css
+  good: '#277153',
+  goodBg: '#DDEBE4',
+  warning: '#B67F14',
+  warningBg: '#FFF6E9',
   critical: '#D41C16',
   criticalBg: '#FFF5F3',
+  info: '#1E7CA1',
 } as const;
 
 export const DISPLAY_FONT = "Optima, Candara, 'Segoe UI', sans-serif";
@@ -124,8 +129,13 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--aura-text-body': AURA.textBody,
     '--aura-text-secondary': AURA.textSecondary,
     '--aura-text-muted': AURA.textMuted,
+    '--aura-good': AURA.good,
+    '--aura-good-bg': AURA.goodBg,
+    '--aura-warning': AURA.warning,
+    '--aura-warning-bg': AURA.warningBg,
     '--aura-critical': AURA.critical,
     '--aura-critical-bg': AURA.criticalBg,
+    '--aura-info': AURA.info,
     '--aura-font-display': DISPLAY_FONT,
   },
   light: {},

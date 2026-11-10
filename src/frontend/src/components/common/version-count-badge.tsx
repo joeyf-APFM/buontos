@@ -13,6 +13,7 @@
 import { useTranslation } from 'react-i18next'
 import { History } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import classes from './badges.module.css'
 
 interface VersionCountBadgeProps {
   count?: number
@@ -36,14 +37,11 @@ export function VersionCountBadge({ count, className, onClick }: VersionCountBad
         e.stopPropagation()
         onClick?.(e)
       }}
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-        className,
-      )}
+      className={cn(classes.versionCount, className)}
       title={label}
       aria-label={label}
     >
-      <History className="h-3 w-3" />
+      <History size={12} aria-hidden />
       {count}
     </button>
   )

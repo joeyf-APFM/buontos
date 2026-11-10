@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDomains } from '@/hooks/use-domains';
 import { AssignedDomain } from '@/types/data-domain';
+import classes from '@/components/common/badges.module.css';
 
 export interface DomainBadgeListProps {
   /** Assigned domain IDs (any order). The primary is rendered first with a star. */
@@ -52,17 +53,17 @@ const DomainBadgeList: React.FC<DomainBadgeListProps> = ({
   entries.sort((a, b) => (a.isPrimary === b.isPrimary ? a.name.localeCompare(b.name) : a.isPrimary ? -1 : 1));
 
   return (
-    <div className={cn('flex flex-wrap gap-1', className)}>
+    <div className={cn(classes.domainList, className)}>
       {entries.map(({ id, name, isPrimary }) => (
         <Badge
           key={id}
           variant={isPrimary ? 'default' : 'secondary'}
-          className={cn('gap-1', onDomainClick && 'cursor-pointer hover:opacity-80')}
+          className={cn(classes.badge, onDomainClick && classes.domainClickable)}
           title={isPrimary ? `${name} (primary domain)` : name}
           onClick={onDomainClick ? (e) => { e.stopPropagation(); onDomainClick(id); } : undefined}
         >
-          {isPrimary && <Star className="h-3 w-3 fill-current" />}
-          <span className="truncate max-w-[10rem]">{name}</span>
+          {isPrimary && <Star size={12} fill="currentColor" aria-hidden />}
+          <span className={classes.domainName}>{name}</span>
         </Badge>
       ))}
     </div>
