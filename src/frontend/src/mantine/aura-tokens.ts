@@ -1,6 +1,7 @@
 /** shadcn CSS variable -> HSL triplet, converted from the Aura hex values in theme.ts. index.css :root must agree. */
 export const AURA_HSL: Record<string, string> = {
   '--background': '45 100% 98%',
+  '--sidebar-background': '44 38% 92%',
   '--foreground': '218 8% 19%',
   '--card': '0 0% 100%',
   '--card-foreground': '218 8% 19%',
@@ -19,7 +20,7 @@ export const AURA_HSL: Record<string, string> = {
   '--border': '46 27% 85%',
   '--input': '46 27% 85%',
   '--ring': '226 50% 54%',
-  '--radius': '0.25rem',
+  '--radius': '0.5rem',
   '--chart-1': '213 68% 50%',
   '--chart-2': '17 82% 56%',
   '--chart-3': '159 73% 40%',
