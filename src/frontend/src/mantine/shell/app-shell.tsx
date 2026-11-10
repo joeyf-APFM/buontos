@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { usePermissions } from '@/stores/permissions-store';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
 import { FeatureAccessLevel } from '@/types/settings';
-import { NAV_GROUPS, SETTINGS_GATE, activeLocation, isPanelGroup, visibleNav } from './nav-config';
+import { NAV_GROUPS, SETTINGS_GATE, activeLocation, isPanelGroup, locateIn, menuNavGroup, visibleNav } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { SideStrip } from './side-strip';
 import { GroupPanel } from './group-panel';
@@ -22,7 +22,7 @@ import classes from './shell.module.css';
  * and Ask Ontos (strip button), each a floating window on every page (R25, R26).
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { pathname, search } = useLocation();
+  const { pathname, search, state } = useLocation();
   const { permissions, hasPermission } = usePermissions();
   const allowedMaturities = useFeatureVisibilityStore((s) => s.allowedMaturities);
   const openGroup = useShellStore((s) => s.openGroup);
@@ -43,19 +43,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
   const settingsGate = hasPermission(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
-  // The current page's place in the menu, in a group this user sees
-  const located = activeLocation(pathname, search);
+  // The current page's place in the menu, in a group this user sees: within
+  // the group a menu navigation was made in, when that group lists the page
+  // (Build → Asset types stays Build's); otherwise by the URL alone
+  const navGroup = menuNavGroup(state);
+  const located = (navGroup && nav[navGroup] && locateIn(navGroup, pathname, search)) || activeLocation(pathname, search);
   const here = located && nav[located.group] ? located : null;
   const shownGroup = isPanelGroup(openGroup) && nav[openGroup] ? openGroup : null;
 
   // After going anywhere (a menu item, an in-page link, back or forward, a
   // typed URL) the panel closes when unpinned, and otherwise follows the page
-  const lastPath = useRef(pathname);
+  // (a change of search alone counts too, such as New Contract's ?new=1)
+  const url = pathname + search;
+  const lastUrl = useRef(url);
   useEffect(() => {
-    if (lastPath.current === pathname) return;
-    lastPath.current = pathname;
+    if (lastUrl.current === url) return;
+    lastUrl.current = url;
     afterNavigate(here);
-  }, [pathname, here, afterNavigate]);
+  }, [url, here, afterNavigate]);
 
   return (
     <div className={classes.shell}>

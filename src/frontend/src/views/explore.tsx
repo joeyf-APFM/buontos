@@ -539,7 +539,7 @@ export default function ExploreView() {
                 {t('semantic-models:explore.emptyTitle', 'Nothing to explore yet')}
               </h2>
               <p className="text-sm">
-                {t('semantic-models:explore.emptyBody', 'Import files or create concepts on the Define tab.')}
+                {t('semantic-models:explore.emptyBody', 'Import files or create concepts on the Define page.')}
               </p>
               <Button variant="outline" className="mt-2" onClick={() => navigate('/concepts/define')}>
                 {t('semantic-models:explore.emptyCta', 'Go to Define')}

@@ -7,6 +7,7 @@ import {
   NAV_GROUPS,
   groupDefaultPath,
   groupFace,
+  menuNavState,
   type ActiveLocation,
   type NavGroupId,
   type NavSection,
@@ -104,7 +105,7 @@ export function SideStrip({ groups, nav, settingsGate, here, shownGroup }: SideS
     const target = here?.group === id ? null : groupDefaultPath(NAV_GROUPS.find((g) => g.id === id)!, nav[id]);
     if (target && target !== pathname) {
       openPanel(id, true);
-      navigate(target);
+      navigate(target, { state: menuNavState(id) });
     } else {
       openPanel(id);
     }
@@ -121,6 +122,7 @@ export function SideStrip({ groups, nav, settingsGate, here, shownGroup }: SideS
           key={id}
           component={Link}
           to={group.link}
+          state={menuNavState(id)}
           className={classes.groupButton}
           data-active={active}
           aria-current={here?.group === id ? 'page' : undefined}

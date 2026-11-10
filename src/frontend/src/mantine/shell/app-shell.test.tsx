@@ -621,7 +621,7 @@ describe('the side menu (Task 16c)', () => {
       expect(useShellStore.getState().pinned).toBe(true);
     });
 
-    it('follows back and forward', async () => {
+    it('follows back', async () => {
       const user = userEvent.setup();
       renderShell('/assets', go('/settings/teams'));
       openPinned('Build');
@@ -634,6 +634,100 @@ describe('the side menu (Task 16c)', () => {
       });
       expect(window.location.pathname).toBe('/assets');
       expect(highlighted(panelOf('Build')!)).toEqual(['Explorer']);
+    });
+  });
+
+  // Fix round 1 ruling: a navigation from the menu keeps the group it was made in
+  describe('menu navigation keeps the clicked group', () => {
+    const go = (to: string) => <Link to={to}>go</Link>;
+    const historyStep = (step: () => void) =>
+      act(async () => {
+        const popped = new Promise((r) => window.addEventListener('popstate', r, { once: true }));
+        step();
+        await popped;
+      });
+
+    it("keeps Build showing, with Asset types highlighted in it, after clicking Build's Asset types", async () => {
+      const user = userEvent.setup();
+      renderShell('/assets');
+      openPinned('Build');
+      await user.click(within(panelOf('Build')!).getByRole('link', { name: 'Asset types' }));
+
+      expect(window.location.pathname).toBe('/settings/asset-types');
+      expect(panelOf('Semantics')).toBeNull();
+      const build = panelOf('Build')!;
+      expect(highlighted(build)).toEqual(['Asset types']);
+      expect(within(build).getByRole('link', { name: 'Asset types' })).toHaveAttribute('aria-current', 'page');
+      expect(highlighted(strip())).toEqual(['Build']);
+    });
+
+    it('stays in the group when its default falls back to a page another group also lists', async () => {
+      usePermissionsStore.setState({
+        permissions: { 'settings-asset-types': FeatureAccessLevel.READ_ONLY, settings: FeatureAccessLevel.READ_ONLY },
+      });
+      const user = userEvent.setup();
+      renderShell('/');
+      await user.click(within(strip()).getByRole('button', { name: 'Build' }));
+
+      expect(window.location.pathname).toBe('/settings/asset-types');
+      expect(highlighted(panelOf('Build')!)).toEqual(['Asset types']);
+      expect(highlighted(strip())).toEqual(['Build']);
+    });
+
+    it("restores each history entry's group on back and forward", async () => {
+      const user = userEvent.setup();
+      renderShell('/assets', go('/settings/teams'));
+      openPinned('Build');
+      await user.click(within(panelOf('Build')!).getByRole('link', { name: 'Asset types' }));
+      await user.click(screen.getByRole('link', { name: 'go' }));
+      expect(highlighted(panelOf('Organization')!)).toEqual(['Teams']);
+
+      await historyStep(() => window.history.back());
+      expect(window.location.pathname).toBe('/settings/asset-types');
+      expect(highlighted(panelOf('Build')!)).toEqual(['Asset types']);
+
+      await historyStep(() => window.history.forward());
+      expect(window.location.pathname).toBe('/settings/teams');
+      expect(highlighted(panelOf('Organization')!)).toEqual(['Teams']);
+    });
+
+    it('still gives /settings/asset-types to Semantics from a typed URL or an in-page link', async () => {
+      const view = renderShell('/settings/asset-types');
+      expect(highlighted(strip())).toEqual(['Semantics']);
+      view.unmount();
+
+      const user = userEvent.setup();
+      renderShell('/assets', go('/settings/asset-types'));
+      openPinned('Build');
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      expect(panelOf('Build')).toBeNull();
+      expect(highlighted(panelOf('Semantics')!)).toEqual(['Asset types']);
+      expect(highlighted(strip())).toEqual(['Semantics']);
+    });
+
+    it('marks menu navigations with { nav: "menu", navGroup }', async () => {
+      const user = userEvent.setup();
+      renderShell('/');
+      await user.click(within(strip()).getByRole('button', { name: 'Discover' }));
+      expect(window.history.state?.usr).toEqual({ nav: 'menu', navGroup: 'Discover' });
+
+      await user.click(within(panelOf('Discover')!).getByRole('link', { name: 'Search' }));
+      expect(window.history.state?.usr).toEqual({ nav: 'menu', navGroup: 'Discover' });
+
+      await user.click(within(strip()).getByRole('link', { name: 'Workflows' }));
+      expect(window.history.state?.usr).toEqual({ nav: 'menu', navGroup: 'Workflows' });
+    });
+
+    it('closes an unpinned panel after New Contract, which changes only the search', async () => {
+      useShellStore.setState({ pinned: false });
+      const user = userEvent.setup();
+      renderShell('/data-contracts');
+      await user.click(within(strip()).getByRole('button', { name: 'Build' }));
+      await user.click(within(panelOf('Build')!).getByRole('link', { name: 'New Contract' }));
+
+      expect(window.location.search).toBe('?new=1');
+      expect(panelOf('Build')).toBeNull();
     });
   });
 });

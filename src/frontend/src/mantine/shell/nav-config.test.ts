@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import appSource from '@/app.tsx?raw';
 import { FeatureAccessLevel } from '@/types/settings';
-import { NAV, NAV_GROUPS, activeLocation, groupDefaultPath, visibleNav, type NavItem, type NavGroupId, type NavSection } from './nav-config';
+import { NAV, NAV_GROUPS, activeLocation, groupDefaultPath, locateIn, menuNavGroup, visibleNav, type NavItem, type NavGroupId, type NavSection } from './nav-config';
 
 // Full route paths declared in app.tsx, nested routes joined to their parent.
 function routePaths(source: string): Set<string> {
@@ -443,5 +443,22 @@ describe('activeLocation (Task 16c)', () => {
     expect(activeLocation('/data-contracts', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'new-contract' });
     expect(activeLocation('/data-contracts', '?status=draft')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
     expect(activeLocation('/data-contracts/abc', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
+  });
+});
+
+describe('locateIn and menuNavGroup (Task 16c fix round 1)', () => {
+  it("finds a page within the group it was clicked in", () => {
+    expect(locateIn('Build', '/settings/asset-types')).toEqual({ group: 'Build', itemId: 'assets', childId: 'asset-types' });
+    expect(locateIn('Semantics', '/settings/asset-types')).toEqual({ group: 'Semantics', itemId: 'settings-asset-types' });
+    expect(locateIn('Build', '/data-contracts', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'new-contract' });
+    expect(locateIn('Discover', '/settings/asset-types')).toBeNull();
+  });
+
+  it('reads the group only from a menu navigation state', () => {
+    expect(menuNavGroup({ nav: 'menu', navGroup: 'Build' })).toBe('Build');
+    expect(menuNavGroup({ nav: 'crumb', navGroup: 'Build' })).toBeNull();
+    expect(menuNavGroup({ nav: 'menu', navGroup: 'toString' })).toBeNull();
+    expect(menuNavGroup(null)).toBeNull();
+    expect(menuNavGroup(undefined)).toBeNull();
   });
 });

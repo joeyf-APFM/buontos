@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
-import { NAV_GROUPS, groupFace, type ActiveLocation, type NavGroupId, type NavItem, type NavSection } from './nav-config';
+import { NAV_GROUPS, groupFace, menuNavState, type ActiveLocation, type NavGroupId, type NavItem, type NavSection } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import classes from './shell.module.css';
 
@@ -29,6 +29,8 @@ export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelPr
   const { setPinned, toggleExpanded } = useShellStore((s) => s.actions);
 
   const match = here?.group === group ? here : null;
+  // Every link here keeps this group for the page it opens
+  const navState = menuNavState(group);
   const face = groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate);
   const groupLabel = t(face.labelKey);
 
@@ -75,7 +77,7 @@ export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelPr
     return (
       <div key={item.id}>
         {item.path ? (
-          <UnstyledButton component={Link} to={item.path} {...common} onClick={item.children ? onParentClick(item) : undefined}>
+          <UnstyledButton component={Link} to={item.path} state={navState} {...common} onClick={item.children ? onParentClick(item) : undefined}>
             {content}
           </UnstyledButton>
         ) : (
@@ -91,6 +93,7 @@ export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelPr
                 key={child.id}
                 component={Link}
                 to={child.path!}
+                state={navState}
                 className={`${classes.item} ${classes.subItem}`}
                 data-active={isChildPage || undefined}
                 aria-current={isChildPage ? 'page' : undefined}

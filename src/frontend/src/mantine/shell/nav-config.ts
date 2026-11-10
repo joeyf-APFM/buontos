@@ -395,6 +395,35 @@ function matchInGroup(sections: NavSection[], pathname: string, search: string):
 // more specific one: Asset types (Build → Assets and Semantics) is Semantics'
 const SEARCH_ORDER: NavGroupId[] = ['Settings', 'Organization', 'Semantics', 'Workflows', 'Discover', 'Build'];
 
+/**
+ * The router state a menu navigation carries (panel items, strip defaults
+ * and the Workflows link): the page keeps the group it was clicked in, and
+ * back and forward restore it with their history entry. Task 16d's
+ * breadcrumbs read `nav: 'menu'`.
+ */
+export interface MenuNavState {
+  nav: 'menu';
+  navGroup: NavGroupId;
+}
+
+export const menuNavState = (navGroup: NavGroupId): MenuNavState => ({ nav: 'menu', navGroup });
+
+/** The group a location's router state says the page was reached through, or null. */
+export function menuNavGroup(state: unknown): NavGroupId | null {
+  const group = (state as Partial<MenuNavState> | null)?.navGroup;
+  return state && (state as Partial<MenuNavState>).nav === 'menu' && NAV_GROUPS.some((g) => g.id === group)
+    ? (group as NavGroupId)
+    : null;
+}
+
+/** The page's place within one group (Build's Asset types, say), or null when the group doesn't list it. */
+export function locateIn(group: NavGroupId, pathname: string, search = ''): ActiveLocation | null {
+  const found = matchInGroup(NAV[group], pathname, search);
+  if (!found) return null;
+  const { length: _length, ...location } = found;
+  return { group, ...location };
+}
+
 /** The current page's place in the menu: `pathname` and `search` from the router's location. */
 export function activeLocation(pathname: string, search = ''): ActiveLocation | null {
   let best: ActiveLocation | null = null;
