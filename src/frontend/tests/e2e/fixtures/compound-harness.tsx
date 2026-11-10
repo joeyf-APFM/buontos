@@ -118,7 +118,7 @@ function scene(name: Scene) {
       return (
         <Tooltip defaultOpen>
           <TooltipTrigger asChild><Button variant="outline">Hover me</Button></TooltipTrigger>
-          <TooltipContent>Owned by the data team</TooltipContent>
+          <TooltipContent>Owned by <span data-testid="muted" className="text-muted-foreground">the data team</span></TooltipContent>
         </Tooltip>
       );
     case 'popover':

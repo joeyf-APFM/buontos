@@ -24,6 +24,8 @@ async function mount(page: Page, scene: Scene) {
     harness.mountScene(name);
   }, [HARNESS, scene] as const);
   await expect(page.getByTestId('stage')).toBeVisible();
+  // Measure after the open animations (zoom-in-95) have finished
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished'));
   await capture(page, scene);
 }
 
@@ -48,7 +50,6 @@ const floatingShadow = (page: Page) =>
 async function capture(page: Page, name: string) {
   const dir = process.env.COMPOUND_CAPTURE;
   if (!dir) return;
-  await page.waitForTimeout(300); // let the open animations finish
   await page.screenshot({ path: `${dir}/${name}.png`, clip: { x: 0, y: 0, width: 800, height: 500 } });
 }
 
@@ -109,6 +110,28 @@ test('tooltip: navy with 11px white text', async ({ page }) => {
     color: 'rgb(255, 255, 255)',
     'font-size': '11px',
   });
+});
+
+test('tooltip: muted text inside it stays readable (4.5:1 or more on the tooltip)', async ({ page }) => {
+  await mount(page, 'tooltip');
+  const muted = page.locator('[data-radix-popper-content-wrapper] [data-testid="muted"] >> visible=true').first();
+  await expect(muted).toBeVisible();
+  const ratio = await muted.evaluate((el) => {
+    // WCAG 2 contrast ratio from the computed rgb() colours
+    const rgb = (value: string) => value.match(/[\d.]+/g)!.slice(0, 3).map(Number);
+    const luminance = (value: string) => {
+      const [r, g, b] = rgb(value).map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const tip = el.closest('[data-state]')!;
+    const fg = luminance(getComputedStyle(el).color);
+    const bg = luminance(getComputedStyle(tip).backgroundColor);
+    return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+  });
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
 });
 
 test('popover: 8px corners, floating shadow and a 1px border', async ({ page }) => {
