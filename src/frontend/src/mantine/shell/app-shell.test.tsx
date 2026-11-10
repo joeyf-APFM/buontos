@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, screen, within } from '@testing-library/react';
+import { Link } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import usePermissionsStore from '@/stores/permissions-store';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
@@ -36,10 +37,10 @@ function grantAll() {
   });
 }
 
-function renderShell(route = '/') {
+function renderShell(route = '/', page: React.ReactNode = <div>page content</div>) {
   return renderWithMantine(
     <AppShell>
-      <div>page content</div>
+      {page}
     </AppShell>,
     { route },
   );
@@ -127,11 +128,12 @@ describe('AppShell', () => {
     await user.click(screen.getByRole('button', { name: 'Organization' }));
     const settings = screen.getByRole('navigation', { name: 'Organization' });
     expect(within(settings).queryByRole('link', { name: 'Business roles' })).toBeNull();
+    const before = window.location.pathname; // Organization's default page
 
     await user.click(within(settings).getByRole('button', { name: 'Roles' }));
 
     expect(within(settings).getByRole('link', { name: 'Business roles' })).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/data-contracts'); // Roles has no page of its own
+    expect(window.location.pathname).toBe(before); // Roles has no page of its own
   });
 
   it('opens the sub-items of the current page', async () => {
@@ -306,7 +308,7 @@ describe('the side strip', () => {
     await user.click(within(strip()).getByRole('button', { name: 'Organization' }));
     const org = screen.getByRole('navigation', { name: 'Organization' });
     expect(controls(org)).toEqual([
-      'Pinned', 'Data domains', 'Teams', 'Projects', 'Roles', 'Directory',
+      'Pinned', 'Data domains', 'Teams', 'Projects', 'Roles',
     ]);
 
     await user.click(within(strip()).getByRole('button', { name: 'Semantics' }));
@@ -366,5 +368,224 @@ describe('the side strip', () => {
       expect(document.getElementById('shell-group-panel')).toBeNull();
       view.unmount();
     }
+  });
+});
+
+describe('the side menu (Task 16c)', () => {
+  const strip = () => screen.getByRole('navigation', { name: 'Main menu' });
+  const panelOf = (name: string) => screen.queryByRole('navigation', { name });
+  const shownPanel = () => document.getElementById('shell-group-panel');
+  const highlighted = (el: HTMLElement) => [...el.querySelectorAll('[data-active]')].map((c) => c.textContent);
+  const openPinned = (group: 'Build' | 'Settings' | 'Organization') => act(() => useShellStore.setState({ openGroup: group, pinned: true }));
+
+  beforeEach(() => {
+    useShellStore.setState(SHELL_DEFAULTS);
+    useFeatureVisibilityStore.setState({ allowedMaturities: ['ga'] });
+    grantAll();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('[]', { status: 200 }))));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('a default page per group', () => {
+    it.each([
+      ['Discover', '/marketplace', 'Marketplace'],
+      ['Build', '/assets', 'Explorer'],
+      ['Organization', '/settings/data-domains', 'Data domains'],
+      ['Semantics', '/settings/semantic-models', 'Semantic models'],
+    ])('opens %s and goes to %s', async (group, path, item) => {
+      const user = userEvent.setup();
+      renderShell('/');
+      await user.click(within(strip()).getByRole('button', { name: group }));
+
+      expect(window.location.pathname).toBe(path);
+      const panel = panelOf(group)!;
+      expect(panel).not.toBeNull();
+      expect(within(panel).getByRole('link', { name: item })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('keeps an unpinned panel open on the default page it went to', async () => {
+      useShellStore.setState({ pinned: false });
+      const user = userEvent.setup();
+      renderShell('/');
+      await user.click(within(strip()).getByRole('button', { name: 'Discover' }));
+
+      expect(window.location.pathname).toBe('/marketplace');
+      expect(panelOf('Discover')).not.toBeNull();
+      // and the next navigation closes it, as before
+      await user.click(within(panelOf('Discover')!).getByRole('link', { name: 'Data Catalog' }));
+      expect(panelOf('Discover')).toBeNull();
+    });
+
+    it('stays on the page when it already belongs to the group', async () => {
+      const user = userEvent.setup();
+      renderShell('/data-catalog');
+      await user.click(within(strip()).getByRole('button', { name: 'Discover' }));
+
+      expect(window.location.pathname).toBe('/data-catalog');
+      expect(within(panelOf('Discover')!).getByRole('link', { name: 'Data Catalog' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('tucks the open group away without navigating', async () => {
+      const user = userEvent.setup();
+      renderShell('/search');
+      openPinned('Build');
+      await user.click(within(strip()).getByRole('button', { name: 'Build' }));
+
+      expect(panelOf('Build')).toBeNull();
+      expect(window.location.pathname).toBe('/search');
+    });
+
+    it('opens Settings without going anywhere (it has no default page)', async () => {
+      const user = userEvent.setup();
+      renderShell('/search');
+      await user.click(within(strip()).getByRole('button', { name: 'Settings' }));
+
+      expect(panelOf('Settings')).not.toBeNull();
+      expect(window.location.pathname).toBe('/search');
+    });
+
+    it('goes to the first item the user can see when the default is hidden', async () => {
+      usePermissionsStore.setState({
+        permissions: { search: FeatureAccessLevel.READ_ONLY, 'data-catalog': FeatureAccessLevel.READ_ONLY },
+      });
+      const user = userEvent.setup();
+      renderShell('/');
+      await user.click(within(strip()).getByRole('button', { name: 'Discover' }));
+
+      expect(window.location.pathname).toBe('/search');
+    });
+
+    it('closes even a pinned panel from Workflows, and keeps the pin', async () => {
+      const user = userEvent.setup();
+      renderShell('/search');
+      openPinned('Build');
+      await user.click(within(strip()).getByRole('link', { name: 'Workflows' }));
+
+      expect(window.location.pathname).toBe('/settings/workflows');
+      expect(shownPanel()).toBeNull();
+      expect(useShellStore.getState()).toMatchObject({ openGroup: null, pinned: true });
+    });
+
+    it('closes a pinned panel from Workflows when already on its page', async () => {
+      const user = userEvent.setup();
+      renderShell('/settings/workflows');
+      openPinned('Build');
+      await user.click(within(strip()).getByRole('link', { name: 'Workflows' }));
+
+      expect(shownPanel()).toBeNull();
+      expect(useShellStore.getState().pinned).toBe(true);
+    });
+  });
+
+  describe('one highlight', () => {
+    it('highlights only the open panel in the strip, and only Explorer in the Build panel on /assets', () => {
+      renderShell('/assets');
+      openPinned('Build');
+      expect(highlighted(strip())).toEqual(['Build']);
+      expect(highlighted(panelOf('Build')!)).toEqual(['Explorer']);
+      expect(within(panelOf('Build')!).getByRole('link', { name: 'Assets' })).not.toHaveAttribute('aria-current');
+    });
+
+    it("highlights the current page's group in the strip when no panel shows", () => {
+      renderShell('/settings/asset-types');
+      expect(highlighted(strip())).toEqual(['Semantics']);
+    });
+
+    it("highlights nothing in a panel that isn't the current page's group", () => {
+      renderShell('/settings/asset-types');
+      openPinned('Build');
+      expect(highlighted(strip())).toEqual(['Build']);
+      const build = panelOf('Build')!;
+      expect(highlighted(build)).toEqual([]);
+      expect(build.querySelector('[aria-current]')).toBeNull();
+    });
+
+    it('highlights Workflows alone on its page', () => {
+      renderShell('/settings/workflows');
+      expect(highlighted(strip())).toEqual(['Workflows']);
+    });
+
+    it('highlights the open panel, not Workflows, when a panel is open on a Workflows page', () => {
+      renderShell('/settings/workflows/new');
+      openPinned('Settings');
+      expect(highlighted(strip())).toEqual(['Settings']);
+    });
+  });
+
+  describe('the menu follows navigation', () => {
+    const go = (to: string) => <Link to={to}>go</Link>;
+
+    it('switches a showing panel to the new page\'s group and highlights the page', async () => {
+      const user = userEvent.setup();
+      renderShell('/data-contracts/abc', go('/settings/data-domains/xyz'));
+      openPinned('Build');
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      expect(panelOf('Build')).toBeNull();
+      const org = panelOf('Organization')!;
+      expect(org).not.toBeNull();
+      expect(highlighted(org)).toEqual(['Data domains']);
+      expect(within(org).getByRole('link', { name: 'Data domains' })).toHaveAttribute('aria-current', 'page');
+      expect(highlighted(strip())).toEqual(['Organization']);
+    });
+
+    it('expands the parent of the page it switches to', async () => {
+      const user = userEvent.setup();
+      renderShell('/assets', go('/settings/business-roles'));
+      openPinned('Build');
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      const org = panelOf('Organization')!;
+      expect(within(org).getByRole('button', { name: 'Roles' })).toHaveAttribute('aria-expanded', 'true');
+      expect(highlighted(org)).toEqual(['Business roles']);
+    });
+
+    it('opens no panel when none was showing, and moves the strip highlight', async () => {
+      const user = userEvent.setup();
+      renderShell('/data-contracts/abc', go('/settings/data-domains/xyz'));
+      expect(highlighted(strip())).toEqual(['Build']);
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      expect(shownPanel()).toBeNull();
+      expect(highlighted(strip())).toEqual(['Organization']);
+    });
+
+    it('keeps the panel on a page in no group, with nothing highlighted in it', async () => {
+      const user = userEvent.setup();
+      renderShell('/assets', go('/'));
+      openPinned('Build');
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      expect(highlighted(panelOf('Build')!)).toEqual([]);
+      expect(highlighted(strip())).toEqual(['Build']);
+    });
+
+    it('closes the panel on the Workflows page', async () => {
+      const user = userEvent.setup();
+      renderShell('/assets', go('/settings/workflows'));
+      openPinned('Build');
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      expect(shownPanel()).toBeNull();
+      expect(useShellStore.getState().pinned).toBe(true);
+    });
+
+    it('follows back and forward', async () => {
+      const user = userEvent.setup();
+      renderShell('/assets', go('/settings/teams'));
+      openPinned('Build');
+      await user.click(screen.getByRole('link', { name: 'go' }));
+      expect(panelOf('Organization')).not.toBeNull();
+
+      await act(async () => {
+        window.history.back();
+        await new Promise((r) => window.addEventListener('popstate', r, { once: true }));
+      });
+      expect(window.location.pathname).toBe('/assets');
+      expect(highlighted(panelOf('Build')!)).toEqual(['Explorer']);
+    });
   });
 });

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
-import { NAV_GROUPS, groupFace, matchInGroup, type NavGroupId, type NavItem, type NavSection } from './nav-config';
+import { NAV_GROUPS, groupFace, type ActiveLocation, type NavGroupId, type NavItem, type NavSection } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import classes from './shell.module.css';
 
@@ -12,17 +12,23 @@ interface GroupPanelProps {
   sections: NavSection[];
   /** Whether the user has the Settings gate (the panel is titled as its strip button). */
   settingsGate: boolean;
+  /** The current page's place in the menu, or null. */
+  here: ActiveLocation | null;
 }
 
-/** The open group's menu: titled sections, items, and expandable sub-items. */
-export function GroupPanel({ group, sections, settingsGate }: GroupPanelProps) {
+/**
+ * The open group's menu: titled sections, items, and expandable sub-items.
+ * It highlights one item, the current page, and only when the page is in
+ * this group (Build's Asset types isn't highlighted: the page is Semantics').
+ */
+export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelProps) {
   const { t } = useTranslation(['shell', 'navigation', 'settings', 'features']);
   const { pathname } = useLocation();
   const pinned = useShellStore((s) => s.pinned);
   const expanded = useShellStore((s) => s.expanded);
   const { setPinned, toggleExpanded } = useShellStore((s) => s.actions);
 
-  const match = matchInGroup(sections, pathname);
+  const match = here?.group === group ? here : null;
   const face = groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate);
   const groupLabel = t(face.labelKey);
 
@@ -48,7 +54,8 @@ export function GroupPanel({ group, sections, settingsGate }: GroupPanelProps) {
     const Icon = item.icon;
     const isOpen = !!item.children && expanded.includes(item.id);
     const isPage = match?.itemId === item.id && !match.childId;
-    // A folded parent stands in for its active sub-item
+    // An unfolded parent leaves the highlight to its sub-item; a folded one
+    // stands in for it
     const isActive = isPage || (!!item.children && !isOpen && match?.itemId === item.id);
     const Caret = isOpen ? ChevronDown : ChevronRight;
     const content = (

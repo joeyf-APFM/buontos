@@ -3,8 +3,8 @@
 
 .shell {
   --shell-top-height: 44px;
-  /* Wide enough for the longest strip label, Organization (59px at 9.5px) */
-  --shell-strip-width: 64px;
+  /* The owner's width (Task 16c): room for the longest label, Organization, in bold */
+  --shell-strip-width: 90px;
   --shell-panel-width: 200px;
   min-height: 100vh;
   display: flex;
@@ -129,6 +129,7 @@
   justify-content: center;
   gap: 3px;
   font-size: 9.5px;
+  font-weight: 700;
   color: var(--aura-text-secondary);
 }
 
@@ -136,7 +137,8 @@
   background: var(--aura-surface);
 }
 
-/* Ask Helix and Ask Ontos: like group buttons, with their icons in the accent */
+/* Ask Helix and Ask Ontos: like group buttons, with their icons in the accent.
+   Pressed is their own state (the window is open), not the strip's highlight. */
 .assistantButton svg {
   color: var(--aura-accent);
 }
@@ -146,8 +148,8 @@
   color: var(--aura-accent-hover);
 }
 
-.groupButton[data-open],
-.groupButton[aria-current='page'] {
+/* The strip's one highlight: the showing panel's group, or the current page's */
+.groupButton[data-active] {
   background: var(--aura-surface);
   color: var(--aura-accent-hover);
   box-shadow: inset 2px 0 0 var(--aura-accent);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import appSource from '@/app.tsx?raw';
-import { NAV, NAV_GROUPS, activeLocation, visibleNav, type NavItem, type NavGroupId, type NavSection } from './nav-config';
+import { NAV, NAV_GROUPS, activeLocation, groupDefaultPath, visibleNav, type NavItem, type NavGroupId, type NavSection } from './nav-config';
 
 // Full route paths declared in app.tsx, nested routes joined to their parent.
 function routePaths(source: string): Set<string> {
@@ -104,7 +104,7 @@ describe('the side strip groups (Task 16a)', () => {
 
   it('moves Organization with its items in order', () => {
     expect(tree('Organization')).toEqual([
-      'data-domains', 'teams', 'projects', 'roles [app-roles, business-roles]', 'directory',
+      'data-domains', 'teams', 'projects', 'roles [app-roles, business-roles]',
     ]);
   });
 
@@ -119,7 +119,7 @@ describe('the side strip groups (Task 16a)', () => {
       'shell:sections.platform', 'shell:sections.process', 'navigation:groups.govern', 'navigation:groups.deploy',
     ]);
     expect(tree('Settings')).toEqual([
-      'general', 'helix', 'appearance', 'settings-search', 'connectors [git, mcp, delivery-methods]', 'jobs',
+      'general', 'helix', 'appearance', 'settings-search', 'connectors [git, mcp, delivery-methods]', 'jobs', 'directory',
       'delivery', 'audit',
       'compliance', 'master-data', 'data-asset-reviews', 'security-features', 'entitlements-menu [entitlements, entitlements-sync]',
       'estate-manager', 'catalog-commander',
@@ -143,7 +143,7 @@ describe('the side strip groups (Task 16a)', () => {
       NAV[group].flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])])).map((i) => `${i.id}:${i.permissionId}`);
     expect(permissions('Organization')).toEqual([
       'data-domains:data-domains', 'teams:teams', 'projects:projects', 'roles:settings-roles',
-      'app-roles:settings-roles', 'business-roles:business-roles', 'directory:settings-directory',
+      'app-roles:settings-roles', 'business-roles:business-roles',
     ]);
     expect(permissions('Semantics')).toEqual([
       'semantic-models:settings-semantic-models', 'settings-asset-types:settings-asset-types', 'tags:tags',
@@ -194,7 +194,7 @@ describe('visibleNav', () => {
   });
 
   it('hides a new group when none of its items is allowed', () => {
-    const org = new Set(['data-domains', 'teams', 'projects', 'settings-roles', 'business-roles', 'settings-directory']);
+    const org = new Set(['data-domains', 'teams', 'projects', 'settings-roles', 'business-roles']);
     const sem = new Set(['settings-semantic-models', 'settings-asset-types', 'tags', 'settings-certification-levels', 'settings-maturity-levels']);
     expect(visibleNav((id) => !org.has(id)).Organization).toBeUndefined();
     expect(visibleNav((id) => !sem.has(id)).Semantics).toBeUndefined();
@@ -214,7 +214,7 @@ describe('visibleNav', () => {
     const denied = new Set(['settings-roles', 'business-roles']);
     const nav = visibleNav((id) => !denied.has(id));
     expect(itemIds(nav, 'Organization')).not.toContain('roles');
-    expect(itemIds(nav, 'Organization')).toContain('directory');
+    expect(itemIds(nav, 'Organization')).toContain('projects');
   });
 
   it('keeps a parent while one child is allowed', () => {
@@ -314,5 +314,60 @@ describe('activeLocation', () => {
   it('only matches whole path segments', () => {
     expect(activeLocation('/assetsx')).toBeNull();
     expect(activeLocation('/')).toBeNull();
+  });
+});
+
+// Task 16c: the owner's side-menu list (2026-11-10)
+describe('Directory (Task 16c)', () => {
+  it('is the last Platform item in Settings, after Jobs', () => {
+    const platform = NAV.Settings.find((s) => s.titleKey === 'shell:sections.platform')!;
+    expect(platform.items.slice(-2).map((i) => `${i.id}:${i.permissionId}`)).toEqual(['jobs:jobs', 'directory:settings-directory']);
+    expect(itemIds(NAV, 'Organization')).not.toContain('directory');
+  });
+});
+
+describe('group defaults (Task 16c)', () => {
+  const group = (id: NavGroupId) => NAV_GROUPS.find((g) => g.id === id)!;
+  const all = visibleNav(() => true);
+
+  it('names a default item for every group but Settings', () => {
+    expect(NAV_GROUPS.map((g) => [g.id, g.defaultItemId])).toEqual([
+      ['Discover', 'marketplace'],
+      ['Build', 'explorer'],
+      ['Organization', 'data-domains'],
+      ['Semantics', 'semantic-models'],
+      ['Workflows', 'workflows'],
+      ['Settings', undefined],
+    ]);
+  });
+
+  it("goes to each group's default page", () => {
+    expect(NAV_GROUPS.map((g) => [g.id, groupDefaultPath(g, all[g.id])])).toEqual([
+      ['Discover', '/marketplace'],
+      ['Build', '/assets'],
+      ['Organization', '/settings/data-domains'],
+      ['Semantics', '/settings/semantic-models'],
+      ['Workflows', '/settings/workflows'],
+      ['Settings', null],
+    ]);
+  });
+
+  it('falls back to the first visible item when the default is hidden', () => {
+    const nav = visibleNav((id) => id !== 'data-products' && id !== 'assets');
+    expect(groupDefaultPath(group('Discover'), nav.Discover)).toBe('/search');
+    expect(groupDefaultPath(group('Build'), nav.Build)).toBe('/settings/asset-types');
+    expect(groupDefaultPath(group('Organization'), visibleNav((id) => id !== 'data-domains').Organization)).toBe('/settings/teams');
+  });
+
+  it('names a default child only where it is one of the parent\'s children', () => {
+    for (const item of allItems().filter((i) => i.defaultChildId)) {
+      expect(item.children!.map((c) => c.id)).toContain(item.defaultChildId);
+    }
+  });
+});
+
+describe('activeLocation (Task 16c)', () => {
+  it('finds Directory in Settings', () => {
+    expect(activeLocation('/settings/directory')).toEqual({ group: 'Settings', itemId: 'directory' });
   });
 });

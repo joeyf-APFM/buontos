@@ -361,7 +361,7 @@ describe('Ask Helix in the icon strip', () => {
     expect(dialog()).toBeInTheDocument();
     expect(within(dialog()!).getByRole('textbox', { name: 'Ask Helix' })).toHaveFocus();
     expect(button).toHaveAttribute('aria-pressed', 'true');
-    expect(button).not.toHaveAttribute('data-open');
+    expect(button).not.toHaveAttribute('data-active');
     expect(useShellStore.getState().openGroup).toBeNull();
     expect(window.location.pathname).toBe('/search');
 

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { usePermissions } from '@/stores/permissions-store';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
 import { FeatureAccessLevel } from '@/types/settings';
-import { NAV_GROUPS, SETTINGS_GATE, isPanelGroup, visibleNav } from './nav-config';
+import { NAV_GROUPS, SETTINGS_GATE, activeLocation, isPanelGroup, visibleNav } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { SideStrip } from './side-strip';
 import { GroupPanel } from './group-panel';
@@ -43,22 +43,27 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
   const settingsGate = hasPermission(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
+  // The current page's place in the menu, in a group this user sees
+  const located = activeLocation(pathname);
+  const here = located && nav[located.group] ? located : null;
+  const shownGroup = isPanelGroup(openGroup) && nav[openGroup] ? openGroup : null;
 
-  // An unpinned panel closes once you have gone somewhere
+  // After going anywhere (a menu item, an in-page link, back or forward, a
+  // typed URL) the panel closes when unpinned, and otherwise follows the page
   const lastPath = useRef(pathname);
   useEffect(() => {
     if (lastPath.current === pathname) return;
     lastPath.current = pathname;
-    afterNavigate();
-  }, [pathname, afterNavigate]);
+    afterNavigate(here);
+  }, [pathname, here, afterNavigate]);
 
   return (
     <div className={classes.shell}>
       <TopBar helixSlot={<HelixButton />} />
       <div className={classes.body}>
         <div className={`${classes.side} apfm-surface`}>
-          <SideStrip groups={groups} settingsGate={settingsGate} />
-          {isPanelGroup(openGroup) && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} settingsGate={settingsGate} />}
+          <SideStrip groups={groups} nav={nav} settingsGate={settingsGate} here={here} shownGroup={shownGroup} />
+          {shownGroup && <GroupPanel group={shownGroup} sections={nav[shownGroup]} settingsGate={settingsGate} here={here} />}
         </div>
         <div className={classes.main}>{children}</div>
       </div>

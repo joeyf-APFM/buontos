@@ -10,6 +10,11 @@
  * A parent with children shows when any child shows. Its own `path`, if it
  * has one, is kept only when its own permission allows it; without a path,
  * clicking the parent just expands it.
+ *
+ * Each group but Settings names a default page (`defaultItemId`), where its
+ * strip button goes; a parent whose own page is one of its children names
+ * that child (`defaultChildId`). Both are plain data, for the strip and the
+ * breadcrumbs (groupDefaultPath).
  */
 import {
   Activity,
@@ -69,6 +74,8 @@ export interface NavItem {
   permissionId: string;
   icon: LucideIcon;
   children?: NavItem[];
+  /** For a parent: the child that stands for it, at the parent's own path. */
+  defaultChildId?: string;
 }
 
 export interface NavSection {
@@ -84,6 +91,11 @@ export interface NavGroup {
   icon: LucideIcon;
   /** A direct link: the strip button goes here and opens no panel. */
   link?: string;
+  /**
+   * The item (or sub-item) the strip button goes to when it opens the panel.
+   * None for Settings: its button only opens the panel.
+   */
+  defaultItemId?: string;
   /**
    * Pages under /settings/*: hidden without the Settings area's gate, except
    * its `ungated` sections (Settings → Govern and Deploy).
@@ -101,11 +113,14 @@ const WORKFLOWS_ITEM = { id: 'workflows', labelKey: 'settings:tabs.workflows', p
 
 // Strip order, top to bottom (Helix and Ontos follow Workflows; side-strip.tsx)
 export const NAV_GROUPS: NavGroup[] = [
-  { id: 'Discover', labelKey: 'navigation:groups.discover', icon: Compass },
-  { id: 'Build', labelKey: 'navigation:groups.build', icon: LayoutGrid },
-  { id: 'Organization', labelKey: 'shell:sections.organization', icon: Building2, settingsArea: true },
-  { id: 'Semantics', labelKey: 'shell:sections.semantics', icon: Network, settingsArea: true },
-  { id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: WORKFLOWS_ITEM.path, settingsArea: true },
+  { id: 'Discover', labelKey: 'navigation:groups.discover', icon: Compass, defaultItemId: 'marketplace' },
+  { id: 'Build', labelKey: 'navigation:groups.build', icon: LayoutGrid, defaultItemId: 'explorer' },
+  { id: 'Organization', labelKey: 'shell:sections.organization', icon: Building2, settingsArea: true, defaultItemId: 'data-domains' },
+  { id: 'Semantics', labelKey: 'shell:sections.semantics', icon: Network, settingsArea: true, defaultItemId: 'semantic-models' },
+  {
+    id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: WORKFLOWS_ITEM.path, settingsArea: true,
+    defaultItemId: WORKFLOWS_ITEM.id,
+  },
   {
     id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true,
     withoutGate: { labelKey: 'navigation:groups.govern', icon: Shield },
@@ -139,7 +154,7 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
     {
       items: [
         {
-          id: 'assets', labelKey: 'shell:items.assets', path: '/assets', permissionId: 'assets', icon: Box,
+          id: 'assets', labelKey: 'shell:items.assets', path: '/assets', permissionId: 'assets', icon: Box, defaultChildId: 'explorer',
           children: [
             { id: 'explorer', labelKey: 'shell:items.explorer', path: '/assets', permissionId: 'assets', icon: Box },
             { id: 'asset-types', labelKey: 'shell:items.assetTypes', path: '/settings/asset-types', permissionId: 'settings-asset-types', icon: Shapes },
@@ -182,7 +197,6 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
             { id: 'business-roles', labelKey: 'shell:items.businessRoles', path: '/settings/business-roles', permissionId: 'business-roles', icon: Briefcase },
           ],
         },
-        { id: 'directory', labelKey: 'shell:items.directory', path: '/settings/directory', permissionId: 'settings-directory', icon: Contact },
       ],
     },
   ],
@@ -226,6 +240,7 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
           ],
         },
         { id: 'jobs', labelKey: 'settings:tabs.jobs', path: '/settings/jobs', permissionId: 'jobs', icon: Clock },
+        { id: 'directory', labelKey: 'shell:items.directory', path: '/settings/directory', permissionId: 'settings-directory', icon: Contact },
       ],
     },
     {
@@ -297,6 +312,17 @@ export function visibleNav(
     if (sections.length > 0) result[id] = sections;
   }
   return result;
+}
+
+/**
+ * Where a group's strip button goes, given the group's sections as this user
+ * sees them (visibleNav): its default item, or the first item the user can see
+ * when that one is hidden; null for Settings, which names none.
+ */
+export function groupDefaultPath(group: NavGroup, sections: NavSection[] | undefined): string | null {
+  if (!group.defaultItemId || !sections) return null;
+  const items = sections.flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])]));
+  return (items.find((i) => i.id === group.defaultItemId && i.path) ?? items.find((i) => i.path))?.path ?? null;
 }
 
 export interface ActiveLocation {
