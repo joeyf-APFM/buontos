@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '@/i18n/config';
+import { FeatureAccessLevel } from '@/types/settings';
 import { SETTINGS_GATE, activeLocation, locateIn, visibleNav, type NavGroupId } from './nav-config';
 import {
   buildTrail,
@@ -124,6 +125,41 @@ describe('pageCrumbs: the hierarchy from the menu', () => {
     const crumbs = own({ path: '/assets', page });
     expect(crumbs.map((c) => c.label)).toEqual(['Home', 'Build', 'Assets', 'Explorer', 'Unity Catalog', 'insights']);
     expect(crumbs[4].onSelect).toBe(onSelect);
+  });
+});
+
+describe('pageCrumbs: a third menu level (Task 16e)', () => {
+  // What the Define page tells the store about itself (views/define.tsx)
+  const definePage = { staticSegments: [{ label: 'Concepts', path: '/concepts' }, { label: 'Define', path: '/concepts/define' }] };
+
+  it.each([
+    ['author', 'Author Concepts'],
+    ['generate', 'Generate Ontology'],
+    ['import', 'Import RDF'],
+  ])('gives ?open=%s its place under Define: Home > Build > Concepts > Define > %s', (open, name) => {
+    const crumbs = own({ path: `/concepts/define?open=${open}`, page: definePage });
+    expect(crumbs.map((c) => c.label)).toEqual(['Home', 'Build', 'Concepts', 'Define', name]);
+    expect(links(crumbs)).toEqual(['/', '/assets', '/concepts', '/concepts/define', `/concepts/define?open=${open}`]);
+  });
+
+  it('keeps Home > Build > Concepts > Define on the plain page', () => {
+    expect(text(visit({ path: '/concepts/define', page: definePage }))).toBe('Home > Build > Concepts > Define');
+    expect(text(visit({ path: '/concepts/define?open=nonsense', page: definePage }))).toBe('Home > Build > Concepts > Define');
+  });
+
+  it('shows Define for a reader, who has no Author Concepts in the menu', () => {
+    const nav = visibleNav((id, level) => id === 'semantic-models' && level === FeatureAccessLevel.READ_ONLY);
+    const here = activeLocation('/concepts/define', '?open=author');
+    const crumbs = pageCrumbs({ pathname: '/concepts/define', search: '?open=author', nav, here, settingsGate: false, page: definePage, label });
+    expect(crumbs.map((c) => c.label)).toEqual(['Home', 'Build', 'Concepts', 'Define']);
+  });
+
+  it('starts over from the menu, and goes back to Define when the dialog closes (replace)', () => {
+    const define = visit({ path: '/concepts/define', page: definePage });
+    const author = visit({ path: '/concepts/define?open=author', page: definePage, kind: 'menu', navGroup: 'Build', previous: define });
+    expect(text(author)).toBe('Home > Build > Concepts > Define > Author Concepts');
+    const closed = visit({ path: '/concepts/define', page: definePage, kind: 'replace', previous: author });
+    expect(text(closed)).toBe('Home > Build > Concepts > Define');
   });
 });
 

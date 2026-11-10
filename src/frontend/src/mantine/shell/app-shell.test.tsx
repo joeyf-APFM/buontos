@@ -730,4 +730,130 @@ describe('the side menu (Task 16c)', () => {
       expect(panelOf('Build')).toBeNull();
     });
   });
+  describe('Build → Concepts → Define (Task 16e)', () => {
+    const go = (to: string) => <Link to={to}>go</Link>;
+    const build = () => panelOf('Build')!;
+    const link = (name: string) => within(build()).getByRole('link', { name });
+    const DEFINE_CHILDREN = ['Author Concepts', 'Generate Ontology', 'Import RDF'];
+
+    it('renders Build → Concepts → Define → its three items, one indent level per depth', () => {
+      renderShell('/concepts/define?open=author');
+      openPinned('Build');
+
+      expect(link('Concepts')).toHaveAttribute('aria-expanded', 'true');
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'true');
+      const concepts = link('Concepts').parentElement!;
+      expect([...concepts.querySelectorAll('a')].map((a) => a.textContent)).toEqual([
+        'Concepts', 'Define', ...DEFINE_CHILDREN, 'Explore', 'Search', 'Hierarchy Browser', 'Enrich', 'Term Mapping', 'Collections',
+      ]);
+      expect([link('Concepts'), link('Define'), link('Explore'), ...DEFINE_CHILDREN.map(link)].map((a) => a.dataset.depth))
+        .toEqual(['0', '1', '1', '2', '2', '2']);
+      expect(DEFINE_CHILDREN.map((name) => link(name).getAttribute('href'))).toEqual([
+        '/concepts/define?open=author', '/concepts/define?open=generate', '/concepts/define?open=import',
+      ]);
+      // Collections stays Concepts' last child
+      expect(link('Collections').dataset.depth).toBe('1');
+    });
+
+    it('folds and unfolds Define with its caret, remembered in expanded, without leaving its page', async () => {
+      const user = userEvent.setup();
+      renderShell('/concepts/define');
+      openPinned('Build');
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'false');
+      expect(within(build()).queryByRole('link', { name: 'Author Concepts' })).toBeNull();
+
+      await user.click(link('Define'));
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'true');
+      expect(DEFINE_CHILDREN.map((name) => link(name))).toHaveLength(3);
+      expect(useShellStore.getState().expanded).toContain('concept-define');
+      expect(window.location.pathname + window.location.search).toBe('/concepts/define');
+
+      await user.click(link('Define'));
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'false');
+      expect(within(build()).queryByRole('link', { name: 'Author Concepts' })).toBeNull();
+      expect(useShellStore.getState().expanded).not.toContain('concept-define');
+    });
+
+    it('folds and unfolds Define from the keyboard, as the other parents', async () => {
+      const user = userEvent.setup();
+      renderShell('/concepts/define');
+      openPinned('Build');
+      act(() => link('Define').focus());
+      await user.keyboard('{Enter}');
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'true');
+      await user.tab();
+      expect(link('Author Concepts')).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(window.location.search).toBe('?open=author');
+    });
+
+    it("goes to Define's page and unfolds it when its label is clicked from another page", async () => {
+      const user = userEvent.setup();
+      renderShell('/concepts/browser');
+      openPinned('Build');
+      await user.click(link('Define'));
+
+      expect(window.location.pathname + window.location.search).toBe('/concepts/define');
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'true');
+      expect(highlighted(build())).toEqual(['Define']);
+    });
+
+    it('highlights Define alone on /concepts/define, and only Author Concepts on ?open=author', async () => {
+      const user = userEvent.setup();
+      const view = renderShell('/concepts/define');
+      openPinned('Build');
+      await user.click(link('Define')); // unfolded: Define is still the page
+      expect(highlighted(build())).toEqual(['Define']);
+      expect(link('Define')).toHaveAttribute('aria-current', 'page');
+      view.unmount();
+
+      renderShell('/concepts/define?open=author');
+      openPinned('Build');
+      expect(highlighted(build())).toEqual(['Author Concepts']);
+      expect(link('Author Concepts')).toHaveAttribute('aria-current', 'page');
+      expect(link('Define')).not.toHaveAttribute('aria-current');
+      expect(link('Concepts')).not.toHaveAttribute('aria-current');
+    });
+
+    it('lets folded Define stand in for its open item, as the other parents do', async () => {
+      const user = userEvent.setup();
+      renderShell('/concepts/define?open=import');
+      openPinned('Build');
+      await user.click(link('Define'));
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'false');
+      expect(highlighted(build())).toEqual(['Define']);
+    });
+
+    it('opens Concepts and Define on a navigation to ?open=', async () => {
+      const user = userEvent.setup();
+      renderShell('/assets', go('/concepts/define?open=generate'));
+      openPinned('Build');
+      expect(within(build()).queryByRole('link', { name: 'Define' })).toBeNull();
+      await user.click(screen.getByRole('link', { name: 'go' }));
+
+      expect(link('Concepts')).toHaveAttribute('aria-expanded', 'true');
+      expect(link('Define')).toHaveAttribute('aria-expanded', 'true');
+      expect(highlighted(build())).toEqual(['Generate Ontology']);
+    });
+
+    it('marks a click on Author Concepts as a Build menu navigation', async () => {
+      const user = userEvent.setup();
+      renderShell('/concepts/define');
+      openPinned('Build');
+      await user.click(link('Define'));
+      await user.click(link('Author Concepts'));
+      expect(window.location.pathname + window.location.search).toBe('/concepts/define?open=author');
+      expect(window.history.state?.usr).toEqual({ nav: 'menu', navGroup: 'Build' });
+      expect(highlighted(build())).toEqual(['Author Concepts']);
+    });
+
+    it('shows a reader Define as a plain page, without the three items it cannot use', () => {
+      usePermissionsStore.setState({ permissions: { 'semantic-models': FeatureAccessLevel.READ_ONLY } });
+      renderShell('/concepts/define');
+      openPinned('Build');
+      expect(link('Define')).not.toHaveAttribute('aria-expanded');
+      for (const name of DEFINE_CHILDREN) expect(within(build()).queryByRole('link', { name })).toBeNull();
+      expect(highlighted(build())).toEqual(['Define']);
+    });
+  });
 });

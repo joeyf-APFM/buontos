@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, screen, waitFor, within } from '@testing-library/react';
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import Layout from '@/components/layout/layout';
 import SettingsPageWrapper from '@/components/settings/settings-page-wrapper';
@@ -87,6 +87,20 @@ function Levels({ title }: { title?: string }) {
   );
 }
 
+/** The Define page's ?open= handling, as views/define.tsx does it: its dialog's close drops the param (replace). */
+function DefineStub() {
+  const [params, setParams] = useSearchParams();
+  const setStaticSegments = useBreadcrumbStore((s) => s.setStaticSegments);
+  useEffect(() => {
+    setStaticSegments([{ label: 'Concepts', path: '/concepts' }, { label: 'Define', path: '/concepts/define' }]);
+  }, [setStaticSegments]);
+  return params.get('open') ? (
+    <button type="button" onClick={() => setParams({}, { replace: true })}>
+      close dialog
+    </button>
+  ) : null;
+}
+
 /** A redirect, as app.tsx's <Navigate replace> routes are. */
 function Redirect({ to }: { to: string }) {
   const navigate = useNavigate();
@@ -130,6 +144,7 @@ function App() {
         <Route path="/settings/data-domains/d4" element={<Levels />} />
         <Route path="/settings/data-domains/d5" element={<Levels title="Five" />} />
         <Route path="/assets" element={<Titled />} />
+        <Route path="/concepts/define" element={<DefineStub />} />
         <Route path="/data-asset-reviews/:requestId" element={<DataAssetReviewDetails />} />
         <Route path="/old-domains" element={<Redirect to="/settings/data-domains" />} />
         <Route path="/dev/untitled" element={<Titled />} />
@@ -377,5 +392,22 @@ describe('the shell breadcrumb', () => {
     await user.click(screen.getByRole('link', { name: 'open a loading domain' }));
     await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Data Contracts', 'Orders', 'Data domains']));
     expect(useBreadcrumbStore.getState().dynamicTitle).toBeNull();
+  });
+
+  it('shows Home > Build > Concepts > Define > Author Concepts after the menu opens it, and Define once it closes (Task 16e)', async () => {
+    const user = userEvent.setup();
+    await renderApp('/concepts/define');
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Concepts', 'Define']));
+    act(() => useShellStore.setState({ openGroup: 'Build' }));
+    const build = screen.getByRole('navigation', { name: 'Build' });
+    await user.click(within(build).getByRole('link', { name: 'Define' }));
+    await user.click(within(build).getByRole('link', { name: 'Author Concepts' }));
+
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Concepts', 'Define', 'Author Concepts']));
+    expect(within(crumbNavs()[0]).getByText('Author Concepts')).toHaveAttribute('aria-current', 'page');
+    expect(within(crumbNavs()[0]).getByRole('link', { name: 'Define' })).toHaveAttribute('href', '/concepts/define');
+
+    await user.click(screen.getByRole('button', { name: 'close dialog' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Concepts', 'Define']));
   });
 });

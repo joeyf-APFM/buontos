@@ -35,10 +35,11 @@ function routePaths(source: string): Set<string> {
   return paths;
 }
 
+// Every item at every depth (Build → Concepts → Define has a third level)
+const withDescendants = (i: NavItem): NavItem[] => [i, ...(i.children ?? []).flatMap(withDescendants)];
+
 function allItems(): NavItem[] {
-  return Object.values(NAV).flatMap((sections) =>
-    sections.flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])])),
-  );
+  return Object.values(NAV).flatMap((sections) => sections.flatMap((s) => s.items.flatMap(withDescendants)));
 }
 
 describe('NAV', () => {
@@ -470,5 +471,66 @@ describe('locateIn and menuNavGroup (Task 16c fix round 1)', () => {
     expect(menuNavGroup({ nav: 'menu', navGroup: 'toString' })).toBeNull();
     expect(menuNavGroup(null)).toBeNull();
     expect(menuNavGroup(undefined)).toBeNull();
+  });
+});
+
+describe('Build → Concepts → Define (Task 16e)', () => {
+  const define = () => buildItem('concepts').children!.find((c) => c.id === 'concept-define')!;
+  const semanticModels = (level: FeatureAccessLevel) => (id: string, needed?: FeatureAccessLevel) =>
+    id === 'semantic-models' &&
+    [FeatureAccessLevel.READ_ONLY, level].includes(needed ?? FeatureAccessLevel.READ_ONLY);
+  const visibleDefine = (has: (id: string, level: FeatureAccessLevel) => boolean) =>
+    visibleNav(has).Build.flatMap((s) => s.items).find((i) => i.id === 'concepts')!.children!.find((c) => c.id === 'concept-define');
+
+  it('makes Define a parent at its own page, with Author Concepts, Generate Ontology and Import RDF in that order', () => {
+    expect(define().path).toBe('/concepts/define');
+    expect(define().children!.map((c) => [c.id, c.labelKey, c.path, c.permissionId, c.level])).toEqual([
+      ['define-author', 'shell:items.authorConcepts', '/concepts/define?open=author', 'semantic-models', FeatureAccessLevel.READ_WRITE],
+      ['define-generate', 'shell:items.generateOntology', '/concepts/define?open=generate', 'semantic-models', FeatureAccessLevel.READ_WRITE],
+      ['define-import', 'shell:items.importRdf', '/concepts/define?open=import', 'semantic-models', FeatureAccessLevel.READ_WRITE],
+    ]);
+  });
+
+  it('labels them in en/shell.json', async () => {
+    const shell = (await import('@/i18n/locales/en/shell.json')).default.items as Record<string, string>;
+    expect([shell.authorConcepts, shell.generateOntology, shell.importRdf]).toEqual(['Author Concepts', 'Generate Ontology', 'Import RDF']);
+  });
+
+  it('gives each an icon no other Build item uses', () => {
+    const build = NAV.Build.flatMap((s) => s.items.flatMap(withDescendants));
+    for (const child of define().children!) {
+      expect(build.filter((i) => i.icon === child.icon).map((i) => i.id)).toEqual([child.id]);
+    }
+  });
+
+  it('keeps Collections as the last Concepts child', () => {
+    const children = buildItem('concepts').children!;
+    expect(children[children.length - 1].id).toBe('concept-collections');
+  });
+
+  it('shows the three only with write access, as the page enables their card buttons, and keeps Define for readers', () => {
+    expect(visibleDefine(semanticModels(FeatureAccessLevel.READ_WRITE))!.children!.map((c) => c.id))
+      .toEqual(['define-author', 'define-generate', 'define-import']);
+    const forReader = visibleDefine(semanticModels(FeatureAccessLevel.READ_ONLY))!;
+    expect(forReader.path).toBe('/concepts/define');
+    expect(forReader.children).toBeUndefined();
+  });
+
+  it.each([
+    ['author', 'define-author'],
+    ['generate', 'define-generate'],
+    ['import', 'define-import'],
+  ])('finds ?open=%s under Define, with activeLocation and locateIn', (open, grandchildId) => {
+    const place = { group: 'Build', itemId: 'concepts', childId: 'concept-define', grandchildId };
+    expect(activeLocation('/concepts/define', `?open=${open}`)).toEqual(place);
+    expect(locateIn('Build', '/concepts/define', `?open=${open}`)).toEqual(place);
+  });
+
+  it('resolves plain /concepts/define, or an unknown open value, to Define', () => {
+    const define = { group: 'Build', itemId: 'concepts', childId: 'concept-define' };
+    expect(activeLocation('/concepts/define')).toEqual(define);
+    expect(activeLocation('/concepts/define', '?open=nonsense')).toEqual(define);
+    expect(locateIn('Build', '/concepts/define')).toEqual(define);
+    expect(activeLocation('/concepts/define')).not.toHaveProperty('grandchildId');
   });
 });

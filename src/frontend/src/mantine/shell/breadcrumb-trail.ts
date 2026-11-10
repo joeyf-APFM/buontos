@@ -75,34 +75,52 @@ function findItem(sections: NavSection[], itemId: string): NavItem | undefined {
   return sections.flatMap((s) => s.items).find((i) => i.id === itemId);
 }
 
-/** The menu's crumbs for a place in it: Home, group, parent and item. `exact`: the page is the item's own. */
+/**
+ * The menu items down to a place, from its top-level item: the item, its
+ * sub-item, and that one's (Concepts, Define, Author Concepts). It stops at
+ * the deepest one this user sees.
+ */
+function placeChain(here: ActiveLocation, sections: NavSection[]): NavItem[] {
+  const item = findItem(sections, here.itemId);
+  if (!item) return [];
+  const chain = [item];
+  for (const id of [here.childId, here.grandchildId]) {
+    const next = id ? chain[chain.length - 1].children?.find((c) => c.id === id) : undefined;
+    if (!next) break;
+    chain.push(next);
+  }
+  return chain;
+}
+
+/** The menu's crumbs for a place in it: Home, group, parents and item. `exact`: the page is the item's own. */
 function hierarchy(here: ActiveLocation, input: PageCrumbsInput, exact: boolean): Crumb[] | null {
   const group = NAV_GROUPS.find((g) => g.id === here.group);
   const sections = input.nav[here.group];
-  const item = sections && findItem(sections, here.itemId);
-  if (!group || !sections || !item) return null;
+  const chain = sections ? placeChain(here, sections) : [];
+  if (!group || !sections || chain.length === 0) return null;
   const { label } = input;
   const home: Crumb = { label: label('shell:breadcrumb.home'), to: '/', role: 'home' };
   const groupLabel = label(groupFace(group, input.settingsGate).labelKey);
   // A link group (Workflows) is its one item: the page's own crumb, kept in a later step
   if (group.link) return [home, { label: groupLabel, to: group.link }];
   const crumbs: Crumb[] = [home, { label: groupLabel, to: groupDefaultPath(group, sections) ?? undefined, role: 'group', group: group.id }];
-  const child = here.childId ? item.children?.find((c) => c.id === here.childId) : undefined;
-  if (!child) return [...crumbs, { label: label(item.labelKey), to: item.path }];
-  const parentTo = item.path ?? item.children?.find((c) => c.id === item.defaultChildId)?.path;
-  crumbs.push({ label: label(item.labelKey), to: parentTo });
+  const last = chain[chain.length - 1];
+  if (chain.length === 1) return [...crumbs, { label: label(last.labelKey), to: last.path }];
+  for (const parent of chain.slice(0, -1)) {
+    crumbs.push({ label: label(parent.labelKey), to: parent.path ?? parent.children?.find((c) => c.id === parent.defaultChildId)?.path });
+  }
   // Below the page, the parent stands for its default child, or the child at
   // its own path (Data Contracts, not … > Explorer; Products, not … > All products)
-  const standsForParent = child.id === item.defaultChildId || (!!child.path && child.path === item.path);
-  if (exact || !standsForParent) crumbs.push({ label: label(child.labelKey), to: child.path });
+  const parent = chain[chain.length - 2];
+  const standsForParent = last.id === parent.defaultChildId || (!!last.path && last.path === parent.path);
+  if (exact || !standsForParent) crumbs.push({ label: label(last.labelKey), to: last.path });
   return crumbs;
 }
 
 /** The path of the place's deepest item, to tell its own page from the pages under it. */
 function placePath(here: ActiveLocation, nav: PageCrumbsInput['nav']): string | undefined {
-  const item = findItem(nav[here.group] ?? [], here.itemId);
-  const child = here.childId ? item?.children?.find((c) => c.id === here.childId) : undefined;
-  return (child ?? item)?.path;
+  const chain = placeChain(here, nav[here.group] ?? []);
+  return chain[chain.length - 1]?.path;
 }
 
 /**

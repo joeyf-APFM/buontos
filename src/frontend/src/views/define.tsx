@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   PencilLine,
   Sparkles,
@@ -154,10 +154,15 @@ function BuildsRow({ builds, note }: { builds: BuildsMap; note?: string }) {
   );
 }
 
+// The dialogs the side menu opens through ?open= (Build → Concepts → Define)
+type OpenParam = 'author' | 'generate' | 'import';
+
 export default function DefineView() {
   const { t } = useTranslation(['semantic-models', 'common']);
   const navigate = useNavigate();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isLoading, permissions, _initAttempted: permissionsRequested } = usePermissions();
+  // On a fresh load the store starts empty and not loading: wait for its answer
+  const permissionsLoading = isLoading || !(permissionsRequested || Object.keys(permissions ?? {}).length > 0);
 
   // Read-only users still see the three paths, but the actions are disabled.
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
@@ -166,9 +171,45 @@ export default function DefineView() {
     : t('semantic-models:define.requiresWrite', 'Requires write access');
 
   const { toast } = useToast();
-  const [importOpen, setImportOpen] = useState(false);
-  const [authorOpen, setAuthorOpen] = useState(false);
-  const [guidedOpen, setGuidedOpen] = useState(false);
+  const [importOpenState, setImportOpenState] = useState(false);
+  const [authorOpenState, setAuthorOpenState] = useState(false);
+  const [guidedOpenState, setGuidedOpenState] = useState(false);
+
+  // The side menu's Author Concepts, Generate Ontology and Import RDF link
+  // here with ?open=author|generate|import: each opens its card's dialog, for
+  // the users whose card button is enabled. The param goes (replace) when the
+  // dialog closes, so the menu highlights the item while it's open, and once
+  // it is closed neither a reload nor back reopens it. Any other value does
+  // nothing.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openParam = searchParams.get('open');
+  const wants = (name: OpenParam) => openParam === name;
+  const wantsDialog = wants('author') || wants('generate') || wants('import');
+  const canOpenFromUrl = !permissionsLoading && canWrite;
+  const clearOpenParam = useCallback(
+    () =>
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('open');
+        return next;
+      }, { replace: true }),
+    [setSearchParams],
+  );
+  const dialogState = (name: OpenParam, own: boolean, setOwn: (open: boolean) => void) =>
+    [
+      own || (wants(name) && canOpenFromUrl),
+      (open: boolean) => {
+        setOwn(open);
+        if (!open && wants(name)) clearOpenParam();
+      },
+    ] as const;
+  const [authorOpen, setAuthorOpen] = dialogState('author', authorOpenState, setAuthorOpenState);
+  const [guidedOpen, setGuidedOpen] = dialogState('generate', guidedOpenState, setGuidedOpenState);
+  const [importOpen, setImportOpen] = dialogState('import', importOpenState, setImportOpenState);
+  // Without write access, the param is dropped and nothing opens
+  useEffect(() => {
+    if (wantsDialog && !permissionsLoading && !canWrite) clearOpenParam();
+  }, [wantsDialog, permissionsLoading, canWrite, clearOpenParam]);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [runs, setRuns] = useState<GenerationRunSummary[]>([]);
   const [runsLoading, setRunsLoading] = useState(true);
@@ -241,7 +282,8 @@ export default function DefineView() {
       const iri = created?.iri;
       navigate(iri ? `/concepts/browser?source=${encodeURIComponent(iri)}` : '/concepts/browser');
     },
-    [fetchCollections, navigate, t, toast],
+    // setAuthorOpen also drops a menu's ?open=author (replace), so back from Explore doesn't reopen it
+    [fetchCollections, navigate, setAuthorOpen, t, toast],
   );
 
   // Creation work still open: not-yet-kept generator runs.

@@ -277,6 +277,22 @@
   background: var(--aura-border);
 }
 
+/* A sub-item's own sub-items (Define → Author Concepts): one more step in,
+   with a guide of their own beside their parent's */
+.subSubItem {
+  padding-left: 56px;
+}
+
+.subSubItem::after {
+  content: '';
+  position: absolute;
+  left: 41px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--aura-border);
+}
+
 .foot {
   flex: none;
   font-size: 10.5px;

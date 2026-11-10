@@ -28,23 +28,32 @@ vi.mock('@/stores/breadcrumb-store', () => ({ default: () => () => undefined }))
 
 let importDialogOpen = false;
 let authorDialogOpen = false;
+type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
+// A stub dialog: shown while open, with a close button as the real ones have
+const stubDialog = (testId: string, { open, onOpenChange }: DialogProps) =>
+  open ? (
+    <div data-testid={testId}>
+      <button onClick={() => onOpenChange(false)}>close {testId}</button>
+    </div>
+  ) : null;
+
 vi.mock('@/components/knowledge', () => ({
-  ImportConceptsDialog: ({ open }: { open: boolean }) => {
-    importDialogOpen = open;
-    return open ? <div data-testid="import-dialog" /> : null;
+  ImportConceptsDialog: (props: DialogProps) => {
+    importDialogOpen = props.open;
+    return stubDialog('import-dialog', props);
   },
   // Author reuses the collection editor as the "New Concept Scheme" dialog.
-  CollectionEditorDialog: ({ open }: { open: boolean }) => {
-    authorDialogOpen = open;
-    return open ? <div data-testid="author-dialog" /> : null;
+  CollectionEditorDialog: (props: DialogProps) => {
+    authorDialogOpen = props.open;
+    return stubDialog('author-dialog', props);
   },
 }));
 
 let guidedDialogOpen = false;
 vi.mock('@/components/concepts/guided-generate-dialog', () => ({
-  GuidedGenerateDialog: ({ open }: { open: boolean }) => {
-    guidedDialogOpen = open;
-    return open ? <div data-testid="guided-dialog" /> : null;
+  GuidedGenerateDialog: (props: DialogProps) => {
+    guidedDialogOpen = props.open;
+    return stubDialog('guided-dialog', props);
   },
 }));
 
@@ -56,8 +65,14 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 // Write access, controllable per test (read-only users get disabled actions).
 let canWriteMock = true;
+// permissionsSettled: false is a fresh load, before the store has asked the server.
+let permissionsSettled = true;
 vi.mock('@/stores/permissions-store', () => ({
-  usePermissions: () => ({ hasPermission: () => canWriteMock }),
+  usePermissions: () => ({
+    hasPermission: () => permissionsSettled && canWriteMock,
+    isLoading: false,
+    _initAttempted: permissionsSettled,
+  }),
 }));
 
 import DefineView from './define';
@@ -86,6 +101,7 @@ beforeEach(() => {
   authorDialogOpen = false;
   guidedDialogOpen = false;
   canWriteMock = true;
+  permissionsSettled = true;
   global.fetch = vi.fn(async (url: any) => {
     const u = String(url);
     if (u.includes('/api/ontology/runs')) {
@@ -96,15 +112,15 @@ beforeEach(() => {
   }) as unknown as typeof fetch;
 });
 
-function renderDefine() {
-  let observed = { pathname: '' };
+function renderDefine(entry = '/concepts/define') {
+  let observed = { pathname: '', search: '' };
   function Probe() {
     const location = useLocation();
-    observed = { pathname: location.pathname };
+    observed = { pathname: location.pathname, search: location.search };
     return null;
   }
   render(
-    <MemoryRouter initialEntries={['/concepts/define']}>
+    <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/concepts/define" element={<><DefineView /><Probe /></>} />
         <Route path="/concepts/collections" element={<><div>collections-page</div><Probe /></>} />
@@ -209,4 +225,72 @@ describe('DefineView', () => {
     // completed run surfaces the "Needs review" badge
     expect(screen.getByText('Needs review')).toBeInTheDocument();
   });
+});
+
+// Task 16e: the side menu's Build → Concepts → Define → Author Concepts,
+// Generate Ontology and Import RDF link here with ?open=…
+describe('DefineView ?open=', () => {
+  it.each([
+    ['author', 'author-dialog', () => authorDialogOpen],
+    ['generate', 'guided-dialog', () => guidedDialogOpen],
+    ['import', 'import-dialog', () => importDialogOpen],
+  ])('?open=%s opens its dialog, and closing it clears the param', async (open, testId, isOpen) => {
+    const location = renderDefine(`/concepts/define?open=${open}`);
+    expect(await screen.findByTestId(testId)).toBeInTheDocument();
+    expect(isOpen()).toBe(true);
+    // The URL keeps the param while the dialog is open (the menu highlights it)
+    expect(location().search).toBe(`?open=${open}`);
+
+    fireEvent.click(screen.getByRole('button', { name: `close ${testId}` }));
+
+    expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+    await waitFor(() => expect(location().search).toBe(''));
+    expect(location().pathname).toBe('/concepts/define');
+    // and it doesn't reopen
+    expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+  });
+
+  it('opens only the named dialog', async () => {
+    renderDefine('/concepts/define?open=generate');
+    await screen.findByTestId('guided-dialog');
+    expect(screen.queryByTestId('author-dialog')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('import-dialog')).not.toBeInTheDocument();
+  });
+
+  it('keeps other params when it clears open', async () => {
+    const location = renderDefine('/concepts/define?mode=advanced&open=import');
+    await screen.findByTestId('import-dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'close import-dialog' }));
+    await waitFor(() => expect(location().search).toBe('?mode=advanced'));
+  });
+
+  it('does nothing for an unknown open value', async () => {
+    const location = renderDefine('/concepts/define?open=nonsense');
+    await waitFor(() => expect(screen.getByText('156 draft terms from gold.*')).toBeInTheDocument());
+    for (const testId of ['author-dialog', 'guided-dialog', 'import-dialog']) {
+      expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+    }
+    expect(location().search).toBe('?open=nonsense');
+  });
+
+  it('waits for the permissions on a fresh load before it opens or drops the dialog', async () => {
+    permissionsSettled = false;
+    const location = renderDefine('/concepts/define?open=author');
+    await waitFor(() => expect(screen.getByText('156 draft terms from gold.*')).toBeInTheDocument());
+    expect(location().search).toBe('?open=author');
+    expect(screen.queryByTestId('author-dialog')).not.toBeInTheDocument();
+  });
+
+  it.each(['author', 'generate', 'import'])(
+    'opens no dialog from ?open=%s for a user without write access, and clears the param',
+    async (open) => {
+      canWriteMock = false;
+      const location = renderDefine(`/concepts/define?open=${open}`);
+      await waitFor(() => expect(location().search).toBe(''));
+      for (const testId of ['author-dialog', 'guided-dialog', 'import-dialog']) {
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+      }
+      expect([authorDialogOpen, guidedDialogOpen, importDialogOpen]).toEqual([false, false, false]);
+    },
+  );
 });

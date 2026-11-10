@@ -8,9 +8,12 @@
  * READ_ONLY on its permission id, or the `level` it names (New Contract
  * needs READ_WRITE, as the page's own create button does).
  *
- * A parent with children shows when any child shows. Its own `path`, if it
- * has one, is kept only when its own permission allows it; without a path,
- * clicking the parent just expands it.
+ * An item may have sub-items, and a sub-item its own (Build → Concepts →
+ * Define → Author Concepts). A parent with children shows when any child
+ * shows; a sub-item parent also shows, as a plain page, when its own
+ * permission allows it (Define, for a user who can use none of its
+ * children). Its own `path` is kept only when its own permission allows it;
+ * without a path, clicking the parent just expands it.
  *
  * Each group but Settings names a default page (`defaultItemId`), where its
  * strip button goes; a parent whose own page is one of its children names
@@ -29,7 +32,9 @@ import {
   ClipboardList,
   Clock,
   Contact,
+  FilePlus2,
   FileTextIcon,
+  FileUp,
   FolderKanban,
   FolderOpen,
   GitBranch,
@@ -56,6 +61,7 @@ import {
   UserCheck,
   UserCog,
   Users,
+  WandSparkles,
   BoxSelect,
   RefreshCw,
   Compass,
@@ -174,7 +180,25 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
           // No Import: /concepts/import is Build → Assets → Schema importer
           // (the route stays, so existing links to it still work)
           children: [
-            { id: 'concept-define', labelKey: 'concepts:sections.define', path: '/concepts/define', permissionId: 'semantic-models', icon: PenLine },
+            {
+              id: 'concept-define', labelKey: 'concepts:sections.define', path: '/concepts/define', permissionId: 'semantic-models', icon: PenLine,
+              // The owner's addition (Task 16e): each opens the Define page's dialog of the same
+              // card (views/define.tsx), for those whose card button is enabled
+              children: [
+                {
+                  id: 'define-author', labelKey: 'shell:items.authorConcepts', path: '/concepts/define?open=author', permissionId: 'semantic-models',
+                  level: FeatureAccessLevel.READ_WRITE, icon: FilePlus2,
+                },
+                {
+                  id: 'define-generate', labelKey: 'shell:items.generateOntology', path: '/concepts/define?open=generate', permissionId: 'semantic-models',
+                  level: FeatureAccessLevel.READ_WRITE, icon: WandSparkles,
+                },
+                {
+                  id: 'define-import', labelKey: 'shell:items.importRdf', path: '/concepts/define?open=import', permissionId: 'semantic-models',
+                  level: FeatureAccessLevel.READ_WRITE, icon: FileUp,
+                },
+              ],
+            },
             { id: 'concept-browser', labelKey: 'shell:items.conceptBrowser', path: '/concepts/browser', permissionId: 'semantic-models', icon: Network },
             { id: 'concept-search', labelKey: 'shell:items.conceptSearch', path: '/concepts/search', permissionId: 'semantic-models', icon: Search },
             { id: 'concept-hierarchy', labelKey: 'shell:items.conceptHierarchy', path: '/concepts/hierarchy', permissionId: 'semantic-models', icon: Network },
@@ -307,12 +331,15 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
 const MATURITY = new Map(features.map((f) => [f.id, f.maturity]));
 const maturityOf = (id: string): FeatureMaturity => MATURITY.get(id) ?? 'ga';
 
-function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean): NavItem | null {
+function visibleItem(item: NavItem, allowed: (item: NavItem) => boolean, nested = false): NavItem | null {
   if (!item.children) return allowed(item) ? item : null;
-  const children = item.children.filter(allowed);
-  if (children.length === 0) return null;
-  const { path, ...rest } = item;
-  return { ...rest, ...(path && allowed(item) ? { path } : {}), children };
+  const children = item.children.map((c) => visibleItem(c, allowed, true)).filter((c): c is NavItem => c !== null);
+  const { path, children: _children, ...rest } = item;
+  const ownPage = !!path && allowed(item);
+  // A sub-item left with no children is its own page, if the user may open it.
+  // A top-level parent without children goes (Entitlements' page is its child's).
+  if (children.length === 0) return nested && ownPage ? { ...rest, path } : null;
+  return { ...rest, ...(ownPage ? { path } : {}), children };
 }
 
 /**
@@ -353,6 +380,8 @@ export interface ActiveLocation {
   group: NavGroupId;
   itemId: string;
   childId?: string;
+  /** A sub-item's own sub-item (Define → Author Concepts). */
+  grandchildId?: string;
 }
 
 /**
@@ -375,11 +404,11 @@ function coverage(path: string | undefined, pathname: string, search: string): n
 function matchInGroup(sections: NavSection[], pathname: string, search: string): (Omit<ActiveLocation, 'group'> & { length: number }) | null {
   let best: (Omit<ActiveLocation, 'group'> & { length: number }) | null = null;
   let bestScore = -1;
-  const consider = (path: string | undefined, found: Omit<ActiveLocation, 'group'>, isChild: boolean) => {
+  const consider = (path: string | undefined, found: Omit<ActiveLocation, 'group'>, depth: number) => {
     const length = coverage(path, pathname, search);
     if (length < 0) return;
     // Longer paths win; on a tie a sub-item beats its parent
-    const score = length * 2 + (isChild ? 1 : 0);
+    const score = length * 3 + depth;
     if (score > bestScore) {
       bestScore = score;
       best = { ...found, length };
@@ -387,8 +416,13 @@ function matchInGroup(sections: NavSection[], pathname: string, search: string):
   };
   for (const section of sections) {
     for (const item of section.items) {
-      consider(item.path, { itemId: item.id }, false);
-      for (const child of item.children ?? []) consider(child.path, { itemId: item.id, childId: child.id }, true);
+      consider(item.path, { itemId: item.id }, 0);
+      for (const child of item.children ?? []) {
+        consider(child.path, { itemId: item.id, childId: child.id }, 1);
+        for (const grandchild of child.children ?? []) {
+          consider(grandchild.path, { itemId: item.id, childId: child.id, grandchildId: grandchild.id }, 2);
+        }
+      }
     }
   }
   return best;
