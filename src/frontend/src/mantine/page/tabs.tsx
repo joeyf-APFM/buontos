@@ -1,15 +1,31 @@
 import { Tabs as MantineTabs, type TabsProps } from '@mantine/core';
 import classes from './page.module.css';
 
-const tabClassNames = { list: classes.tabList, tab: classes.tab, panel: classes.tabPanel };
+type TabsClassNames = Partial<Record<string, string>>;
+
+const KIT: TabsClassNames = { list: classes.tabList, tab: classes.tab, panel: classes.tabPanel };
+
+/** The kit's classes with the caller's added to them, part by part. */
+const withKit = (own?: TabsClassNames): TabsClassNames => {
+  const merged = { ...KIT };
+  for (const [part, name] of Object.entries(own ?? {})) {
+    if (name) merged[part] = merged[part] ? `${merged[part]} ${name}` : name;
+  }
+  return merged;
+};
 
 /**
  * Mantine Tabs in the Task 7 tab look (components/ui/tabs.tsx), for pages
- * moving off ui/tabs. Unstyled, so only page.module.css draws them; arrow keys
- * move between tabs and activate them (Mantine's defaults).
+ * moving off ui/tabs. Always unstyled, so only page.module.css draws them; a
+ * caller's classNames add to the kit's. Arrow keys move between tabs and
+ * activate them (Mantine's defaults).
  */
-export function Tabs(props: TabsProps) {
-  return <MantineTabs unstyled classNames={tabClassNames} {...props} />;
+export function Tabs({ classNames, ...props }: TabsProps) {
+  const merged: TabsProps['classNames'] =
+    typeof classNames === 'function'
+      ? (theme, p, ctx) => withKit(classNames(theme, p, ctx) as TabsClassNames)
+      : withKit(classNames as TabsClassNames | undefined);
+  return <MantineTabs {...props} classNames={merged} unstyled />;
 }
 
 Tabs.List = MantineTabs.List;

@@ -1,8 +1,9 @@
 /**
  * Task 8: the shared panels and badges in a real browser (ruling R10: jsdom
  * ignores the cascade). The ownership, metadata and comments panels follow the
- * explorer's details panel: an 86px label column, 12px text, rows divided by
- * border-subtle and no cards inside; the badges use the Aura status palette.
+ * explorer's details panel: an 86px label column, 12px text, rows about 23px
+ * apart with no rules between them (R12) and no cards inside; the badges use
+ * the Aura status palette.
  *
  * Set SHARED_CAPTURE=<dir> to also save pictures of the panels.
  */
@@ -78,7 +79,7 @@ const contrast = (a: string, b: string) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
-test('ownership panel: owners in an 86px label column, 12px rows divided by border-subtle', async ({ page }) => {
+test('ownership panel: owners in an 86px label column, 12px rows 5px apart with no rules (R12)', async ({ page }) => {
   await openAsset(page);
   await capture(page, 'detail-page');
   const panel = page.getByRole('region', { name: 'Owners' });
@@ -89,11 +90,17 @@ test('ownership panel: owners in an 86px label column, 12px rows divided by bord
   const term = grid.locator('dt').first();
   expect(await term.textContent()).toBe('Data Owner');
   expect((await term.boundingBox())!.width).toBe(86);
-  expect(await style(term, ['font-size', 'border-bottom-color', 'border-bottom-width'])).toEqual({
-    'font-size': '12px', 'border-bottom-color': BORDER_SUBTLE, 'border-bottom-width': '1px',
-  });
-  // The last row has no rule under it
-  expect((await style(grid.locator('dd').last(), ['border-bottom-width']))['border-bottom-width']).toBe('0px');
+  expect(await style(term, ['font-size', 'border-bottom-width'])).toEqual({ 'font-size': '12px', 'border-bottom-width': '0px' });
+  expect((await style(grid.locator('dd').first(), ['border-bottom-width']))['border-bottom-width']).toBe('0px');
+  // The explorer details panel's density (R12): a 5px gap between rows and no
+  // padding, so a text row is about 23px from the next (page-kit.spec.ts). An
+  // owner row is as tall as its 24px remove button, so these sit 29px apart.
+  const [first, second] = [(await term.boundingBox())!, (await grid.locator('dt').nth(1).boundingBox())!];
+  expect(await style(term, ['padding-top', 'padding-bottom'])).toEqual({ 'padding-top': '0px', 'padding-bottom': '0px' });
+  expect((await style(grid, ['row-gap']))['row-gap']).toBe('5px');
+  const remove = (await grid.locator('dd').first().getByRole('button').boundingBox())!;
+  expect(first.height).toBe(remove.height);
+  expect(Math.abs(second.y - first.y - (remove.height + 5))).toBeLessThanOrEqual(1);
   // A pane: one 1px border, no shadow, no card inside
   expect(await style(panel, ['box-shadow', 'border-top-width'])).toEqual({ 'box-shadow': 'none', 'border-top-width': '1px' });
   await expect(panel.locator('.mantine-Paper-root')).toHaveCount(0);

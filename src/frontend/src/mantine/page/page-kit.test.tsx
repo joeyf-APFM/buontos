@@ -123,6 +123,21 @@ describe('page kit', () => {
   });
 });
 
+it('tabs keep the kit look with a caller’s classNames and unstyled=false', () => {
+  renderWithMantine(
+    <Tabs defaultValue="a" unstyled={false} classNames={{ tab: 'mine', list: 'my-list' }}>
+      <Tabs.List>
+        <Tabs.Tab value="a">A</Tabs.Tab>
+      </Tabs.List>
+    </Tabs>,
+  );
+  const tab = screen.getByRole('tab', { name: 'A' });
+  expect(tab).toHaveClass(classes.tab, 'mine');
+  expect(screen.getByRole('tablist')).toHaveClass(classes.tabList, 'my-list');
+  // Still unstyled: none of Mantine's own Tabs module classes
+  expect(tab.className.split(' ').filter((c) => c.startsWith('m_'))).toEqual([]);
+});
+
 describe('the explorer on the page kit', () => {
   beforeEach(() => {
     useExplorerStore.getState().actions.reset();

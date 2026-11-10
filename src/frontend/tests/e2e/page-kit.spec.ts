@@ -101,7 +101,7 @@ test('header: one line with the 16px display-font title', async ({ page }) => {
   expect((await style(bar.getByText('2 assets'), ['color']))['color']).toBe('rgb(130, 141, 150)');
 });
 
-test('details grid: the 86px label column in text-secondary', async ({ page }) => {
+test('details grid: the 86px label column in text-secondary, at the explorer density', async ({ page }) => {
   const grid = page.getByTestId('details');
   const dt = grid.locator('dt').first();
   const dd = grid.locator('dd').first();
@@ -110,6 +110,10 @@ test('details grid: the 86px label column in text-secondary', async ({ page }) =
   expect(Math.abs(d.y - t.y)).toBeLessThanOrEqual(0.5);
   expect((await style(dt, ['color']))['color']).toBe('rgb(86, 93, 101)');
   expect((await style(dt, ['font-size']))['font-size']).toBe('12px');
+  // The explorer details panel's density (R12): rows about 23px apart, no rules
+  const next = (await grid.locator('dt').nth(1).boundingBox())!;
+  expect(Math.abs(next.y - t.y - 23)).toBeLessThanOrEqual(1);
+  for (const cell of [dt, dd]) expect((await style(cell, ['border-bottom-width']))['border-bottom-width']).toBe('0px');
 });
 
 test('tabs: the Task 7 look, and arrow keys switch them', async ({ page }) => {

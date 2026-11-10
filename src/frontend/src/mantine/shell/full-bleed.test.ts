@@ -5,6 +5,8 @@ describe('isFullBleed', () => {
   it('matches the explorer route exactly, as before', () => {
     expect(FULL_BLEED_ROUTES).toEqual(['/assets']);
     expect(isFullBleed('/assets')).toBe(true);
+    // React Router's trailing slash: the explorer at /assets/ is full bleed too
+    expect(isFullBleed('/assets/')).toBe(true);
     expect(isFullBleed('/assets/a1')).toBe(false);
     expect(isFullBleed('/Assets')).toBe(false);
     expect(isFullBleed('/data-catalog')).toBe(false);

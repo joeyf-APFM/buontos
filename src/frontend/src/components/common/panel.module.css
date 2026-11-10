@@ -1,8 +1,9 @@
 /*
  * A detail-page pane laid out like the explorer's details panel
  * (mantine/asset-explorer/explorer.module.css): 12px text, an 86px label
- * column, rows divided by border-subtle, and no cards inside. The ownership,
- * metadata and comments panels share it.
+ * column, rows about 23px apart with no rules between them (R12), and no
+ * cards inside. The ownership, metadata and comments panels share it, as does
+ * the page kit's DetailsGrid.
  */
 .pane {
   font-size: 12px;
@@ -71,6 +72,7 @@
 .kv {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
+  row-gap: 5px;
   margin: 0;
 }
 
@@ -78,8 +80,7 @@
 .kv > dd {
   margin: 0;
   min-width: 0;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--aura-border-subtle);
+  padding: 0;
 }
 
 .kv > dt {
@@ -95,11 +96,6 @@
   align-items: center;
   gap: 6px;
   overflow-wrap: anywhere;
-}
-
-.kv > dt:nth-last-of-type(1),
-.kv > dd:nth-last-of-type(1) {
-  border-bottom: 0;
 }
 
 /* The value cell: the main text grows, the rest keep their size */

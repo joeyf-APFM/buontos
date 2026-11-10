@@ -1,9 +1,9 @@
 /**
  * Task 8: the shared panels, skeletons and badges on Mantine and CSS modules,
  * laid out like the explorer's details panel. The pixel values (the 86px
- * label column, 12px text, border-subtle rows) are measured in a real browser
- * in tests/e2e/shared-panels.spec.ts (ruling R10); these tests check the
- * structure and that the controls still work.
+ * label column, 12px text, rows about 23px apart with no rules, R12) are
+ * measured in a real browser in tests/e2e/shared-panels.spec.ts (ruling R10);
+ * these tests check the structure and that the controls still work.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within, fireEvent } from '@testing-library/react';
