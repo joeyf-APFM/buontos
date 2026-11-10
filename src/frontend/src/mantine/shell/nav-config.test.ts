@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import appSource from '@/app.tsx?raw';
-import { NAV, activeLocation, visibleNav, type NavItem, type NavGroupId } from './nav-config';
+import { NAV, NAV_GROUPS, activeLocation, visibleNav, type NavItem, type NavGroupId, type NavSection } from './nav-config';
 
 // Full route paths declared in app.tsx, nested routes joined to their parent.
 function routePaths(source: string): Set<string> {
@@ -69,17 +69,150 @@ function itemIds(nav: Record<NavGroupId, unknown[]>, group: NavGroupId): string[
   return ((nav[group] ?? []) as { items: NavItem[] }[]).flatMap((s) => s.items.map((i) => i.id));
 }
 
+// Ids of a group's items, each followed by its sub-item ids in brackets
+function tree(group: NavGroupId): string[] {
+  return NAV[group].flatMap((s) =>
+    s.items.map((i) => (i.children ? `${i.id} [${i.children.map((c) => c.id).join(', ')}]` : i.id)),
+  );
+}
+
+describe('the side strip groups (Task 16a)', () => {
+  it('lists the groups in strip order, Settings last', () => {
+    expect(NAV_GROUPS.map((g) => g.id)).toEqual([
+      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Settings',
+    ]);
+  });
+
+  it('labels the new groups with the existing keys', () => {
+    const label = (id: NavGroupId) => NAV_GROUPS.find((g) => g.id === id)!.labelKey;
+    expect(label('Organization')).toBe('shell:sections.organization');
+    expect(label('Semantics')).toBe('shell:sections.semantics');
+    expect(label('Workflows')).toBe('settings:tabs.workflows');
+  });
+
+  it('makes Workflows a direct link to its page, and only Workflows', () => {
+    expect(NAV_GROUPS.filter((g) => g.link).map((g) => [g.id, g.link])).toEqual([['Workflows', '/settings/workflows']]);
+    expect(tree('Workflows')).toEqual(['workflows']);
+  });
+
+  it('moves Organization with its items in order', () => {
+    expect(tree('Organization')).toEqual([
+      'data-domains', 'teams', 'projects', 'roles [app-roles, business-roles]', 'directory',
+    ]);
+  });
+
+  it('moves Semantics with its items in order', () => {
+    expect(tree('Semantics')).toEqual([
+      'semantic-models', 'settings-asset-types', 'tags', 'levels [certification-levels, maturity-levels]',
+    ]);
+  });
+
+  it('leaves Settings with Platform, a Process of Delivery and Audit log, then Govern and Deploy', () => {
+    expect(NAV.Settings.map((s) => s.titleKey)).toEqual([
+      'shell:sections.platform', 'shell:sections.process', 'navigation:groups.govern', 'navigation:groups.deploy',
+    ]);
+    expect(tree('Settings')).toEqual([
+      'general', 'helix', 'appearance', 'settings-search', 'connectors [git, mcp, delivery-methods]', 'jobs',
+      'delivery', 'audit',
+      'compliance', 'master-data', 'data-asset-reviews', 'security-features', 'entitlements-menu [entitlements, entitlements-sync]',
+      'estate-manager', 'catalog-commander',
+    ]);
+  });
+
+  it('keeps the Govern and Deploy permission ids', () => {
+    const govern = NAV.Settings.find((s) => s.titleKey === 'navigation:groups.govern')!;
+    const deploy = NAV.Settings.find((s) => s.titleKey === 'navigation:groups.deploy')!;
+    const ids = (s: NavSection) => s.items.flatMap((i) => [i, ...(i.children ?? [])]).map((i) => `${i.id}:${i.permissionId}`);
+    expect(ids(govern)).toEqual([
+      'compliance:compliance', 'master-data:master-data', 'data-asset-reviews:data-asset-reviews',
+      'security-features:security-features', 'entitlements-menu:entitlements', 'entitlements:entitlements',
+      'entitlements-sync:entitlements-sync',
+    ]);
+    expect(ids(deploy)).toEqual(['estate-manager:estate-manager', 'catalog-commander:catalog-commander']);
+  });
+
+  it('keeps the permission ids of the moved items', () => {
+    const permissions = (group: NavGroupId) =>
+      NAV[group].flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])])).map((i) => `${i.id}:${i.permissionId}`);
+    expect(permissions('Organization')).toEqual([
+      'data-domains:data-domains', 'teams:teams', 'projects:projects', 'roles:settings-roles',
+      'app-roles:settings-roles', 'business-roles:business-roles', 'directory:settings-directory',
+    ]);
+    expect(permissions('Semantics')).toEqual([
+      'semantic-models:settings-semantic-models', 'settings-asset-types:settings-asset-types', 'tags:tags',
+      'levels:settings-certification-levels', 'certification-levels:settings-certification-levels',
+      'maturity-levels:settings-maturity-levels',
+    ]);
+    expect(permissions('Workflows')).toEqual(['workflows:settings-workflows']);
+  });
+});
+
 describe('visibleNav', () => {
-  it('hides Settings → Roles when both role pages are denied', () => {
+  it('hides Organization, Semantics and Workflows without the settings gate', () => {
+    const nav = visibleNav((id) => id !== 'settings');
+    expect(nav.Organization).toBeUndefined();
+    expect(nav.Semantics).toBeUndefined();
+    expect(nav.Workflows).toBeUndefined();
+    expect(nav.Build).toBeDefined();
+  });
+
+  it('keeps only Govern and Deploy in Settings without the settings gate', () => {
+    const nav = visibleNav((id) => id !== 'settings');
+    expect(nav.Settings.map((s) => s.titleKey)).toEqual(['navigation:groups.govern', 'navigation:groups.deploy']);
+  });
+
+  it('shows Settings with just Govern for a user with compliance access and no gate', () => {
+    const nav = visibleNav((id) => id === 'compliance');
+    expect(nav.Settings.map((s) => s.titleKey)).toEqual(['navigation:groups.govern']);
+    expect(itemIds(nav, 'Settings')).toEqual(['compliance']);
+  });
+
+  it('hides Settings without the gate and without any Govern or Deploy item', () => {
+    expect(visibleNav((id) => id === 'data-contracts').Settings).toBeUndefined();
+    // Settings pages alone don't show without the gate
+    expect(visibleNav((id) => id === 'settings-general').Settings).toBeUndefined();
+  });
+
+  it('shows every Settings section with the gate', () => {
+    expect(visibleNav(() => true).Settings.map((s) => s.titleKey)).toEqual([
+      'shell:sections.platform', 'shell:sections.process', 'navigation:groups.govern', 'navigation:groups.deploy',
+    ]);
+  });
+
+  it('shows them with the gate and all permissions', () => {
+    const nav = visibleNav(() => true);
+    expect(nav.Organization).toBeDefined();
+    expect(nav.Semantics).toBeDefined();
+    expect(itemIds(nav, 'Workflows')).toEqual(['workflows']);
+  });
+
+  it('hides a new group when none of its items is allowed', () => {
+    const org = new Set(['data-domains', 'teams', 'projects', 'settings-roles', 'business-roles', 'settings-directory']);
+    const sem = new Set(['settings-semantic-models', 'settings-asset-types', 'tags', 'settings-certification-levels', 'settings-maturity-levels']);
+    expect(visibleNav((id) => !org.has(id)).Organization).toBeUndefined();
+    expect(visibleNav((id) => !sem.has(id)).Semantics).toBeUndefined();
+    expect(visibleNav((id) => id !== 'settings-workflows').Workflows).toBeUndefined();
+    // The others stay
+    expect(visibleNav((id) => !org.has(id)).Semantics).toBeDefined();
+  });
+
+  it('keeps only the allowed items of a new group', () => {
+    const nav = visibleNav((id) => id !== 'teams' && id !== 'tags');
+    expect(itemIds(nav, 'Organization')).not.toContain('teams');
+    expect(itemIds(nav, 'Organization')).toContain('projects');
+    expect(itemIds(nav, 'Semantics')).not.toContain('tags');
+  });
+
+  it('hides Organization → Roles when both role pages are denied', () => {
     const denied = new Set(['settings-roles', 'business-roles']);
     const nav = visibleNav((id) => !denied.has(id));
-    expect(itemIds(nav, 'Settings')).not.toContain('roles');
-    expect(itemIds(nav, 'Settings')).toContain('directory');
+    expect(itemIds(nav, 'Organization')).not.toContain('roles');
+    expect(itemIds(nav, 'Organization')).toContain('directory');
   });
 
   it('keeps a parent while one child is allowed', () => {
     const nav = visibleNav((id) => id !== 'settings-roles');
-    const roles = nav.Settings.flatMap((s) => s.items).find((i) => i.id === 'roles');
+    const roles = nav.Organization.flatMap((s) => s.items).find((i) => i.id === 'roles');
     expect(roles?.children?.map((c) => c.id)).toEqual(['business-roles']);
   });
 
@@ -87,13 +220,13 @@ describe('visibleNav', () => {
     const settingsPermissions = new Set(
       NAV.Settings.flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])])).map((i) => i.permissionId),
     );
-    const nav = visibleNav((id) => !settingsPermissions.has(id));
+    const nav = visibleNav((id) => !settingsPermissions.has(id) || id === 'settings');
     expect(nav.Settings).toBeUndefined();
     expect(nav.Discover).toBeDefined();
   });
 
   it('drops empty sections', () => {
-    const nav = visibleNav((id) => id !== 'workflows' && id !== 'settings-workflows' && id !== 'settings-delivery' && id !== 'audit');
+    const nav = visibleNav((id) => id !== 'settings-delivery' && id !== 'audit');
     expect(nav.Settings.map((s) => s.titleKey)).not.toContain('shell:sections.process');
   });
 });
@@ -103,14 +236,16 @@ describe('visibleNav maturity', () => {
   const everything = () => true;
 
   it('hides alpha items unless alpha is allowed', () => {
+    const section = (nav: ReturnType<typeof visibleNav>, key: string) =>
+      (nav.Settings ?? []).find((s) => s.titleKey === `navigation:groups.${key}`)?.items.map((i) => i.id);
     const hidden = visibleNav(() => true, gaOnly);
-    expect(itemIds(hidden, 'Govern')).not.toContain('security-features');
-    expect(itemIds(hidden, 'Govern')).not.toContain('entitlements-menu'); // both sub-items are alpha
-    expect(hidden.Deploy).toBeUndefined(); // estate-manager, catalog-commander
+    expect(section(hidden, 'govern') ?? []).not.toContain('security-features');
+    expect(section(hidden, 'govern') ?? []).not.toContain('entitlements-menu'); // both sub-items are alpha
+    expect(section(hidden, 'deploy')).toBeUndefined(); // estate-manager, catalog-commander
 
     const shown = visibleNav(() => true, (m) => m === 'ga' || m === 'alpha');
-    expect(itemIds(shown, 'Govern')).toContain('security-features');
-    expect(itemIds(shown, 'Deploy')).toEqual(['estate-manager', 'catalog-commander']);
+    expect(section(shown, 'govern')).toContain('security-features');
+    expect(section(shown, 'deploy')).toEqual(['estate-manager', 'catalog-commander']);
   });
 
   it('treats items without a feature as ga', () => {
@@ -121,14 +256,15 @@ describe('visibleNav maturity', () => {
 
   it('applies on top of the permission check', () => {
     const nav = visibleNav((id) => id !== 'security-features', everything);
-    expect(itemIds(nav, 'Govern')).not.toContain('security-features');
+    expect(itemIds(nav, 'Settings')).not.toContain('security-features');
+    expect(itemIds(nav, 'Settings')).toContain('compliance');
   });
 });
 
 describe('activeLocation', () => {
   it('finds a settings sub-item', () => {
     expect(activeLocation('/settings/business-roles')).toEqual({
-      group: 'Settings',
+      group: 'Organization',
       itemId: 'roles',
       childId: 'business-roles',
     });
@@ -142,6 +278,30 @@ describe('activeLocation', () => {
     expect(activeLocation('/assets/123')).toEqual({ group: 'Build', itemId: 'assets', childId: 'explorer' });
     expect(activeLocation('/my-products/9')).toEqual({ group: 'Build', itemId: 'products', childId: 'my-products' });
     expect(activeLocation('/concepts/generator')).toEqual({ group: 'Build', itemId: 'concepts' });
+  });
+
+  it('puts the moved settings pages in their new groups', () => {
+    expect(activeLocation('/settings/teams')).toEqual({ group: 'Organization', itemId: 'teams' });
+    expect(activeLocation('/settings/data-domains/d1')).toEqual({ group: 'Organization', itemId: 'data-domains' });
+    expect(activeLocation('/settings/tags')).toEqual({ group: 'Semantics', itemId: 'tags' });
+    expect(activeLocation('/settings/general')).toEqual({ group: 'Settings', itemId: 'general' });
+  });
+
+  it('gives Asset types, listed under Build and Semantics, to Semantics', () => {
+    expect(activeLocation('/settings/asset-types')).toEqual({ group: 'Semantics', itemId: 'settings-asset-types' });
+  });
+
+  it('gives /settings/workflows and its sub-paths to the Workflows button', () => {
+    expect(activeLocation('/settings/workflows')).toEqual({ group: 'Workflows', itemId: 'workflows' });
+    expect(activeLocation('/settings/workflows/new')).toEqual({ group: 'Workflows', itemId: 'workflows' });
+  });
+
+  it('gives the Govern and Deploy pages to Settings', () => {
+    expect(activeLocation('/compliance')).toEqual({ group: 'Settings', itemId: 'compliance' });
+    expect(activeLocation('/compliance/runs/r1')).toEqual({ group: 'Settings', itemId: 'compliance' });
+    expect(activeLocation('/estate-manager')).toEqual({ group: 'Settings', itemId: 'estate-manager' });
+    expect(activeLocation('/entitlements-sync')).toEqual({ group: 'Settings', itemId: 'entitlements-menu', childId: 'entitlements-sync' });
+    expect(activeLocation('/catalog-commander')).toEqual({ group: 'Settings', itemId: 'catalog-commander' });
   });
 
   it('only matches whole path segments', () => {

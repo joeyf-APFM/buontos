@@ -1,6 +1,7 @@
 /**
- * The shell's side menu: five groups (four at the top of the strip, Settings
- * at the bottom), each a list of items with optional sub-items.
+ * The shell's side menu: groups in strip order (Settings alone at the bottom),
+ * each a list of items with optional sub-items. A group with a `link` is a
+ * single strip button that goes to that page and opens no panel (Workflows).
  *
  * Ids, paths and permission ids come from config/features.ts and
  * components/settings/settings-layout.tsx. Every item is hidden without
@@ -16,6 +17,7 @@ import {
   Bot,
   Box,
   Briefcase,
+  Building2,
   CheckCircle,
   ClipboardCheck,
   ClipboardList,
@@ -32,7 +34,6 @@ import {
   Package,
   Palette,
   Plug2,
-  Rocket,
   ScrollText,
   Search,
   Settings,
@@ -53,7 +54,13 @@ import {
 } from 'lucide-react';
 import { features, type FeatureMaturity } from '@/config/features';
 
-export type NavGroupId = 'Discover' | 'Build' | 'Govern' | 'Deploy' | 'Settings';
+export type NavGroupId =
+  | 'Discover'
+  | 'Build'
+  | 'Organization'
+  | 'Semantics'
+  | 'Workflows'
+  | 'Settings';
 
 export interface NavItem {
   id: string;
@@ -67,15 +74,37 @@ export interface NavItem {
 export interface NavSection {
   titleKey?: string;
   items: NavItem[];
+  /** Pages outside /settings/* in a settings-area group: shown without the Settings gate. */
+  ungated?: boolean;
 }
 
-export const NAV_GROUPS: { id: NavGroupId; labelKey: string; icon: LucideIcon }[] = [
+export interface NavGroup {
+  id: NavGroupId;
+  labelKey: string;
+  icon: LucideIcon;
+  /** A direct link: the strip button goes here and opens no panel. */
+  link?: string;
+  /**
+   * Pages under /settings/*: hidden without the Settings area's gate, except
+   * its `ungated` sections (Settings → Govern and Deploy).
+   */
+  settingsArea?: boolean;
+}
+
+// Strip order, top to bottom (Helix and Ontos follow Workflows; side-strip.tsx)
+export const NAV_GROUPS: NavGroup[] = [
   { id: 'Discover', labelKey: 'navigation:groups.discover', icon: Compass },
   { id: 'Build', labelKey: 'navigation:groups.build', icon: LayoutGrid },
-  { id: 'Govern', labelKey: 'navigation:groups.govern', icon: Shield },
-  { id: 'Deploy', labelKey: 'navigation:groups.deploy', icon: Rocket },
-  { id: 'Settings', labelKey: 'settings:title', icon: Settings },
+  { id: 'Organization', labelKey: 'shell:sections.organization', icon: Building2, settingsArea: true },
+  { id: 'Semantics', labelKey: 'shell:sections.semantics', icon: Network, settingsArea: true },
+  { id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: '/settings/workflows', settingsArea: true },
+  { id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true },
 ];
+
+/** The groups whose strip button opens a panel (every group but a link). */
+export function isPanelGroup(id: unknown): id is NavGroupId {
+  return NAV_GROUPS.some((g) => g.id === id && !g.link);
+}
 
 /** The Settings area's own gate (SettingsLayout redirects home without it). */
 const SETTINGS_GATE = 'settings';
@@ -124,28 +153,43 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
       ],
     },
   ],
-  Govern: [
+  Organization: [
     {
       items: [
-        { id: 'compliance', labelKey: 'features:compliance.name', path: '/compliance', permissionId: 'compliance', icon: CheckCircle },
-        { id: 'master-data', labelKey: 'shell:items.masterData', path: '/master-data', permissionId: 'master-data', icon: Users },
-        { id: 'data-asset-reviews', labelKey: 'features:data-asset-reviews.name', path: '/data-asset-reviews', permissionId: 'data-asset-reviews', icon: ClipboardCheck },
-        { id: 'security-features', labelKey: 'features:security-features.name', path: '/security-features', permissionId: 'security-features', icon: Lock },
+        { id: 'data-domains', labelKey: 'shell:items.dataDomains', path: '/settings/data-domains', permissionId: 'data-domains', icon: BoxSelect },
+        { id: 'teams', labelKey: 'settings:tabs.teams', path: '/settings/teams', permissionId: 'teams', icon: UserCheck },
+        { id: 'projects', labelKey: 'settings:tabs.projects', path: '/settings/projects', permissionId: 'projects', icon: FolderOpen },
         {
-          id: 'entitlements-menu', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield,
+          id: 'roles', labelKey: 'shell:items.roles', permissionId: 'settings-roles', icon: UserCog,
           children: [
-            { id: 'entitlements', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield },
-            { id: 'entitlements-sync', labelKey: 'features:entitlements-sync.name', path: '/entitlements-sync', permissionId: 'entitlements-sync', icon: RefreshCw },
+            { id: 'app-roles', labelKey: 'shell:items.appRoles', path: '/settings/roles', permissionId: 'settings-roles', icon: UserCog },
+            { id: 'business-roles', labelKey: 'shell:items.businessRoles', path: '/settings/business-roles', permissionId: 'business-roles', icon: Briefcase },
+          ],
+        },
+        { id: 'directory', labelKey: 'shell:items.directory', path: '/settings/directory', permissionId: 'settings-directory', icon: Contact },
+      ],
+    },
+  ],
+  Semantics: [
+    {
+      items: [
+        { id: 'semantic-models', labelKey: 'shell:items.semanticModels', path: '/settings/semantic-models', permissionId: 'settings-semantic-models', icon: Network },
+        { id: 'settings-asset-types', labelKey: 'shell:items.assetTypes', path: '/settings/asset-types', permissionId: 'settings-asset-types', icon: Shapes },
+        { id: 'tags', labelKey: 'settings:tabs.tags', path: '/settings/tags', permissionId: 'tags', icon: Tags },
+        {
+          id: 'levels', labelKey: 'shell:items.levels', permissionId: 'settings-certification-levels', icon: ShieldCheck,
+          children: [
+            { id: 'certification-levels', labelKey: 'shell:items.certification', path: '/settings/certification-levels', permissionId: 'settings-certification-levels', icon: ShieldCheck },
+            { id: 'maturity-levels', labelKey: 'shell:items.maturity', path: '/settings/maturity-levels', permissionId: 'settings-maturity-levels', icon: Activity },
           ],
         },
       ],
     },
   ],
-  Deploy: [
+  Workflows: [
     {
       items: [
-        { id: 'estate-manager', labelKey: 'features:estate-manager.name', path: '/estate-manager', permissionId: 'estate-manager', icon: Globe },
-        { id: 'catalog-commander', labelKey: 'features:catalog-commander.name', path: '/catalog-commander', permissionId: 'catalog-commander', icon: FolderKanban },
+        { id: 'workflows', labelKey: 'settings:tabs.workflows', path: '/settings/workflows', permissionId: 'settings-workflows', icon: GitBranch },
       ],
     },
   ],
@@ -169,42 +213,36 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
       ],
     },
     {
-      titleKey: 'shell:sections.organization',
-      items: [
-        { id: 'data-domains', labelKey: 'shell:items.dataDomains', path: '/settings/data-domains', permissionId: 'data-domains', icon: BoxSelect },
-        { id: 'teams', labelKey: 'settings:tabs.teams', path: '/settings/teams', permissionId: 'teams', icon: UserCheck },
-        { id: 'projects', labelKey: 'settings:tabs.projects', path: '/settings/projects', permissionId: 'projects', icon: FolderOpen },
-        {
-          id: 'roles', labelKey: 'shell:items.roles', permissionId: 'settings-roles', icon: UserCog,
-          children: [
-            { id: 'app-roles', labelKey: 'shell:items.appRoles', path: '/settings/roles', permissionId: 'settings-roles', icon: UserCog },
-            { id: 'business-roles', labelKey: 'shell:items.businessRoles', path: '/settings/business-roles', permissionId: 'business-roles', icon: Briefcase },
-          ],
-        },
-        { id: 'directory', labelKey: 'shell:items.directory', path: '/settings/directory', permissionId: 'settings-directory', icon: Contact },
-      ],
-    },
-    {
-      titleKey: 'shell:sections.semantics',
-      items: [
-        { id: 'semantic-models', labelKey: 'shell:items.semanticModels', path: '/settings/semantic-models', permissionId: 'settings-semantic-models', icon: Network },
-        { id: 'settings-asset-types', labelKey: 'shell:items.assetTypes', path: '/settings/asset-types', permissionId: 'settings-asset-types', icon: Shapes },
-        { id: 'tags', labelKey: 'settings:tabs.tags', path: '/settings/tags', permissionId: 'tags', icon: Tags },
-        {
-          id: 'levels', labelKey: 'shell:items.levels', permissionId: 'settings-certification-levels', icon: ShieldCheck,
-          children: [
-            { id: 'certification-levels', labelKey: 'shell:items.certification', path: '/settings/certification-levels', permissionId: 'settings-certification-levels', icon: ShieldCheck },
-            { id: 'maturity-levels', labelKey: 'shell:items.maturity', path: '/settings/maturity-levels', permissionId: 'settings-maturity-levels', icon: Activity },
-          ],
-        },
-      ],
-    },
-    {
       titleKey: 'shell:sections.process',
       items: [
-        { id: 'workflows', labelKey: 'settings:tabs.workflows', path: '/settings/workflows', permissionId: 'settings-workflows', icon: GitBranch },
         { id: 'delivery', labelKey: 'shell:items.delivery', path: '/settings/delivery', permissionId: 'settings-delivery', icon: Briefcase },
         { id: 'audit', labelKey: 'shell:items.auditLog', path: '/settings/audit', permissionId: 'audit', icon: ScrollText },
+      ],
+    },
+    // Not under /settings/*: no Settings gate (the owner's call, Task 16a)
+    {
+      titleKey: 'navigation:groups.govern',
+      ungated: true,
+      items: [
+        { id: 'compliance', labelKey: 'features:compliance.name', path: '/compliance', permissionId: 'compliance', icon: CheckCircle },
+        { id: 'master-data', labelKey: 'shell:items.masterData', path: '/master-data', permissionId: 'master-data', icon: Users },
+        { id: 'data-asset-reviews', labelKey: 'features:data-asset-reviews.name', path: '/data-asset-reviews', permissionId: 'data-asset-reviews', icon: ClipboardCheck },
+        { id: 'security-features', labelKey: 'features:security-features.name', path: '/security-features', permissionId: 'security-features', icon: Lock },
+        {
+          id: 'entitlements-menu', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield,
+          children: [
+            { id: 'entitlements', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield },
+            { id: 'entitlements-sync', labelKey: 'features:entitlements-sync.name', path: '/entitlements-sync', permissionId: 'entitlements-sync', icon: RefreshCw },
+          ],
+        },
+      ],
+    },
+    {
+      titleKey: 'navigation:groups.deploy',
+      ungated: true,
+      items: [
+        { id: 'estate-manager', labelKey: 'features:estate-manager.name', path: '/estate-manager', permissionId: 'estate-manager', icon: Globe },
+        { id: 'catalog-commander', labelKey: 'features:catalog-commander.name', path: '/catalog-commander', permissionId: 'catalog-commander', icon: FolderKanban },
       ],
     },
   ],
@@ -234,9 +272,10 @@ export function visibleNav(
 ): Record<NavGroupId, NavSection[]> {
   const allowed = (item: NavItem) => has(item.permissionId) && showMaturity(maturityOf(item.id));
   const result = {} as Record<NavGroupId, NavSection[]>;
-  for (const { id } of NAV_GROUPS) {
-    if (id === 'Settings' && !has(SETTINGS_GATE)) continue;
+  const gated = !has(SETTINGS_GATE);
+  for (const { id, settingsArea } of NAV_GROUPS) {
     const sections = NAV[id]
+      .filter((s) => !(settingsArea && gated) || s.ungated)
       .map((s) => ({ ...s, items: s.items.map((i) => visibleItem(i, allowed)).filter((i): i is NavItem => i !== null) }))
       .filter((s) => s.items.length > 0);
     if (sections.length > 0) result[id] = sections;
@@ -276,8 +315,9 @@ export function matchInGroup(sections: NavSection[], pathname: string): Omit<Act
   return best;
 }
 
-// Settings first, so a page listed in two groups (Asset types) belongs to Settings
-const SEARCH_ORDER: NavGroupId[] = ['Settings', 'Discover', 'Build', 'Govern', 'Deploy'];
+// The settings-area groups first, so a page listed in two groups belongs to the
+// more specific one: Asset types (Build → Assets and Semantics) is Semantics'
+const SEARCH_ORDER: NavGroupId[] = ['Settings', 'Organization', 'Semantics', 'Workflows', 'Discover', 'Build'];
 
 export function activeLocation(pathname: string): ActiveLocation | null {
   let best: ActiveLocation | null = null;

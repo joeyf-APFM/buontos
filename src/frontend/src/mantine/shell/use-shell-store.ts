@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { NavGroupId } from './nav-config';
+import { isPanelGroup, type NavGroupId } from './nav-config';
 
 interface ShellState {
   /** The group whose panel is showing, or null for the strip alone. */
@@ -39,6 +39,17 @@ export const useShellStore = create<ShellState>()(
       name: 'apfm-shell',
       storage: createJSONStorage(() => localStorage),
       partialize: ({ openGroup, pinned, expanded }) => ({ openGroup, pinned, expanded }),
+      // A stored group this version doesn't open a panel for (removed, like
+      // Govern and Deploy, or the Workflows link) comes back as no open panel
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<ShellState>;
+        return {
+          ...current,
+          ...saved,
+          openGroup: isPanelGroup(saved.openGroup) ? saved.openGroup : null,
+          actions: current.actions,
+        };
+      },
     },
   ),
 );

@@ -3,7 +3,8 @@
 
 .shell {
   --shell-top-height: 44px;
-  --shell-strip-width: 52px;
+  /* Wide enough for the longest strip label, Organization (59px at 9.5px) */
+  --shell-strip-width: 64px;
   --shell-panel-width: 200px;
   min-height: 100vh;
   display: flex;
@@ -119,7 +120,7 @@
 }
 
 .groupButton {
-  width: 44px;
+  width: calc(var(--shell-strip-width) - 4px);
   height: 44px;
   border-radius: 6px;
   display: flex;
@@ -145,7 +146,8 @@
   color: var(--aura-accent-hover);
 }
 
-.groupButton[data-open] {
+.groupButton[data-open],
+.groupButton[aria-current='page'] {
   background: var(--aura-surface);
   color: var(--aura-accent-hover);
   box-shadow: inset 2px 0 0 var(--aura-accent);

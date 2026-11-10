@@ -1,8 +1,9 @@
 import { UnstyledButton } from '@mantine/core';
 import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
-import { NAV_GROUPS, type NavGroupId } from './nav-config';
+import { NAV_GROUPS, activeLocation, type NavGroupId } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { useHelixStore } from '@/mantine/helix/helix-store';
 import { HelixMark } from '@/mantine/helix/helix-mark';
@@ -11,9 +12,9 @@ import { useOntosStore } from '@/mantine/ontos/ontos-store';
 import classes from './shell.module.css';
 
 /**
- * Ask Helix, directly below Discover (the owner's call, over R25's "under the
- * last group"): it opens or closes the Helix window and never opens a group
- * panel. Shown only while Helix is enabled.
+ * Ask Helix, after the last top group (the owner's strip order from the
+ * Task 16 review): it opens or closes the Helix window and never opens a
+ * group panel. Shown only while Helix is enabled.
  */
 function HelixStripButton() {
   const { t } = useTranslation('shell');
@@ -63,14 +64,35 @@ function OntosStripButton() {
   );
 }
 
-/** The icon strip: Discover, Ask Helix, Ask Ontos and the other groups at the top, Settings at the bottom. */
+/**
+ * The icon strip: the top groups in NAV_GROUPS order (Discover, Build,
+ * Organization, Semantics, Workflows), then Ask Helix and Ask Ontos, and
+ * Settings alone at the bottom.
+ */
 export function SideStrip({ groups }: { groups: NavGroupId[] }) {
   const { t } = useTranslation(['shell', 'navigation', 'settings']);
+  const { pathname } = useLocation();
   const openGroup = useShellStore((s) => s.openGroup);
   const { toggleGroup } = useShellStore((s) => s.actions);
+  const currentGroup = activeLocation(pathname)?.group;
 
   const button = (id: NavGroupId) => {
     const group = NAV_GROUPS.find((g) => g.id === id)!;
+    if (group.link) {
+      // A direct link (Workflows): goes to its page and opens no panel
+      return (
+        <UnstyledButton
+          key={id}
+          component={Link}
+          to={group.link}
+          className={classes.groupButton}
+          aria-current={currentGroup === id ? 'page' : undefined}
+        >
+          <group.icon size={17} strokeWidth={1.7} aria-hidden />
+          {t(group.labelKey)}
+        </UnstyledButton>
+      );
+    }
     const open = openGroup === id;
     return (
       <UnstyledButton
@@ -88,15 +110,12 @@ export function SideStrip({ groups }: { groups: NavGroupId[] }) {
   };
 
   const top = groups.filter((g) => g !== 'Settings');
-  // Helix goes right after Discover, or first when Discover isn't shown
-  const helixAt = top.indexOf('Discover') + 1;
 
   return (
     <nav className={classes.strip} aria-label={t('shell:strip.label')}>
-      {top.slice(0, helixAt).map(button)}
+      {top.map(button)}
       <HelixStripButton />
       <OntosStripButton />
-      {top.slice(helixAt).map(button)}
       <div className={classes.stripSpacer} />
       {groups.includes('Settings') && button('Settings')}
     </nav>

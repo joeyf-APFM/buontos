@@ -7,6 +7,8 @@ import { FeatureAccessLevel } from '@/types/settings';
 import { AppShell } from './app-shell';
 import { SHELL_DEFAULTS, useShellStore } from './use-shell-store';
 import { NAV } from './nav-config';
+import { HELIX_DEFAULTS, useHelixStore } from '@/mantine/helix/helix-store';
+import { ONTOS_DEFAULTS, useOntosStore } from '@/mantine/ontos/ontos-store';
 
 // The top bar's own widgets fetch on mount; they aren't what this tests
 vi.mock('@/components/ui/user-info', () => ({ default: () => null }));
@@ -122,8 +124,8 @@ describe('AppShell', () => {
   it('expands a parent to show its sub-items', async () => {
     const user = userEvent.setup();
     renderShell('/data-contracts');
-    await user.click(screen.getByRole('button', { name: 'Settings' }));
-    const settings = screen.getByRole('navigation', { name: 'Settings' });
+    await user.click(screen.getByRole('button', { name: 'Organization' }));
+    const settings = screen.getByRole('navigation', { name: 'Organization' });
     expect(within(settings).queryByRole('link', { name: 'Business roles' })).toBeNull();
 
     await user.click(within(settings).getByRole('button', { name: 'Roles' }));
@@ -135,9 +137,9 @@ describe('AppShell', () => {
   it('opens the sub-items of the current page', async () => {
     const user = userEvent.setup();
     renderShell('/settings/business-roles');
-    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    await user.click(screen.getByRole('button', { name: 'Organization' }));
 
-    const settings = screen.getByRole('navigation', { name: 'Settings' });
+    const settings = screen.getByRole('navigation', { name: 'Organization' });
     expect(within(settings).getByRole('link', { name: 'Business roles' })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -157,18 +159,181 @@ describe('AppShell', () => {
   it('hides alpha and beta features unless the user shows them', async () => {
     const user = userEvent.setup();
     renderShell();
-    expect(screen.queryByRole('button', { name: 'Deploy' })).toBeNull(); // all alpha
-    expect(screen.queryByRole('button', { name: 'Govern' })).toBeNull(); // beta and alpha
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const settings = () => screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(settings()).queryByText('Deploy')).toBeNull(); // all alpha
+    expect(within(settings()).queryByText('Govern')).toBeNull(); // beta and alpha
 
     act(() => useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] }));
-    await user.click(screen.getByRole('button', { name: 'Govern' }));
-    expect(within(screen.getByRole('navigation', { name: 'Govern' })).getByRole('link', { name: 'Security Features' }))
-      .toBeInTheDocument();
+    expect(within(settings()).getByText('Govern')).toBeInTheDocument();
+    expect(within(settings()).getByRole('link', { name: 'Security Features' })).toBeInTheDocument();
+  });
+
+  it('hides the settings-area strip entries without the settings gate, keeping Govern and Deploy under Settings', async () => {
+    useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] });
+    usePermissionsStore.setState({
+      permissions: Object.fromEntries(allPermissionIds.map((id) => [id, FeatureAccessLevel.ADMIN])),
+    });
+    const user = userEvent.setup();
+    renderShell();
+    const strip = screen.getByRole('navigation', { name: 'Main menu' });
+    expect(within(strip).getByRole('button', { name: 'Build' })).toBeInTheDocument();
+    for (const name of ['Organization', 'Semantics']) {
+      expect(within(strip).queryByRole('button', { name })).toBeNull();
+    }
+    expect(within(strip).queryByRole('link', { name: 'Workflows' })).toBeNull();
+
+    await user.click(within(strip).getByRole('button', { name: 'Settings' }));
+    const settings = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(settings).queryByText('Platform')).toBeNull();
+    expect(within(settings).queryByText('Process')).toBeNull();
+    expect(within(settings).queryByRole('link', { name: 'General' })).toBeNull();
+    expect(within(settings).getByText('Govern')).toBeInTheDocument();
+    expect(within(settings).getByText('Deploy')).toBeInTheDocument();
+    expect(within(settings).getByRole('link', { name: 'Compliance' })).toHaveAttribute('href', '/compliance');
+  });
+
+  it('shows Settings with only Govern to a user with compliance access and no gate', async () => {
+    useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] }); // Compliance is beta
+    usePermissionsStore.setState({ permissions: { compliance: FeatureAccessLevel.READ_ONLY } });
+    const user = userEvent.setup();
+    renderShell('/compliance');
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const settings = screen.getByRole('navigation', { name: 'Settings' });
+    expect([...settings.querySelectorAll('a')].map((a) => a.textContent)).toEqual(['Compliance']);
+    expect(within(settings).getByRole('link', { name: 'Compliance' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders the brand and the page content', () => {
     renderShell();
     expect(screen.getByRole('link', { name: 'APFM · Ontos' })).toHaveAttribute('href', '/');
     expect(screen.getByText('page content')).toBeInTheDocument();
+  });
+});
+
+describe('the side strip', () => {
+  const strip = () => screen.getByRole('navigation', { name: 'Main menu' });
+
+  beforeEach(() => {
+    useShellStore.setState(SHELL_DEFAULTS);
+    useHelixStore.setState(HELIX_DEFAULTS);
+    useOntosStore.setState(ONTOS_DEFAULTS);
+    useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] });
+    grantAll();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('[]', { status: 200 }))));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const controls = (el: HTMLElement) => [...el.querySelectorAll('a, button')].map((c) => c.textContent);
+
+  it('lists Discover, Build, Organization, Semantics, Workflows, Helix, Ontos, then Settings', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body =
+        url === '/api/settings/helix' ? { enabled: true, mode: 'user', workspace_host: 'h' }
+        : url === '/api/llm-search/status' ? { enabled: true, endpoint: 'ep', disclaimer: '', adoption_mode: 'active' }
+        : [];
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+    renderShell();
+    await within(strip()).findByRole('button', { name: 'Ask Helix' });
+    await within(strip()).findByRole('button', { name: 'Ask Ontos' });
+
+    const names = [...strip().querySelectorAll('button, a')].map((el) => el.getAttribute('aria-label') ?? el.textContent);
+    expect(names).toEqual([
+      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Ask Helix', 'Ask Ontos', 'Settings',
+    ]);
+  });
+
+  it('goes straight to /settings/workflows from Workflows, without a panel, and marks it current', async () => {
+    const user = userEvent.setup();
+    renderShell('/data-contracts');
+    const workflows = within(strip()).getByRole('link', { name: 'Workflows' });
+    expect(workflows).not.toHaveAttribute('aria-current');
+    expect(workflows).not.toHaveAttribute('aria-expanded');
+
+    await user.click(workflows);
+
+    expect(window.location.pathname).toBe('/settings/workflows');
+    expect(useShellStore.getState().openGroup).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Workflows' })).toBeNull();
+    expect(workflows).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('marks Workflows current on its sub-pages', () => {
+    renderShell('/settings/workflows/new');
+    expect(within(strip()).getByRole('link', { name: 'Workflows' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('opens Organization with its items, and Semantics with its own', async () => {
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(within(strip()).getByRole('button', { name: 'Organization' }));
+    const org = screen.getByRole('navigation', { name: 'Organization' });
+    expect(controls(org)).toEqual([
+      'Pinned', 'Data domains', 'Teams', 'Projects', 'Roles', 'Directory',
+    ]);
+
+    await user.click(within(strip()).getByRole('button', { name: 'Semantics' }));
+    const sem = screen.getByRole('navigation', { name: 'Semantics' });
+    expect(controls(sem)).toEqual([
+      'Pinned', 'Semantic models', 'Asset types', 'Tags', 'Levels',
+    ]);
+    expect(screen.queryByRole('navigation', { name: 'Organization' })).toBeNull();
+  });
+
+  it('no longer lists the moved items in Settings', async () => {
+    const user = userEvent.setup();
+    renderShell();
+    await user.click(within(strip()).getByRole('button', { name: 'Settings' }));
+    const settings = screen.getByRole('navigation', { name: 'Settings' });
+    for (const name of ['Teams', 'Tags', 'Workflows', 'Data domains', 'Semantic models']) {
+      expect(within(settings).queryByRole('link', { name })).toBeNull();
+    }
+    expect(within(settings).getByRole('link', { name: 'Delivery' })).toBeInTheDocument();
+    expect(within(settings).getByRole('link', { name: 'Audit log' })).toBeInTheDocument();
+  });
+
+  it('highlights the current page inside a new group', async () => {
+    const user = userEvent.setup();
+    renderShell('/settings/asset-types');
+    await user.click(within(strip()).getByRole('button', { name: 'Semantics' }));
+    const sem = screen.getByRole('navigation', { name: 'Semantics' });
+    expect(within(sem).getByRole('link', { name: 'Asset types' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('closes an unpinned new group after navigating', async () => {
+    const user = userEvent.setup();
+    renderShell();
+    await user.click(within(strip()).getByRole('button', { name: 'Organization' }));
+    const org = () => screen.queryByRole('navigation', { name: 'Organization' });
+    await user.click(within(org()!).getByRole('button', { name: /Pinned/ }));
+
+    await user.click(within(org()!).getByRole('link', { name: 'Teams' }));
+
+    expect(window.location.pathname).toBe('/settings/teams');
+    expect(org()).toBeNull();
+  });
+
+  it('opens a stored Settings panel, and ignores a stored group it does not know', async () => {
+    localStorage.setItem('apfm-shell', JSON.stringify({ state: { openGroup: 'Settings', pinned: true, expanded: [] }, version: 0 }));
+    await act(() => useShellStore.persist.rehydrate());
+    const { unmount } = renderShell();
+    expect(screen.getByRole('navigation', { name: 'Settings' })).toBeInTheDocument();
+    unmount();
+
+    for (const stored of ['Govern', 'Deploy', 'Workflows', 'toString', 42]) {
+      localStorage.setItem('apfm-shell', JSON.stringify({ state: { openGroup: stored, pinned: true, expanded: [] }, version: 0 }));
+      await act(() => useShellStore.persist.rehydrate());
+      expect(useShellStore.getState().openGroup).toBeNull();
+      const view = renderShell();
+      expect(screen.getByText('page content')).toBeInTheDocument();
+      expect(document.getElementById('shell-group-panel')).toBeNull();
+      view.unmount();
+    }
   });
 });

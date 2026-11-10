@@ -325,13 +325,13 @@ describe('Ask Helix in the icon strip', () => {
 
   const strip = () => screen.getByRole('navigation', { name: 'Main menu' });
 
-  it('sits directly below Discover, labelled Helix, with the Dna icon', async () => {
+  it('sits after the top groups, above Settings, labelled Helix, with the Dna icon', async () => {
     mockBackend();
     renderShell('/search');
 
     const button = await stripButton();
     const names = [...strip().querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Discover', 'Ask Helix', 'Build', 'Settings']);
+    expect(names).toEqual(['Discover', 'Build', 'Ask Helix', 'Settings']);
     expect(button).toHaveTextContent('Helix');
     expect(button).toHaveAttribute('aria-pressed', 'false');
     expect(button.querySelector('[data-helix-icon="dna"]')).not.toBeNull();

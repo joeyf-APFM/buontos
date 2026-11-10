@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { usePermissions } from '@/stores/permissions-store';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
 import { FeatureAccessLevel } from '@/types/settings';
-import { NAV_GROUPS, visibleNav } from './nav-config';
+import { NAV_GROUPS, isPanelGroup, visibleNav } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import { SideStrip } from './side-strip';
 import { GroupPanel } from './group-panel';
@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={classes.body}>
         <div className={`${classes.side} apfm-surface`}>
           <SideStrip groups={groups} />
-          {openGroup && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} />}
+          {isPanelGroup(openGroup) && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} />}
         </div>
         <div className={classes.main}>{children}</div>
       </div>
