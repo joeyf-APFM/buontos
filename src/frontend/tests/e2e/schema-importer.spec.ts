@@ -162,7 +162,7 @@ test.describe('its own route', () => {
   test('full bleed: one breadcrumb (the shell\'s), the 16px navy title, and two panes sharing a border', async ({ page }) => {
     const main = page.locator('main');
     expect(await style(main, ['padding-top', 'padding-left'])).toEqual({ 'padding-top': '0px', 'padding-left': '0px' });
-    await expect(main.getByRole('navigation', { name: 'breadcrumb' })).toHaveCount(1);
+    await expect(main.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1);
 
     const title = main.getByRole('heading', { level: 1, name: 'Schema Importer' });
     expect(await style(title, ['font-size', 'font-weight', 'color'])).toEqual({
@@ -357,7 +357,7 @@ test.describe('inside the Concepts layout', () => {
     await expect(main.getByText('finance', { exact: true })).toBeVisible();
     // The layout keeps its padding; the one breadcrumb is the shell's.
     // (The Concepts layout's section tabs went in Task 16c.)
-    const content = main.locator('> :nth-child(2)');
+    const content = main.locator('[data-page-content]');
     const padding = parseFloat((await style(content, ['padding-left']))['padding-left']);
     expect(padding).toBeGreaterThan(0);
     await expect(main.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1);

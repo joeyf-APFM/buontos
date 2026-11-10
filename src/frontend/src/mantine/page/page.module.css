@@ -66,6 +66,9 @@
 .crumbTrail {
   min-width: 0;
   overflow: hidden;
+  /* Room for a crumb's focus ring inside the clipping box, without moving the trail */
+  padding: 2px;
+  margin: -2px;
   font-size: 12px;
   line-height: 16px;
   color: var(--aura-text-muted);

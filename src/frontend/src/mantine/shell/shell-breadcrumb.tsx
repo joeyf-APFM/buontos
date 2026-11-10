@@ -7,6 +7,7 @@ import { Breadcrumb } from '@/mantine/page/breadcrumb';
 import {
   attachPage,
   crumbNavState,
+  cutAtCrumb,
   navKind,
   pageCrumbs,
   priorSteps,
@@ -27,15 +28,27 @@ function readTrails(): [string, TrailRecord][] {
   try {
     const raw = sessionStorage.getItem(TRAILS_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as [string, TrailRecord][]) : [];
+    return Array.isArray(parsed) ? (parsed.filter(Array.isArray) as [string, TrailRecord][]) : [];
   } catch {
     return [];
   }
 }
 
+const isStep = (s: unknown): s is TrailStep => {
+  const step = s as Partial<TrailStep> | null;
+  return (
+    !!step &&
+    typeof step.pathname === 'string' &&
+    Array.isArray(step.crumbs) &&
+    step.crumbs.every((c) => !!c && typeof c.label === 'string' && (c.to === undefined || typeof c.to === 'string')) &&
+    (step.links === undefined || (Array.isArray(step.links) && step.links.every((l) => typeof l === 'string')))
+  );
+};
+
+/** The trail stored for a history entry, or null when there is none or it can't be read (an older format). */
 function storedTrail(key: string): TrailRecord | null {
-  const found = readTrails().find(([k]) => k === key)?.[1];
-  return found && Array.isArray(found.base) && found.current ? found : null;
+  const found = readTrails().find((entry) => Array.isArray(entry) && entry[0] === key)?.[1] as Partial<TrailRecord> | undefined;
+  return found && Array.isArray(found.base) && found.base.every(isStep) && isStep(found.current) ? (found as TrailRecord) : null;
 }
 
 function storeTrail(key: string, record: TrailRecord) {
@@ -51,6 +64,8 @@ function storeTrail(key: string, record: TrailRecord) {
 interface Arrival {
   key: string;
   prior: TrailStep[];
+  /** A crumb click's trail: the previous one cut after the crumb, kept as it was. */
+  cut: TrailRecord | null;
 }
 
 /**
@@ -97,14 +112,14 @@ export function ShellBreadcrumb({ fullBleed = false }: { fullBleed?: boolean }) 
     const previous = lastShown && lastShown.key !== location.key ? lastShown.record : null;
     const stored = kind === 'pop' ? storedTrail(location.key) : null;
     const crumbIndex = (location.state as Partial<CrumbNavState> | null)?.crumbIndex;
-    return { key: location.key, prior: priorSteps(kind, previous, stored, crumbIndex) };
+    const cut = kind === 'crumb' ? cutAtCrumb(previous, crumbIndex, location.pathname) : null;
+    return { key: location.key, prior: priorSteps(kind, previous, stored), cut };
   };
   const [arrival, setArrival] = useState<Arrival>(arrive);
-  let prior = arrival.prior;
+  let reached = arrival;
   if (arrival.key !== location.key) {
-    const next = arrive();
-    setArrival(next);
-    prior = next.prior;
+    reached = arrive();
+    setArrival(reached);
   }
 
   // A feature's page the menu doesn't show this user (an alpha one) is named by the feature
@@ -115,12 +130,11 @@ export function ShellBreadcrumb({ fullBleed = false }: { fullBleed?: boolean }) 
     nav,
     here,
     settingsGate,
-    // A page's "Loading..." title stands for a name still to come: nothing yet
-    page: { staticSegments, dynamicTitle: dynamicTitle === t('common:states.loading') ? null : dynamicTitle, trailingSegments },
+    page: { staticSegments, dynamicTitle, trailingSegments },
     label: (key) => t(key),
     fallbackTitle: feature ? t(`features:${feature.id}.name`, feature.name) : null,
   });
-  const record = attachPage(prior, location.pathname, own);
+  const record = reached.cut ?? attachPage(reached.prior, location.pathname, own);
   const crumbs = trailCrumbs(record);
   // A page with no crumb of its own yet (no title) isn't shown as Home or as the page before it
   const lastIsCurrent = location.pathname === '/' || record.current.crumbs.some((c) => c.role !== 'home');

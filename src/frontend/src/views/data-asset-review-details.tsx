@@ -7,7 +7,7 @@ import { AlertCircle, ArrowLeft, X, ArrowUpDown, Pencil, Check, Copy } from 'luc
 import { ActionIcon, Alert, Loader, Modal, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from "@/hooks/use-toast";
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import {
     DataAssetReviewRequest, ReviewedAsset, ReviewRequestStatus,
     ReviewedAssetStatus,
@@ -101,8 +101,8 @@ export default function DataAssetReviewDetails() {
     const api = useApi();
     const { get, put, patch } = api;
     const { toast } = useToast();
-    const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
-    const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
+    // Ignored once the page has gone, so a late answer can't name the next page
+    const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
     const [request, setRequest] = useState<DataAssetReviewRequest | null>(null);
     const [loading, setLoading] = useState(true);
@@ -155,7 +155,7 @@ export default function DataAssetReviewDetails() {
         setLoading(true);
         setError(null);
         setStaticSegments([{ label: t('data-asset-reviews:title'), path: '/data-asset-reviews'}]);
-        setDynamicTitle(t('data-asset-reviews:details.loadingReview'));
+        setDynamicTitle(null);
         try {
             const response = await get<DataAssetReviewRequest>(`/api/data-asset-reviews/${requestId}`);
             const requestData = checkApiResponse(response, 'Review Request Details');

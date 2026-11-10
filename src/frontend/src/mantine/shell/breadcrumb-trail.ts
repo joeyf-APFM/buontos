@@ -33,6 +33,8 @@ export interface TrailStep {
   /** The page this step stands for. */
   pathname: string;
   crumbs: Crumb[];
+  /** Where the page's own crumbs (after its group) link, shown or not: for its siblings' skip. */
+  links?: string[];
 }
 
 /** What the page says about itself through the breadcrumb store. */
@@ -137,8 +139,13 @@ export function pageCrumbs(input: PageCrumbsInput): Crumb[] {
     c.path !== '/';
   const middle = extras.filter(shown).map((s) => ({ label: s.label, to: s.path, onSelect: s.onSelect }));
   const all = [...crumbs, ...middle];
+  // The title is the page's own name: kept unless a crumb already is this page,
+  // or it only repeats the crumb just above it (a sub-page of Search titled
+  // Search). An entity may share another crumb's label: a domain named Organization.
   const title = (page.dynamicTitle || (middle.length === 0 ? input.fallbackTitle : null))?.trim();
-  if (title && !all.some((c) => same(c.label, title))) all.push({ label: title });
+  const above = all[all.length - 1];
+  const repeats = middle.length === 0 && !!above && !above.role && same(above.label, title ?? '');
+  if (title && !repeats && !all.some((c) => c.to && pathOf(c.to) === pathname)) all.push({ label: title });
   return withCurrent([...all, ...trailing], url);
 }
 
@@ -188,7 +195,7 @@ export const trailCrumbs = (record: TrailRecord): Crumb[] => allSteps(record).fl
  * (`previous`) or, for back and forward, the one stored with the history
  * entry (`stored`). Attach the page's crumbs with `attachPage`.
  */
-export function priorSteps(kind: NavKind, previous: TrailRecord | null, stored: TrailRecord | null, crumbIndex?: number): TrailStep[] {
+export function priorSteps(kind: NavKind, previous: TrailRecord | null, stored: TrailRecord | null): TrailStep[] {
   switch (kind) {
     case 'menu':
       return [];
@@ -197,17 +204,7 @@ export function priorSteps(kind: NavKind, previous: TrailRecord | null, stored: 
     case 'replace':
       // A redirect takes the previous page's place
       return previous?.base ?? [];
-    case 'crumb': {
-      if (!previous) return [];
-      const steps = allSteps(previous);
-      let start = 0;
-      const k = steps.findIndex((s) => {
-        start += s.crumbs.length;
-        return crumbIndex !== undefined && crumbIndex < start;
-      });
-      // Within the first step: back to the hierarchy; otherwise cut before the crumb's step
-      return k <= 0 ? [] : steps.slice(0, k);
-    }
+    case 'crumb': // A crumb's own cut is cutAtCrumb; without one it is a link like any other
     case 'push':
       return previous ? allSteps(previous) : [];
   }
@@ -223,20 +220,49 @@ export function priorSteps(kind: NavKind, previous: TrailRecord | null, stored: 
  *   any leading ones the trail already shows.
  */
 export function attachPage(prior: TrailStep[], pathname: string, own: Crumb[]): TrailRecord {
-  if (prior.length === 0) return { base: [], current: { pathname, crumbs: own } };
-  const has = (s: TrailStep) => s.pathname === pathname || s.crumbs.some((c) => c.to && pathOf(c.to) === pathname);
+  const ownLinks = own.flatMap((c) => (!c.role && c.to ? [pathOf(c.to)] : []));
+  if (prior.length === 0) return { base: [], current: { pathname, crumbs: own, links: ownLinks } };
+  // A group crumb links to the group's default page, which is no page's parent
+  const links = (c: Crumb, path: string) => c.role !== 'group' && !!c.to && pathOf(c.to) === path;
+  const has = (s: TrailStep) => s.pathname === pathname || s.crumbs.some((c) => links(c, pathname));
   for (let k = prior.length - 1; k >= 0; k--) {
     if (has(prior[k])) return attachPage(prior.slice(0, k), pathname, own);
   }
   const last = prior[prior.length - 1];
-  if (own.some((c) => c.to && pathOf(c.to) === last.pathname)) {
+  if (own.some((c) => links(c, last.pathname))) {
     return attachPage(prior.slice(0, -1), pathname, own);
   }
-  const shown = new Set(prior.flatMap((s) => s.crumbs.flatMap((c) => (c.to ? [pathOf(c.to)] : []))));
+  // A sibling of the previous page (contract A, then B) skips the crumbs that page shows
+  const shown = new Set(last.links ?? last.crumbs.flatMap((c) => (c.to ? [pathOf(c.to)] : [])));
   const tail = own.filter((c) => !c.role);
   let skip = 0;
   while (skip < tail.length - 1 && tail[skip].to && shown.has(pathOf(tail[skip].to!))) skip++;
-  return { base: prior, current: { pathname, crumbs: tail.slice(skip) } };
+  // At most MAX_STEPS steps: the first page's, then the latest
+  const base = prior.length < MAX_STEPS ? prior : [prior[0], ...prior.slice(prior.length - (MAX_STEPS - 2))];
+  return { base, current: { pathname, crumbs: tail.slice(skip), links: ownLinks } };
+}
+
+/** The most steps a trail keeps. */
+export const MAX_STEPS = 10;
+
+/**
+ * A crumb click: the previous trail, cut right after the crumb (its
+ * `crumbIndex` there), or null when the index isn't in it.
+ */
+export function cutAtCrumb(previous: TrailRecord | null, crumbIndex: number | undefined, pathname: string): TrailRecord | null {
+  if (!previous || crumbIndex === undefined) return null;
+  const steps = allSteps(previous);
+  let start = 0;
+  for (let k = 0; k < steps.length; k++) {
+    const end = start + steps[k].crumbs.length;
+    if (crumbIndex < end) {
+      const crumb = steps[k].crumbs[crumbIndex - start];
+      if (!crumb.to || pathOf(crumb.to) !== pathname) return null;
+      return { base: steps.slice(0, k), current: { pathname, crumbs: steps[k].crumbs.slice(0, crumbIndex - start + 1) } };
+    }
+    start = end;
+  }
+  return null;
 }
 
 /** Everything a page's trail depends on. */
@@ -252,12 +278,18 @@ export interface TrailInput extends PageCrumbsInput {
 
 /** The page's trail: where the user came from, then the page's own crumbs. */
 export function buildTrail(input: TrailInput): TrailRecord {
-  const prior = priorSteps(input.kind, input.previous, input.stored, input.crumbIndex);
+  const cut = input.kind === 'crumb' ? cutAtCrumb(input.previous, input.crumbIndex, input.pathname) : null;
+  if (cut) return cut;
+  const prior = priorSteps(input.kind, input.previous, input.stored);
   return attachPage(prior, input.pathname, pageCrumbs(input));
 }
 
 /** A trail as kept in history: links and labels only (no actions). */
 export function storable(record: TrailRecord): TrailRecord {
-  const step = (s: TrailStep): TrailStep => ({ pathname: s.pathname, crumbs: s.crumbs.map(({ onSelect: _onSelect, ...c }) => c) });
+  const step = (s: TrailStep): TrailStep => ({
+    pathname: s.pathname,
+    crumbs: s.crumbs.map(({ onSelect: _onSelect, ...c }) => c),
+    ...(s.links ? { links: s.links } : {}),
+  });
   return { base: record.base.map(step), current: step(record.current) };
 }

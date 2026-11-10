@@ -109,6 +109,14 @@ test('a hierarchy breadcrumb: 12px, links in the accent, the current page in the
   expect(await levels.evaluate((el) => el.tagName)).toBe('SPAN');
   // In <main>, above the page
   expect(await crumbs(page).evaluate((el) => !!el.closest('main'))).toBe(true);
+  // A keyboard focus ring (2px outside the link) isn't clipped by the one-line nav
+  await home.focus();
+  const room = await home.evaluate((link) => {
+    const nav = link.closest('nav')!.getBoundingClientRect();
+    const box = link.getBoundingClientRect();
+    return Math.min(box.top - nav.top, nav.bottom - box.bottom, box.left - nav.left);
+  });
+  expect(room).toBeGreaterThanOrEqual(2);
   await capture(page, 'hierarchy');
 });
 

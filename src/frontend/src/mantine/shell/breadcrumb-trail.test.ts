@@ -155,6 +155,15 @@ describe('pageCrumbs: detail pages', () => {
     expect(text(record)).toBe('Home > Security Features');
   });
 
+  it("drops a sub-page's title that only repeats its menu item (Search's tabs)", () => {
+    expect(text(visit({ path: '/search/llm', page: { dynamicTitle: 'Search' } }))).toBe('Home > Discover > Search');
+  });
+
+  it('keeps an entity named like a crumb above it (the title is compared by path)', () => {
+    const page = { staticSegments: [{ label: 'Data Domains', path: '/settings/data-domains' }], dynamicTitle: 'Organization' };
+    expect(text(visit({ path: '/settings/data-domains/d1', page }))).toBe('Home > Organization > Data domains > Organization');
+  });
+
   it('drops store segments that repeat the hierarchy, Home included', () => {
     const page = { staticSegments: [{ label: 'Home', path: '/' }, { label: 'Data Catalog', path: '/data-catalog' }], dynamicTitle: 'main.sales.orders' };
     expect(text(visit({ path: '/data-catalog/main.sales.orders', page }))).toBe('Home > Discover > Data Catalog > main.sales.orders');
@@ -223,6 +232,21 @@ describe('the trail: following the user', () => {
     expect(text(visit({ path: '/', previous: atDomain(), kind: 'crumb', crumbIndex: 0 }))).toBe('Home');
   });
 
+  it('cuts a crumb click right after the crumb, where an in-page link to the same page would not', () => {
+    // A group crumb: just Home > Build, not the default page's own hierarchy
+    // (an in-page link to /assets gives Home > Build > Assets > Explorer)
+    const build = visit({ path: '/assets', previous: atDomain(), kind: 'crumb', crumbIndex: 1 });
+    expect(text(build)).toBe('Home > Build');
+    expect(text(visit({ path: '/assets', previous: atDomain(), kind: 'push' }))).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Assets > Explorer');
+    // A later of two crumbs to the same page: the trail is cut there, not at the first
+    const returns = visit({ path: '/data-contracts/c2', page: { ...contract, dynamicTitle: 'Returns' }, previous: atDomain(), kind: 'push' });
+    expect(text(returns)).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Data Contracts > Returns');
+    const list = visit({ path: '/data-contracts', previous: returns, kind: 'crumb', crumbIndex: 6 });
+    expect(text(list)).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Data Contracts');
+    // Without a crumb index the click is an ordinary link
+    expect(text(visit({ path: '/data-contracts', previous: returns, kind: 'crumb' }))).toBe(text(visit({ path: '/data-contracts', previous: returns, kind: 'push' })));
+  });
+
   it('restores the trail stored with a history entry on back and forward', () => {
     const stored = storable(atDomain());
     const restored = visit({ path: '/settings/data-domains/d1', page: domain, previous: visit({ path: '/marketplace' }), kind: 'pop', stored });
@@ -250,9 +274,31 @@ describe('the trail: following the user', () => {
     expect(text(replaced)).toBe('Home > Build > Data Contracts > Orders > Teams > Platform team');
   });
 
-  it('leaves out leading crumbs of the new page that the trail already shows', () => {
-    const other = visit({ path: '/data-contracts/c2', page: { ...contract, dynamicTitle: 'Returns' }, previous: atDomain(), kind: 'push' });
-    expect(text(other)).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Returns');
+  it('leaves out leading crumbs the previous page already shows, and only those', () => {
+    // From the domain, a contract: its Data Contracts crumb stays (Returns isn't Finance's)
+    const returns = visit({ path: '/data-contracts/c2', page: { ...contract, dynamicTitle: 'Returns' }, previous: atDomain(), kind: 'push' });
+    expect(text(returns)).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Data Contracts > Returns');
+    // From that contract, another: a sibling, after it
+    const refunds = visit({ path: '/data-contracts/c3', page: { ...contract, dynamicTitle: 'Refunds' }, previous: returns, kind: 'push' });
+    expect(text(refunds)).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Data Contracts > Returns > Refunds');
+  });
+
+  it("doesn't take a group's default page for the parent of every page in the group", () => {
+    // From the Explorer (Build's default page), a contract follows it
+    const fromExplorer = visit({ path: '/data-contracts/c1', page: contract, previous: visit({ path: '/assets' }), kind: 'push' });
+    expect(text(fromExplorer)).toBe('Home > Build > Assets > Explorer > Data Contracts > Orders');
+  });
+
+  it('keeps the first page and the last nine steps of a long trail', () => {
+    let record = atDomain();
+    for (let i = 0; i < 12; i++) {
+      record = visit({ path: `/settings/projects/p${i}`, page: { dynamicTitle: `P${i}` }, previous: record, kind: 'push' });
+    }
+    const steps = [...record.base, record.current];
+    expect(steps).toHaveLength(10);
+    expect(trailCrumbs(record)[0].label).toBe('Home');
+    // The first page, then the steps from P3 on (each project a sibling of the last)
+    expect(text(record)).toBe('Home > Build > Data Contracts > Orders > P3 > P4 > P5 > P6 > P7 > P8 > P9 > P10 > P11');
   });
 
   it('keeps no actions in a stored trail', () => {

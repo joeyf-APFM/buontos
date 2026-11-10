@@ -180,7 +180,7 @@ export default function Layout({ children }: LayoutProps) {
           ) : fullBleed ? (
             children
           ) : (
-            <div className="px-6 pt-2 pb-6">{children}</div>
+            <div className="px-6 pt-2 pb-6" data-page-content="">{children}</div>
           )}
         </main>
       </div>

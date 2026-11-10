@@ -9,7 +9,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import {
   CardSkeleton,
   DetailHeaderSkeleton,
@@ -48,8 +48,8 @@ export default function ComplianceRunDetails() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
   const { get } = useApi();
-  const setStaticSegments = useBreadcrumbStore((s) => s.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

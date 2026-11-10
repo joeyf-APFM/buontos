@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import useBreadcrumbStore, { BreadcrumbSegment } from './breadcrumb-store';
+import useBreadcrumbStore, { BreadcrumbSegment, usePageBreadcrumb } from './breadcrumb-store';
 
 describe('Breadcrumb Store', () => {
   beforeEach(() => {
@@ -432,6 +432,40 @@ describe('Breadcrumb Store', () => {
       expect(state.staticSegments).toEqual([]);
       expect(state.dynamicTitle).toBeNull();
       expect(state.trailingSegments).toEqual([]);
+    });
+  });
+
+  describe('usePageBreadcrumb', () => {
+    it('sets the titles while the page is mounted, and ignores a late set after it unmounts', () => {
+      const { result, unmount } = renderHook(() => usePageBreadcrumb());
+      act(() => result.current.setDynamicTitle('Orders'));
+      expect(useBreadcrumbStore.getState().dynamicTitle).toBe('Orders');
+      const { setDynamicTitle, setStaticSegments } = result.current;
+      unmount();
+      act(() => useBreadcrumbStore.setState({ dynamicTitle: 'Finance', staticSegments: [] }));
+      setDynamicTitle('Orders');
+      setStaticSegments([{ label: 'Data Contracts', path: '/data-contracts' }]);
+      expect(useBreadcrumbStore.getState().dynamicTitle).toBe('Finance');
+      expect(useBreadcrumbStore.getState().staticSegments).toEqual([]);
+    });
+  });
+
+  describe('no page names itself with a placeholder', () => {
+    // A title that is only "Loading..." would be drawn as a crumb, and kept in
+    // the trail of a page the user went on to; null means "not known yet"
+    const sources = import.meta.glob('/src/**/*.tsx', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    it('sets null, not a loading text, while the name loads', () => {
+      const offenders = Object.entries(sources)
+        .filter(([file]) => !file.includes('.test.'))
+        .flatMap(([file, source]) =>
+          source
+            .split('\n')
+            .filter((line) => !line.trim().startsWith('//'))
+            .flatMap((line) => [...line.matchAll(/setDynamicTitle\(([^;]*)/g)])
+            .filter((m) => /loading/i.test(m[1]))
+            .map((m) => `${file}: setDynamicTitle(${m[1]}`),
+        );
+      expect(offenders).toEqual([]);
     });
   });
 });

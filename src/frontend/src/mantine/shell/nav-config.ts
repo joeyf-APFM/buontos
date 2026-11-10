@@ -181,7 +181,7 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
             { id: 'concept-enrich', labelKey: 'shell:items.conceptEnrich', path: '/concepts/enrich', permissionId: 'semantic-models', icon: Sparkles },
             { id: 'concept-mapping', labelKey: 'shell:items.conceptMapping', path: '/concepts/mapping', permissionId: 'semantic-models', icon: GitBranch },
             // The owner's addition (2026-11-10): the collections page, reached before only from Define
-            { id: 'concept-collections', labelKey: 'settings:personaNav.collections', path: '/concepts/collections', permissionId: 'semantic-models', icon: Library },
+            { id: 'concept-collections', labelKey: 'shell:items.conceptCollections', path: '/concepts/collections', permissionId: 'semantic-models', icon: Library },
           ],
         },
         {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import usePermissionsStore from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
@@ -122,6 +123,33 @@ describe('page kit', () => {
     expect(screen.getByText('Settings')).not.toHaveAttribute('aria-current');
     await user.click(screen.getByRole('button', { name: 'Unity Catalog' }));
     expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it('breadcrumb: the "…" button is reached from the keyboard, and its links carry their router state', async () => {
+    const user = userEvent.setup();
+    const items = [
+      { label: 'Home', to: '/', home: true, state: { nav: 'crumb', crumbIndex: 0 } },
+      ...Array.from({ length: 7 }, (_, i) => ({ label: `Level ${i + 1}`, to: `/l${i + 1}`, state: { nav: 'crumb', crumbIndex: i + 1 } })),
+    ];
+    let seen: unknown = null;
+    function Where() {
+      seen = useLocation().state;
+      return null;
+    }
+    renderWithMantine(
+      <>
+        <Breadcrumb label="Breadcrumb" moreLabel="Show the hidden levels" items={items} />
+        <Where />
+      </>,
+    );
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveFocus();
+    await user.tab();
+    const more = screen.getByRole('button', { name: 'Show the hidden levels' });
+    expect(more).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('menuitem', { name: 'Level 2', hidden: true }));
+    expect(seen).toEqual({ nav: 'crumb', crumbIndex: 2 });
   });
 
   it('breadcrumb: a long trail collapses its middle crumbs into "…", listing them in a menu', async () => {

@@ -22,7 +22,7 @@ import dagre from 'dagre';
 
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { Button } from '@/components/ui/button';
 // Card components commented out - not currently used
 // import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -833,8 +833,8 @@ export default function WorkflowDesigner({ workflowId }: WorkflowDesignerProps) 
   const { get, post, put } = useApi();
   const { toast } = useToast();
 
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
   const [workflow, setWorkflow] = useState<ProcessWorkflow | null>(null);
   const [isLoading, setIsLoading] = useState(!isNew);
@@ -1014,7 +1014,7 @@ export default function WorkflowDesigner({ workflowId }: WorkflowDesignerProps) 
     setStaticSegments([
       { label: t('common:labels.workflows'), path: '/workflows' },
     ]);
-    setDynamicTitle(isNew ? t('workflows:designer.newWorkflow') : t('common:states.loading'));
+    setDynamicTitle(isNew ? t('workflows:designer.newWorkflow') : null);
     
     return () => {
       setStaticSegments([]);

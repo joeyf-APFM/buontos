@@ -339,14 +339,14 @@ describe('Build → Concepts (Task 16c)', () => {
       ['concept-hierarchy', 'shell:items.conceptHierarchy', '/concepts/hierarchy'],
       ['concept-enrich', 'shell:items.conceptEnrich', '/concepts/enrich'],
       ['concept-mapping', 'shell:items.conceptMapping', '/concepts/mapping'],
-      ['concept-collections', 'settings:personaNav.collections', '/concepts/collections'],
+      ['concept-collections', 'shell:items.conceptCollections', '/concepts/collections'],
     ]);
     expect(concepts.children!.every((c) => c.permissionId === 'semantic-models')).toBe(true);
   });
 
   it('puts Collections (the owner, 2026-11-10) at /concepts/collections, with an icon of its own in Build', async () => {
-    const settings = (await import('@/i18n/locales/en/settings.json')).default.personaNav;
-    expect(settings.collections).toBe('Collections');
+    const shell = (await import('@/i18n/locales/en/shell.json')).default.items as Record<string, string>;
+    expect(shell.conceptCollections).toBe('Collections');
     const build = NAV.Build.flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])]));
     const collections = build.find((i) => i.id === 'concept-collections')!;
     expect(build.filter((i) => i.icon === collections.icon).map((i) => i.id)).toEqual(['concept-collections']);

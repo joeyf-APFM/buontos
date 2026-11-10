@@ -17,14 +17,14 @@ import { mockApi, unmockedRequests } from './fixtures/api';
 
 const PAGE_WIDTH = 1000;
 
-// The routed page is the child of <main>'s padded content, after the shell's
+// The routed page is the child of <main>'s padded content, under the shell's
 // breadcrumb. Under /settings that is the settings layout, whose last child
 // holds the page.
 const SCREENS = [
-  { path: '/data-products', page: 'main > :nth-child(2) > :first-child', ready: 'main h1' },
-  { path: '/data-contracts', page: 'main > :nth-child(2) > :first-child', ready: 'main h1' },
-  { path: '/compliance', page: 'main > :nth-child(2) > :first-child', ready: 'main h1' },
-  { path: '/settings/general', page: 'main > :nth-child(2) > :first-child > :last-child', ready: 'main h1' },
+  { path: '/data-products', page: 'main [data-page-content] > :first-child', ready: 'main h1' },
+  { path: '/data-contracts', page: 'main [data-page-content] > :first-child', ready: 'main h1' },
+  { path: '/compliance', page: 'main [data-page-content] > :first-child', ready: 'main h1' },
+  { path: '/settings/general', page: 'main [data-page-content] > :first-child > :last-child', ready: 'main h1' },
 ];
 
 test.beforeEach(async ({ page }) => {

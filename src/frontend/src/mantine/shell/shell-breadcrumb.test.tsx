@@ -18,6 +18,7 @@ import AssetTypesView from '@/views/asset-types';
 import DataAssetReviews from '@/views/data-asset-reviews';
 import Compliance from '@/views/compliance';
 import NotFound from '@/views/not-found';
+import DataAssetReviewDetails from '@/views/data-asset-review-details';
 import { NAV } from './nav-config';
 import { SHELL_DEFAULTS, useShellStore } from './use-shell-store';
 import { TRAILS_KEY } from './shell-breadcrumb';
@@ -46,11 +47,13 @@ function grantAll() {
 }
 
 /** A page that names itself through the store, as the detail views do. */
-function Titled({ title, links = [] }: { title?: string; links?: { to: string; label: string }[] }) {
+function Titled({ title, links = [], trailing }: { title?: string; links?: { to: string; label: string }[]; trailing?: { label: string; path?: string }[] }) {
   const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
+  const setTrailingSegments = useBreadcrumbStore((s) => s.setTrailingSegments);
   useEffect(() => {
     if (title) setDynamicTitle(title);
-  }, [title, setDynamicTitle]);
+    if (trailing) setTrailingSegments(trailing);
+  }, [title, trailing, setDynamicTitle, setTrailingSegments]);
   return (
     <div>
       {links.map((l) => (
@@ -72,6 +75,7 @@ function Redirect({ to }: { to: string }) {
 function App() {
   return (
     <Layout>
+      <Link to="/settings/data-domains/d2">leave</Link>
       <Routes>
         <Route path="/" element={<Titled />} />
         <Route path="/settings/asset-types" element={<AssetTypesView />} />
@@ -101,16 +105,26 @@ function App() {
         <Route path="/settings/data-domains" element={<Titled />} />
         <Route path="/settings/data-domains/d1" element={<Titled title="Finance" />} />
         <Route path="/settings/data-domains/d2" element={<Titled />} />
-        <Route path="/settings/data-domains/d3" element={<Titled title="Loading..." />} />
+        <Route path="/settings/data-domains/d4" element={<Titled trailing={DEEP} />} />
+        <Route path="/data-asset-reviews/:requestId" element={<DataAssetReviewDetails />} />
         <Route path="/old-domains" element={<Redirect to="/settings/data-domains" />} />
         <Route path="/dev/untitled" element={<Titled />} />
         <Route path="/security-features" element={<Titled />} />
         <Route path="*" element={<NotFound />} />
-        <Route path="/marketplace" element={<Titled links={[{ to: '/old-domains', label: 'old link' }]} />} />
+        <Route
+          path="/marketplace"
+          element={<Titled links={[{ to: '/old-domains', label: 'old link' }, { to: '/data-asset-reviews/r1', label: 'open review' }]} />}
+        />
       </Routes>
     </Layout>
   );
 }
+
+// Four levels within a page, for a trail long enough to collapse
+const DEEP = ['s1', 's2', 's3', 's4'].map((label) => ({ label, path: `/settings/data-domains/d4?at=${label}` }));
+
+// The review's own answer waits until a test lets it through
+let releaseReview: () => void = () => {};
 
 const crumbNavs = () => screen.queryAllByRole('navigation', { name: 'Breadcrumb' });
 const trail = () => within(crumbNavs()[0]).getAllByRole('listitem').map((li) => li.textContent?.replace(/^>/, ''));
@@ -127,13 +141,20 @@ describe('the shell breadcrumb', () => {
     useBreadcrumbStore.setState({ staticSegments: [], dynamicTitle: null, trailingSegments: [] });
     sessionStorage.clear();
     grantAll();
+    const gate = new Promise<void>((resolve) => {
+      releaseReview = resolve;
+    });
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) =>
-        new Response(String(url).startsWith('/api/health') ? JSON.stringify({ db_ok: true, ws_ok: true, warnings: [] }) : '[]', {
+      vi.fn(async (url: string) => {
+        if (String(url).startsWith('/api/data-asset-reviews/r1')) {
+          await gate;
+          return new Response(JSON.stringify({ id: 'r1', title: 'Review sales tables', status: 'in_review', assets: [] }), { status: 200 });
+        }
+        return new Response(String(url).startsWith('/api/health') ? JSON.stringify({ db_ok: true, ws_ok: true, warnings: [] }) : '[]', {
           status: 200,
-        }),
-      ),
+        });
+      }),
     );
   });
 
@@ -168,12 +189,6 @@ describe('the shell breadcrumb', () => {
   it('shows Home > {page title} on a page in no group (Not Found)', async () => {
     await renderApp('/no-such-page');
     await waitFor(() => expect(trail()).toEqual(['Home', 'Not found']));
-  });
-
-  it('shows nothing for a title that is only "Loading...", as a page shows while its entity loads', async () => {
-    await renderApp('/settings/data-domains/d3');
-    await act(async () => {});
-    expect(trail()).toEqual(['Home', 'Organization', 'Data domains']);
   });
 
   it('keeps Home a link on a page with no title, marking nothing current', async () => {
@@ -223,20 +238,59 @@ describe('the shell breadcrumb', () => {
     // The side menu starts over from the page's own place
     act(() => window.history.forward());
     await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Data Contracts', 'Orders', 'Data domains', 'Finance']));
-    await user.click(screen.getByRole('button', { name: 'Build' }));
-    await user.click(within(screen.getByRole('navigation', { name: 'Build' })).getByRole('link', { name: 'Explorer' }));
-    await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Assets', 'Explorer']));
+    // (Discover's page isn't in the trail, so an ordinary link would extend it)
+    await user.click(screen.getByRole('button', { name: 'Discover' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Discover', 'Marketplace']));
+  });
+
+  it('cuts the trail at a crumb in the "…" menu, by its place in the trail', async () => {
+    const user = userEvent.setup();
+    await renderApp('/settings/data-domains/d4');
+    // Home > Organization > Data domains > s1 > s2 > s3 > s4: seven, so collapsed
+    await waitFor(() => expect(trail()).toEqual(['Home', '…', 's1', 's2', 's3', 's4']));
+    await user.click(within(crumbNavs()[0]).getByRole('button', { name: 'Show the hidden levels' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Organization', hidden: true }));
+    // Cut right after Organization (an ordinary link to its page would show its own place)
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization']));
+  });
+
+  it('shows no placeholder while a name loads, and lets no late name onto the next page', async () => {
+    const user = userEvent.setup();
+    await renderApp('/marketplace');
+    await user.click(screen.getByRole('link', { name: 'open review' }));
+    // The review's name hasn't come: nothing stands for it
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Discover', 'Marketplace', 'Asset Reviews']));
+    // Leave before it loads: the next trail carries no placeholder
+    await user.click(screen.getByRole('link', { name: 'leave' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Discover', 'Marketplace', 'Asset Reviews', 'Data domains']));
+    // The review's answer comes after it left: its name stays out of this page
+    await act(async () => releaseReview());
+    await act(async () => {});
+    expect(useBreadcrumbStore.getState().dynamicTitle).toBeNull();
+    expect(trail()).toEqual(['Home', 'Discover', 'Marketplace', 'Asset Reviews', 'Data domains']);
+  });
+
+  it('ignores a stored trail it cannot read, falling back to the page\'s own place', async () => {
+    // The first entry's key in a fresh history is "default"
+    const oldFormat = { base: [{ pathname: '/marketplace', crumbs: 'Marketplace' }], current: { pathname: '/settings/general' } };
+    sessionStorage.setItem(TRAILS_KEY, JSON.stringify([['default', oldFormat]]));
+    await renderApp('/settings/general');
+    expect(trail()).toEqual(['Home', 'Settings', 'General']);
   });
 
   it('keeps each history entry’s trail in sessionStorage, at most 50', async () => {
     const user = userEvent.setup();
+    const old = Array.from({ length: 55 }, (_, i) => [`old-${i}`, { base: [], current: { pathname: '/', crumbs: [] } }]);
+    sessionStorage.setItem(TRAILS_KEY, JSON.stringify(old));
     await renderApp('/data-contracts/c1');
     await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Data Contracts', 'Orders']));
     await user.click(screen.getByRole('link', { name: 'open Finance' }));
     await waitFor(() => expect(trail()).toHaveLength(6));
     const stored = JSON.parse(sessionStorage.getItem(TRAILS_KEY)!) as [string, unknown][];
-    expect(stored).toHaveLength(2);
-    expect(stored[1][0]).toBe(window.history.state?.key);
+    // The newest 50: the oldest went first, and this entry is last
+    expect(stored).toHaveLength(50);
+    expect(stored[0][0]).toBe('old-7');
+    expect(stored[49][0]).toBe(window.history.state?.key);
   });
 
   it('survives storage that throws', async () => {
