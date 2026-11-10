@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Pane } from '@/mantine/page';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,8 @@ type Props = {
   entityType: EntityKind;
   /** If set, uses the product aggregation endpoint instead of the per-entity one. */
   productAggregation?: boolean;
+  /** Render as a page-kit Pane instead of a Card, for pages on the page kit. The body is the same. */
+  pane?: boolean;
 };
 
 function fmtDate(iso: string) {
@@ -38,7 +41,7 @@ function fmtDate(iso: string) {
   catch { return iso; }
 }
 
-const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggregation }) => {
+const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggregation, pane = false }) => {
   const { t } = useTranslation(['metadata', 'common']);
   const [items, setItems] = React.useState<QualityItem[]>([]);
   const [summary, setSummary] = React.useState<QualitySummary | null>(null);
@@ -151,12 +154,23 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center gap-2">{t('metadata:quality.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  // The panel's frame: a Card, or a page-kit Pane on pages built on the kit
+  const chrome = (body: React.ReactNode) =>
+    pane ? (
+      <Pane title={t('metadata:quality.title')}>
+        <div className="space-y-4">{body}</div>
+      </Pane>
+    ) : (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center gap-2">{t('metadata:quality.title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">{body}</CardContent>
+      </Card>
+    );
+
+  return chrome(
+    <>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button size="icon" variant="ghost" onClick={fetchData}><RefreshCcw className="h-4 w-4" /></Button>
@@ -319,8 +333,7 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
             </div>
           </DialogContent>
         </Dialog>
-      </CardContent>
-    </Card>
+    </>,
   );
 };
 

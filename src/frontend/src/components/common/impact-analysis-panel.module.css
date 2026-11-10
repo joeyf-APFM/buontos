@@ -1,0 +1,96 @@
+/*
+ * The impact panel on the page kit (Task 11): the summary pane, then the
+ * downstream graph in a flush pane. The graph keeps its library (React Flow).
+ */
+.state,
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 0;
+  color: var(--aura-text-secondary);
+}
+
+.error {
+  flex-direction: column;
+  color: var(--aura-critical);
+}
+
+.error p {
+  margin: 0;
+}
+
+.errorIcon,
+.spin {
+  width: 20px;
+  height: 20px;
+}
+
+.spin {
+  animation: impact-spin 1s linear infinite;
+}
+
+@keyframes impact-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The panel's section label (components/common/panel.module.css .sectionLabel) */
+.groupTitle {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* An affected entity: a link-like chip that opens it */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+  padding: 1px 6px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--aura-text-body);
+}
+
+.chip:hover {
+  background: var(--aura-surface-strong);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.chip svg {
+  width: 10px;
+  height: 10px;
+}
+
+.graph {
+  height: 500px;
+}

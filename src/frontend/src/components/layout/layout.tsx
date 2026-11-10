@@ -4,10 +4,9 @@ import { AlertTriangle, DatabaseZap } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { AppShell } from '@/mantine/shell/app-shell';
 import { isFullBleed } from '@/mantine/shell/full-bleed';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { ShellBreadcrumb } from '@/mantine/shell/shell-breadcrumb';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { healthIssueText, retryDetailText, type HealthIssue } from '@/lib/health-issue';
 
 interface HealthState {
@@ -158,14 +157,16 @@ export default function Layout({ children }: LayoutProps) {
             </Alert>
           </div>
         )}
-        <main className={cn('flex-1 overflow-y-auto', !fullBleed && 'p-6')}>
+        <main className="flex-1 overflow-y-auto">
+          {/* The one breadcrumb, on every page; a full-bleed page fills the rest */}
+          <ShellBreadcrumb fullBleed={fullBleed && !isDbDown} />
           {isDbDown ? (
             // Don't render the routed page when the DB is down: most views
             // immediately fetch /api/* which 503s, producing noisy half-broken
             // UI (empty lists, inline error toasts, "HTTP error! status: 503").
             // Show a neutral placeholder instead — the banner above is the
             // single source of truth and offers the retry path.
-            <div className="flex flex-col items-center justify-center text-center py-24 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center text-center px-6 py-24 text-muted-foreground">
               <DatabaseZap className="h-12 w-12 mb-4 opacity-60" />
               <h2 className="text-lg font-medium text-foreground mb-1">
                 {t('navigation:dbDown.pausedTitle')}
@@ -179,10 +180,7 @@ export default function Layout({ children }: LayoutProps) {
           ) : fullBleed ? (
             children
           ) : (
-            <>
-              <Breadcrumbs className="mb-6" />
-              {children}
-            </>
+            <div className="px-6 pt-2 pb-6" data-page-content="">{children}</div>
           )}
         </main>
       </div>

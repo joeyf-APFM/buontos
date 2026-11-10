@@ -64,7 +64,7 @@
 }
 
 .mono {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--aura-font-mono);
 }
 
 .messages {
@@ -130,7 +130,7 @@
 
 .sql {
   margin: 6px 0 0;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--aura-font-mono);
   font-size: 10.5px;
   background: var(--aura-surface-strong);
   border-radius: 4px;

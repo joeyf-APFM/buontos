@@ -1,38 +1,59 @@
-import { useEffect, type MouseEvent } from 'react';
+import { Fragment, useEffect, type MouseEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
-import { NAV_GROUPS, matchInGroup, type NavGroupId, type NavItem, type NavSection } from './nav-config';
+import { NAV_GROUPS, groupFace, menuNavState, type ActiveLocation, type NavGroupId, type NavItem, type NavSection } from './nav-config';
 import { useShellStore } from './use-shell-store';
 import classes from './shell.module.css';
 
 interface GroupPanelProps {
   group: NavGroupId;
   sections: NavSection[];
+  /** Whether the user has the Settings gate (the panel is titled as its strip button). */
+  settingsGate: boolean;
+  /** The current page's place in the menu, or null. */
+  here: ActiveLocation | null;
 }
 
-/** The open group's menu: titled sections, items, and expandable sub-items. */
-export function GroupPanel({ group, sections }: GroupPanelProps) {
-  const { t } = useTranslation(['shell', 'navigation', 'settings', 'features']);
+/**
+ * The open group's menu: titled sections, items, and expandable sub-items.
+ * It highlights one item, the current page, and only when the page is in
+ * this group (Build's Asset types isn't highlighted: the page is Semantics').
+ */
+export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelProps) {
+  const { t } = useTranslation(['shell', 'navigation', 'settings', 'features', 'concepts', 'data-contracts']);
   const { pathname } = useLocation();
   const pinned = useShellStore((s) => s.pinned);
   const expanded = useShellStore((s) => s.expanded);
   const { setPinned, toggleExpanded } = useShellStore((s) => s.actions);
 
-  const match = matchInGroup(sections, pathname);
-  const groupLabel = t(NAV_GROUPS.find((g) => g.id === group)!.labelKey);
+  const match = here?.group === group ? here : null;
+  // The current page's place, one id per depth: item, sub-item, its sub-item
+  const place = match ? [match.itemId, match.childId, match.grandchildId] : [];
+  // Every link here keeps this group for the page it opens
+  const navState = menuNavState(group);
+  const face = groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate);
+  const groupLabel = t(face.labelKey);
 
-  // Show the sub-items of the page you arrive on (you can still fold them)
+  // Show the sub-items of the page you arrive on (you can still fold them):
+  // Concepts for Define, and Define as well for Author Concepts
   const activeParent = match?.childId ? match.itemId : null;
+  const activeSubParent = match?.grandchildId ? match.childId! : null;
+  const activeGrandchild = match?.grandchildId;
   useEffect(() => {
-    if (activeParent && !useShellStore.getState().expanded.includes(activeParent)) toggleExpanded(activeParent);
-  }, [activeParent, pathname, toggleExpanded]);
+    for (const id of [activeParent, activeSubParent]) {
+      if (id && !useShellStore.getState().expanded.includes(id)) toggleExpanded(id);
+    }
+  }, [activeParent, activeSubParent, activeGrandchild, pathname, toggleExpanded]);
+
+  // Whether an item, at its depth, is on the current page's place
+  const onPlace = (item: NavItem, depth: number) => place[depth] === item.id;
 
   // A parent with a page of its own opens it (and unfolds); otherwise, or
   // when you are already on one of its pages, clicking only folds or unfolds.
-  const onParentClick = (item: NavItem) => (event: MouseEvent) => {
-    const navigates = !!item.path && match?.itemId !== item.id;
+  const onParentClick = (item: NavItem, depth: number) => (event: MouseEvent) => {
+    const navigates = !!item.path && !onPlace(item, depth);
     if (navigates) {
       if (!expanded.includes(item.id)) toggleExpanded(item.id);
       return;
@@ -41,55 +62,60 @@ export function GroupPanel({ group, sections }: GroupPanelProps) {
     toggleExpanded(item.id);
   };
 
-  const renderItem = (item: NavItem) => {
+  // One indent step per depth
+  const depthClass = [classes.item, `${classes.item} ${classes.subItem}`, `${classes.item} ${classes.subItem} ${classes.subSubItem}`];
+
+  const renderItem = (item: NavItem, depth = 0): ReactNode => {
     const Icon = item.icon;
     const isOpen = !!item.children && expanded.includes(item.id);
-    const isPage = match?.itemId === item.id && !match.childId;
-    // A folded parent stands in for its active sub-item
-    const isActive = isPage || (!!item.children && !isOpen && match?.itemId === item.id);
+    const onIt = onPlace(item, depth);
+    // The page is this item's own, not one of its (shown) sub-items'
+    const isPage = onIt && !item.children?.some((c) => c.id === place[depth + 1]);
+    // An unfolded parent leaves the highlight to its sub-item; a folded one
+    // stands in for it
+    const isActive = isPage || (!!item.children && !isOpen && onIt);
     const Caret = isOpen ? ChevronDown : ChevronRight;
     const content = (
       <>
-        <Icon className={classes.itemIcon} aria-hidden />
+        {/* Sub-items show no icon */}
+        {depth === 0 && <Icon className={classes.itemIcon} aria-hidden />}
         <span className={classes.itemLabel}>{t(item.labelKey)}</span>
         {item.children && <Caret className={classes.caret} aria-hidden />}
       </>
     );
     const common = {
-      className: classes.item,
+      className: depthClass[Math.min(depth, depthClass.length - 1)],
+      'data-depth': depth,
       'data-active': isActive || undefined,
       'aria-current': isPage ? ('page' as const) : undefined,
       'aria-expanded': item.children ? isOpen : undefined,
     };
-
+    const onClick = item.children ? onParentClick(item, depth) : undefined;
+    const row = item.path ? (
+      <UnstyledButton component={Link} to={item.path} state={navState} {...common} onClick={onClick}>
+        {content}
+      </UnstyledButton>
+    ) : (
+      <UnstyledButton {...common} onClick={onClick}>
+        {content}
+      </UnstyledButton>
+    );
+    const children = isOpen && item.children!.map((child) => renderItem(child, depth + 1));
+    // A top-level item wraps its sub-items; deeper ones sit beside theirs
+    if (depth === 0) {
+      return (
+        <div key={item.id}>
+          {row}
+          {children}
+        </div>
+      );
+    }
+    // Always in a Fragment, so unfolding keeps the row (and its focus)
     return (
-      <div key={item.id}>
-        {item.path ? (
-          <UnstyledButton component={Link} to={item.path} {...common} onClick={item.children ? onParentClick(item) : undefined}>
-            {content}
-          </UnstyledButton>
-        ) : (
-          <UnstyledButton {...common} onClick={onParentClick(item)}>
-            {content}
-          </UnstyledButton>
-        )}
-        {isOpen &&
-          item.children!.map((child) => {
-            const isChildPage = match?.childId === child.id;
-            return (
-              <UnstyledButton
-                key={child.id}
-                component={Link}
-                to={child.path!}
-                className={`${classes.item} ${classes.subItem}`}
-                data-active={isChildPage || undefined}
-                aria-current={isChildPage ? 'page' : undefined}
-              >
-                <span className={classes.itemLabel}>{t(child.labelKey)}</span>
-              </UnstyledButton>
-            );
-          })}
-      </div>
+      <Fragment key={item.id}>
+        {row}
+        {children}
+      </Fragment>
     );
   };
 
@@ -110,8 +136,11 @@ export function GroupPanel({ group, sections }: GroupPanelProps) {
       <div className={classes.items}>
         {sections.map((section, i) => (
           <div key={section.titleKey ?? i}>
-            {section.titleKey && <div className={classes.section}>{t(section.titleKey)}</div>}
-            {section.items.map(renderItem)}
+            {/* A section titled as the panel (Govern, without the Settings gate) shows no heading of its own */}
+            {section.titleKey && section.titleKey !== face.labelKey && (
+              <div className={classes.section}>{t(section.titleKey)}</div>
+            )}
+            {section.items.map((item) => renderItem(item))}
           </div>
         ))}
       </div>

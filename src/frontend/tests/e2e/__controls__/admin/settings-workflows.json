@@ -1,0 +1,8 @@
+[
+  "button \"Create Workflow\"",
+  "button \"Load Defaults\"",
+  "link \"Home\"",
+  "tab \"All\"",
+  "tab \"Approval\"",
+  "tab \"Process\""
+]

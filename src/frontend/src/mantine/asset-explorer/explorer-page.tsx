@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Menu, Pagination, Select, TextInput, UnstyledButton } from '@mantine/core';
+import { Alert, Button, Menu, Pagination, Select, TextInput } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import { AssetFormDialog } from '@/components/common/asset-form-dialog';
@@ -17,6 +17,8 @@ import { AssetTable } from './asset-table';
 import { useExpansions } from './use-expansions';
 import { useExplorerStore } from './explorer-store';
 import { DetailsPanel } from './details-panel';
+import { FilterBar, PageHeader } from '@/mantine/page';
+import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import classes from './explorer.module.css';
 
 const PAGE_SIZE = 50;
@@ -117,6 +119,26 @@ export default function ExplorerPage() {
     },
     [setContext],
   );
+
+  // The selected node's place in the tree follows Explorer in the shell's
+  // breadcrumb: its section, its ancestors (each selects that node), then it
+  const setTrailingSegments = useBreadcrumbStore((s) => s.setTrailingSegments);
+  useEffect(() => {
+    if (!selection) {
+      setTrailingSegments([]);
+      return;
+    }
+    const { node: selected, ancestors, section } = selection;
+    setTrailingSegments([
+      ...(section !== 'data' ? [{ label: t(`tree.sections.${section}`) }] : []),
+      ...ancestors.map((a, i) => ({
+        label: a.label,
+        onSelect: () => onSelectNode({ node: a, ancestors: ancestors.slice(0, i), section }),
+      })),
+      { label: selected.label },
+    ]);
+  }, [selection, onSelectNode, setTrailingSegments, t]);
+  useEffect(() => () => setTrailingSegments([]), [setTrailingSegments]);
 
   const onSelectAsset = (asset: AssetSummary) => {
     setSelectedAsset(asset);
@@ -347,17 +369,6 @@ export default function ExplorerPage() {
     ontologyTypes.find((o) => o.label === typeName || o.local_name === typeName)?.iri ?? null;
   const status = nodeStatus && nodeStatus.key === nodeKey ? nodeStatus.status : null;
   const pages = Math.ceil(page.total / PAGE_SIZE);
-  const crumbs: { label: string; node?: TreeNode }[] = selection
-    ? [
-        ...(selection.section !== 'data' ? [{ label: t(`tree.sections.${selection.section}`) }] : []),
-        ...selection.ancestors.map((a) => ({ label: a.label, node: a })),
-      ]
-    : [];
-  const selectAncestor = (ancestor: TreeNode) => {
-    const { ancestors, section } = selection!;
-    onSelectNode({ node: ancestor, ancestors: ancestors.slice(0, ancestors.indexOf(ancestor)), section });
-  };
-
   // The panel shows the row as the latest answer has it (after an edit, that
   // answer is the refresh); while a refresh loads, the row as saved
   const shownAsset = selectedAsset && ((!loading && page.items.find((a) => a.id === selectedAsset.id)) || selectedAsset);
@@ -401,52 +412,35 @@ export default function ExplorerPage() {
       <section className={classes.main}>
         {node && (
           <>
-            <nav className={classes.crumb} aria-label={t('breadcrumb')}>
-              {crumbs.map((c, i) => (
-                <span key={i}>
-                  {c.node ? (
-                    <UnstyledButton className={classes.crumbLink} onClick={() => selectAncestor(c.node!)}>
-                      {c.label}
-                    </UnstyledButton>
-                  ) : (
-                    c.label
-                  )}{' '}
-                  /{' '}
-                </span>
-              ))}
-              <span>{node.label}</span>
-            </nav>
+            <PageHeader
+              title={node.label}
+              badges={
+                <>
+                  {node.kind === 'asset' && node.assetTypeName && <span className={classes.tag}>{node.assetTypeName}</span>}
+                  {status && <span className={classes.tag}>{t(`status.${status}`, status)}</span>}
+                </>
+              }
+              actions={
+                canWrite &&
+                (fixedType ? (
+                  newAssetButton
+                ) : (
+                  <Menu position="bottom-end" shadow="md">
+                    <Menu.Target>{newAssetButton}</Menu.Target>
+                    <Menu.Dropdown mah={320} style={{ overflowY: 'auto' }}>
+                      <Menu.Label>{t('chooseType')}</Menu.Label>
+                      {assetTypes.map((ty) => (
+                        <Menu.Item key={ty.id} onClick={() => setCreateType(ty)}>
+                          {ty.name}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Dropdown>
+                  </Menu>
+                ))
+              }
+            />
 
-            <div className={classes.header}>
-              <h4 className={classes.title}>{node.label}</h4>
-              {node.kind === 'asset' && node.assetTypeName && <span className={classes.tag}>{node.assetTypeName}</span>}
-              {status && (
-                <span className={classes.tag}>
-                  {t(`status.${status}`, status)}
-                </span>
-              )}
-              {canWrite && (
-                <div className={classes.headerEnd}>
-                  {fixedType ? (
-                    newAssetButton
-                  ) : (
-                    <Menu position="bottom-end" shadow="md">
-                      <Menu.Target>{newAssetButton}</Menu.Target>
-                      <Menu.Dropdown mah={320} style={{ overflowY: 'auto' }}>
-                        <Menu.Label>{t('chooseType')}</Menu.Label>
-                        {assetTypes.map((ty) => (
-                          <Menu.Item key={ty.id} onClick={() => setCreateType(ty)}>
-                            {ty.name}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Dropdown>
-                    </Menu>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className={classes.bar}>
+            <FilterBar hint={(!loading || current) && t('count', { count: page.total })}>
               <TextInput
                 className={classes.filter}
                 aria-label={t('filter.label')}
@@ -487,8 +481,7 @@ export default function ExplorerPage() {
                 nothingFoundMessage={t('filter.conceptSearch')}
                 clearable
               />
-              {(!loading || current) && <span className={classes.count}>{t('count', { count: page.total })}</span>}
-            </div>
+            </FilterBar>
 
             {filterActive && <div className={classes.gridHint}>{t('grid.matchesHint', { node: node.label })}</div>}
             <div className={classes.tableWrap}>

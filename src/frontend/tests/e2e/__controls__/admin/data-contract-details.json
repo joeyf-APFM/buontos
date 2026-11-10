@@ -1,0 +1,22 @@
+[
+  "button \"Add Schema Manually\"",
+  "button \"Add Schema\"",
+  "button \"Add\"",
+  "button \"Back to List\"",
+  "button \"Comments\"",
+  "button \"Create New Version\"",
+  "button \"Delete\"",
+  "button \"Edit Metadata\"",
+  "button \"Export ODCS\"",
+  "button \"Infer from Asset\"",
+  "button \"Infer from Asset\"",
+  "button \"Infer from Catalog\"",
+  "button \"Infer from Catalog\"",
+  "button \"L\"",
+  "button \"M\"",
+  "button \"Profile with DQX\"",
+  "button \"Request...\"",
+  "button \"S\"",
+  "link \"Build\"",
+  "link \"Home\""
+]

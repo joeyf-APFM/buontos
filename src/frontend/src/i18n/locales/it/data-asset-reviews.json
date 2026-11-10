@@ -1,5 +1,6 @@
 {
   "title": "Revisioni Asset Dati",
+  "listPane": "Elenco delle richieste di revisione",
   "subtitle": "Rivedi e approva gli asset dati",
   "newReview": "Nuova Revisione",
   "createRequest": "Crea Nuova Richiesta di Revisione Asset Dati",

@@ -429,6 +429,7 @@
       "finalizing": "確定中..."
     },
     "coSigners": {
+      "list": "共同署名者",
       "minRequired_one": "最低 {{count}} 名の連署者が必要です。",
       "minRequired_other": "最低 {{count}} 名の連署者が必要です。",
       "optional": "このステップでは連署者は任意です。",

@@ -155,7 +155,10 @@
       "loading": "Caricamento della metric view",
       "loadError": "Impossibile caricare la definizione della metric view.",
       "userTokenRequired": "Questa metric view viene letta da Unity Catalog con il tuo accesso, e il tuo accesso a Databricks non è disponibile in questa sessione."
-    }
+    },
+    "tableView": "Vista tabella",
+    "graphView": "Vista grafo",
+    "relationshipGraph": "Grafo delle relazioni"
   },
   "explorer": {
     "title": "Esplora asset",

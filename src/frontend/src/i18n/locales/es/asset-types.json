@@ -1,6 +1,7 @@
 {
   "title": "Tipos de activo",
   "subtitle": "Plantillas reutilizables que definen cómo se estructuran los distintos tipos de activos.",
+  "listPane": "Lista de tipos de activos",
   "addNew": "Añadir tipo de activo",
   "editAssetType": "Editar tipo de activo",
   "deleteAssetType": "Eliminar tipo de activo",

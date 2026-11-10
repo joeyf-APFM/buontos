@@ -1,5 +1,6 @@
 {
   "title": "Data Asset Reviews",
+  "listPane": "Review request list",
   "subtitle": "Review and approve data assets",
   "newReview": "New Review",
   "createRequest": "Create New Data Asset Review Request",

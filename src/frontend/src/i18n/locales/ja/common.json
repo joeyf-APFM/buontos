@@ -583,7 +583,8 @@
     "summary": "影響サマリー",
     "affectedCount_one": "{{count}} 件の影響を受けるエンティティ",
     "affectedCount_other": "{{count}} 件の影響を受けるエンティティ",
-    "noDownstream": "この {{type}} への変更によって影響を受ける下流のエンティティはありません。"
+    "noDownstream": "この {{type}} への変更によって影響を受ける下流のエンティティはありません。",
+    "graph": "影響グラフ"
   },
   "lineageEditor": {
     "reviewStep": "確認と保存",

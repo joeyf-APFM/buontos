@@ -36,7 +36,7 @@ import { useUserStore } from '@/stores/user-store'
 import { FeatureAccessLevel } from '@/types/settings'
 import type { EntitySemanticLink } from '@/types/semantic-link'
 import type { DataContract, SchemaObject, QualityRule, TeamMember, ServerConfig, SLARequirements } from '@/types/data-contract'
-import useBreadcrumbStore from '@/stores/breadcrumb-store'
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store'
 import { useJobCapabilitiesStore } from '@/stores/job-capabilities-store'
 import RequestContractActionDialog from '@/components/data-contracts/request-contract-action-dialog'
 import CreateVersionDialog from '@/components/data-products/create-version-dialog'
@@ -246,8 +246,8 @@ export default function DataContractDetails() {
   const { post, get } = useApi()
   const { userInfo, fetchUserInfo } = useUserStore()
 
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments)
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle)
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb()
 
   const [contract, setContract] = useState<DataContract | null>(null)
   const [loading, setLoading] = useState(true)
@@ -548,7 +548,7 @@ export default function DataContractDetails() {
     if (!contractId) return
     setLoading(true)
     setError(null)
-    setDynamicTitle(t('common:actions.loading', 'Loading...'))
+    setDynamicTitle(null)
     try {
       const [contractRes, linksRes] = await Promise.all([
         fetch(`/api/data-contracts/${contractId}`),

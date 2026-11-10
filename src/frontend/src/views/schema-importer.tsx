@@ -1,19 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Import, Loader2, Eye } from 'lucide-react';
+import { Loader, Select } from '@mantine/core';
+import { Import, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { isFullBleed } from '@/mantine/shell/full-bleed';
 import { useApi } from '@/hooks/use-api';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import type { Connection } from '@/types/connections';
@@ -22,6 +15,13 @@ import SchemaBrowser from '@/components/schema-importer/schema-browser';
 import ImportPreviewDialog from '@/components/schema-importer/import-preview-dialog';
 import { useUICustomizationStore } from '@/stores/ui-customization-store';
 import { useToast } from '@/hooks/use-toast';
+import classes from './schema-importer.module.css';
+
+const DEPTHS: { value: ImportDepth; id: string; label: string; hint: string }[] = [
+  { value: 'selected_only', id: 'depth-selected', label: 'depthSelectedOnly', hint: 'depthSelectedOnlyHint' },
+  { value: 'one_level', id: 'depth-one', label: 'depthOneLevel', hint: 'depthOneLevelHint' },
+  { value: 'full_recursive', id: 'depth-full', label: 'depthFullRecursive', hint: 'depthFullRecursiveHint' },
+];
 
 export default function SchemaImporterView() {
   const { t } = useTranslation(['database-schema', 'settings', 'common']);
@@ -29,6 +29,9 @@ export default function SchemaImporterView() {
   const { get: apiGet } = useApi();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  // On its own route the page fills the main area, under the shell's breadcrumb;
+  // at /concepts/import it sits inside the Concepts layout's padding
+  const ownsPage = isFullBleed(useLocation().pathname);
   const setStaticSegments = useBreadcrumbStore((s) => s.setStaticSegments);
   const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
 
@@ -54,8 +57,9 @@ export default function SchemaImporterView() {
     setIsLoadingConnections(true);
     try {
       const resp = await apiGet<Connection[]>('/api/connections');
-      if (resp.data) {
-        const enabled = resp.data.filter((c) => c.enabled);
+      // A malformed answer lists no connections
+      if (Array.isArray(resp.data)) {
+        const enabled = resp.data.filter((c) => c?.enabled);
         setConnections(enabled);
         if (enabled.length === 1) {
           setSelectedConnectionId(enabled[0].id);
@@ -112,167 +116,129 @@ export default function SchemaImporterView() {
 
   const selectedConnection = connections.find((c) => c.id === selectedConnectionId);
   const canPreview = selectedPaths.size > 0;
+  const title = t('settings:schemaImporter.title', 'Schema Importer');
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          {t('settings:schemaImporter.title', 'Schema Importer')}
-        </h2>
-        <p className="text-muted-foreground">
-          {t(
-            'settings:schemaImporter.description',
-            'Browse remote systems and import their structure as {{appName}} assets.',
-            { appName },
-          )}
-        </p>
-      </div>
+  // One option per connection id: Mantine's Select throws on a repeated value
+  const connectionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return connections
+      .filter((c) => !seen.has(c.id) && !!seen.add(c.id))
+      .map((c) => ({ value: c.id, label: c.name }));
+  }, [connections]);
+  const connectorType = (id: string) => connections.find((c) => c.id === id)?.connector_type;
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        {/* Left panel: connection + options */}
-        <div className="space-y-4">
-          {/* Connection selector */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">{t('common:labels.connection')}</CardTitle>
-              <CardDescription className="text-xs">
-                {t('database-schema:importer.selectConnectionDescription')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingConnections ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t('common:states.loading')}
-                </div>
-              ) : connections.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('database-schema:importer.noConnections')}
-                </p>
-              ) : (
-                <Select
-                  value={selectedConnectionId || ''}
-                  onValueChange={handleConnectionChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('database-schema:importer.chooseConnection')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {connections.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{c.name}</span>
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            {c.connector_type}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Import depth */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">{t('database-schema:importer.importDepth')}</CardTitle>
-              <CardDescription className="text-xs">
-                {t('database-schema:importer.importDepthDescription')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={importDepth}
-                onValueChange={(v) => setImportDepth(v as ImportDepth)}
-                className="space-y-2"
-              >
-                <div className="flex items-start gap-2">
-                  <RadioGroupItem value="selected_only" id="depth-selected" />
-                  <Label htmlFor="depth-selected" className="text-sm font-normal leading-tight cursor-pointer">
-                    <span className="font-medium">{t('database-schema:importer.depthSelectedOnly')}</span>
-                    <br />
-                    <span className="text-xs text-muted-foreground">
-                      {t('database-schema:importer.depthSelectedOnlyHint')}
-                    </span>
-                  </Label>
-                </div>
-                <div className="flex items-start gap-2">
-                  <RadioGroupItem value="one_level" id="depth-one" />
-                  <Label htmlFor="depth-one" className="text-sm font-normal leading-tight cursor-pointer">
-                    <span className="font-medium">{t('database-schema:importer.depthOneLevel')}</span>
-                    <br />
-                    <span className="text-xs text-muted-foreground">
-                      {t('database-schema:importer.depthOneLevelHint')}
-                    </span>
-                  </Label>
-                </div>
-                <div className="flex items-start gap-2">
-                  <RadioGroupItem value="full_recursive" id="depth-full" />
-                  <Label htmlFor="depth-full" className="text-sm font-normal leading-tight cursor-pointer">
-                    <span className="font-medium">{t('database-schema:importer.depthFullRecursive')}</span>
-                    <br />
-                    <span className="text-xs text-muted-foreground">
-                      {t('database-schema:importer.depthFullRecursiveHint')}
-                    </span>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
-          <div className="flex flex-col gap-2">
-            <Button
-              onClick={() => setIsPreviewOpen(true)}
-              disabled={!canPreview}
-              variant="outline"
-              className="w-full"
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              {t('database-schema:importer.previewSelected', { count: selectedPaths.size })}
-            </Button>
-            <Button
-              onClick={() => setIsPreviewOpen(true)}
-              disabled={!canPreview}
-              className="w-full"
-            >
-              <Import className="mr-2 h-4 w-4" />
-              {t('common:actions.import')}
-            </Button>
+  const options = (
+    <Pane
+      title={t('database-schema:importer.options')}
+      actions={selectedConnection?.connector_type && <span className={classes.tag}>{selectedConnection.connector_type}</span>}
+      className={classes.optionsPane}
+    >
+      {/* Connection selector */}
+      <div className={classes.group}>
+        <h3 className={classes.groupTitle}>{t('common:labels.connection')}</h3>
+        <p className={classes.groupHint}>{t('database-schema:importer.selectConnectionDescription')}</p>
+        {isLoadingConnections ? (
+          <div className={classes.loading}>
+            <Loader size={14} />
+            {t('common:states.loading')}
           </div>
-        </div>
-
-        {/* Right panel: tree browser */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-medium">
-                  {selectedConnection
-                    ? t('database-schema:importer.resourcesTitle', { name: selectedConnection.name })
-                    : t('database-schema:importer.resources')}
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  {t('database-schema:importer.resourcesDescription')}
-                </CardDescription>
-              </div>
-              {selectedPaths.size > 0 && (
-                <Badge variant="secondary">{t('database-schema:importer.selectedCount', { count: selectedPaths.size })}</Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <SchemaBrowser
-              connectionId={selectedConnectionId}
-              selectedPaths={selectedPaths}
-              onSelectionChange={setSelectedPaths}
-            />
-          </CardContent>
-        </Card>
+        ) : connections.length === 0 ? (
+          <p className={classes.empty}>{t('database-schema:importer.noConnections')}</p>
+        ) : (
+          <Select
+            data={connectionOptions}
+            value={selectedConnectionId}
+            onChange={(v) => v && handleConnectionChange(v)}
+            allowDeselect={false}
+            // Unnamed, as the Radix trigger was (R16): the placeholder would
+            // name the field, so it is only there while nothing is picked
+            placeholder={selectedConnectionId ? undefined : t('database-schema:importer.chooseConnection')}
+            renderOption={({ option }) => (
+              <span className={classes.option}>
+                <span className={classes.optionName}>{option.label}</span>
+                <span className={classes.tag}>{connectorType(option.value)}</span>
+              </span>
+            )}
+          />
+        )}
       </div>
 
+      {/* Import depth */}
+      <div className={classes.group}>
+        <h3 className={classes.groupTitle}>{t('database-schema:importer.importDepth')}</h3>
+        <p className={classes.groupHint}>{t('database-schema:importer.importDepthDescription')}</p>
+        <RadioGroup value={importDepth} onValueChange={(v) => setImportDepth(v as ImportDepth)}>
+          {DEPTHS.map((d) => (
+            <div key={d.value} className={classes.radio}>
+              <RadioGroupItem value={d.value} id={d.id} />
+              {/* The name and the hint together name the radio, as before */}
+              <label htmlFor={d.id} className={classes.radioLabel}>
+                <span className={classes.radioName}>{t(`database-schema:importer.${d.label}`)}</span>
+                {' '}
+                <span className={classes.radioHint}>{t(`database-schema:importer.${d.hint}`)}</span>
+              </label>
+            </div>
+          ))}
+        </RadioGroup>
+      </div>
+
+      {/* Actions */}
+      <div className={classes.actions}>
+        <Button onClick={() => setIsPreviewOpen(true)} disabled={!canPreview} variant="outline">
+          <Eye />
+          {t('database-schema:importer.previewSelected', { count: selectedPaths.size })}
+        </Button>
+        <Button onClick={() => setIsPreviewOpen(true)} disabled={!canPreview}>
+          <Import />
+          {t('common:actions.import')}
+        </Button>
+      </div>
+    </Pane>
+  );
+
+  /* Right: the tree browser */
+  const resources = (
+    <Pane
+      title={
+        selectedConnection
+          ? t('database-schema:importer.resourcesTitle', { name: selectedConnection.name })
+          : t('database-schema:importer.resources')
+      }
+      actions={
+        selectedPaths.size > 0 && (
+          <span className={classes.tag}>{t('database-schema:importer.selectedCount', { count: selectedPaths.size })}</span>
+        )
+      }
+      flush
+      // The connection's name can be too long for the head
+      titleTooltip
+      className={classes.resourcesPane}
+    >
+      <div className={classes.resourcesBody}>
+        <p className={classes.paneHint}>{t('database-schema:importer.resourcesDescription')}</p>
+        <SchemaBrowser
+          pane
+          connectionId={selectedConnectionId}
+          selectedPaths={selectedPaths}
+          onSelectionChange={setSelectedPaths}
+        />
+      </div>
+    </Pane>
+  );
+
+  const header = <PageHeader title={title} />;
+  const intro = (
+    <p className={classes.intro} data-ruled={ownsPage || undefined}>
+      {t(
+        'settings:schemaImporter.description',
+        'Browse remote systems and import their structure as {{appName}} assets.',
+        { appName },
+      )}
+    </p>
+  );
+
+  const dialogs: ReactNode = (
+    <>
       {/* Preview / Import dialog */}
       {selectedConnectionId && (
         <ImportPreviewDialog
@@ -292,6 +258,35 @@ export default function SchemaImporterView() {
           initialResult={runResult}
         />
       )}
+    </>
+  );
+
+  if (ownsPage) {
+    return (
+      <>
+        <PageLayout
+          fullBleed
+          stackBelow="lg"
+          header={<>{header}{intro}</>}
+        >
+          {options}
+          {resources}
+        </PageLayout>
+        {dialogs}
+      </>
+    );
+  }
+
+  return (
+    <div className={classes.embedded}>
+      {header}
+      {intro}
+      {/* The kit's content row (composed), stacking below lg like PageLayout's stackBelow */}
+      <div className={classes.row} data-stack-below="lg">
+        {options}
+        {resources}
+      </div>
+      {dialogs}
     </div>
   );
 }

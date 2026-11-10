@@ -1,0 +1,210 @@
+/*
+ * The import preview and result dialog on a Mantine Modal, with the Task 7
+ * dialog look (8px corners, 16px padding, the floating shadow, a 14px navy
+ * title) and the trees in the Asset Explorer's 24px rows
+ * (mantine/asset-explorer/explorer.module.css).
+ */
+.content {
+  border: 1px solid var(--aura-border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.header {
+  align-items: flex-start;
+  padding: 16px 16px 0;
+  min-height: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--aura-text-navy);
+}
+
+/* The summary: Mantine's Modal body, so it describes the dialog */
+.description {
+  padding: 4px 16px 0;
+  color: var(--aura-text-secondary);
+}
+
+/* The tree, the run and the footer, after the summary */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+/* The tree, scrolling inside a 1px frame */
+.tree {
+  max-height: 400px;
+  overflow: auto;
+  padding: 4px 0;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.row {
+  composes: treeRow from '../../mantine/asset-explorer/explorer.module.css';
+}
+
+/* Unchecked: it is skipped */
+.row[data-excluded] {
+  opacity: 0.4;
+}
+
+.toggle {
+  composes: chevron from '../../mantine/asset-explorer/explorer.module.css';
+}
+
+/* The overrides on `button.` outrank the composed .chevron (R10) */
+button.toggle,
+button.iconButton {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--aura-text-muted);
+  cursor: pointer;
+}
+
+button.iconButton {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+button.toggle:hover,
+button.iconButton:hover {
+  background: var(--aura-border-subtle);
+}
+
+.toggle svg,
+.iconButton svg {
+  width: 12px;
+  height: 12px;
+}
+
+.spacer {
+  flex: none;
+  width: 16px;
+}
+
+.icon {
+  composes: treeIcon from '../../mantine/asset-explorer/explorer.module.css';
+}
+
+/* One line, an ellipsis, and the whole name in its title */
+.label {
+  composes: treeLabel from '../../mantine/asset-explorer/explorer.module.css';
+}
+
+/* An ancestor (created only to hold the selection) */
+.label[data-ancestor] {
+  color: var(--aura-text-secondary);
+}
+
+.label[data-linked],
+.statusLinked {
+  color: var(--aura-accent-hover);
+}
+
+/* Status icons: the Aura status colours */
+.good {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-good);
+}
+
+.warning {
+  composes: good;
+  color: var(--aura-warning);
+}
+
+.critical {
+  composes: good;
+  color: var(--aura-critical);
+}
+
+.linked {
+  composes: good;
+  color: var(--aura-accent);
+}
+
+.muted {
+  composes: good;
+  color: var(--aura-text-muted);
+}
+
+.badge {
+  flex: none;
+}
+
+.status {
+  flex: none;
+  min-width: 34px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: var(--aura-text-secondary);
+}
+
+/* A background run in flight */
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  background: var(--aura-canvas);
+}
+
+.runLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.runStatus {
+  font-weight: 600;
+}
+
+.runText {
+  color: var(--aura-text-secondary);
+}
+
+.runHint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}

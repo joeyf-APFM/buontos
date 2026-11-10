@@ -1,40 +1,26 @@
 import type { Page, Route } from '@playwright/test';
+import { PERSONAS, type Persona } from './personas';
 
-// Feature ids from src/backend/src/common/features.py, plus the frontend-only
-// ids the navigation checks. The fixture user is an admin everywhere.
-const FEATURE_IDS = [
-  'data-catalog', 'data-products', 'data-contracts', 'assets', 'semantic-models', 'term-mapping',
-  'schema-importer', 'compliance', 'master-data', 'data-asset-reviews', 'security-features',
-  'entitlements', 'entitlements-sync', 'process-workflows', 'access-grants', 'estate-manager',
-  'catalog-commander', 'settings', 'settings-asset-types', 'settings-certification-levels',
-  'settings-maturity-levels', 'settings-general', 'settings-ui', 'settings-connectors', 'settings-git',
-  'settings-mcp', 'settings-directory', 'settings-semantic-models', 'settings-search',
-  'settings-delivery', 'settings-workflows', 'settings-roles', 'data-domains', 'business-roles',
-  'business-owners', 'delivery-methods', 'teams', 'projects', 'tags', 'jobs', 'audit', 'comments',
-  'ontology', 'notifications', 'search', 'my-products', 'my-requests',
-];
+/** Answers by exact /api path: a JSON body, or a function of the request URL that returns one. */
+export type Fixtures = Record<string, unknown>;
 
-const PERMISSIONS = Object.fromEntries(FEATURE_IDS.map((id) => [id, 'Admin']));
-
-const USER = {
-  email: 'e2e.user@example.com',
-  username: 'e2e.user',
-  user: 'E2E User',
-  ip: '127.0.0.1',
-  groups: ['admins'],
-};
+// Answers about the signed-in user, by exact path
+function personaFixtures(persona: Persona): Record<string, unknown> {
+  return {
+    '/api/user/permissions': persona.permissions,
+    '/api/user/actual-permissions': persona.permissions,
+    '/api/user/details': persona.user,
+    '/api/user/info': persona.user,
+    '/api/user/actual-role': { role: persona.role },
+    '/api/user/role-override': { role_id: null },
+    '/api/user/pending-approvals': { workflows: [] },
+  };
+}
 
 // Exact-path answers. Anything else under /api gets an empty list, which every
 // list view renders as its empty state.
-const FIXTURES: Record<string, unknown> = {
+const FIXTURES: Fixtures = {
   '/api/health': { db_ok: true, ws_ok: true, seed_ok: true, warnings: [], warning_details: [], db_error: null },
-  '/api/user/permissions': PERMISSIONS,
-  '/api/user/actual-permissions': PERMISSIONS,
-  '/api/user/details': USER,
-  '/api/user/info': USER,
-  '/api/user/actual-role': { role: { id: 'admin', name: 'Admin' } },
-  '/api/user/role-override': { role_id: null },
-  '/api/user/pending-approvals': { workflows: [] },
   '/api/settings': {
     job_cluster_id: null,
     enabled_jobs: [],
@@ -52,19 +38,28 @@ const NOT_FOUND = new Set(['/api/test/personas']);
 
 export const unmockedRequests: string[] = [];
 
-async function answer(route: Route) {
-  const url = new URL(route.request().url());
-  if (NOT_FOUND.has(url.pathname)) {
-    return route.fulfill({ status: 404, json: { detail: 'Not Found' } });
-  }
-  if (url.pathname in FIXTURES) {
-    return route.fulfill({ json: FIXTURES[url.pathname] });
-  }
-  unmockedRequests.push(`${route.request().method()} ${url.pathname}`);
-  return route.fulfill({ json: [] });
+function answerFor(persona: Persona, data: Fixtures) {
+  const fixtures: Fixtures = { ...FIXTURES, ...data, ...personaFixtures(persona) };
+  return async (route: Route) => {
+    const url = new URL(route.request().url());
+    if (NOT_FOUND.has(url.pathname)) {
+      return route.fulfill({ status: 404, json: { detail: 'Not Found' } });
+    }
+    if (url.pathname in fixtures) {
+      const fixture = fixtures[url.pathname];
+      return route.fulfill({ json: typeof fixture === 'function' ? fixture(url) : fixture });
+    }
+    unmockedRequests.push(`${route.request().method()} ${url.pathname}`);
+    return route.fulfill({ json: [] });
+  };
 }
 
-export async function mockApi(page: Page) {
+/**
+ * Answers every /api call from fixtures, signed in as `persona` (admin by
+ * default). `data` adds records by path (the restyle check passes
+ * fixtures/data.ts); without it, lists come back empty.
+ */
+export async function mockApi(page: Page, persona: Persona = PERSONAS.admin, data: Fixtures = {}) {
   // A predicate, not a glob: '**/api/**' would also catch Vite module URLs
-  await page.route((url) => url.pathname.startsWith('/api/'), answer);
+  await page.route((url) => url.pathname.startsWith('/api/'), answerFor(persona, data));
 }

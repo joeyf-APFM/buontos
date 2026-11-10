@@ -12,48 +12,26 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
-  // BookOpen, // Available for future use
-  Table as TableIcon,
-  Eye,
-  User,
-  Calendar,
-  // Database, // Available for future use
-  Info,
-  Columns,
-  GitBranch,
-  // Loader2, // Available for future use
   AlertCircle,
+  AlertTriangle,
   Copy,
   Check,
-  // ExternalLink, // Available for future use
-  HardDrive,
-  FileType,
-  Tag
+  Columns,
+  GitBranch,
+  Info,
 } from 'lucide-react';
+import { ActionIcon, Alert, Tooltip } from '@mantine/core';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { TabsDetailSkeleton } from '@/components/common/list-view-skeleton';
-import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import LineageGraphComponent from '@/components/data-catalog/lineage-graph';
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
+// The Asset Explorer's grid: 28px header and rows, monospace names
+import grid from '@/mantine/asset-explorer/explorer.module.css';
+import classes from './data-catalog-details.module.css';
 
 import type { 
   TableInfo, 
@@ -242,11 +220,18 @@ const DataCatalogDetails: React.FC = () => {
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
+
+  const backButton = (
+    <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
+      <ArrowLeft /> {t('data-catalog:details.backToList')}
+    </Button>
+  );
+
   if (isLoading) {
-    // Mirrors rendered shape: header (back button), icon+title hero, tabs row
-    // (Overview / Permissions / Lineage), and the two-column overview cards.
+    // Mirrors rendered shape: header (back button), title, tabs row
+    // (Overview / Data Details / Lineage), and the overview panes.
     return (
-      <div className="flex flex-col h-full p-6">
+      <div className={classes.state}>
         <TabsDetailSkeleton tabs={3} actionButtons={1} contentVariant="two-col" />
       </div>
     );
@@ -254,16 +239,13 @@ const DataCatalogDetails: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6">
-        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h2 className="text-xl font-semibold mb-2">{t('common:error')}</h2>
-        <p className="text-muted-foreground mb-4">{error}</p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('data-catalog:details.backToList')}
-          </Button>
-          <Button onClick={fetchTableDetails}>
+      <div className={classes.state}>
+        <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:error')} role="alert">
+          {error}
+        </Alert>
+        <div className={classes.stateActions}>
+          {backButton}
+          <Button onClick={fetchTableDetails} size="sm">
             {t('common:retry', 'Retry')}
           </Button>
         </div>
@@ -277,333 +259,205 @@ const DataCatalogDetails: React.FC = () => {
 
   const isView = tableInfo.table_type === 'VIEW';
 
+  const withBy = (date: string | null | undefined, user: string | null | undefined) => (
+    <span className={classes.dated}>
+      <span>{formatDate(date)}</span>
+      {user && <span className={classes.by}>{t('data-catalog:details.by', { user })}</span>}
+    </span>
+  );
+
+  const basicRows: DetailsRow[] = [
+    { label: t('data-catalog:overview.catalog', 'Catalog'), value: tableInfo.catalog_name },
+    { label: t('data-catalog:overview.schema', 'Schema'), value: tableInfo.schema_name },
+    { label: t('data-catalog:overview.owner', 'Owner'), value: tableInfo.owner || '—' },
+    { label: t('data-catalog:overview.type', 'Type'), value: <Badge variant="outline">{tableInfo.table_type}</Badge> },
+    { label: t('data-catalog:overview.created', 'Created'), value: withBy(tableInfo.created_at, tableInfo.created_by) },
+    { label: t('data-catalog:overview.updated', 'Updated'), value: withBy(tableInfo.updated_at, tableInfo.updated_by) },
+  ];
+
+  const storageRows: DetailsRow[] = [
+    { label: t('data-catalog:overview.columns', 'Columns'), value: tableInfo.columns.length },
+    { label: t('data-catalog:overview.rows', 'Rows'), value: tableInfo.row_count?.toLocaleString() || '—' },
+    { label: t('data-catalog:overview.size', 'Size'), value: formatBytes(tableInfo.size_bytes) },
+    { label: t('data-catalog:overview.format', 'Format'), value: tableInfo.data_source_format || '—' },
+  ];
+  if (tableInfo.storage_location) {
+    storageRows.push({
+      label: t('data-catalog:overview.location', 'Storage Location'),
+      value: (
+        <span className={`${grid.mono} ${classes.location}`} title={tableInfo.storage_location}>
+          {tableInfo.storage_location}
+        </span>
+      ),
+    });
+  }
+
   return (
-    <div className="flex flex-col h-full p-6 gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" /> {t('data-catalog:details.backToList')}
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-3">
-        {isView ? (
-          <Eye className="h-8 w-8 text-green-600 dark:text-green-400" />
-        ) : (
-          <TableIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-        )}
-
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{tableInfo.name}</h1>
-            <Badge variant={isView ? 'secondary' : 'default'}>
-              {tableInfo.table_type}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <code className="text-sm bg-muted px-2 py-0.5 rounded">
-              {tableInfo.full_name}
-            </code>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyFqn}>
-                  {copiedFqn ? (
-                    <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('common:copy')}</TooltipContent>
+    <PageLayout
+      header={
+        <>
+          <PageHeader
+            title={tableInfo.name}
+            badges={<Badge variant={isView ? 'secondary' : 'default'}>{tableInfo.table_type}</Badge>}
+            actions={backButton}
+          />
+          <div className={classes.fqn}>
+            <code className={`${grid.mono} ${classes.code}`}>{tableInfo.full_name}</code>
+            <Tooltip label={t('common:copy')} withArrow={false}>
+              <ActionIcon variant="subtle" color="gray" size={22} onClick={handleCopyFqn}>
+                {copiedFqn ? <Check size={13} className={classes.copied} aria-hidden /> : <Copy size={13} aria-hidden />}
+              </ActionIcon>
             </Tooltip>
           </div>
-        </div>
-      </div>
+        </>
+      }
+    >
+      <div className={classes.body}>
+        <Tabs value={activeTab} onChange={(v) => v && setActiveTab(v)} classNames={{ tabSection: classes.tabIcon }}>
+          <Tabs.List>
+            <Tabs.Tab value="overview" leftSection={<Info aria-hidden />}>
+              {t('data-catalog:tabs.overview', 'Overview')}
+            </Tabs.Tab>
+            <Tabs.Tab value="columns" leftSection={<Columns aria-hidden />}>
+              {t('data-catalog:tabs.dataDetails', 'Data Details')}
+            </Tabs.Tab>
+            <Tabs.Tab value="lineage" leftSection={<GitBranch aria-hidden />}>
+              {t('data-catalog:tabs.lineage', 'Lineage')}
+            </Tabs.Tab>
+          </Tabs.List>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Info className="h-4 w-4" />
-            {t('data-catalog:tabs.overview', 'Overview')}
-          </TabsTrigger>
-          <TabsTrigger value="columns" className="flex items-center gap-2">
-            <Columns className="h-4 w-4" />
-            {t('data-catalog:tabs.dataDetails', 'Data Details')}
-          </TabsTrigger>
-          <TabsTrigger value="lineage" className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4" />
-            {t('data-catalog:tabs.lineage', 'Lineage')}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="flex-1 mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Basic Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('data-catalog:overview.basicInfo', 'Basic Information')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('data-catalog:overview.catalog', 'Catalog')}</p>
-                    <p className="font-medium">{tableInfo.catalog_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('data-catalog:overview.schema', 'Schema')}</p>
-                    <p className="font-medium">{tableInfo.schema_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <User className="h-3.5 w-3.5" />
-                      {t('data-catalog:overview.owner', 'Owner')}
-                    </p>
-                    <p className="font-medium">{tableInfo.owner || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('data-catalog:overview.type', 'Type')}</p>
-                    <Badge variant="outline">{tableInfo.table_type}</Badge>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {t('data-catalog:overview.created', 'Created')}
-                    </p>
-                    <p className="text-sm">{formatDate(tableInfo.created_at)}</p>
-                    {tableInfo.created_by && (
-                      <p className="text-xs text-muted-foreground">{t('data-catalog:details.by', { user: tableInfo.created_by })}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {t('data-catalog:overview.updated', 'Updated')}
-                    </p>
-                    <p className="text-sm">{formatDate(tableInfo.updated_at)}</p>
-                    {tableInfo.updated_by && (
-                      <p className="text-xs text-muted-foreground">{t('data-catalog:details.by', { user: tableInfo.updated_by })}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Storage & Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('data-catalog:overview.storage', 'Storage & Statistics')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Columns className="h-3.5 w-3.5" />
-                      {t('data-catalog:overview.columns', 'Columns')}
-                    </p>
-                    <p className="font-medium">{tableInfo.columns.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('data-catalog:overview.rows', 'Rows')}</p>
-                    <p className="font-medium">
-                      {tableInfo.row_count?.toLocaleString() || '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <HardDrive className="h-3.5 w-3.5" />
-                      {t('data-catalog:overview.size', 'Size')}
-                    </p>
-                    <p className="font-medium">{formatBytes(tableInfo.size_bytes)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <FileType className="h-3.5 w-3.5" />
-                      {t('data-catalog:overview.format', 'Format')}
-                    </p>
-                    <p className="font-medium">{tableInfo.data_source_format || '—'}</p>
-                  </div>
-                </div>
-                
-                {tableInfo.storage_location && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        {t('data-catalog:overview.location', 'Storage Location')}
-                      </p>
-                      <code className="text-xs bg-muted px-2 py-1 rounded block truncate">
-                        {tableInfo.storage_location}
-                      </code>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Description */}
-            {tableInfo.comment && (
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="text-lg">{t('data-catalog:overview.description', 'Description')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm whitespace-pre-wrap">{tableInfo.comment}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tags */}
-            {tableInfo.tags && Object.keys(tableInfo.tags).length > 0 && (
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    {t('data-catalog:overview.tags', 'Tags')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
+          {/* Overview */}
+          <Tabs.Panel value="overview">
+            <PaneStack>
+              <Pane title={t('data-catalog:overview.basicInfo', 'Basic Information')}>
+                <DetailsGrid rows={basicRows} />
+              </Pane>
+              <Pane title={t('data-catalog:overview.storage', 'Storage & Statistics')}>
+                <DetailsGrid rows={storageRows} />
+              </Pane>
+              {tableInfo.comment && (
+                <Pane title={t('data-catalog:overview.description', 'Description')}>
+                  <p className={classes.comment}>{tableInfo.comment}</p>
+                </Pane>
+              )}
+              {tableInfo.tags && Object.keys(tableInfo.tags).length > 0 && (
+                <Pane title={t('data-catalog:overview.tags', 'Tags')}>
+                  <span className={classes.chips}>
                     {Object.entries(tableInfo.tags).map(([key, value]) => (
                       <Badge key={key} variant="secondary">
                         {key}: {value}
                       </Badge>
                     ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
+                  </span>
+                </Pane>
+              )}
+            </PaneStack>
+          </Tabs.Panel>
 
-        {/* Columns Tab */}
-        <TabsContent value="columns" className="flex-1 mt-6">
-          <Card className="h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {t('data-catalog:dataDetails.title', 'Columns')}
-                <Badge variant="secondary" className="ml-2">{tableInfo.columns.length}</Badge>
-              </CardTitle>
-              <CardDescription>
+          {/* Data Details: the columns */}
+          <Tabs.Panel value="columns">
+            <Pane
+              flush
+              title={t('data-catalog:dataDetails.title', 'Columns')}
+              actions={<Badge variant="secondary">{tableInfo.columns.length}</Badge>}
+            >
+              <div className={grid.gridHint}>
                 {t('data-catalog:dataDetails.description', 'Column definitions and metadata')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 min-h-0">
-              <ScrollArea className="h-full">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background">
-                    <TableRow>
-                      <TableHead className="w-[50px]">#</TableHead>
-                      <TableHead>{t('data-catalog:dataDetails.columnName', 'Column Name')}</TableHead>
-                      <TableHead>{t('data-catalog:dataDetails.type', 'Type')}</TableHead>
-                      <TableHead className="w-[80px]">{t('data-catalog:dataDetails.nullable', 'Nullable')}</TableHead>
-                      <TableHead>{t('data-catalog:dataDetails.description', 'Description')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tableInfo.columns.map((col, idx) => (
-                      <TableRow key={col.name}>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {idx + 1}
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-sm font-medium">{col.name}</code>
+              </div>
+              <table className={`${grid.table} ${classes.columns}`}>
+                <thead>
+                  <tr>
+                    <th className={classes.index}>#</th>
+                    <th>{t('data-catalog:dataDetails.columnName', 'Column Name')}</th>
+                    <th>{t('data-catalog:dataDetails.type', 'Type')}</th>
+                    <th>{t('data-catalog:dataDetails.nullable', 'Nullable')}</th>
+                    <th>{t('data-catalog:dataDetails.description', 'Description')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableInfo.columns.map((col, idx) => (
+                    <tr key={col.name}>
+                      <td className={classes.muted}>{idx + 1}</td>
+                      <td>
+                        <span className={classes.nameCell}>
+                          <code className={`${grid.mono} ${classes.code} ${classes.columnName}`}>{col.name}</code>
                           {col.partition_index !== null && col.partition_index !== undefined && (
-                            <Badge variant="outline" className="ml-2 text-xs">
+                            <Badge variant="outline">
                               {t('data-catalog:dataDetails.partition', { index: col.partition_index })}
                             </Badge>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="font-mono text-xs">
-                            {col.type_text}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {col.nullable ? (
-                            <Badge variant="outline" className="text-xs">{t('data-catalog:dataDetails.yes')}</Badge>
-                          ) : (
-                            <Badge variant="destructive" className="text-xs">{t('data-catalog:dataDetails.no')}</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-md">
-                          {col.comment || '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`${grid.mono} ${classes.muted}`}>{col.type_text}</span>
+                      </td>
+                      <td>
+                        {col.nullable ? (
+                          <Badge variant="outline">{t('data-catalog:dataDetails.yes')}</Badge>
+                        ) : (
+                          <Badge variant="destructive">{t('data-catalog:dataDetails.no')}</Badge>
+                        )}
+                      </td>
+                      <td className={classes.commentCell}>
+                        <span className={classes.wrap}>{col.comment || '—'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Pane>
+          </Tabs.Panel>
 
-        {/* Lineage Tab */}
-        <TabsContent value="lineage" className="flex-1 mt-6">
-          <Card className="h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <GitBranch className="h-5 w-5" />
-                {t('data-catalog:lineage.title', 'Data Lineage')}
-              </CardTitle>
-              <CardDescription>
-                {t('data-catalog:lineage.description', 'Visualize upstream and downstream dependencies')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <LineageGraphComponent
-                graph={lineageGraph}
-                isLoading={isLineageLoading}
-                error={lineageError}
-                direction={lineageDirection}
-                onDirectionChange={setLineageDirection}
-                onRefresh={fetchLineage}
-              />
-              
-              {/* Impact Summary */}
+          {/* Lineage */}
+          <Tabs.Panel value="lineage">
+            <PaneStack>
+              <Pane title={t('data-catalog:lineage.title', 'Data Lineage')}>
+                <p className={classes.paneIntro}>
+                  {t('data-catalog:lineage.description', 'Visualize upstream and downstream dependencies')}
+                </p>
+                <LineageGraphComponent
+                  graph={lineageGraph}
+                  isLoading={isLineageLoading}
+                  error={lineageError}
+                  direction={lineageDirection}
+                  onDirectionChange={setLineageDirection}
+                  onRefresh={fetchLineage}
+                />
+              </Pane>
+
+              {/* Impact summary */}
               {impact && impact.total_impacted_count > 0 && (
-                <Card className="mt-6 border-orange-200 dark:border-orange-800">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base text-orange-700 dark:text-orange-300">
-                      {t('data-catalog:lineage.impactSummary', 'Impact Summary')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {t('data-catalog:lineage.impactWarning', 'Changes to this table may affect:')}
-                    </p>
-                    <div className="flex gap-4">
-                      {impact.impacted_tables.length > 0 && (
-                        <Badge variant="outline">{t('data-catalog:lineage.impactedTables', { count: impact.impacted_tables.length })}</Badge>
-                      )}
-                      {impact.impacted_views.length > 0 && (
-                        <Badge variant="outline">{t('data-catalog:lineage.impactedViews', { count: impact.impacted_views.length })}</Badge>
-                      )}
-                      {impact.impacted_external.length > 0 && (
-                        <Badge variant="outline">{t('data-catalog:lineage.impactedExternal', { count: impact.impacted_external.length })}</Badge>
-                      )}
-                    </div>
-                    {impact.affected_owners.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {t('data-catalog:lineage.notifyOwners', 'Owners to notify')}: {impact.affected_owners.join(', ')}
-                      </p>
+                <Pane
+                  title={t('data-catalog:lineage.impactSummary', 'Impact Summary')}
+                  actions={<AlertTriangle aria-hidden className={classes.warning} />}
+                >
+                  <p className={classes.paneIntro}>
+                    {t('data-catalog:lineage.impactWarning', 'Changes to this table may affect:')}
+                  </p>
+                  <span className={classes.chips}>
+                    {impact.impacted_tables.length > 0 && (
+                      <Badge variant="outline">{t('data-catalog:lineage.impactedTables', { count: impact.impacted_tables.length })}</Badge>
                     )}
-                  </CardContent>
-                </Card>
+                    {impact.impacted_views.length > 0 && (
+                      <Badge variant="outline">{t('data-catalog:lineage.impactedViews', { count: impact.impacted_views.length })}</Badge>
+                    )}
+                    {impact.impacted_external.length > 0 && (
+                      <Badge variant="outline">{t('data-catalog:lineage.impactedExternal', { count: impact.impacted_external.length })}</Badge>
+                    )}
+                  </span>
+                  {impact.affected_owners.length > 0 && (
+                    <p className={classes.owners}>
+                      {t('data-catalog:lineage.notifyOwners', 'Owners to notify')}: {impact.affected_owners.join(', ')}
+                    </p>
+                  )}
+                </Pane>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+            </PaneStack>
+          </Tabs.Panel>
+        </Tabs>
+      </div>
+    </PageLayout>
   );
 };
 
 export default DataCatalogDetails;
-

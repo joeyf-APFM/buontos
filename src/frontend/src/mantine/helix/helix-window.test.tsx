@@ -325,13 +325,13 @@ describe('Ask Helix in the icon strip', () => {
 
   const strip = () => screen.getByRole('navigation', { name: 'Main menu' });
 
-  it('sits directly below Discover, labelled Helix, with the Dna icon', async () => {
+  it('sits after the top groups, above Settings, labelled Helix, with the Dna icon', async () => {
     mockBackend();
     renderShell('/search');
 
     const button = await stripButton();
     const names = [...strip().querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Discover', 'Ask Helix', 'Build', 'Settings']);
+    expect(names).toEqual(['Discover', 'Build', 'Ask Helix', 'Settings']);
     expect(button).toHaveTextContent('Helix');
     expect(button).toHaveAttribute('aria-pressed', 'false');
     expect(button.querySelector('[data-helix-icon="dna"]')).not.toBeNull();
@@ -361,7 +361,7 @@ describe('Ask Helix in the icon strip', () => {
     expect(dialog()).toBeInTheDocument();
     expect(within(dialog()!).getByRole('textbox', { name: 'Ask Helix' })).toHaveFocus();
     expect(button).toHaveAttribute('aria-pressed', 'true');
-    expect(button).not.toHaveAttribute('data-open');
+    expect(button).not.toHaveAttribute('data-active');
     expect(useShellStore.getState().openGroup).toBeNull();
     expect(window.location.pathname).toBe('/search');
 

@@ -1,0 +1,145 @@
+/*
+ * A Data Catalog table (/data-catalog/*) on the page kit (Task 12): the kit's
+ * breadcrumb, one-line header, tabs and panes, with the Asset Explorer's grid
+ * (mantine/asset-explorer/explorer.module.css .table) for the columns. What
+ * is left here is the page's own.
+ */
+
+/* Under the header: the full name and its copy button */
+.fqn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -4px;
+  padding: 0 14px 10px;
+  color: var(--aura-text-secondary);
+}
+
+.code {
+  font-size: inherit;
+}
+
+.copied {
+  color: var(--aura-good);
+}
+
+/* The tabs and their panes */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabIcon {
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+.tabIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Details values */
+.dated {
+  display: flex;
+  flex-direction: column;
+}
+
+.by {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* The columns grid: rows open nothing here, so no pointer and no hover
+   tint (above the explorer's hover rule, specificity 0,3,3) */
+table.columns > tbody > tr {
+  cursor: default;
+}
+
+table.columns > tbody > tr:hover:not([data-selected]) > td {
+  background: transparent;
+}
+
+/* Comments wrap, as before, so they read in full; rows without one keep
+   the 28px height */
+table.columns > tbody > tr > td.commentCell {
+  white-space: normal;
+  color: var(--aura-text-secondary);
+}
+
+/* Table cells ignore max-width, so the text's own box sets the measure */
+.wrap {
+  display: block;
+  max-width: 560px;
+  /* The cell's own line height, so a one-line value sits as the other cells do */
+  padding: 4px 0;
+}
+
+table.columns > thead > tr > th.index {
+  width: 50px;
+}
+
+.nameCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.columnName {
+  font-weight: 500;
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+/* Lineage and impact */
+.paneIntro {
+  margin: 0 0 10px;
+  color: var(--aura-text-secondary);
+}
+
+.warning {
+  width: 14px;
+  height: 14px;
+  color: var(--aura-warning);
+}
+
+.owners {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* Loading and error, outside the kit's layout */
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 14px 14px;
+}
+
+.stateActions {
+  display: flex;
+  gap: 8px;
+}

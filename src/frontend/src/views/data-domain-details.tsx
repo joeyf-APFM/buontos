@@ -20,7 +20,7 @@ import ConceptSelectDialog from '@/components/semantic/concept-select-dialog';
 import LinkedConceptChips from '@/components/semantic/linked-concept-chips';
 import type { EntitySemanticLink } from '@/types/semantic-link';
 import { DataDomain } from '@/types/data-domain';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { RelativeDate } from '@/components/common/relative-date';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -237,8 +237,8 @@ export default function DataDomainDetailsView() {
   const { get, post, delete: del } = useApi();
   const { toast } = useToast();
   
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
   const [domain, setDomain] = useState<DataDomain | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -322,7 +322,7 @@ export default function DataDomainDetailsView() {
   const fetchDomainDetails = useCallback(async (id: string) => {
     setIsLoading(true);
     setError(null);
-    setDynamicTitle(t('common:states.loading'));
+    setDynamicTitle(null);
     try {
       const [domainRes, linksRes] = await Promise.all([
         get<DataDomain>(`/api/data-domains/${id}`),

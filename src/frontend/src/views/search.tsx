@@ -30,9 +30,10 @@ export default function SearchView() {
   const currentSlug = pathParts.length > 1 ? pathParts[1] : '';
   const currentTab = SLUG_TO_TAB[currentSlug] || DEFAULT_TAB;
 
+  // The menu names this page (Discover > Search); its tabs add no title of their own
   useEffect(() => {
     setStaticSegments([]);
-    setDynamicTitle(t('title'));
+    setDynamicTitle(null);
     return () => {
       setStaticSegments([]);
       setDynamicTitle(null);

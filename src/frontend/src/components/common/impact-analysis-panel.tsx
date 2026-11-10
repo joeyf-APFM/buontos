@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UnstyledButton } from '@mantine/core';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, RefreshCw, Target, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { LineageGraph } from '@/types/ontology-schema';
 import { BusinessLineageView } from '@/components/lineage';
+import { Pane, PaneStack } from '@/mantine/page';
+import classes from './impact-analysis-panel.module.css';
 
 interface ImpactAnalysisPanelProps {
   entityType: string;
@@ -72,89 +74,87 @@ export function ImpactAnalysisPanel({
 
   const affectedCount = graphData ? graphData.nodes.length - 1 : 0;
 
+  const title = t('common:impactAnalysis.summary');
+
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">{t('common:impactAnalysis.analyzing')}</span>
-        </CardContent>
-      </Card>
+      <Pane title={title}>
+        <div className={classes.state}>
+          <Loader2 className={classes.spin} />
+          <span>{t('common:impactAnalysis.analyzing')}</span>
+        </div>
+      </Pane>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-6 text-center">
-          <AlertCircle className="h-5 w-5 text-destructive mx-auto mb-2" />
-          <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" className="mt-2" onClick={fetchImpact}>
-            <RefreshCw className="mr-2 h-3.5 w-3.5" /> {t('common:retry')}
+      <Pane title={title}>
+        <div className={classes.error}>
+          <AlertCircle className={classes.errorIcon} />
+          <p>{error}</p>
+          <Button variant="outline" size="sm" onClick={fetchImpact}>
+            <RefreshCw /> {t('common:retry')}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </Pane>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <PaneStack>
       {/* Summary */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              {t('common:impactAnalysis.summary')}
-            </span>
-            <Badge variant={affectedCount > 0 ? 'secondary' : 'outline'}>
-              {t('common:impactAnalysis.affectedCount', { count: affectedCount })}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {affectedCount === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('common:impactAnalysis.noDownstream', { type: entityType })}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {Object.entries(groupedImpact).map(([type, entities]) => (
-                <div key={type}>
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                    {type.replace(/([A-Z])/g, ' $1').trim()} ({entities.length})
-                  </h4>
-                  <div className="flex flex-wrap gap-1">
-                    {entities.map((e) => (
-                      <Badge
-                        key={e.entity_id}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-accent text-xs"
-                        onClick={() => navigate(getEntityRoute(type, e.entity_id))}
-                      >
-                        {e.name}
-                        <ExternalLink className="ml-1 h-2.5 w-2.5" />
-                      </Badge>
-                    ))}
-                  </div>
+      <Pane
+        title={title}
+        actions={
+          <Badge variant={affectedCount > 0 ? 'secondary' : 'outline'}>
+            {t('common:impactAnalysis.affectedCount', { count: affectedCount })}
+          </Badge>
+        }
+      >
+        {affectedCount === 0 ? (
+          <p className={classes.empty}>
+            {t('common:impactAnalysis.noDownstream', { type: entityType })}
+          </p>
+        ) : (
+          <div className={classes.groups}>
+            {Object.entries(groupedImpact).map(([type, entities]) => (
+              <div key={type}>
+                <h4 className={classes.groupTitle}>
+                  {type.replace(/([A-Z])/g, ' $1').trim()} ({entities.length})
+                </h4>
+                <div className={classes.chips}>
+                  {entities.map((e) => (
+                    <UnstyledButton
+                      key={e.entity_id}
+                      className={classes.chip}
+                      onClick={() => navigate(getEntityRoute(type, e.entity_id))}
+                    >
+                      {e.name}
+                      <ExternalLink aria-hidden />
+                    </UnstyledButton>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </Pane>
 
-      {/* Graph visualization */}
+      {/* Graph visualization: its own library, in a pane */}
       {affectedCount > 0 && (
-        <BusinessLineageView
-          entityType={entityType}
-          entityId={entityId}
-          direction="downstream"
-          maxDepth={maxDepth}
-          showToolbar={false}
-          className="h-[500px]"
-        />
+        <Pane aria-label={t('common:impactAnalysis.graph')} flush>
+          <BusinessLineageView
+            entityType={entityType}
+            entityId={entityId}
+            direction="downstream"
+            maxDepth={maxDepth}
+            showToolbar={false}
+            className={classes.graph}
+            bare
+          />
+        </Pane>
       )}
-    </div>
+    </PaneStack>
   );
 }

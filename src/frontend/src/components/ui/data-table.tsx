@@ -17,7 +17,8 @@ import {
   Table as TanStackTable,
 } from "@tanstack/react-table";
 
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { Group, Loader, Pagination, TextInput } from "@mantine/core";
 import { useTranslation } from 'react-i18next';
 
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -39,12 +39,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "./card";
 import { cn } from "@/lib/utils";
+import classes from "./data-table.module.css";
 
-// Double angle bracket svgs for pagination
-const ChevronsLeft = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M15.79 14.77a.75.75 0 01-1.06 0l-4.25-4.25a.75.75 0 010-1.06l4.25-4.25a.75.75 0 111.06 1.06L12.31 10l3.48 3.71a.75.75 0 010 1.06zm-6.75 0a.75.75 0 01-1.06 0l-4.25-4.25a.75.75 0 010-1.06l4.25-4.25a.75.75 0 111.06 1.06L5.56 10l3.48 3.71a.75.75 0 010 1.06z" clipRule="evenodd" /></svg>;
-const ChevronsRight = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M4.21 5.23a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 11-1.06-1.06L7.94 10 4.21 6.29a.75.75 0 010-1.06zm6.75 0a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 11-1.06-1.06L14.69 10l-3.72-3.71a.75.75 0 010-1.06z" clipRule="evenodd" /></svg>;
+/** A click on these opens nothing: the row's checkbox (Radix, or Mantine's input[type=checkbox]),
+ *  a Switch (Task 3's Mantine Switch is an input[type=checkbox][role=switch]) and the actions cell. */
+const NO_ROW_CLICK = '[role="checkbox"], input[type="checkbox"], [data-action-cell="true"]';
 
 
 /** Minimum width (px) kept by a column without a declared size in `fixedLayout`. */
@@ -229,7 +229,6 @@ export function DataTable<TData, TValue>({
           checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label={t('common:dataTable.selectAll')}
-          className="translate-y-[2px]"
         />
       ),
       cell: ({ row }) => (
@@ -237,7 +236,6 @@ export function DataTable<TData, TValue>({
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label={t('common:dataTable.selectRow')}
-          className="translate-y-[2px]"
         />
       ),
       enableSorting: false,
@@ -351,12 +349,17 @@ export function DataTable<TData, TValue>({
       .replace(/\b\w/g, char => char.toUpperCase());
   };
 
+  const pageIndex = table.getState().pagination.pageIndex;
+  const pageTotal = table.getPageCount();
+
   return (
-    <div className="space-y-4">
+    <div className={classes.root}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Input
+      <div className={classes.toolbar}>
+        <div className={classes.toolbarStart}>
+          <TextInput
+            size="xs"
+            className={classes.filter}
             placeholder={`${t('filter')} ${searchColumn ? formatColumnId(searchColumn).toLowerCase() + 's' : t('items')}...`}
             value={onSearchChange ? (searchValue ?? "") : (globalFilter ?? "")}
             onChange={(event) =>
@@ -364,12 +367,11 @@ export function DataTable<TData, TValue>({
                 ? onSearchChange(event.target.value)
                 : setGlobalFilter(event.target.value)
             }
-            className="max-w-sm h-9"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto h-9">
-                {t('columns')} <ChevronDown className="ml-2 h-4 w-4" />
+              <Button variant="outline" size="sm">
+                {t('columns')} <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -392,15 +394,15 @@ export function DataTable<TData, TValue>({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={classes.toolbarEnd}>
           {toolbarActions}
         </div>
       </div>
 
       {/* Bulk Actions */}
       {Object.keys(rowSelection).length > 0 && bulkActions && (
-        <div className="flex items-center justify-end gap-2 border-t pt-2 mt-2">
-          <span className="text-sm text-muted-foreground">
+        <div className={classes.bulkBar}>
+          <span className={classes.muted}>
              {Object.keys(rowSelection).length} {t('selected')}
           </span>
           {bulkActions(selectedRowsData)}
@@ -408,104 +410,90 @@ export function DataTable<TData, TValue>({
       )}
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table
-              className={fixedLayout ? 'table-fixed' : undefined}
-              style={fixedTableMinWidth ? { minWidth: fixedTableMinWidth } : undefined}
-            >
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          className={dense ? 'h-9 px-3' : undefined}
-                          style={columnWidthStyle(header.column.id)}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={tableColumns.length}
-                      className="h-24 text-center"
+      <div className={classes.pane}>
+        <Table
+          className={cn(classes.table, fixedLayout && 'table-fixed')}
+          data-dense={dense || undefined}
+          style={fixedTableMinWidth ? { minWidth: fixedTableMinWidth } : undefined}
+        >
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      data-select={header.column.id === 'select' && selectable ? '' : undefined}
+                      style={columnWidthStyle(header.column.id)}
                     >
-                      <div className="flex justify-center items-center">
-                        <Loader2 className="animate-spin h-8 w-8 text-primary" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      onClick={(e) => {
-                        // Prevent row click if clicking inside an action cell or checkbox
-                        const target = e.target as HTMLElement;
-                         if (target.closest('[role="checkbox"]') || target.closest('[data-action-cell="true"]')) {
-                            return;
-                         }
-                         onRowClick?.(row)
-                      }}
-                      className={cn(
-                        onRowClick && "cursor-pointer hover:bg-muted/50"
-                      )}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                           key={cell.id}
-                           className={dense ? 'px-3 py-2' : undefined}
-                           // Mark action cells to prevent row click
-                           {...(cell.column.id === 'actions' ? { 'data-action-cell': 'true' } : {})}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
                           )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow data-placeholder="">
+                <TableCell colSpan={tableColumns.length} className={classes.state}>
+                  <div className={classes.loader} data-loading="">
+                    <Loader size="sm" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  data-clickable={onRowClick ? '' : undefined}
+                  onClick={(e) => {
+                    // Prevent row click if clicking inside an action cell or checkbox
+                    if ((e.target as HTMLElement).closest(NO_ROW_CLICK)) return;
+                    onRowClick?.(row)
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
                     <TableCell
-                      colSpan={tableColumns.length}
-                      className="h-24 text-center"
+                      key={cell.id}
+                      data-select={cell.column.id === 'select' && selectable ? '' : undefined}
+                      // Mark action cells to prevent row click
+                      {...(cell.column.id === 'actions' ? { 'data-action-cell': 'true' } : {})}
                     >
-                      {t('noResults')}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-              {footer !== undefined && footer !== null && (
-                <TableFooter className="bg-muted/40 text-foreground">
-                  {typeof footer === 'function' ? footer(table) : footer}
-                </TableFooter>
-              )}
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow data-placeholder="">
+                <TableCell colSpan={tableColumns.length} className={classes.state}>
+                  {t('noResults')}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+          {footer !== undefined && footer !== null && (
+            <TableFooter>
+              {typeof footer === 'function' ? footer(table) : footer}
+            </TableFooter>
+          )}
+        </Table>
+      </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between space-x-2 pt-4">
-        <div className="flex-1 text-sm text-muted-foreground">
+      <div className={classes.footer}>
+        <div className={classes.muted}>
           {selectable && (
             <>
               {table.getFilteredSelectedRowModel().rows.length} {t('of')}{" "}
@@ -513,16 +501,16 @@ export function DataTable<TData, TValue>({
             </>
           )}
         </div>
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">{t('pagination.rowsPerPage')}</p>
+        <div className={classes.footerEnd}>
+          <div className={classes.pageSize}>
+            <p className={classes.pageSizeLabel}>{t('pagination.rowsPerPage')}</p>
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
                 table.setPageSize(Number(value))
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger className="h-7 w-[64px] text-xs">
                 <SelectValue placeholder={table.getState().pagination.pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
@@ -534,50 +522,40 @@ export function DataTable<TData, TValue>({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            {t('pagination.page')} {table.getState().pagination.pageIndex + 1} {t('of')}{" "}
-            {table.getPageCount() ?? 0} {/* Handle zero pages */}
+          <div className={classes.pageInfo}>
+            {t('pagination.page')} {pageIndex + 1} {t('of')}{" "}
+            {pageTotal ?? 0} {/* Handle zero pages */}
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">{t('pagination.goToFirstPage')}</span>
-              <ChevronsLeft />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">{t('pagination.goToPreviousPage')}</span>
-              <ChevronDown className="h-4 w-4 rotate-90" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">{t('pagination.goToNextPage')}</span>
-              <ChevronDown className="h-4 w-4 -rotate-90" />
-            </Button>
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">{t('pagination.goToLastPage')}</span>
-              <ChevronsRight />
-            </Button>
-          </div>
+          {/* Only the edge controls, each with its own onClick and disabled from the
+              table's state; Root just provides the size and styles */}
+          <Pagination.Root size="sm" total={Math.max(pageTotal, 1)} value={pageIndex + 1}>
+            <Group gap={6} wrap="nowrap">
+              <Pagination.First
+                className={classes.edge}
+                aria-label={t('pagination.goToFirstPage')}
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+              />
+              <Pagination.Previous
+                aria-label={t('pagination.goToPreviousPage')}
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              />
+              <Pagination.Next
+                aria-label={t('pagination.goToNextPage')}
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              />
+              <Pagination.Last
+                className={classes.edge}
+                aria-label={t('pagination.goToLastPage')}
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+              />
+            </Group>
+          </Pagination.Root>
         </div>
       </div>
     </div>
   )
-} 
+}

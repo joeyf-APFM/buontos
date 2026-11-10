@@ -1,0 +1,68 @@
+/*
+ * Data Asset Reviews (/data-asset-reviews) on the page kit (Task 15): full
+ * bleed, the kit's breadcrumb and header, then one flush pane holding the
+ * shared DataTable (components/ui/data-table.tsx), with its toolbar, bordered
+ * grid and pager, 14px in from the page's edges. What is left here is the
+ * page's own; the sort headers are Settings → Asset Types' (asset-types.module.css).
+ */
+
+/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
+   pane scrolls a long list */
+.body {
+  padding: 4px 14px 14px;
+}
+
+.alert {
+  margin: 4px 0 8px;
+}
+
+/* Sortable headers: the grid's header label (11px, 600, text-secondary,
+   inherited from the cell) with a sort mark */
+.sort {
+  composes: sort from './asset-types.module.css';
+}
+
+.sortIcon {
+  composes: sortIcon from './asset-types.module.css';
+}
+
+/* A long title wraps, so it reads in full; table cells ignore max-width, so
+   the text's own box sets the measure. Rows without one keep 28px */
+.title {
+  display: block;
+  min-width: 160px;
+  max-width: 420px;
+  padding: 4px 0;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.person {
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The row's delete: 24px, so the row stays 28px, in the critical colour;
+   `button.` outranks Mantine's ActionIcon colour (R10) */
+button.delete {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-critical);
+}
+
+button.delete:hover {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+.delete svg {
+  width: 14px;
+  height: 14px;
+}

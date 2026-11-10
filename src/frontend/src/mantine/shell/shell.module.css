@@ -3,7 +3,9 @@
 
 .shell {
   --shell-top-height: 44px;
-  --shell-strip-width: 52px;
+  --shell-crumb-height: 30px;
+  /* The owner's width (Task 16c): room for the longest label, Organization, in bold */
+  --shell-strip-width: 90px;
   --shell-panel-width: 200px;
   min-height: 100vh;
   display: flex;
@@ -119,7 +121,7 @@
 }
 
 .groupButton {
-  width: 44px;
+  width: calc(var(--shell-strip-width) - 4px);
   height: 44px;
   border-radius: 6px;
   display: flex;
@@ -128,6 +130,7 @@
   justify-content: center;
   gap: 3px;
   font-size: 9.5px;
+  font-weight: 700;
   color: var(--aura-text-secondary);
 }
 
@@ -135,7 +138,8 @@
   background: var(--aura-surface);
 }
 
-/* Ask Helix and Ask Ontos: like group buttons, with their icons in the accent */
+/* Ask Helix and Ask Ontos: like group buttons, with their icons in the accent.
+   Pressed is their own state (the window is open), not the strip's highlight. */
 .assistantButton svg {
   color: var(--aura-accent);
 }
@@ -145,7 +149,8 @@
   color: var(--aura-accent-hover);
 }
 
-.groupButton[data-open] {
+/* The strip's one highlight: the showing panel's group, or the current page's */
+.groupButton[data-active] {
   background: var(--aura-surface);
   color: var(--aura-accent-hover);
   box-shadow: inset 2px 0 0 var(--aura-accent);
@@ -272,6 +277,22 @@
   background: var(--aura-border);
 }
 
+/* A sub-item's own sub-items (Define → Author Concepts): one more step in,
+   with a guide of their own beside their parent's */
+.subSubItem {
+  padding-left: 56px;
+}
+
+.subSubItem::after {
+  content: '';
+  position: absolute;
+  left: 41px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--aura-border);
+}
+
 .foot {
   flex: none;
   font-size: 10.5px;
@@ -285,4 +306,21 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* The breadcrumb at the top of every page (shell-breadcrumb.tsx): one line,
+   --shell-crumb-height tall, which full-bleed pages leave out of their height */
+.crumbBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: var(--shell-crumb-height, 30px);
+  padding: 0 24px;
+  min-width: 0;
+}
+
+/* Over a full-bleed page: the page's white surface and 14px margin */
+.crumbBar[data-flush] {
+  padding: 0 14px;
+  background: var(--aura-surface);
 }

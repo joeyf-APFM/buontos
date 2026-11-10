@@ -583,7 +583,8 @@
     "summary": "Riepilogo dell'impatto",
     "affectedCount_one": "{{count}} entità interessata",
     "affectedCount_other": "{{count}} entità interessate",
-    "noDownstream": "Nessuna entità a valle interessata dalle modifiche a questo {{type}}."
+    "noDownstream": "Nessuna entità a valle interessata dalle modifiche a questo {{type}}.",
+    "graph": "Grafo dell'impatto"
   },
   "lineageEditor": {
     "reviewStep": "Rivedi e salva",

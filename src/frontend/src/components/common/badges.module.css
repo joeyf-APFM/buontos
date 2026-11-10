@@ -1,0 +1,126 @@
+/* The domain badges (certification, publication, maturity, version count) */
+.badge {
+  gap: 4px;
+  cursor: default;
+}
+
+/* The icon, in the tone's mark colour (set by badgeToneStyle) */
+.mark {
+  flex: none;
+  color: var(--tone-mark, currentColor);
+}
+
+.inherited {
+  font-size: 10px;
+}
+
+/* "(2/5)" after a maturity level: lighter weight, same colour, so it keeps
+   the badge's contrast */
+.count {
+  font-weight: 400;
+}
+
+/* Not assessed */
+.unset {
+  color: var(--aura-text-secondary);
+}
+
+.tooltipLines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The quality and rating chips on cards: a pill in the tone's fill */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.chipMd {
+  font-size: 13px;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+
+.clickable:hover {
+  background: var(--chip-hover, var(--chip-bg));
+}
+
+.gauge {
+  flex: none;
+  border-radius: 50%;
+}
+
+.gaugeInner {
+  display: block;
+  margin: 2px;
+  border-radius: 50%;
+}
+
+.star {
+  flex: none;
+}
+
+.value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  font-variant-numeric: tabular-nums;
+  color: var(--aura-text-secondary);
+}
+
+/* The "N versions" pill beside a version cell */
+.versionCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-canvas);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+
+.versionCount:hover {
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-body);
+}
+
+/* An entity's domains, the primary first */
+.domainList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.domainClickable {
+  cursor: pointer;
+}
+
+.domainClickable:hover {
+  opacity: 0.8;
+}
+
+.domainName {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

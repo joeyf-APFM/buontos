@@ -4,17 +4,18 @@ import CytoscapeComponent from 'react-cytoscapejs';
 import type { Core, ElementDefinition, LayoutOptions } from 'cytoscape';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Select } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import {
   Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize, RotateCcw,
   Group, Ungroup,
 } from 'lucide-react';
 import type { LineageGraph, LineageGraphNode } from '@/types/ontology-schema';
 import { useFormatLabel } from '@/lib/format-label';
+import { cn } from '@/lib/utils';
+import { DISPLAY_FONT } from '@/mantine/theme';
+import classes from './business-lineage-graph.module.css';
 
 // ─── Shared color map — re-exported from lineage constants for backward compat
 export { TYPE_COLOR, DEFAULT_HEX, hexForType } from '@/components/lineage/constants';
@@ -283,7 +284,7 @@ export function BusinessLineageGraph({
       {
         selector: 'node',
         style: {
-          'font-family': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+          'font-family': DISPLAY_FONT,
           'font-size': 11,
           'font-weight': 500,
           'color': textColor,
@@ -468,20 +469,23 @@ export function BusinessLineageGraph({
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
+  // Without a size from the caller, the states are 256px and the graph 500px tall
+  const stateClass = cn(classes.state, className || classes.stateHeight);
+
   if (isLoading) {
     return (
-      <div className={`flex items-center justify-center ${className || 'h-64'}`}>
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">{t('common:businessLineage.loadingRelationships')}</span>
+      <div className={stateClass}>
+        <Loader2 className={classes.spin} />
+        <span>{t('common:businessLineage.loadingRelationships')}</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`flex flex-col items-center justify-center gap-2 ${className || 'h-64'}`}>
-        <AlertCircle className="w-6 h-6 text-destructive" />
-        <p className="text-sm text-destructive">{error}</p>
+      <div className={cn(stateClass, classes.column)}>
+        <AlertCircle className={classes.errorIcon} />
+        <p className={classes.error}>{error}</p>
         <Button variant="outline" size="sm" onClick={fetchGraph}>{t('common:retry')}</Button>
       </div>
     );
@@ -489,65 +493,66 @@ export function BusinessLineageGraph({
 
   if (!graphData || graphData.nodes.length === 0) {
     return (
-      <div className={`flex items-center justify-center ${className || 'h-64'}`}>
-        <p className="text-sm text-muted-foreground">{t('common:businessLineage.noRelationshipData')}</p>
+      <div className={stateClass}>
+        <p className={classes.muted}>{t('common:businessLineage.noRelationshipData')}</p>
       </div>
     );
   }
 
   const entityCount = graphData.nodes.length;
   const edgeCount = graphData.edges.length;
+  const groupLabel = showGroups ? t('common:businessLineage.ungroupByType') : t('common:businessLineage.groupByType');
+  const layouts: LayoutType[] = ['concentric', 'cose', 'circle', 'breadthfirst'];
 
   return (
-    <div className={`flex flex-col border rounded-lg bg-background overflow-hidden ${className || 'h-[500px]'}`}>
+    <div className={cn(classes.root, className || classes.graphHeight)}>
       {/* Toolbar */}
-      <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/20">
-        <div className="flex items-center gap-2">
-          <Select value={layout} onValueChange={(v) => setLayout(v as LayoutType)}>
-            <SelectTrigger className="w-[160px] h-8">
-              <SelectValue placeholder={t('common:businessLineage.layoutPlaceholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="concentric">{t('common:businessLineage.layout.concentric')}</SelectItem>
-              <SelectItem value="cose">{t('common:businessLineage.layout.cose')}</SelectItem>
-              <SelectItem value="circle">{t('common:businessLineage.layout.circle')}</SelectItem>
-              <SelectItem value="breadthfirst">{t('common:businessLineage.layout.breadthfirst')}</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className={classes.toolbar}>
+        <div className={classes.group}>
+          <Select
+            className={classes.layout}
+            aria-label={t('common:businessLineage.layoutPlaceholder')}
+            placeholder={t('common:businessLineage.layoutPlaceholder')}
+            value={layout}
+            onChange={(v) => v && setLayout(v as LayoutType)}
+            allowDeselect={false}
+            data={layouts.map((value) => ({ value, label: t(`common:businessLineage.layout.${value}`) }))}
+          />
 
-          <Button
-            variant={showGroups ? 'secondary' : 'ghost'}
-            size="icon"
-            className="h-8 w-8"
+          <ActionIcon
+            variant={showGroups ? 'light' : 'subtle'}
+            color="gray"
             onClick={() => setShowGroups(g => !g)}
-            title={showGroups ? t('common:businessLineage.ungroupByType') : t('common:businessLineage.groupByType')}
+            title={groupLabel}
+            aria-label={groupLabel}
+            aria-pressed={showGroups}
           >
-            {showGroups ? <Group className="h-4 w-4" /> : <Ungroup className="h-4 w-4" />}
-          </Button>
+            {showGroups ? <Group size={16} /> : <Ungroup size={16} />}
+          </ActionIcon>
 
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary">
             {t('common:businessLineage.countBadge', { entities: entityCount, relationships: edgeCount })}
           </Badge>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} title={t('common:tooltips.zoomOut')}>
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomIn} title={t('common:tooltips.zoomIn')}>
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleFit} title={t('common:tooltips.fitToView')}>
-            <Maximize className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleReset} title={t('common:tooltips.resetLayout')}>
-            <RotateCcw className="h-4 w-4" />
-          </Button>
+        <div className={classes.group}>
+          <ActionIcon variant="subtle" color="gray" onClick={handleZoomOut} title={t('common:tooltips.zoomOut')} aria-label={t('common:tooltips.zoomOut')}>
+            <ZoomOut size={16} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" color="gray" onClick={handleZoomIn} title={t('common:tooltips.zoomIn')} aria-label={t('common:tooltips.zoomIn')}>
+            <ZoomIn size={16} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" color="gray" onClick={handleFit} title={t('common:tooltips.fitToView')} aria-label={t('common:tooltips.fitToView')}>
+            <Maximize size={16} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" color="gray" onClick={handleReset} title={t('common:tooltips.resetLayout')} aria-label={t('common:tooltips.resetLayout')}>
+            <RotateCcw size={16} />
+          </ActionIcon>
         </div>
       </div>
 
       {/* Graph */}
-      <div className="flex-1 relative" style={{ minHeight: 0 }}>
+      <div className={classes.canvas}>
         <CytoscapeComponent
           key={`rel-graph-${showGroups}`}
           cy={(cy: Core) => {

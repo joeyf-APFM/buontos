@@ -1,5 +1,6 @@
 {
   "title": "Daten-Asset-Überprüfungen",
+  "listPane": "Liste der Prüfanfragen",
   "subtitle": "Überprüfen und genehmigen Sie Daten-Assets",
   "newReview": "Neue Überprüfung",
   "createRequest": "Neue Daten-Asset-Überprüfungsanfrage erstellen",

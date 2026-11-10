@@ -30,7 +30,8 @@
     "resources": "Ressourcen",
     "resourcesTitle": "{{name}} — Ressourcen",
     "resourcesDescription": "Knoten erweitern und die zu importierenden Ressourcen auswählen",
-    "selectedCount": "{{count}} ausgewählt"
+    "selectedCount": "{{count}} ausgewählt",
+    "options": "Importoptionen"
   },
   "browser": {
     "selectConnection": "Verbindung auswählen, um ihre Ressourcen zu durchsuchen",

@@ -88,7 +88,7 @@ describe('WorkflowDesigner owner-derived approvers', () => {
     renderDesigner();
     const dialog = await openStep('Approve');
     expect(within(dialog).getAllByRole('combobox')[0]).toHaveTextContent(label);
-    expect(within(dialog).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(within(dialog).getByRole('switch')).not.toBeChecked();
     fireEvent.click(within(dialog).getByTestId('step-config-done'));
     await save();
     expect(savedStep('approve').config.approvers).toBe(stored);
@@ -99,7 +99,7 @@ describe('WorkflowDesigner owner-derived approvers', () => {
     renderDesigner();
     const dialog = await openStep('Notify');
     expect(within(dialog).getAllByRole('combobox')[0]).toHaveTextContent('Contract approvers');
-    expect(within(dialog).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(within(dialog).getByRole('switch')).not.toBeChecked();
     fireEvent.click(within(dialog).getByTestId('step-config-done'));
     await save();
     expect(savedStep('notify').config.recipients).toBe('ContractApprover');
@@ -110,7 +110,7 @@ describe('WorkflowDesigner owner-derived approvers', () => {
     renderDesigner();
     const dialog = await openStep('Approve');
     expect(within(dialog).getAllByRole('combobox')[0]).toHaveTextContent('DataSteward');
-    expect(within(dialog).getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+    expect(within(dialog).getByRole('switch')).toBeChecked();
   });
 
   it('labels the options in the user language', async () => {

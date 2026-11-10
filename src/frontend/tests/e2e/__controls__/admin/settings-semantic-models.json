@@ -1,0 +1,17 @@
+[
+  "button \"Columns\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Industry Library\"",
+  "button \"Name\"",
+  "button \"Rebuild Graph\"",
+  "button \"Refresh list\"",
+  "button \"Upload\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"Home\"",
+  "link \"Semantics\"",
+  "textbox \"Filter names...\""
+]

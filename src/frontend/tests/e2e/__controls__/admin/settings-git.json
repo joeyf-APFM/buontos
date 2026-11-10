@@ -1,0 +1,10 @@
+[
+  "button \"Clone Repository\"",
+  "button \"Save Settings\"",
+  "link \"Connectors\"",
+  "link \"Home\"",
+  "textbox \"Branch\"",
+  "textbox \"Repository URL\"",
+  "textbox \"Token\"",
+  "textbox \"Username\""
+]

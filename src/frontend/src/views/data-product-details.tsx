@@ -27,7 +27,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import TagChip from '@/components/ui/tag-chip';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { usePermissions } from '@/stores/permissions-store';
 import { useUserStore } from '@/stores/user-store';
 import { FeatureAccessLevel } from '@/types/settings';
@@ -456,8 +456,8 @@ export default function DataProductDetails() {
   const { get, post, delete: deleteApi } = api;
   const { lookupWorkflowId } = useApprovalWizardTrigger();
   const { toast } = useToast();
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
   const {
     hasPermission,
     isLoading: permissionsLoading,
@@ -613,7 +613,7 @@ export default function DataProductDetails() {
     setLoading(true);
     setError(null);
     setStaticSegments([{ label: t('data-products:title'), path: listPath }]);
-    setDynamicTitle(t('data-products:details.loading'));
+    setDynamicTitle(null);
 
     try {
       const [productResp, linksResp, qualityResp] = await Promise.all([

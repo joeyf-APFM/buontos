@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { useFormatLabel } from '@/lib/format-label';
 import type { InstanceHierarchyNode } from '@/types/ontology-schema';
 import { AddRelationshipDialog } from '@/components/common/add-relationship-dialog';
+import { Pane } from '@/mantine/page';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,6 +58,11 @@ interface EntityTreePanelProps {
   title?: string;
   className?: string;
   canEdit?: boolean;
+  /**
+   * Render as a page-kit Pane (the title, count and Add in its head) instead
+   * of a Card, for pages on the page kit. The body is the same.
+   */
+  pane?: boolean;
 }
 
 /** Normalized node used at the root level (from flat relationship data). */
@@ -406,6 +412,7 @@ export function EntityTreePanel({
   title,
   className,
   canEdit = false,
+  pane = false,
 }: EntityTreePanelProps) {
   const { t } = useTranslation('common');
   const resolvedTitle = title ?? t('common:entityTree.title');
@@ -504,8 +511,11 @@ export function EntityTreePanel({
 
   // ------ render ------
 
-  if (loading) {
-    return (
+  // Loading and error: the same head, without the count and Add
+  const simple = (body: React.ReactNode) =>
+    pane ? (
+      <Pane title={resolvedTitle} className={className}>{body}</Pane>
+    ) : (
       <Card className={className}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -513,52 +523,35 @@ export function EntityTreePanel({
             {resolvedTitle}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
+        <CardContent>{body}</CardContent>
       </Card>
+    );
+
+  if (loading) {
+    return simple(
+      <div className="flex items-center justify-center py-6">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>,
     );
   }
 
   if (error) {
-    return (
-      <Card className={className}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Link2 className="h-4 w-4" />
-            {resolvedTitle}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+    return simple(
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>,
     );
   }
 
-  return (
+  const addButton = canEdit && (
+    <Button variant="outline" size="sm" onClick={() => setIsAddOpen(true)}>
+      <PlusCircle className="mr-1 h-3.5 w-3.5" /> {t('common:actions.add')}
+    </Button>
+  );
+
+  const body = (
     <>
-      <Card className={className}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Link2 className="h-4 w-4" />
-              {resolvedTitle}
-              <Badge variant="secondary" className="ml-1 text-xs">{total}</Badge>
-            </CardTitle>
-            {canEdit && (
-              <Button variant="outline" size="sm" onClick={() => setIsAddOpen(true)}>
-                <PlusCircle className="mr-1 h-3.5 w-3.5" /> {t('common:actions.add')}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
           {total === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               {t('common:entityRelationships.noneFound')}
@@ -608,8 +601,34 @@ export function EntityTreePanel({
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+    </>
+  );
+
+  return (
+    <>
+      {pane ? (
+        <Pane
+          title={resolvedTitle}
+          className={className}
+          actions={<><Badge variant="secondary">{total}</Badge>{addButton}</>}
+        >
+          {body}
+        </Pane>
+      ) : (
+        <Card className={className}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                {resolvedTitle}
+                <Badge variant="secondary" className="ml-1 text-xs">{total}</Badge>
+              </CardTitle>
+              {addButton}
+            </div>
+          </CardHeader>
+          <CardContent>{body}</CardContent>
+        </Card>
+      )}
 
       {/* Add Relationship Dialog */}
       <AddRelationshipDialog

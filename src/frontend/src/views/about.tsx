@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { getLandingPageFeatures, FeatureConfig } from '@/config/features';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
 import { useUICustomizationStore } from '@/stores/ui-customization-store';
+import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
@@ -19,6 +20,11 @@ export default function About() {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [serverStartTime, setServerStartTime] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  // The shell's breadcrumb: Home > About
+  const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
+  useEffect(() => {
+    setDynamicTitle(t('common:userMenu.about'));
+  }, [setDynamicTitle, t]);
 
   useEffect(() => {
     const fetchServerInfo = async () => {

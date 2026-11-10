@@ -1,0 +1,15 @@
+[
+  "button \"Expand main.sales.orders\"",
+  "combobox \"Concept\"",
+  "combobox \"Status\"",
+  "combobox \"Type\"",
+  "link \"Assets\"",
+  "link \"Build\"",
+  "link \"Explorer\"",
+  "link \"Home\"",
+  "textbox \"Filter assets\"",
+  "treeitem \"External 1\"",
+  "treeitem \"Internal 0\"",
+  "treeitem \"Unity Catalog 3\"",
+  "treeitem \"main 3\""
+]

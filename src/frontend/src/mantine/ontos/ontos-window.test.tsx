@@ -148,7 +148,7 @@ describe('Ask Ontos window', () => {
 
     const button = await ontosButton();
     const names = [...strip().querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Discover', 'Ask Helix', 'Ask Ontos', 'Build']);
+    expect(names).toEqual(['Discover', 'Build', 'Ask Helix', 'Ask Ontos']);
     expect(button).toHaveTextContent('Ontos');
     expect(button).toHaveAttribute('aria-pressed', 'false');
 

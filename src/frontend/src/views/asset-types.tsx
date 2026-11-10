@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, PlusCircle, AlertCircle, Shapes, ChevronDown, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useId, useMemo, useRef } from 'react';
+import { Column, ColumnDef } from '@tanstack/react-table';
+import { MoreHorizontal, PlusCircle, AlertCircle, ArrowUpDown } from 'lucide-react';
+import { ActionIcon, Alert, Loader, Menu, Modal, UnstyledButton } from '@mantine/core';
 import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
@@ -9,19 +10,85 @@ import { AssetTypeRead } from '@/types/asset';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { RelativeDate } from '@/components/common/relative-date';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import SettingsPageWrapper from '@/components/settings/settings-page-wrapper';
 import { useTranslation } from 'react-i18next';
 import { AssetTypeFormDialog } from '@/components/asset-types/asset-type-form-dialog';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { alertDialogRole } from '@/mantine/alert-dialog-role';
+import classes from './asset-types.module.css';
+
+/** A header label that sorts its column, in the grid's header-label look. */
+function SortButton({ column, label }: { column: Column<AssetTypeRead, unknown>; label: string }) {
+  return (
+    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+      {label}
+      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+    </UnstyledButton>
+  );
+}
+
+/** Where focus goes after a dialog: Add, or a row's menu button by the row's id. */
+const ADD = 'add' as const;
+type FocusTarget = typeof ADD | { row: string };
+
+interface RowActionsProps {
+  assetType: AssetTypeRead;
+  canWrite: boolean;
+  canAdmin: boolean;
+  onEdit: (assetType: AssetTypeRead) => void;
+  onDelete: (id: string) => void;
+}
+
+/**
+ * The row's actions menu. Escape or a click outside puts focus back on its
+ * button; an item that opens a dialog doesn't, so the dialog keeps focus
+ * (the page puts focus back once the dialog closes, finding the button by
+ * its data-row-menu, as the list may have re-rendered by then).
+ */
+function RowActions({ assetType, canWrite, canAdmin, onEdit, onDelete }: RowActionsProps) {
+  const { t } = useTranslation(['asset-types']);
+  const [returnFocus, setReturnFocus] = useState(true);
+  const openDialog = (open: () => void) => {
+    setReturnFocus(false);
+    open();
+  };
+  return (
+    // hideDetached off: the menu stays put when its row scrolls out of view,
+    // as the Radix menu did (its hideWhenDetached is off by default)
+    <Menu
+      position="bottom-end"
+      hideDetached={false}
+      returnFocus={returnFocus}
+      onOpen={() => setReturnFocus(true)}
+      classNames={{ label: classes.menuLabel }}
+    >
+      <Menu.Target>
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          aria-label={t('openMenu')}
+          className={classes.menuButton}
+          data-row-menu={assetType.id}
+        >
+          <MoreHorizontal aria-hidden />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>{t('table.actions')}</Menu.Label>
+        <Menu.Item disabled={!canWrite} onClick={() => openDialog(() => onEdit(assetType))}>
+          {t('editAssetType')}
+        </Menu.Item>
+        {/* A separator, as the Radix menu's was */}
+        <Menu.Divider role="separator" />
+        <Menu.Item className={classes.danger} disabled={!canAdmin} onClick={() => openDialog(() => onDelete(assetType.id))}>
+          {t('deleteAssetType')}
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
 
 export default function AssetTypesView() {
   const [assetTypes, setAssetTypes] = useState<AssetTypeRead[]>([]);
@@ -30,6 +97,33 @@ export default function AssetTypesView() {
   const [componentError, setComponentError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAssetType, setEditingAssetType] = useState<AssetTypeRead | null>(null);
+  // Only the latest load may set the list: an earlier one that answers late is dropped
+  const loadId = useRef(0);
+
+  // Focus once a dialog closes, at most once per dialog. The control that
+  // opened it (Add, or a row's menu button) is found again by its data
+  // attribute, because a save or delete reloads the list behind a skeleton,
+  // which remounts the table. Focus moves when the dialog has gone (its exit
+  // transition has ended) and no reload is pending: at once after Cancel or
+  // Escape, after the reload after a save or delete.
+  const titleId = useId();
+  const tableArea = useRef<HTMLDivElement>(null);
+  const focusTarget = useRef<FocusTarget>(ADD);
+  const focusPending = useRef(false);
+  const dialogGone = useRef(true);
+  const awaitingReload = useRef(false);
+  const [focusRequest, setFocusRequest] = useState(0);
+  /** A dialog opens from `target`: focus returns there (or near) once, later. */
+  const dialogOpening = useCallback((target: FocusTarget) => {
+    focusTarget.current = target;
+    focusPending.current = true;
+    dialogGone.current = false;
+  }, []);
+  const maybeReturnFocus = useCallback(() => {
+    if (!focusPending.current || !dialogGone.current || awaitingReload.current) return;
+    focusPending.current = false;
+    setFocusRequest((n) => n + 1);
+  }, []);
 
   const { t } = useTranslation(['asset-types', 'common']);
   const { get: apiGet, delete: apiDelete, loading: apiIsLoading } = useApi();
@@ -41,38 +135,102 @@ export default function AssetTypesView() {
   const canWrite = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
   const canAdmin = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.ADMIN);
 
+  // A save or delete may be waiting for this reload to put focus back
+  const settleReload = useCallback(() => {
+    if (!awaitingReload.current) return;
+    awaitingReload.current = false;
+    maybeReturnFocus();
+  }, [maybeReturnFocus]);
+
   const fetchAssetTypes = useCallback(async () => {
+    const id = ++loadId.current;
     if (!canRead && !permissionsLoading) {
       setComponentError(t('permissions.deniedView'));
+      settleReload();
       return;
     }
     setComponentError(null);
     try {
       const response = await apiGet<AssetTypeRead[]>('/api/asset-types');
+      if (id !== loadId.current) return;
       if (response.error) throw new Error(response.error);
       setAssetTypes(Array.isArray(response.data) ? response.data : []);
+      settleReload();
     } catch (err: any) {
+      if (id !== loadId.current) return;
       setComponentError(err.message || t('messages.loadFailed'));
       setAssetTypes([]);
       toast({ variant: 'destructive', title: t('messages.errorFetching'), description: err.message });
+      settleReload();
     }
-  }, [canRead, permissionsLoading, apiGet, toast, t]);
+  }, [canRead, permissionsLoading, apiGet, toast, t, settleReload]);
+
+  // Focus the target once the page has rendered after the request: the
+  // control if it is there and enabled, else Add, else the page title. Only
+  // if focus is nowhere (body) or still in the closed dialog: if the user
+  // has moved it during a slow reload, it stays where they put it
+  useEffect(() => {
+    if (focusRequest === 0) return;
+    const active = document.activeElement;
+    const free = !active || active === document.body || active.closest('[data-modal-content]') !== null;
+    if (!free) return;
+    const target = focusTarget.current;
+    const area = tableArea.current;
+    const find = (selector: string) => {
+      const el = area?.querySelector<HTMLButtonElement>(selector);
+      return el && !el.disabled ? el : null;
+    };
+    const control =
+      (target !== ADD ? find(`[data-row-menu="${CSS.escape(target.row)}"]`) : null) ?? find('[data-add-asset-type]');
+    if (control) {
+      control.focus();
+      return;
+    }
+    const heading = document.getElementById(titleId);
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus();
+    }
+  }, [focusRequest, titleId]);
+
+  /** A dialog's exit transition has ended: focus goes back, unless a reload is on its way. */
+  const dialogExited = useCallback(() => {
+    dialogGone.current = true;
+    maybeReturnFocus();
+  }, [maybeReturnFocus]);
+
+  const saved = useCallback(() => {
+    awaitingReload.current = true;
+    fetchAssetTypes();
+  }, [fetchAssetTypes]);
 
   useEffect(() => {
     fetchAssetTypes();
   }, [fetchAssetTypes]);
 
-  const openDeleteDialog = (id: string) => {
+  const openDeleteDialog = useCallback((id: string) => {
     if (!canAdmin) {
       toast({ variant: 'destructive', title: t('permissions.permissionDenied'), description: t('permissions.deniedDelete') });
       return;
     }
+    dialogOpening({ row: id });
     setDeletingId(id);
     setIsDeleteDialogOpen(true);
-  };
+  }, [canAdmin, toast, t, dialogOpening]);
+
+  const openEditForm = useCallback((assetType: AssetTypeRead) => {
+    dialogOpening({ row: assetType.id });
+    setEditingAssetType(assetType);
+    setIsFormOpen(true);
+  }, [dialogOpening]);
 
   const handleDeleteConfirm = async () => {
     if (!deletingId || !canAdmin) return;
+    // Focus waits for the outcome: the row is gone after a delete, so Add
+    // takes it; after a failure, the row's button gets it back
+    const row = focusTarget.current;
+    awaitingReload.current = true;
+    focusTarget.current = ADD;
     try {
       const response = await apiDelete(`/api/asset-types/${deletingId}`);
       if (response.error) throw new Error(response.error);
@@ -80,6 +238,11 @@ export default function AssetTypesView() {
       fetchAssetTypes();
     } catch (err: any) {
       toast({ variant: 'destructive', title: t('messages.errorDeleting'), description: err.message });
+      // Back to the row's button, once the dialog's exit has ended (it
+      // closed on the click; maybeReturnFocus waits for dialogExited)
+      awaitingReload.current = false;
+      focusTarget.current = row;
+      maybeReturnFocus();
     } finally {
       setIsDeleteDialogOpen(false);
       setDeletingId(null);
@@ -89,16 +252,12 @@ export default function AssetTypesView() {
   const columns = useMemo<ColumnDef<AssetTypeRead>[]>(() => [
     {
       accessorKey: 'name',
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          {t('table.name')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.name')} />,
       cell: ({ row }) => (
-        <div>
-          <span className="font-medium">{row.original.name}</span>
+        <div className={classes.name}>
+          <span className={classes.nameText}>{row.original.name}</span>
           {row.original.is_system && (
-            <Badge variant="outline" className="ml-2 text-xs">{t('systemBadge')}</Badge>
+            <Badge variant="outline" className={classes.badge}>{t('systemBadge')}</Badge>
           )}
         </div>
       ),
@@ -107,9 +266,7 @@ export default function AssetTypesView() {
       accessorKey: 'description',
       header: t('table.description'),
       cell: ({ row }) => (
-        <div className="truncate max-w-sm text-sm text-muted-foreground">
-          {row.original.description || '-'}
-        </div>
+        <span className={classes.description}>{row.original.description || '-'}</span>
       ),
     },
     {
@@ -132,16 +289,12 @@ export default function AssetTypesView() {
       accessorKey: 'asset_count',
       header: t('table.assetCount'),
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.original.asset_count}</span>
+        <span className={classes.count}>{row.original.asset_count}</span>
       ),
     },
     {
       accessorKey: 'updated_at',
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          {t('table.lastUpdated')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.lastUpdated')} />,
       cell: ({ row }) => row.original.updated_at
         ? <RelativeDate date={row.original.updated_at} />
         : t('common:states.notAvailable'),
@@ -150,89 +303,110 @@ export default function AssetTypesView() {
       id: 'actions',
       header: t('table.actions'),
       cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">{t('openMenu')}</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('table.actions')}</DropdownMenuLabel>
-            <DropdownMenuItem disabled={!canWrite} onClick={() => { setEditingAssetType(row.original); setIsFormOpen(true); }}>{t('editAssetType')}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => openDeleteDialog(row.original.id)}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:text-red-400 dark:focus:bg-red-950"
-              disabled={!canAdmin}
-            >
-              {t('deleteAssetType')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <RowActions
+          assetType={row.original}
+          canWrite={canWrite}
+          canAdmin={canAdmin}
+          onEdit={openEditForm}
+          onDelete={openDeleteDialog}
+        />
       ),
     },
-  ], [canWrite, canAdmin, t]);
+  ], [canWrite, canAdmin, t, openEditForm, openDeleteDialog]);
+
+  const title = t('title');
+  const content = (apiIsLoading || permissionsLoading) ? (
+    <ListViewSkeleton columns={7} rows={5} toolbarButtons={1} />
+  ) : !canRead ? (
+    <Alert color="red" variant="light" icon={<AlertCircle />} title={t('permissions.permissionDenied')} classNames={{ title: classes.alertTitle }}>
+      {t('permissions.deniedView')}
+    </Alert>
+  ) : componentError ? (
+    <Alert color="red" variant="light" icon={<AlertCircle />} title={t('messages.errorLoadingData')} classNames={{ title: classes.alertTitle }}>
+      {componentError}
+    </Alert>
+  ) : (
+    <DataTable
+      columns={columns}
+      data={assetTypes}
+      searchColumn="name"
+      storageKey="asset-types-sort"
+      toolbarActions={
+        <Button
+          data-add-asset-type=""
+          onClick={() => {
+            dialogOpening(ADD);
+            setEditingAssetType(null);
+            setIsFormOpen(true);
+          }}
+          disabled={!canWrite || apiIsLoading}
+        >
+          <PlusCircle /> {t('addNew')}
+        </Button>
+      }
+    />
+  );
 
   return (
-    <SettingsPageWrapper title={t('title')} permissionId="settings-asset-types">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Shapes className="w-8 h-8" />
-          {t('title')}
-        </h1>
-        <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
-      </div>
-
-      {(apiIsLoading || permissionsLoading) ? (
-        <ListViewSkeleton columns={7} rows={5} toolbarButtons={1} />
-      ) : !canRead ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('permissions.permissionDenied')}</AlertTitle>
-          <AlertDescription>{t('permissions.deniedView')}</AlertDescription>
-        </Alert>
-      ) : componentError ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('messages.errorLoadingData')}</AlertTitle>
-          <AlertDescription>{componentError}</AlertDescription>
-        </Alert>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={assetTypes}
-          searchColumn="name"
-          storageKey="asset-types-sort"
-          toolbarActions={
-            <Button onClick={() => { setEditingAssetType(null); setIsFormOpen(true); }} disabled={!canWrite || apiIsLoading} className="h-9">
-              <PlusCircle className="mr-2 h-4 w-4" /> {t('addNew')}
-            </Button>
-          }
-        />
-      )}
+    <SettingsPageWrapper title={title} permissionId="settings-asset-types" fullBleed>
+      <PageLayout
+        fullBleed
+        header={
+          <>
+            <PageHeader title={title} titleId={titleId} />
+            <p className={classes.subtitle}>{t('subtitle')}</p>
+          </>
+        }
+      >
+        <Pane flush aria-label={t('listPane')}>
+          <div ref={tableArea} className={classes.body}>{content}</div>
+        </Pane>
+      </PageLayout>
 
       <AssetTypeFormDialog
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
         assetType={editingAssetType}
-        onSubmitSuccess={fetchAssetTypes}
+        onSubmitSuccess={saved}
+        onExited={dialogExited}
       />
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteDialog.title')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('deleteDialog.description')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingId(null)}>{t('deleteDialog.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700" disabled={apiIsLoading}>
-              {apiIsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('deleteDialog.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* As the Radix AlertDialog: an alertdialog (alertDialogRole), no close
+          button, a click outside leaves it open, Escape closes it, and Cancel
+          has focus */}
+      <Modal.Root
+        opened={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        size={512}
+        centered
+        closeOnClickOutside={false}
+        returnFocus={false}
+        onExitTransitionEnd={dialogExited}
+      >
+        <Modal.Overlay />
+        <Modal.Content ref={alertDialogRole} className={classes.dialog}>
+          <Modal.Header className={classes.dialogHeader}>
+            <Modal.Title className={classes.dialogTitle}>{t('deleteDialog.title')}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className={classes.dialogDescription}>{t('deleteDialog.description')}</Modal.Body>
+          <div className={classes.dialogFooter}>
+            <Button variant="outline" data-autofocus onClick={() => { setIsDeleteDialogOpen(false); setDeletingId(null); }}>
+              {t('deleteDialog.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={apiIsLoading}
+              onClick={() => {
+                // As the AlertDialog's action: it closes at once, then deletes
+                setIsDeleteDialogOpen(false);
+                handleDeleteConfirm();
+              }}
+            >
+              {apiIsLoading ? <Loader size={12} color="currentColor" /> : null} {t('deleteDialog.delete')}
+            </Button>
+          </div>
+        </Modal.Content>
+      </Modal.Root>
     </SettingsPageWrapper>
   );
 }

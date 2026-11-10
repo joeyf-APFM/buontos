@@ -1,18 +1,40 @@
 import * as React from "react"
+import { Input as MantineInput } from "@mantine/core"
 
 import { cn } from "@/lib/utils"
+
+import { isAriaInvalid, splitFieldClassName } from "./field-props"
+
+type NativeProps = { id?: string; disabled?: boolean }
+
+// As in input.tsx: withAria={false} keeps the caller's aria attributes, and
+// this element puts id and disabled back on the <textarea>.
+const NativeTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.ComponentProps<"textarea"> & { nativeProps?: NativeProps }
+>(({ nativeProps, ...props }, ref) => <textarea ref={ref} {...props} {...nativeProps} />)
+NativeTextarea.displayName = "NativeTextarea"
 
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
->(({ className, ...props }, ref) => {
+>(({ className, style, id, disabled, ...props }, ref) => {
+  const classes = splitFieldClassName(className)
   return (
-    <textarea
-      className={cn(
-        "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        className
-      )}
+    <MantineInput<typeof NativeTextarea>
+      component={NativeTextarea}
       ref={ref}
+      size="xs"
+      multiline
+      withAria={false}
+      error={isAriaInvalid(props["aria-invalid"])}
+      disabled={disabled}
+      nativeProps={{ id, disabled }}
+      // The shadcn field was w-full; caller width classes still win
+      className={cn("w-full", classes.root)}
+      // Mantine turns resizing off; the shadcn field kept the browser default
+      classNames={{ input: cn("min-h-[60px] resize", classes.field) }}
+      styles={style ? { input: style } : undefined}
       {...props}
     />
   )

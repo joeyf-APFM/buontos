@@ -2,6 +2,8 @@ import { Globe, Lock, Eye, Building2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PUBLICATION_SCOPE_LABELS, type PublicationScope } from '@/types/lifecycle';
+import { badgeToneStyle, type StatusTone } from './aura-status';
+import classes from './badges.module.css';
 
 interface PublicationBadgeProps {
   publicationScope: string | null | undefined;
@@ -16,11 +18,11 @@ const SCOPE_ICONS: Record<string, typeof Globe> = {
   external: Globe,
 };
 
-const SCOPE_COLORS: Record<string, string> = {
-  none: '',
-  domain: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  organization: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  external: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+// Domain was blue, organization green and external purple
+const SCOPE_TONES: Record<string, StatusTone> = {
+  domain: 'info',
+  organization: 'good',
+  external: 'accent',
 };
 
 export default function PublicationBadge({
@@ -33,7 +35,7 @@ export default function PublicationBadge({
 
   const label = PUBLICATION_SCOPE_LABELS[scope] || scope;
   const IconComponent = SCOPE_ICONS[scope] || Globe;
-  const colorClass = SCOPE_COLORS[scope] || '';
+  const tone = SCOPE_TONES[scope];
 
   const tooltipLines = [
     `Published: ${label}`,
@@ -45,13 +47,18 @@ export default function PublicationBadge({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className={`${colorClass} cursor-default`}>
-            <IconComponent className="h-3 w-3 mr-1" />
+          <Badge
+            variant="outline"
+            className={classes.badge}
+            style={tone ? badgeToneStyle(tone) : undefined}
+            data-tone={tone}
+          >
+            <IconComponent size={12} className={classes.mark} aria-hidden />
             {label}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
-          <div className="text-xs space-y-0.5">
+          <div className={classes.tooltipLines}>
             {tooltipLines.map((line, i) => (
               <div key={i}>{line}</div>
             ))}

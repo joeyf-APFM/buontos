@@ -4,7 +4,7 @@
  * user's language instead of the raw JSON or an English prefix.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '@/i18n/config';
 import AssetReviewEditor from './asset-review-editor';
@@ -33,7 +33,11 @@ describe('AssetReviewEditor without the user token', () => {
   });
 
   afterEach(async () => {
-    await i18n.changeLanguage('en');
+    // The editor is still mounted: its re-render in the new language (and
+    // the Status Select's dropdown with it) happens inside act
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
     vi.restoreAllMocks();
   });
 

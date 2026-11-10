@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { Alert, Loader, Select, Textarea } from '@mantine/core';
 import { appEntityAssetLink } from '@/lib/app-entity-asset';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, SparklesIcon } from 'lucide-react';
+import { AlertCircle, SparklesIcon } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import { serverErrorText, USER_TOKEN_REQUIRED_CODE } from '@/lib/server-error-text';
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +21,6 @@ import {
 } from '@/types/data-asset-review';
 import { LLMConfig } from '@/types/llm';
 import { DataTable } from "@/components/ui/data-table"; // For table preview
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { RelativeDate } from '@/components/common/relative-date';
 import { PrismAsyncLight as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
@@ -35,6 +31,7 @@ import LLMConsentDialog, { hasLLMConsent } from '@/components/common/llm-consent
 import MdmMatchReview from '@/components/mdm/mdm-match-review';
 import TermMappingSuggestionReview from '@/components/term-mapping/suggestion-review';
 import MetricViewDefinitionPanel from '@/components/data-asset-reviews/metric-view-definition';
+import classes from './asset-review-editor.module.css';
 
 // Register languages (using base import which has the static method)
 SyntaxHighlighterBase.registerLanguage('sql', sql);
@@ -235,10 +232,10 @@ export default function AssetReviewEditor({
     // --- Render Content --- //
     const renderAssetContent = () => {
         if (isLoadingContent) {
-            return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+            return <div className={classes.loading}><Loader size={28} /></div>;
         }
         if (contentError && !definition && !preview && !metricView) { 
-             return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{contentError}</AlertDescription></Alert>;
+             return <Alert color="red" variant="light" icon={<AlertCircle />}>{contentError}</Alert>;
         }
 
         if (metricView !== null) {
@@ -247,8 +244,10 @@ export default function AssetReviewEditor({
 
         if (definition !== null) {
             const language = (asset.asset_type === AssetType.FUNCTION || asset.asset_type === AssetType.NOTEBOOK) ? 'python' : 'sql';
+            // The highlighter as before; its frame keeps a long line inside
+            // the editor, where the highlighter's own block scrolls
             return (
-                <div className="border rounded text-sm"> 
+                <div className={classes.code}>
                     <SyntaxHighlighter
                         language={language}
                         style={oneLight} 
@@ -268,23 +267,25 @@ export default function AssetReviewEditor({
         }
 
         if (preview !== null) {
-            const columns = preview.schema.map((col: { name: string; type: string; nullable: boolean }) => ({
+            const schema = Array.isArray(preview?.schema) ? preview.schema : [];
+            const rows = Array.isArray(preview?.data) ? preview.data : [];
+            const columns = schema.map((col: { name: string; type: string; nullable: boolean }) => ({
                 accessorKey: col.name,
                 header: col.name,
-                cell: ({ row }: { row: any }) => <span className="text-xs font-mono truncate" title={String(row.getValue(col.name))}>{String(row.getValue(col.name))}</span>,
+                cell: ({ row }: { row: any }) => <span className={classes.cell} title={String(row.getValue(col.name))}>{String(row.getValue(col.name))}</span>,
             }));
             return (
-                 <div className="border rounded max-h-96 overflow-auto">
+                 <div className={classes.preview}>
                     <DataTable
                         columns={columns}
-                        data={preview.data}
+                        data={rows}
                     />
                 </div>
             );
         }
 
         if (asset.asset_type === AssetType.MODEL) {
-            return <p className="text-sm text-muted-foreground">{t('data-asset-reviews:editor.modelReviewNotImplemented')}</p>;
+            return <p className={classes.note}>{t('data-asset-reviews:editor.modelReviewNotImplemented')}</p>;
         }
 
         // A data product or contract is reviewed on its own page
@@ -301,13 +302,13 @@ export default function AssetReviewEditor({
             );
         }
 
-        return <p className="text-sm text-muted-foreground">{t('data-asset-reviews:editor.noPreviewAvailable')}</p>;
+        return <p className={classes.note}>{t('data-asset-reviews:editor.noPreviewAvailable')}</p>;
     };
 
     // Handle MDM Match assets with specialized component
     if (asset.asset_type === AssetType.MDM_MATCH) {
         return (
-            <div className="px-1 pb-1">
+            <div className={classes.root}>
                 <MdmMatchReview
                     assetFqn={asset.asset_fqn}
                     onReviewComplete={(status) => {
@@ -336,7 +337,7 @@ export default function AssetReviewEditor({
     // local copy here for snappy UI.
     if (asset.asset_type === AssetType.CONCEPT_MAPPING_SUGGESTION) {
         return (
-            <div className="px-1 pb-1">
+            <div className={classes.root}>
                 <TermMappingSuggestionReview
                     assetFqn={asset.asset_fqn}
                     onReviewComplete={(status) => {
@@ -358,121 +359,129 @@ export default function AssetReviewEditor({
         );
     }
 
+    // One option per status, as before (by its value); a status the list
+    // doesn't know still shows, by its value, as the overall status does
+    const statusValues: string[] = Object.values(ReviewedAssetStatus);
+    if (asset.status && !statusValues.includes(asset.status)) statusValues.push(asset.status);
+    const statusOptions = statusValues
+        .filter((value, i) => statusValues.indexOf(value) === i)
+        .map((value) => ({ value, label: value }));
+
     return (
-        <div className="px-1 pb-1">
+        <div className={classes.root}>
              {/* Asset Details */}
-             <div>
-                 <h4 className="font-medium text-lg mb-2">{t('data-asset-reviews:editor.assetDetails')}</h4>
-                 <p className="text-sm"><span className="font-semibold">{t('data-asset-reviews:editor.fqnLabel')}</span> <span className="font-mono text-xs">{asset.asset_fqn}</span></p>
-                 <p className="text-sm"><span className="font-semibold">{t('data-asset-reviews:editor.typeLabel')}</span> <Badge variant="secondary">{asset.asset_type}</Badge></p>
-             </div>
+             <section className={classes.section}>
+                 <h3 className={classes.heading}>{t('data-asset-reviews:editor.assetDetails')}</h3>
+                 <div className={classes.line}><span className={classes.strong}>{t('data-asset-reviews:editor.fqnLabel')}</span> <span className={classes.mono}>{asset.asset_fqn}</span></div>
+                 <div className={classes.line}><span className={classes.strong}>{t('data-asset-reviews:editor.typeLabel')}</span> <Badge variant="secondary">{asset.asset_type}</Badge></div>
+             </section>
 
             {/* Content Viewer */}
-            <div className="space-y-2 mt-6">
-                 <h4 className="font-medium text-lg">{t('data-asset-reviews:editor.contentPreview')}</h4>
+            <section className={classes.section}>
+                 <h3 className={classes.heading}>{t('data-asset-reviews:editor.contentPreview')}</h3>
                 {renderAssetContent()}
-            </div>
+            </section>
 
             {/* Review Form */}
-            <div className="space-y-3 mt-6 border-t">
-                <h4 className="font-medium text-lg">{t('data-asset-reviews:editor.yourReview')}</h4>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="asset-status" className="text-right">{t('data-asset-reviews:editor.statusLabel')}</Label>
-                     <Select
+            <section className={classes.ruled}>
+                <h3 className={classes.heading}>{t('data-asset-reviews:editor.yourReview')}</h3>
+                <div className={classes.field}>
+                    <label htmlFor="asset-status" className={classes.label}>{t('data-asset-reviews:editor.statusLabel')}</label>
+                    <Select
+                        id="asset-status"
+                        data={statusOptions}
                         value={currentStatus}
-                        onValueChange={(value) => setCurrentStatus(value as ReviewedAssetStatus)}
-                    >
-                        <SelectTrigger id="asset-status" className="col-span-3">
-                            <SelectValue placeholder={t('data-asset-reviews:editor.statusPlaceholder')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.values(ReviewedAssetStatus).map((status) => (
-                                <SelectItem key={status} value={status}>{status}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                        onChange={(value) => value && setCurrentStatus(value as ReviewedAssetStatus)}
+                        allowDeselect={false}
+                        placeholder={t('data-asset-reviews:editor.statusPlaceholder')}
+                        classNames={{ option: classes.option }}
+                    />
                 </div>
-                 <div className="grid grid-cols-4 items-start gap-4">
-                    <Label htmlFor="comments" className="text-right pt-2">{t('data-asset-reviews:details.comments')}</Label>
+                <div className={classes.field}>
+                    <label htmlFor="comments" className={classes.labelTop}>{t('data-asset-reviews:details.comments')}</label>
                     <Textarea
                         id="comments"
                         value={comments}
                         onChange={(e) => setComments(e.target.value)}
                         placeholder={t('data-asset-reviews:editor.commentsPlaceholder')}
-                        className="col-span-3 min-h-[80px]"
+                        // Grows with long comments, so they read in full
+                        autosize
+                        minRows={4}
+                        maxRows={12}
                     />
                 </div>
                  {contentError && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{contentError}</AlertDescription>
+                        <Alert color="red" variant="light" icon={<AlertCircle />}>
+                            {contentError}
                         </Alert>
                     )}
                  {/* Save button is added here, within the form section */}
-                 <div className="flex justify-end pt-2">
+                 <div className={classes.actions}>
                      <Button onClick={handleSaveReview} disabled={isSaving}>
-                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t('data-asset-reviews:editor.saveReview')}
+                        {isSaving && <Loader size={12} color="currentColor" />} {t('data-asset-reviews:editor.saveReview')}
                      </Button>
                  </div>
-            </div>
+            </section>
             {/* Button for automated checks (placeholder) */}
              {asset.asset_type === AssetType.TABLE && (
-                 <div className="pt-4 border-t">
+                 <div className={classes.ruled}>
                     <Button variant="outline" disabled>{t('data-asset-reviews:editor.runAutomatedChecks')}</Button>
                 </div>
              )}
 
             {/* AI Analysis Section - Conditionally shown based on LLM config and asset type */}
             {llmConfig && llmConfig.enabled && (asset.asset_type === AssetType.VIEW || asset.asset_type === AssetType.FUNCTION || asset.asset_type === AssetType.NOTEBOOK) && (
-                <div className="mt-6 border-t space-y-3">
-                    <h4 className="font-medium text-lg flex items-center">
-                        <SparklesIcon className="w-5 h-5 mr-2 text-purple-500" /> {t('data-asset-reviews:editor.aiAssistedReview')}
-                    </h4>
-                    <Button
-                        onClick={handleAiAnalysisClick}
-                        disabled={isAnalyzing || isLoadingContent || !definition}
-                        title={!definition && !isLoadingContent ? t('data-asset-reviews:editor.aiContentRequired') : ""}
-                    >
-                        {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {analysisResult ? t('data-asset-reviews:editor.rerunAiAnalysis') : t('data-asset-reviews:editor.runAiAnalysis')}
-                    </Button>
+                <section className={classes.ruled}>
+                    <h3 className={classes.heading}>
+                        <SparklesIcon aria-hidden className={classes.sparkles} /> {t('data-asset-reviews:editor.aiAssistedReview')}
+                    </h3>
+                    <div>
+                        <Button
+                            onClick={handleAiAnalysisClick}
+                            disabled={isAnalyzing || isLoadingContent || !definition}
+                            title={!definition && !isLoadingContent ? t('data-asset-reviews:editor.aiContentRequired') : ""}
+                        >
+                            {isAnalyzing && <Loader size={12} color="currentColor" />}
+                            {analysisResult ? t('data-asset-reviews:editor.rerunAiAnalysis') : t('data-asset-reviews:editor.runAiAnalysis')}
+                        </Button>
+                    </div>
                     {analysisError && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{analysisError}</AlertDescription>
+                        <Alert color="red" variant="light" icon={<AlertCircle />}>
+                            {analysisError}
                         </Alert>
                     )}
                     {analysisResult && (
-                        <Card className="mt-2">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-base">
+                        <div className={classes.analysis}>
+                            <div className={classes.analysisHead}>
+                                <h4 className={classes.analysisTitle}>
                                     {t('data-asset-reviews:editor.aiAnalysisSummary')}
                                     {!analysisResult.phase1_passed && (
-                                        <Badge variant="destructive" className="ml-2">{t('data-asset-reviews:editor.securityWarning')}</Badge>
+                                        <Badge variant="destructive">{t('data-asset-reviews:editor.securityWarning')}</Badge>
                                     )}
-                                </CardTitle>
-                                <p className="text-xs text-muted-foreground">
+                                </h4>
+                                <p className={classes.meta}>
                                     {t('data-asset-reviews:editor.modelLabel')}: {analysisResult.model_used || t('common:states.notAvailable')} |
                                     {t('data-asset-reviews:editor.generatedLabel')}: <RelativeDate date={analysisResult.timestamp} />
                                 </p>
-                            </CardHeader>
-                            <CardContent>
-                                {/* Render as plain text if security check failed */}
-                                {!analysisResult.render_as_markdown ? (
-                                    <div className="p-3 bg-muted rounded-md font-mono text-xs whitespace-pre-wrap">
+                            </div>
+                            {/* Render as plain text if security check failed */}
+                            {!analysisResult.render_as_markdown ? (
+                                <div className={classes.plain}>
+                                    {analysisResult.analysis_summary}
+                                </div>
+                            ) : (
+                                // The markdown as before: the same renderer and
+                                // its typography (prose), no raw HTML; the
+                                // frame scrolls a long code block sideways
+                                <div className={`markdown-container prose prose-xs dark:prose-invert max-w-none ${classes.markdown}`}>
+                                    <ReactMarkdown>
                                         {analysisResult.analysis_summary}
-                                    </div>
-                                ) : (
-                                    <div className="markdown-container prose prose-xs dark:prose-invert max-w-none p-3 bg-muted rounded-md overflow-x-auto">
-                                        <ReactMarkdown>
-                                            {analysisResult.analysis_summary}
-                                        </ReactMarkdown>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    </ReactMarkdown>
+                                </div>
+                            )}
+                        </div>
                     )}
-                </div>
+                </section>
             )}
 
             {/* LLM Consent Dialog */}
@@ -486,4 +495,4 @@ export default function AssetReviewEditor({
             )}
         </div>
     );
-} 
+}

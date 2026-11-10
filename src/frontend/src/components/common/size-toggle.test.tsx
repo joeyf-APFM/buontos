@@ -39,8 +39,8 @@ describe('SizeToggle', () => {
     render(<SizeToggle options={[...twoOptions]} value="large" onChange={() => {}} />)
     expect(screen.getByRole('button', { name: 'Large View' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Small View' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Large View' })).toHaveClass('bg-primary')
-    expect(screen.getByRole('button', { name: 'Small View' })).not.toHaveClass('bg-primary')
+    expect(screen.getByRole('button', { name: 'Large View' })).toHaveAttribute('data-variant', 'filled')
+    expect(screen.getByRole('button', { name: 'Small View' })).toHaveAttribute('data-variant', 'subtle')
   })
 
   it('supports three options and calls onChange with the clicked value', () => {

@@ -23,21 +23,15 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select } from '@mantine/core';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+import classes from './lineage-graph.module.css';
 import type { LineageGraph as LineageGraphType, LineageNode, AssetType, LineageDirection } from '@/types/data-catalog';
 
 // =============================================================================
@@ -238,8 +232,20 @@ const LevelLayout: React.FC<LevelLayoutProps> = ({ graph, onNodeClick }) => {
 // Main Component
 // =============================================================================
 
+/**
+ * The graph, if the response is one: an array, an object without a nodes
+ * array, or nothing becomes null (the empty state); missing edges become []
+ * (as business-lineage-view's asLineageGraph).
+ */
+function asLineageGraph(data: unknown): LineageGraphType | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const graph = data as Partial<LineageGraphType>;
+  if (!Array.isArray(graph.nodes)) return null;
+  return { ...(graph as LineageGraphType), edges: Array.isArray(graph.edges) ? graph.edges : [] };
+}
+
 const LineageGraphComponent: React.FC<LineageGraphProps> = ({
-  graph,
+  graph: response,
   isLoading = false,
   error = null,
   direction,
@@ -248,6 +254,7 @@ const LineageGraphComponent: React.FC<LineageGraphProps> = ({
 }) => {
   const { t } = useTranslation(['data-catalog', 'common']);
   const navigate = useNavigate();
+  const graph = useMemo(() => asLineageGraph(response), [response]);
 
   const handleNodeClick = (node: LineageNode) => {
     // Navigate to table details if it's a UC table/view
@@ -301,16 +308,18 @@ const LineageGraphComponent: React.FC<LineageGraphProps> = ({
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Select value={direction} onValueChange={(v) => onDirectionChange(v as LineageDirection)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="both">{t('data-catalog:lineage.both', 'Both Directions')}</SelectItem>
-              <SelectItem value="upstream">{t('data-catalog:lineage.upstream', 'Upstream Only')}</SelectItem>
-              <SelectItem value="downstream">{t('data-catalog:lineage.downstream', 'Downstream Only')}</SelectItem>
-            </SelectContent>
-          </Select>
+          <Select
+            className={classes.direction}
+            aria-label={t('data-catalog:lineage.direction', 'Lineage direction')}
+            data={[
+              { value: 'both', label: t('data-catalog:lineage.both', 'Both Directions') },
+              { value: 'upstream', label: t('data-catalog:lineage.upstream', 'Upstream Only') },
+              { value: 'downstream', label: t('data-catalog:lineage.downstream', 'Downstream Only') },
+            ]}
+            value={direction}
+            onChange={(v) => v && onDirectionChange(v as LineageDirection)}
+            allowDeselect={false}
+          />
           
           {onRefresh && (
             <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -338,13 +347,11 @@ const LineageGraphComponent: React.FC<LineageGraphProps> = ({
       </div>
 
       {/* Graph */}
-      <Card>
-        <CardContent className="p-0">
-          <ScrollArea className="h-80">
-            <LevelLayout graph={graph} onNodeClick={handleNodeClick} />
-          </ScrollArea>
-        </CardContent>
-      </Card>
+      <div className={classes.frame}>
+        <ScrollArea className="h-80">
+          <LevelLayout graph={graph} onNodeClick={handleNodeClick} />
+        </ScrollArea>
+      </div>
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground">

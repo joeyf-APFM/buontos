@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Send, MessageSquare } from 'lucide-react';
 import { useComments } from '@/hooks/use-comments';
 import type { RatingAggregation } from '@/types/comments';
+import { Pane } from '@/mantine/page';
 
 export interface RatingPanelProps {
   /** Entity type (data_product, dataset, etc.) */
@@ -27,6 +28,11 @@ export interface RatingPanelProps {
   allowSubmit?: boolean;
   /** Additional class names */
   className?: string;
+  /**
+   * Render as a page-kit Pane (the title and "You rated" in its head) instead
+   * of a Card, for pages on the page kit. The body is the same.
+   */
+  pane?: boolean;
 }
 
 /**
@@ -42,6 +48,7 @@ export function RatingPanel({
   compact = false,
   allowSubmit = true,
   className,
+  pane = false,
 }: RatingPanelProps) {
   const { t } = useTranslation(['metadata', 'common']);
   const { createRating, fetchRatingAggregation, ratingAggregation, loading: _loading } = useComments();
@@ -117,19 +124,15 @@ export function RatingPanel({
     );
   }
 
-  return (
-    <Card className={cn('', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <span>{title ?? t('metadata:ratings.title')}</span>
-          {userHasRated && (
-            <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
-              {t('metadata:ratings.youRated', { rating: localAggregation?.user_current_rating })}
-            </span>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const resolvedTitle = title ?? t('metadata:ratings.title');
+  const youRated = userHasRated && (
+    <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+      {t('metadata:ratings.youRated', { rating: localAggregation?.user_current_rating })}
+    </span>
+  );
+
+  const body = (
+    <>
         {/* Aggregated summary */}
         <RatingSummary
           aggregation={localAggregation}
@@ -200,7 +203,26 @@ export function RatingPanel({
             )}
           </div>
         )}
-      </CardContent>
+    </>
+  );
+
+  if (pane) {
+    return (
+      <Pane title={resolvedTitle} actions={youRated || undefined} className={className}>
+        <div className="space-y-4">{body}</div>
+      </Pane>
+    );
+  }
+
+  return (
+    <Card className={cn('', className)}>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <span>{resolvedTitle}</span>
+          {youRated}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">{body}</CardContent>
     </Card>
   );
 }

@@ -1,0 +1,18 @@
+[
+  "button \"Columns\"",
+  "button \"Create New Data Asset Review Request\"",
+  "button \"Created\"",
+  "button \"Delete Request\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Status\"",
+  "button \"Title\"",
+  "button \"Updated\"",
+  "checkbox \"Select all\"",
+  "checkbox \"Select row\"",
+  "combobox \"\"",
+  "link \"Home\"",
+  "textbox \"Filter titles...\""
+]

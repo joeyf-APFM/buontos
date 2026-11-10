@@ -1,0 +1,8 @@
+[
+  "button \"Add Level\"",
+  "combobox \"Data contracts\"",
+  "combobox \"Data products\"",
+  "combobox \"Domains\"",
+  "link \"Home\"",
+  "link \"Semantics\""
+]

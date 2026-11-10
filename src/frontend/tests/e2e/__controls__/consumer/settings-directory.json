@@ -1,0 +1,7 @@
+[
+  "button \"Clear\"",
+  "button \"Save\"",
+  "button \"Test connection\"",
+  "combobox \"Provider\"",
+  "link \"Home\""
+]

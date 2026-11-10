@@ -38,13 +38,24 @@ export const AURA = {
   textBody: '#2C2F34',
   textSecondary: '#565D65',
   textMuted: '#828D96',
-  // Status: critical, as in the Aura globals.css
+  // Status, as in the Aura globals.css
+  good: '#277153',
+  goodBg: '#DDEBE4',
+  warning: '#B67F14',
+  warningBg: '#FFF6E9',
   critical: '#D41C16',
   criticalBg: '#FFF5F3',
+  info: '#1E7CA1',
 } as const;
 
+/** The owner's stack for all text (Task 16b); body and display are the same. */
 export const DISPLAY_FONT = "Optima, Candara, 'Segoe UI', sans-serif";
-export const BODY_FONT = "Commissioner, 'Segoe UI', system-ui, sans-serif";
+export const BODY_FONT = DISPLAY_FONT;
+/**
+ * Code and machine identifiers only (SQL, markdown code, asset names, MCP
+ * tokens), as --aura-font-mono; tailwind.config.cjs fontFamily.mono uses that variable.
+ */
+export const MONO_FONT = 'ui-monospace, Menlo, monospace';
 
 // Light to dark around the Aura accent at index 6; 7 and 8 are its hover and
 // pressed shades, 9 is navy.
@@ -73,6 +84,7 @@ export const theme = createTheme({
   colors: { aura },
   black: AURA.textBody,
   fontFamily: BODY_FONT,
+  fontFamilyMonospace: MONO_FONT,
   headings: { fontFamily: DISPLAY_FONT },
   fontSizes: { xs: '11px', sm: '12px', md: '13px', lg: '14px', xl: '16px' },
   defaultRadius: 'sm',
@@ -124,9 +136,15 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--aura-text-body': AURA.textBody,
     '--aura-text-secondary': AURA.textSecondary,
     '--aura-text-muted': AURA.textMuted,
+    '--aura-good': AURA.good,
+    '--aura-good-bg': AURA.goodBg,
+    '--aura-warning': AURA.warning,
+    '--aura-warning-bg': AURA.warningBg,
     '--aura-critical': AURA.critical,
     '--aura-critical-bg': AURA.criticalBg,
+    '--aura-info': AURA.info,
     '--aura-font-display': DISPLAY_FONT,
+    '--aura-font-mono': MONO_FONT,
   },
   light: {},
   dark: {},

@@ -1,0 +1,24 @@
+/* The metric view pane on asset detail (Task 11) */
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.spin {
+  width: 20px;
+  height: 20px;
+  color: var(--aura-text-secondary);
+  animation: metric-view-spin 1s linear infinite;
+}
+
+@keyframes metric-view-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.note {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}

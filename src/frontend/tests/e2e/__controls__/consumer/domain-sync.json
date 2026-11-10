@@ -1,0 +1,8 @@
+[
+  "button \"Apply\"",
+  "button \"Preview\"",
+  "combobox \"\"",
+  "link \"Home\"",
+  "radio \"Export to Unity Catalog Publish Ontos domains to UC\"",
+  "radio \"Import from Unity Catalog Create/link Ontos domains from UC\""
+]

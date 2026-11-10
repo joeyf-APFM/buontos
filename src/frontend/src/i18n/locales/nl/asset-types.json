@@ -1,6 +1,7 @@
 {
   "title": "Asset-types",
   "subtitle": "Herbruikbare sjablonen die bepalen hoe verschillende soorten assets zijn gestructureerd.",
+  "listPane": "Lijst met assettypen",
   "addNew": "Asset-type toevoegen",
   "editAssetType": "Asset-type bewerken",
   "deleteAssetType": "Asset-type verwijderen",

@@ -34,7 +34,6 @@ describe('useComments Hook', () => {
     vi.spyOn(useToastModule, 'useToast').mockReturnValue({
       toast: mockToast,
       dismiss: vi.fn(),
-      toasts: [],
     });
   });
 

@@ -12,12 +12,11 @@
  *     importedContactsLabel="Imported Contacts"
  *   />
  */
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback, useId } from 'react';
+import { ActionIcon } from '@mantine/core';
 import { Users2, History, UserPlus, Loader2, Trash2, ChevronDown, ChevronRight, Import, Copy } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RelativeDate } from '@/components/common/relative-date';
 import { AssignOwnerDialog } from '@/components/common/assign-owner-dialog';
@@ -27,7 +26,9 @@ import { Label } from '@/components/ui/label';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 import type { BusinessOwnerRead, OwnerObjectType } from '@/types/business-owner';
+import classes from './panel.module.css';
 
 export interface ImportedContact {
   username?: string;
@@ -90,6 +91,7 @@ export function OwnershipPanel({
   const [isRemoving, setIsRemoving] = useState(false);
 
   const { t } = useTranslation(['business-owners', 'common']);
+  const titleId = useId();
   const { get: apiGet, post: apiPost } = useApi();
   const { toast } = useToast();
 
@@ -155,160 +157,136 @@ export function OwnershipPanel({
 
   return (
     <>
-      <Card className={className}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users2 className="h-4 w-4" />
-              {t('panel.title')}
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              {previousOwners.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)}>
-                  <History className="h-4 w-4 mr-1" />
-                  {t('panel.history')}
-                </Button>
-              )}
-              {canAssign && ownerTeamId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCopyFromTeamOpen(true)}
-                  title={ownerTeamName ? t('common:ownership.copyMembersFrom', { name: ownerTeamName }) : t('common:ownership.copyFromAssignedTeam')}
-                >
-                  <Copy className="h-4 w-4 mr-1" />
-                  {t('common:ownership.copyFromTeam')}
-                </Button>
-              )}
-              {canAssign && (
-                <Button variant="outline" size="sm" onClick={() => setAssignDialogOpen(true)}>
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  {t('panel.assignOwner')}
-                </Button>
-              )}
-            </div>
+      <section className={cn(classes.pane, className)} aria-labelledby={titleId}>
+        <div className={classes.head}>
+          <h3 id={titleId} className={classes.title}>
+            <Users2 aria-hidden />
+            {t('panel.title')}
+          </h3>
+          <div className={classes.actions}>
+            {previousOwners.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)}>
+                <History />
+                {t('panel.history')}
+              </Button>
+            )}
+            {canAssign && ownerTeamId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCopyFromTeamOpen(true)}
+                title={ownerTeamName ? t('common:ownership.copyMembersFrom', { name: ownerTeamName }) : t('common:ownership.copyFromAssignedTeam')}
+              >
+                <Copy />
+                {t('common:ownership.copyFromTeam')}
+              </Button>
+            )}
+            {canAssign && (
+              <Button variant="outline" size="sm" onClick={() => setAssignDialogOpen(true)}>
+                <UserPlus />
+                {t('panel.assignOwner')}
+              </Button>
+            )}
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className={classes.body}>
           {isLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <div className={classes.loading}>
+              <Loader2 className={classes.spin} />
             </div>
           ) : currentOwners.length === 0 && previousOwners.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">{t('panel.noOwners')}</p>
+            <p className={classes.empty}>{t('panel.noOwners')}</p>
           ) : (
-            <div className="space-y-3">
-              {/* Current owners */}
+            <>
+              {/* Current owners: the role in the label column */}
               {currentOwners.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {t('panel.currentOwners')}
-                  </p>
-                  {currentOwners.map((owner) => (
-                    <div key={owner.id} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{owner.user_name || owner.user_email}</span>
-                        {owner.role_name && (
-                          <Badge variant="outline" className="text-xs">{owner.role_name}</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <RelativeDate date={owner.assigned_at} className="text-xs text-muted-foreground" />
-                        {canAssign && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                            onClick={() => setRemoveTarget(owner)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Previous owners (collapsible) */}
-              {showHistory && previousOwners.length > 0 && (
                 <>
-                  <Separator />
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      {t('panel.previousOwners')}
-                    </p>
-                    {previousOwners.map((owner) => (
-                      <div key={owner.id} className="flex items-center justify-between text-sm opacity-60">
-                        <div className="flex items-center gap-2">
-                          <span>{owner.user_name || owner.user_email}</span>
-                          {owner.role_name && (
-                            <Badge variant="outline" className="text-xs">{owner.role_name}</Badge>
+                  <p className={classes.sectionLabel}>{t('panel.currentOwners')}</p>
+                  <dl className={classes.kv}>
+                    {currentOwners.map((owner) => (
+                      <Fragment key={owner.id}>
+                        <dt>{owner.role_name || '—'}</dt>
+                        <dd>
+                          <span className={cn(classes.grow, classes.strong)}>{owner.user_name || owner.user_email}</span>
+                          <RelativeDate date={owner.assigned_at} className={classes.muted} />
+                          {canAssign && (
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size={24}
+                              className={classes.remove}
+                              onClick={() => setRemoveTarget(owner)}
+                            >
+                              <Trash2 size={14} />
+                            </ActionIcon>
                           )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {owner.removal_reason && (
-                            <span className="text-xs italic text-muted-foreground">{owner.removal_reason}</span>
-                          )}
-                          {owner.removed_at && (
-                            <RelativeDate date={owner.removed_at} className="text-xs text-muted-foreground" />
-                          )}
-                        </div>
-                      </div>
+                        </dd>
+                      </Fragment>
                     ))}
-                  </div>
+                  </dl>
                 </>
               )}
-            </div>
+
+              {/* Previous owners, shown with History */}
+              {showHistory && previousOwners.length > 0 && (
+                <>
+                  <p className={classes.sectionLabel}>{t('panel.previousOwners')}</p>
+                  <dl className={cn(classes.kv, classes.dimmed)}>
+                    {previousOwners.map((owner) => (
+                      <Fragment key={owner.id}>
+                        <dt>{owner.role_name || '—'}</dt>
+                        <dd>
+                          <span className={classes.grow}>{owner.user_name || owner.user_email}</span>
+                          {owner.removal_reason && (
+                            <span className={cn(classes.muted, classes.italic)}>{owner.removal_reason}</span>
+                          )}
+                          {owner.removed_at && (
+                            <RelativeDate date={owner.removed_at} className={classes.muted} />
+                          )}
+                        </dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                </>
+              )}
+            </>
           )}
 
           {/* Imported Contacts (from ODCS/ODPS) - read-only, collapsible */}
           {hasImportedContacts && (
-            <>
-              <Separator className="my-4" />
-              <Collapsible open={importedOpen} onOpenChange={setImportedOpen}>
-                <div className="flex items-center justify-between">
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
-                      {importedOpen ? (
-                        <ChevronDown className="h-4 w-4 mr-1" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 mr-1" />
-                      )}
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        {importedContactsLabel ?? t('common:ownership.importedContacts')} ({importedContacts!.length})
-                      </span>
-                    </Button>
-                  </CollapsibleTrigger>
-                  {canAssign && onImportAsOwners && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => onImportAsOwners(importedContacts!)}
-                    >
-                      <Import className="h-3.5 w-3.5 mr-1" />
-                      {t('common:ownership.importAsOwners')}
-                    </Button>
-                  )}
-                </div>
-                <CollapsibleContent className="mt-2">
-                  <div className="space-y-2">
-                    {importedContacts!.map((contact, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm">
-                        <span className="font-medium">{contact.name || contact.username || contact.email || t('common:states.unknown')}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {contact.role || t('common:ownership.memberRole')}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </>
+            <Collapsible open={importedOpen} onOpenChange={setImportedOpen}>
+              <div className={classes.spread}>
+                <CollapsibleTrigger asChild>
+                  <button type="button" className={cn(classes.disclosure, classes.sectionLabel)}>
+                    {importedOpen ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+                    {importedContactsLabel ?? t('common:ownership.importedContacts')} ({importedContacts!.length})
+                  </button>
+                </CollapsibleTrigger>
+                {canAssign && onImportAsOwners && (
+                  <Button variant="outline" size="sm" onClick={() => onImportAsOwners(importedContacts!)}>
+                    <Import />
+                    {t('common:ownership.importAsOwners')}
+                  </Button>
+                )}
+              </div>
+              <CollapsibleContent>
+                <dl className={classes.kv}>
+                  {importedContacts!.map((contact, idx) => (
+                    <Fragment key={idx}>
+                      <dt>{contact.role || t('common:ownership.memberRole')}</dt>
+                      <dd>
+                        <span className={cn(classes.grow, classes.strong)}>
+                          {contact.name || contact.username || contact.email || t('common:states.unknown')}
+                        </span>
+                      </dd>
+                    </Fragment>
+                  ))}
+                </dl>
+              </CollapsibleContent>
+            </Collapsible>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Assign Owner Dialog */}
       <AssignOwnerDialog
@@ -323,16 +301,15 @@ export function OwnershipPanel({
 
       {/* Remove Owner Confirmation Dialog */}
       <Dialog open={!!removeTarget} onOpenChange={(open) => { if (!open) { setRemoveTarget(null); setRemoveReason(''); } }}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent style={{ maxWidth: 400 }}>
           <DialogHeader>
             <DialogTitle>{t('removeDialog.title')}</DialogTitle>
             <DialogDescription>{t('removeDialog.description')}</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className={classes.field}>
             <Label htmlFor="remove-reason">{t('removeDialog.reasonLabel')}</Label>
             <Input
               id="remove-reason"
-              className="mt-2"
               placeholder={t('removeDialog.reasonPlaceholder')}
               value={removeReason}
               onChange={(e) => setRemoveReason(e.target.value)}
@@ -343,7 +320,7 @@ export function OwnershipPanel({
               {t('removeDialog.cancel')}
             </Button>
             <Button variant="destructive" onClick={handleRemove} disabled={isRemoving}>
-              {isRemoving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isRemoving && <Loader2 className={classes.spin} />}
               {t('removeDialog.remove')}
             </Button>
           </DialogFooter>
@@ -352,46 +329,45 @@ export function OwnershipPanel({
 
       {/* Copy from Team Dialog */}
       <Dialog open={copyFromTeamOpen} onOpenChange={setCopyFromTeamOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent style={{ maxWidth: 500 }}>
           <DialogHeader>
             <DialogTitle>{t('common:ownership.copyFromTeam')}{ownerTeamName ? `: ${ownerTeamName}` : ''}</DialogTitle>
             <DialogDescription>
               {t('common:ownership.copyFromTeamDescription')}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 max-h-[300px] overflow-y-auto">
+          <div className={classes.scroll}>
             {teamMembersLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div className={classes.loading}>
+                <Loader2 className={classes.spin} />
               </div>
             ) : teamMembers.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">{t('common:ownership.noTeamMembers')}</p>
+              <p className={cn(classes.empty, classes.center)}>{t('common:ownership.noTeamMembers')}</p>
             ) : (
-              <div className="space-y-2">
+              <div className={classes.rows}>
                 {teamMembers.map((member) => {
                   const alreadyOwner = currentOwners.some(
                     (o) => o.user_email.toLowerCase() === member.member_identifier.toLowerCase()
                   );
                   return (
-                    <div key={member.id} className="flex items-center justify-between p-2 border rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">{member.member_type}</Badge>
-                        <span className="text-sm">{member.member_name || member.member_identifier}</span>
+                    <div key={member.id} className={classes.row}>
+                      <div className={classes.rowMain}>
+                        <Badge variant="outline">{member.member_type}</Badge>
+                        <span className={classes.grow}>{member.member_name || member.member_identifier}</span>
                       </div>
                       {alreadyOwner ? (
-                        <Badge variant="secondary" className="text-xs">{t('common:ownership.alreadyOwner')}</Badge>
+                        <Badge variant="secondary">{t('common:ownership.alreadyOwner')}</Badge>
                       ) : (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 text-xs"
                           onClick={() => {
                             setPendingMember(member);
                             setCopyFromTeamOpen(false);
                             setAssignDialogOpen(true);
                           }}
                         >
-                          <UserPlus className="h-3.5 w-3.5 mr-1" />
+                          <UserPlus />
                           {t('common:actions.assign')}
                         </Button>
                       )}

@@ -20,12 +20,16 @@
     "explorer": "Explorer",
     "assetTypes": "Asset types",
     "schemaImporter": "Schema importer",
-    "conceptBrowser": "Browser",
+    "dataContracts": "Data Contracts",
+    "conceptBrowser": "Explore",
     "conceptSearch": "Search",
-    "conceptHierarchy": "Hierarchy",
+    "conceptHierarchy": "Hierarchy Browser",
     "conceptEnrich": "Enrich",
-    "conceptMapping": "Mapping",
-    "conceptImport": "Import",
+    "conceptMapping": "Term Mapping",
+    "conceptCollections": "Collections",
+    "authorConcepts": "Author Concepts",
+    "generateOntology": "Generate Ontology",
+    "importRdf": "Import RDF",
     "allProducts": "All products",
     "myProducts": "My products",
     "myRequests": "My Requests",
@@ -55,5 +59,11 @@
   "search": {
     "placeholder": "Search assets, concepts, contracts…",
     "label": "Search"
+  },
+  "breadcrumb": {
+    "label": "Breadcrumb",
+    "home": "Home",
+    "more": "Show the hidden levels",
+    "gap": "Earlier pages left out"
   }
 }

@@ -453,7 +453,7 @@ describe('Explore empty state', () => {
     const observe = renderExplore();
     expect(screen.getByTestId('explore-empty-state')).toBeInTheDocument();
     expect(screen.getByText('Nothing to explore yet')).toBeInTheDocument();
-    expect(screen.getByText('Import files or create concepts on the Define tab.')).toBeInTheDocument();
+    expect(screen.getByText('Import files or create concepts on the Define page.')).toBeInTheDocument();
     expect(screen.getByTestId('filter-panel')).toBeInTheDocument();
     expect(screen.getByTestId('create-menu')).toBeInTheDocument();
     expect(screen.queryByTestId('concepts-tab')).not.toBeInTheDocument();

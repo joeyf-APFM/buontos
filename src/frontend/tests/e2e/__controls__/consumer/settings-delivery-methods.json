@@ -1,0 +1,15 @@
+[
+  "button \"Add Method\"",
+  "button \"Columns\"",
+  "button \"Go to first page\"",
+  "button \"Go to last page\"",
+  "button \"Go to next page\"",
+  "button \"Go to previous page\"",
+  "button \"Last Updated\"",
+  "button \"Name\"",
+  "checkbox \"Select all\"",
+  "combobox \"\"",
+  "link \"Connectors\"",
+  "link \"Home\"",
+  "textbox \"Filter names...\""
+]

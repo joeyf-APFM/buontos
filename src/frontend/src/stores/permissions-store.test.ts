@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import usePermissionsStore, { usePermissions } from './permissions-store';
+import usePermissionsStore, { selectPermissionsReady, usePermissions, usePermissionsReady } from './permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 
 // Mock fetch globally
@@ -20,6 +20,7 @@ describe('Permissions Store', () => {
         appliedRoleId: null,
         _isInitializing: false,
         _initAttempted: false,
+        isReady: false,
       });
     });
 
@@ -340,6 +341,55 @@ describe('Permissions Store', () => {
       expect(result.current.error).toBeTruthy();
       expect(result.current.isLoading).toBe(false);
       expect(result.current._isInitializing).toBe(false);
+    });
+  });
+
+  // Task 16e fix round 1: pages that act on a URL (?new=1, ?open=) wait for this
+  describe('isReady / usePermissionsReady', () => {
+    const ready = () => selectPermissionsReady(usePermissionsStore.getState());
+
+    it('is not ready in the initial state (not loading, no permissions)', () => {
+      expect(usePermissionsStore.getState().isReady).toBe(false);
+      expect(ready()).toBe(false);
+      const { result } = renderHook(() => usePermissionsReady());
+      expect(result.current).toBe(false);
+    });
+
+    it('is not ready while loading, and ready once initializeStore finishes', async () => {
+      let release: () => void = () => {};
+      const gate = new Promise<void>((r) => { release = r; });
+      (global.fetch as any).mockImplementation(async (url: string) => {
+        await gate;
+        return { ok: true, json: async () => (url.includes('/api/user/permissions') ? { 'data-products': FeatureAccessLevel.READ_WRITE } : {}) };
+      });
+      const { result } = renderHook(() => usePermissionsReady());
+      let done: Promise<void> = Promise.resolve();
+      act(() => { done = usePermissionsStore.getState().initializeStore(); });
+      expect(result.current).toBe(false);
+      await act(async () => { release(); await done; });
+      expect(usePermissionsStore.getState().isReady).toBe(true);
+      expect(result.current).toBe(true);
+    });
+
+    it('is ready after a failed load too, so pages fail closed instead of waiting forever', async () => {
+      (global.fetch as any).mockImplementation(() => Promise.reject(new Error('down')));
+      await act(async () => { await usePermissionsStore.getState().initializeStore(); });
+      expect(usePermissionsStore.getState().permissions).toEqual({});
+      expect(usePermissionsStore.getState().isReady).toBe(true);
+    });
+
+    it('is ready on the already-loaded path, without fetching', async () => {
+      act(() => usePermissionsStore.setState({ actualPermissions: { 'data-products': FeatureAccessLevel.READ_ONLY } }));
+      await act(async () => { await usePermissionsStore.getState().initializeStore(); });
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(usePermissionsStore.getState().isReady).toBe(true);
+    });
+
+    it('counts permissions seeded directly (as tests do) as ready, unless still loading', () => {
+      act(() => usePermissionsStore.setState({ permissions: { assets: FeatureAccessLevel.READ_ONLY } }));
+      expect(ready()).toBe(true);
+      act(() => usePermissionsStore.setState({ isLoading: true }));
+      expect(ready()).toBe(false);
     });
   });
 

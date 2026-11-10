@@ -1,0 +1,10 @@
+[
+  "button \"Export\"",
+  "button \"fit view\"",
+  "button \"toggle interactivity\"",
+  "button \"zoom in\"",
+  "button \"zoom out\"",
+  "link \"Home\"",
+  "link \"React Flow attribution\"",
+  "textbox \"Search tables...\""
+]

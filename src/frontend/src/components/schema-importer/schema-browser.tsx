@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useId, useRef, useMemo, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronRight,
@@ -18,6 +18,7 @@ import {
   Search,
   AlertCircle,
 } from 'lucide-react';
+import { Alert as MantineAlert, Collapse, Loader, TextInput } from '@mantine/core';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +31,8 @@ import {
 import { useApi } from '@/hooks/use-api';
 import { parseSearchQuery, matchesSegment } from '@/lib/uc-search-parser';
 import type { BrowseNode, BrowseResponse } from '@/types/schema-import';
+import { AURA } from '@/mantine/theme';
+import classes from './schema-browser.module.css';
 
 interface TreeNode extends BrowseNode {
   children?: TreeNode[];
@@ -45,6 +48,13 @@ interface SchemaBrowserProps {
   connectionId: string | null;
   selectedPaths: Set<string>;
   onSelectionChange: (paths: Set<string>) => void;
+  /**
+   * Laid out for a kit pane (mantine/page): the search ruled off at the top
+   * and the tree in the Asset Explorer's 24px rows, filling the pane and
+   * scrolling inside it. Without it, the browser keeps its Tailwind look
+   * for the other pages that use it.
+   */
+  pane?: boolean;
 }
 
 interface LoadResult {
@@ -72,9 +82,9 @@ const nodeIconMap: Record<string, typeof Database> = {
   metric: BarChart3,
 };
 
-function getNodeIcon(nodeType: string) {
+function getNodeIcon(nodeType: string, className = 'h-4 w-4 shrink-0 text-muted-foreground') {
   const Icon = nodeIconMap[nodeType.toLowerCase()] || Box;
-  return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  return <Icon className={className} />;
 }
 
 /** Container node types that are navigational, not leaf assets */
@@ -107,7 +117,10 @@ export default function SchemaBrowser({
   connectionId,
   selectedPaths,
   onSelectionChange,
+  pane = false,
 }: SchemaBrowserProps) {
+  // The class for each part: the kit pane's (CSS module) or the Tailwind one
+  const cls = (paneClass: string, legacy: string) => (pane ? paneClass : legacy);
   const { t } = useTranslation(['database-schema', 'common']);
   const { get: apiGet } = useApi();
   const [roots, setRoots] = useState<TreeNode[]>([]);
@@ -118,6 +131,9 @@ export default function SchemaBrowser({
   const [rootTruncatedAt, setRootTruncatedAt] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [highlightedPath, setHighlightedPath] = useState<string | null>(null);
+  // The pane-mode error's "Show details"
+  const [errorDetailOpen, setErrorDetailOpen] = useState(false);
+  const errorDetailId = useId();
   const apiGetRef = useRef(apiGet);
   apiGetRef.current = apiGet;
   const rootsRef = useRef(roots);
@@ -134,7 +150,8 @@ export default function SchemaBrowser({
       if (resp.error) {
         return { nodes: [], error: resp.error, errorDetail: resp.error };
       }
-      const nodes = (resp.data?.nodes ?? []).map((n) => ({
+      // A malformed answer browses as an empty level
+      const nodes = (Array.isArray(resp.data?.nodes) ? resp.data.nodes : []).map((n) => ({
         ...n,
         children: undefined,
         isExpanded: false,
@@ -164,6 +181,7 @@ export default function SchemaBrowser({
     let cancelled = false;
     setIsInitialLoading(true);
     setBrowseError(null);
+    setErrorDetailOpen(false);
     setBrowseErrorDetail(null);
     setSearch('');
     setHighlightedPath(null);
@@ -416,34 +434,44 @@ export default function SchemaBrowser({
   const visibleRoots = useMemo(() => filterTree(roots, 0), [filterTree, roots]);
 
   const renderNode = (node: TreeNode) => {
-    const indent = node.level * 20;
+    const indent = node.level * (pane ? 16 : 20);
     const isSelected = selectedPaths.has(node.path);
     const isHighlighted = highlightedPath === node.path;
+    const chevronClass = pane ? undefined : 'h-3.5 w-3.5 text-muted-foreground';
 
     return (
       <div key={node.path}>
         <div
-          className={`flex items-center gap-1.5 py-1 px-2 hover:bg-muted/50 rounded-sm cursor-pointer group ${
-            isHighlighted ? 'bg-primary/10 ring-1 ring-primary/30' : ''
-          }`}
-          style={{ paddingLeft: `${indent + 8}px` }}
+          data-tree-row
+          data-selected={pane && isHighlighted ? true : undefined}
+          className={cls(
+            classes.row,
+            `flex items-center gap-1.5 py-1 px-2 hover:bg-muted/50 rounded-sm cursor-pointer group ${
+              isHighlighted ? 'bg-primary/10 ring-1 ring-primary/30' : ''
+            }`,
+          )}
+          style={
+            pane
+              ? ({ '--label-offset': `${indent}px` } as CSSProperties)
+              : { paddingLeft: `${indent + 8}px` }
+          }
         >
           {/* Expand/collapse toggle */}
           {node.has_children ? (
             <button
               onClick={() => toggleExpand(node.path)}
-              className="p-0.5 hover:bg-muted rounded"
+              className={cls(classes.toggle, 'p-0.5 hover:bg-muted rounded')}
             >
               {node.isLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                pane ? <Loader size={10} /> : <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
               ) : node.isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronDown className={chevronClass} />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronRight className={chevronClass} />
               )}
             </button>
           ) : (
-            <span className="w-[22px]" />
+            <span className={cls(classes.spacer, 'w-[22px]')} />
           )}
 
           {/* Checkbox */}
@@ -455,12 +483,13 @@ export default function SchemaBrowser({
 
           {/* Icon + label */}
           <div
-            className="flex items-center gap-1.5 min-w-0 flex-1"
+            className={cls(classes.labelGroup, 'flex items-center gap-1.5 min-w-0 flex-1')}
             onClick={() => node.has_children && toggleExpand(node.path)}
           >
-            {getNodeIcon(node.node_type)}
-            <span className="text-sm truncate">{node.name}</span>
-            <span className="text-xs text-muted-foreground ml-1">{node.node_type}</span>
+            {pane ? getNodeIcon(node.node_type, classes.icon) : getNodeIcon(node.node_type)}
+            {/* A long name keeps to one line; its title shows it in full */}
+            <span className={cls(classes.label, 'text-sm truncate')} title={node.name}>{node.name}</span>
+            <span className={cls(classes.type, 'text-xs text-muted-foreground ml-1')}>{node.node_type}</span>
           </div>
         </div>
 
@@ -472,10 +501,14 @@ export default function SchemaBrowser({
         {/* Truncation notice: children capped by the configured fetch limit */}
         {node.isExpanded && node.childrenTruncated && (
           <div
-            className="flex items-center gap-1.5 py-1 text-xs text-amber-600 dark:text-amber-500"
-            style={{ paddingLeft: `${(node.level + 1) * 20 + 8}px` }}
+            className={cls(classes.notice, 'flex items-center gap-1.5 py-1 text-xs text-amber-600 dark:text-amber-500')}
+            style={
+              pane
+                ? ({ '--label-offset': `${(node.level + 1) * 16}px` } as CSSProperties)
+                : { paddingLeft: `${(node.level + 1) * 20 + 8}px` }
+            }
           >
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <AlertCircle className={pane ? undefined : 'h-3.5 w-3.5 shrink-0'} />
             <span>
               Showing first {node.childrenTruncatedAt} items — raise the Schema Importer limit in Settings to see more.
             </span>
@@ -487,7 +520,7 @@ export default function SchemaBrowser({
 
   if (!connectionId) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      <div className={cls(classes.state, 'flex items-center justify-center h-64 text-muted-foreground text-sm')}>
         {t('database-schema:browser.selectConnection')}
       </div>
     );
@@ -495,14 +528,48 @@ export default function SchemaBrowser({
 
   if (isInitialLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span className="ml-2 text-sm text-muted-foreground">{t('common:states.loading')}</span>
+      <div className={cls(classes.state, 'flex items-center justify-center h-64')}>
+        {pane ? <Loader size={16} /> : <Loader2 className="h-6 w-6 animate-spin text-primary" />}
+        <span className={pane ? undefined : 'ml-2 text-sm text-muted-foreground'}>{t('common:states.loading')}</span>
       </div>
     );
   }
 
   if (roots.length === 0) {
+    if (browseError && pane) {
+      // A Mantine Alert in the critical tone, with the detail in a Collapse
+      return (
+        <div className={classes.errorState}>
+          <MantineAlert
+            color={AURA.critical}
+            variant="light"
+            icon={<AlertCircle />}
+            title={t('database-schema:browser.connectionError')}
+            classNames={{ title: classes.errorTitle, message: classes.errorMessage }}
+          >
+            <p className={classes.errorText}>{browseError}</p>
+            {browseErrorDetail && (
+              <>
+                <button
+                  type="button"
+                  className={classes.detailToggle}
+                  aria-expanded={errorDetailOpen}
+                  aria-controls={errorDetailId}
+                  onClick={() => setErrorDetailOpen((open) => !open)}
+                >
+                  {t('database-schema:browser.showDetails')}
+                </button>
+                <Collapse in={errorDetailOpen}>
+                  <pre id={errorDetailId} className={classes.errorDetail}>
+                    {browseErrorDetail}
+                  </pre>
+                </Collapse>
+              </>
+            )}
+          </MantineAlert>
+        </div>
+      );
+    }
     if (browseError) {
       return (
         <div className="flex items-center justify-center h-64 px-4">
@@ -529,8 +596,55 @@ export default function SchemaBrowser({
       );
     }
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      <div className={cls(classes.state, 'flex items-center justify-center h-64 text-muted-foreground text-sm')}>
         {t('database-schema:browser.noResources')}
+      </div>
+    );
+  }
+
+  const clearSearch = () => { setSearch(''); setHighlightedPath(null); };
+  const rootNotice = rootTruncatedAt !== null && !search && (
+    <>
+      Showing first {rootTruncatedAt} items at this level — more exist than are shown.
+      Raise the Schema Importer limit in Settings → General to fetch more.
+    </>
+  );
+
+  if (pane) {
+    return (
+      <div className={classes.browser}>
+        <div className={classes.searchBar}>
+          <TextInput
+            placeholder={t('database-schema:browser.searchPlaceholder')}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            leftSection={<Search size={13} />}
+            rightSectionPointerEvents="all"
+            rightSection={
+              search ? (
+                <button type="button" onClick={clearSearch} className={classes.clear}>
+                  <X />
+                </button>
+              ) : null
+            }
+          />
+          <p className={classes.searchHint}>{t('database-schema:browser.searchHint')}</p>
+        </div>
+
+        {/* Root-level truncation notice */}
+        {rootNotice && (
+          <div className={`${classes.notice} ${classes.rootNotice}`}>
+            <AlertCircle />
+            <span>{rootNotice}</span>
+          </div>
+        )}
+
+        {/* Tree */}
+        {visibleRoots.length === 0 ? (
+          <div className={classes.state}>{t('database-schema:browser.noMatches')}</div>
+        ) : (
+          <div className={classes.tree}>{visibleRoots.map(renderNode)}</div>
+        )}
       </div>
     );
   }
@@ -549,7 +663,7 @@ export default function SchemaBrowser({
           />
           {search && (
             <button
-              onClick={() => { setSearch(''); setHighlightedPath(null); }}
+              onClick={clearSearch}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded"
             >
               <X className="h-3.5 w-3.5 text-muted-foreground" />
@@ -562,13 +676,10 @@ export default function SchemaBrowser({
       </div>
 
       {/* Root-level truncation notice */}
-      {rootTruncatedAt !== null && !search && (
+      {rootNotice && (
         <Alert variant="default" className="py-2">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-xs">
-            Showing first {rootTruncatedAt} items at this level — more exist than are shown.
-            Raise the Schema Importer limit in Settings → General to fetch more.
-          </AlertDescription>
+          <AlertDescription className="text-xs">{rootNotice}</AlertDescription>
         </Alert>
       )}
 

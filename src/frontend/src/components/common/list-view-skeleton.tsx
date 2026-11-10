@@ -1,4 +1,7 @@
+import type { CSSProperties } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import classes from './list-view-skeleton.module.css';
 
 /* ============================================================================
  * Primitives
@@ -6,35 +9,86 @@ import { Skeleton } from '@/components/ui/skeleton';
  * Thin wrappers around the base Skeleton component so other modules don't
  * have to import @/components/ui/skeleton directly. This keeps all skeleton
  * usage funneled through this shared module (see lint guard in the docs).
+ *
+ * The templates below are at Aura density: 28px controls and table rows,
+ * 12px text lines and panes with 12px padding. Props that take a class
+ * (width, height, className, ...) still apply the caller's class; without
+ * one, the size is set inline.
  * ==========================================================================*/
 
+type Size = number | string;
+
+// Aura sizes, in px
+const CONTROL = 28;
+const LINE = 12;
+const SMALL = 10;
+const TITLE = 16;
+const PAGE_TITLE = 20;
+const BADGE = 18;
+const ICON = 16;
+
+/**
+ * One placeholder of the given size. Without a width it fills the row,
+ * unless a class (a caller's size prop) sizes it.
+ */
+function Bone({
+  h,
+  w,
+  radius,
+  className,
+  style,
+}: {
+  h?: Size;
+  w?: Size;
+  radius?: Size;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const width = w ?? (className ? undefined : '100%');
+  return (
+    <Skeleton
+      className={className}
+      style={{
+        ...(h !== undefined && { height: h }),
+        ...(width !== undefined && { width }),
+        ...(radius !== undefined && { borderRadius: radius }),
+        flex: 'none',
+        ...style,
+      }}
+    />
+  );
+}
+
 interface SkeletonLineProps {
-  /** Tailwind width class, e.g. "w-32" or "w-full". Defaults to "w-full". */
+  /** Tailwind width class, e.g. "w-32" or "w-full". Defaults to the full width. */
   width?: string;
-  /** Tailwind height class, e.g. "h-4". Defaults to "h-4". */
+  /** Tailwind height class, e.g. "h-4". Defaults to 16px. */
   height?: string;
   className?: string;
   style?: React.CSSProperties;
 }
 
 /** Simple text-line skeleton. */
-export function SkeletonLine({
-  width = 'w-full',
-  height = 'h-4',
-  className = '',
-  style,
-}: SkeletonLineProps) {
-  return <Skeleton className={`${height} ${width} ${className}`.trim()} style={style} />;
+export function SkeletonLine({ width, height, className = '', style }: SkeletonLineProps) {
+  return (
+    <Skeleton
+      className={cn(height, width, className) || undefined}
+      style={{ ...(!height && { height: 16 }), ...(!width && { width: '100%' }), ...style }}
+    />
+  );
 }
 
 /** Solid block skeleton (taller than a line). */
-export function SkeletonBlock({
-  width = 'w-full',
-  height = 'h-32',
-  className = '',
-}: SkeletonLineProps) {
-  return <Skeleton className={`${height} ${width} ${className}`.trim()} />;
+export function SkeletonBlock({ width, height, className = '' }: SkeletonLineProps) {
+  return (
+    <Skeleton
+      className={cn(height, width, className) || undefined}
+      style={{ ...(!height && { height: 128 }), ...(!width && { width: '100%' }) }}
+    />
+  );
 }
+
+const times = (n: number) => Array.from({ length: Math.max(n, 0) }, (_, i) => i);
 
 /* ============================================================================
  * Templates
@@ -65,17 +119,17 @@ export function ListViewSkeleton({
   toolbarButtons = 2,
 }: ListViewSkeletonProps) {
   return (
-    <div className="space-y-4">
+    <div className={classes.stack}>
       {/* Toolbar skeleton */}
       {showToolbar && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-64" />
-            <Skeleton className="h-9 w-24" />
+        <div className={classes.spread}>
+          <div className={classes.row}>
+            <Bone h={CONTROL} w={256} />
+            <Bone h={CONTROL} w={96} />
           </div>
-          <div className="flex items-center gap-2">
-            {[...Array(toolbarButtons)].map((_, i) => (
-              <Skeleton key={i} className="h-9 w-32" />
+          <div className={classes.row}>
+            {times(toolbarButtons).map((i) => (
+              <Bone key={i} h={CONTROL} w={128} />
             ))}
           </div>
         </div>
@@ -86,15 +140,14 @@ export function ListViewSkeleton({
 
       {/* Pagination skeleton */}
       {showPagination && (
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-32" />
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
+        <div className={classes.spread}>
+          <Bone h={LINE} w={128} />
+          <div className={classes.row}>
+            <Bone h={CONTROL} w={96} />
+            <Bone h={CONTROL} w={80} />
+            {times(4).map((i) => (
+              <Bone key={i} h={CONTROL} w={CONTROL} />
+            ))}
           </div>
         </div>
       )}
@@ -129,28 +182,21 @@ export function TableSkeleton({
   );
 
   return (
-    <div className={bordered ? 'border rounded-lg' : ''}>
+    <div className={bordered ? classes.bordered : undefined}>
       {showHeader && (
-        <div className={`p-3 ${bordered ? 'border-b bg-muted/30' : ''}`}>
-          <div className="flex gap-4 items-center">
-            <Skeleton className="h-4 w-4" />
-            {headerWidths.map((w, i) => (
-              <Skeleton key={i} className="h-4" style={{ width: `${w}px` }} />
-            ))}
-          </div>
+        <div className={classes.tableHead}>
+          <Bone h={14} w={14} />
+          {headerWidths.map((w, i) => (
+            <Bone key={i} h={SMALL} w={w} />
+          ))}
         </div>
       )}
-      {[...Array(rows)].map((_, rowIndex) => (
-        <div
-          key={rowIndex}
-          className={`p-3 ${bordered ? 'border-b last:border-b-0' : ''}`}
-        >
-          <div className="flex gap-4 items-center">
-            <Skeleton className="h-4 w-4" />
-            {rowWidths[rowIndex].map((w, colIndex) => (
-              <Skeleton key={colIndex} className="h-4" style={{ width: `${w}px` }} />
-            ))}
-          </div>
+      {times(rows).map((rowIndex) => (
+        <div key={rowIndex} className={classes.tableRow}>
+          <Bone h={14} w={14} />
+          {rowWidths[rowIndex].map((w, colIndex) => (
+            <Bone key={colIndex} h={LINE} w={w} />
+          ))}
         </div>
       ))}
     </div>
@@ -176,21 +222,30 @@ export function DetailHeaderSkeleton({
   leftControls = 0,
 }: DetailHeaderSkeletonProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-9 w-32" />
-        {[...Array(leftControls)].map((_, i) => (
-          <Skeleton key={i} className="h-9 w-28" />
+    <div className={classes.spread}>
+      <div className={classes.row}>
+        <Bone h={CONTROL} w={96} />
+        {times(leftControls).map((i) => (
+          <Bone key={i} h={CONTROL} w={112} />
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        {[...Array(actionButtons)].map((_, i) => (
-          <Skeleton key={i} className="h-9 w-24" />
+      <div className={classes.row}>
+        {times(actionButtons).map((i) => (
+          <Bone key={i} h={CONTROL} w={96} />
         ))}
       </div>
     </div>
   );
 }
+
+// Tailwind's w-* steps that the title / description props take, in px
+const TW_WIDTHS: Record<string, number> = {
+  'w-32': 128, 'w-40': 160, 'w-48': 192, 'w-56': 224, 'w-64': 256, 'w-72': 288, 'w-80': 320, 'w-96': 384,
+};
+
+/** A caller's width prop: a known w-* step inline, anything else as its class. */
+const widthOf = (value: string): { w?: Size; className?: string } =>
+  TW_WIDTHS[value] !== undefined ? { w: TW_WIDTHS[value] } : { className: value };
 
 /**
  * Skeleton for a card with title and content.
@@ -205,14 +260,14 @@ export function CardSkeleton({
   contentRows?: number;
 }) {
   return (
-    <div className="border rounded-lg p-6 space-y-4">
-      <div>
-        <Skeleton className={`h-6 ${titleWidth} mb-2`} />
-        <Skeleton className={`h-4 ${descriptionWidth}`} />
+    <div className={cn(classes.pane, classes.padded, classes.stack)}>
+      <div className={classes.stackSm}>
+        <Bone h={TITLE} {...widthOf(titleWidth)} />
+        <Bone h={LINE} {...widthOf(descriptionWidth)} />
       </div>
-      <div className="space-y-3">
-        {[...Array(contentRows)].map((_, i) => (
-          <Skeleton key={i} className="h-4 w-full" />
+      <div className={classes.stackSm}>
+        {times(contentRows).map((i) => (
+          <Bone key={i} h={LINE} />
         ))}
       </div>
     </div>
@@ -224,11 +279,11 @@ export function CardSkeleton({
  */
 export function MetadataGridSkeleton({ items = 6 }: { items?: number }) {
   return (
-    <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
-      {[...Array(items)].map((_, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-24" />
+    <div className={classes.metaGrid}>
+      {times(items).map((i) => (
+        <div key={i} className={classes.row}>
+          <Bone h={LINE} w={64} />
+          <Bone h={LINE} w={96} />
         </div>
       ))}
     </div>
@@ -247,47 +302,40 @@ export function DetailViewSkeleton({
   actionButtons?: number;
 }) {
   return (
-    <div className="py-6 space-y-6">
+    <div className={classes.page}>
       {/* Header skeleton */}
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-9 w-32" />
-        <div className="flex items-center gap-2">
-          {[...Array(actionButtons)].map((_, i) => (
-            <Skeleton key={i} className="h-9 w-24" />
+      <div className={classes.spread}>
+        <Bone h={CONTROL} w={96} />
+        <div className={classes.row}>
+          {times(actionButtons).map((i) => (
+            <Bone key={i} h={CONTROL} w={96} />
           ))}
         </div>
       </div>
 
       {/* Core Metadata Card skeleton */}
-      <div className="border rounded-lg">
-        <div className="p-6 border-b">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-7 w-7 rounded" />
-            <Skeleton className="h-7 w-64" />
+      <div className={classes.pane}>
+        <div className={classes.paneHead}>
+          <div className={classes.rowWide}>
+            <Bone h={20} w={20} />
+            <Bone h={PAGE_TITLE} w={256} />
           </div>
-          <Skeleton className="h-4 w-96 mt-2" />
+          <Bone h={LINE} w={384} />
         </div>
-        <div className="p-6 space-y-3">
-          <div className="grid md:grid-cols-3 gap-x-6 gap-y-2">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-            ))}
-          </div>
-          <div className="pt-3 border-t">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Skeleton className="h-3 w-12 mb-1.5" />
-                <div className="flex gap-1">
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-5 w-20" />
+        <div className={cn(classes.paneBody, classes.stack)}>
+          <MetadataGridSkeleton items={6} />
+          <div className={classes.ruled}>
+            <div className={classes.rowWide}>
+              <div className={cn(classes.grow, classes.stackXs)}>
+                <Bone h={SMALL} w={48} />
+                <div className={classes.row}>
+                  <Bone h={BADGE} w={64} />
+                  <Bone h={BADGE} w={80} />
                 </div>
               </div>
-              <div className="flex-1">
-                <Skeleton className="h-3 w-24 mb-1.5" />
-                <Skeleton className="h-5 w-32" />
+              <div className={cn(classes.grow, classes.stackXs)}>
+                <Bone h={SMALL} w={96} />
+                <Bone h={BADGE} w={128} />
               </div>
             </div>
           </div>
@@ -295,21 +343,19 @@ export function DetailViewSkeleton({
       </div>
 
       {/* Additional cards skeleton */}
-      {[...Array(Math.max(cards - 1, 0))].map((_, cardIndex) => (
-        <div key={cardIndex} className="border rounded-lg">
-          <div className="p-6 border-b">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-5 w-5" />
-              <Skeleton className="h-5 w-32" />
+      {times(cards - 1).map((cardIndex) => (
+        <div key={cardIndex} className={classes.pane}>
+          <div className={classes.paneHead}>
+            <div className={classes.row}>
+              <Bone h={ICON} w={ICON} />
+              <Bone h={TITLE} w={128} />
             </div>
-            <Skeleton className="h-4 w-56 mt-1" />
+            <Bone h={LINE} w={224} />
           </div>
-          <div className="p-6">
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
+          <div className={cn(classes.paneBody, classes.stackSm)}>
+            <Bone h={CONTROL} />
+            <Bone h={36} />
+            <Bone h={36} />
           </div>
         </div>
       ))}
@@ -339,17 +385,13 @@ export function HierarchyTreeSkeleton({
   className = '',
 }: HierarchyTreeSkeletonProps) {
   return (
-    <div className={`space-y-2 p-4 ${className}`.trim()}>
-      {[...Array(groups)].map((_, g) => (
-        <div key={g} className="space-y-1.5">
-          <Skeleton className="h-5 w-32" />
-          <div className={`space-y-1 ${indented ? 'pl-6' : ''}`}>
-            {[...Array(itemsPerGroup)].map((_, i) => (
-              <Skeleton
-                key={i}
-                className="h-4"
-                style={{ width: `${Math.round(Math.random() * 30 + 130)}px` }}
-              />
+    <div className={cn(classes.stack, classes.padded, className)}>
+      {times(groups).map((g) => (
+        <div key={g} className={classes.stackSm}>
+          <Bone h={14} w={128} />
+          <div className={cn(classes.stackXs, indented && classes.indent)}>
+            {times(itemsPerGroup).map((i) => (
+              <Bone key={i} h={LINE} w={Math.round(Math.random() * 30 + 130)} />
             ))}
           </div>
         </div>
@@ -365,9 +407,9 @@ interface PanelSkeletonProps {
   withDescription?: boolean;
   /** Number of stacked content rows */
   rows?: number;
-  /** Height class for each row */
+  /** Height class for each row (defaults to 28px) */
   rowHeight?: string;
-  /** Outer wrapper class (defaults to bordered card) */
+  /** Outer wrapper class (defaults to a bordered pane) */
   className?: string;
 }
 
@@ -380,24 +422,22 @@ export function PanelSkeleton({
   withHeaderIcon = true,
   withDescription = true,
   rows = 2,
-  rowHeight = 'h-10',
-  className = 'border rounded-lg',
+  rowHeight,
+  className,
 }: PanelSkeletonProps) {
   return (
-    <div className={className}>
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-2">
-          {withHeaderIcon && <Skeleton className="h-5 w-5" />}
-          <Skeleton className="h-5 w-32" />
+    <div className={className ?? classes.pane}>
+      <div className={classes.paneHead}>
+        <div className={classes.row}>
+          {withHeaderIcon && <Bone h={ICON} w={ICON} />}
+          <Bone h={TITLE} w={128} />
         </div>
-        {withDescription && <Skeleton className="h-4 w-48 mt-1" />}
+        {withDescription && <Bone h={LINE} w={192} />}
       </div>
-      <div className="p-6">
-        <div className="space-y-2">
-          {[...Array(rows)].map((_, i) => (
-            <Skeleton key={i} className={`${rowHeight} w-full`} />
-          ))}
-        </div>
+      <div className={cn(classes.paneBody, classes.stackSm)}>
+        {times(rows).map((i) => (
+          <Bone key={i} h={rowHeight ? undefined : CONTROL} w="100%" className={rowHeight} />
+        ))}
       </div>
     </div>
   );
@@ -414,11 +454,11 @@ interface DialogSkeletonProps {
  */
 export function DialogSkeleton({ rows = 3, className = '' }: DialogSkeletonProps) {
   // Cycle through a few canonical widths so the skeleton looks like prose
-  const widths = ['w-3/4', 'w-1/2', 'w-2/3', 'w-5/6', 'w-3/5'];
+  const widths = ['75%', '50%', '66%', '83%', '60%'];
   return (
-    <div className={`space-y-4 ${className}`.trim()}>
-      {[...Array(rows)].map((_, i) => (
-        <Skeleton key={i} className={`h-4 ${widths[i % widths.length]}`} />
+    <div className={cn(classes.stack, className)}>
+      {times(rows).map((i) => (
+        <Bone key={i} h={LINE} w={widths[i % widths.length]} />
       ))}
     </div>
   );
@@ -429,27 +469,23 @@ interface StatCardsSkeletonProps {
   count?: number;
   /** Optional grid override (defaults to responsive 1/3 columns) */
   className?: string;
-  /** Padding for each stat card. Use "p-4" for compact rows. */
+  /** Padding class for each stat card (defaults to 12px). */
   cardPadding?: string;
 }
 
 /**
  * Skeleton for a row of stat / summary cards (icon + label + value).
  */
-export function StatCardsSkeleton({
-  count = 3,
-  className = 'grid grid-cols-1 sm:grid-cols-3 gap-4',
-  cardPadding = 'p-6',
-}: StatCardsSkeletonProps) {
+export function StatCardsSkeleton({ count = 3, className, cardPadding }: StatCardsSkeletonProps) {
   return (
-    <div className={className}>
-      {[...Array(count)].map((_, i) => (
-        <div key={i} className={`border rounded-lg ${cardPadding}`}>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-lg" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-7 w-16" />
+    <div className={className ?? classes.statGrid}>
+      {times(count).map((i) => (
+        <div key={i} className={cn(classes.pane, cardPadding ?? classes.padded)}>
+          <div className={classes.rowWide}>
+            <Bone h={32} w={32} radius={6} />
+            <div className={cn(classes.grow, classes.stackSm)}>
+              <Bone h={LINE} w={96} />
+              <Bone h={PAGE_TITLE} w={64} />
             </div>
           </div>
         </div>
@@ -461,7 +497,7 @@ export function StatCardsSkeleton({
 interface ListItemSkeletonProps {
   /** Number of list items to render */
   count?: number;
-  /** Tailwind height class for each item */
+  /** Height class for each item (defaults to 40px) */
   height?: string;
   /** Optional class for the wrapper */
   className?: string;
@@ -471,15 +507,11 @@ interface ListItemSkeletonProps {
  * Skeleton for a vertical stack of list items (rounded rows).
  * Suitable for sidebars showing items, products, projects, etc.
  */
-export function ListItemSkeleton({
-  count = 4,
-  height = 'h-14',
-  className = 'space-y-1',
-}: ListItemSkeletonProps) {
+export function ListItemSkeleton({ count = 4, height, className }: ListItemSkeletonProps) {
   return (
-    <div className={className}>
-      {[...Array(count)].map((_, i) => (
-        <Skeleton key={i} className={`${height} w-full rounded-md`} />
+    <div className={className ?? classes.stackXs}>
+      {times(count).map((i) => (
+        <Bone key={i} h={height ? undefined : 40} w="100%" className={height} radius={4} />
       ))}
     </div>
   );
@@ -507,23 +539,21 @@ export function CatalogColumnsTableSkeleton({
   showHeader = true,
 }: CatalogColumnsTableSkeletonProps) {
   // First column gets a fixed name width, remaining columns share flex space
-  const colClasses = Array.from({ length: columns }, (_, i) =>
-    i === 0 ? 'w-40' : 'flex-1'
-  );
+  const cell = (j: number): CSSProperties => (j === 0 ? { width: 160 } : { flex: 1, width: 'auto' });
 
   return (
-    <div className="p-6 space-y-3">
+    <div className={cn(classes.padded, classes.stackSm)}>
       {showHeader && (
-        <div className="flex gap-4 pb-2 border-b">
-          {colClasses.map((w, j) => (
-            <Skeleton key={j} className={`h-3 ${w}`} />
+        <div className={classes.tableHead}>
+          {times(columns).map((j) => (
+            <Bone key={j} h={SMALL} style={cell(j)} />
           ))}
         </div>
       )}
-      {[...Array(rows)].map((_, i) => (
-        <div key={i} className="flex gap-4">
-          {colClasses.map((w, j) => (
-            <Skeleton key={j} className={`h-6 ${w}`} />
+      {times(rows).map((i) => (
+        <div key={i} className={classes.tableRow}>
+          {times(columns).map((j) => (
+            <Bone key={j} h={LINE} style={cell(j)} />
           ))}
         </div>
       ))}
@@ -542,9 +572,9 @@ interface VersionLineageSkeletonProps {
  */
 export function VersionLineageSkeleton({ versions = 2 }: VersionLineageSkeletonProps) {
   return (
-    <div className="space-y-4">
-      {[...Array(versions)].map((_, i) => (
-        <Skeleton key={i} className="h-32 w-full" />
+    <div className={classes.stack}>
+      {times(versions).map((i) => (
+        <Bone key={i} h={112} />
       ))}
     </div>
   );
@@ -579,42 +609,42 @@ export function TabsDetailSkeleton({
   contentCards = 2,
 }: TabsDetailSkeletonProps) {
   return (
-    <div className="py-6 space-y-6">
+    <div className={classes.page}>
       <DetailHeaderSkeleton actionButtons={actionButtons} leftControls={leftControls} />
 
       {hero && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded" />
-            <Skeleton className="h-8 w-72" />
-            <Skeleton className="h-5 w-20" />
+        <div className={classes.stackSm}>
+          <div className={classes.rowWide}>
+            <Bone h={24} w={24} />
+            <Bone h={PAGE_TITLE} w={288} />
+            <Bone h={BADGE} w={64} />
           </div>
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-3 w-1/3" />
+          <Bone h={LINE} w="66%" />
+          <Bone h={SMALL} w="33%" />
         </div>
       )}
 
       {/* Tab triggers */}
-      <div className="flex gap-2 border-b pb-2">
-        {[...Array(tabs)].map((_, i) => (
-          <Skeleton key={i} className="h-9 w-32" />
+      <div className={classes.tabs}>
+        {times(tabs).map((i) => (
+          <Bone key={i} h={30} w={96} radius={0} />
         ))}
       </div>
 
       {/* Tab body */}
       {contentVariant === 'two-col' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 space-y-4">
+        <div className={classes.mainSide}>
+          <div className={classes.stack}>
             <CardSkeleton titleWidth="w-40" descriptionWidth="w-64" contentRows={4} />
             <CardSkeleton titleWidth="w-48" descriptionWidth="w-72" contentRows={3} />
           </div>
-          <div className="space-y-4">
+          <div className={classes.stack}>
             <PanelSkeleton rows={3} />
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {[...Array(contentCards)].map((_, i) => (
+        <div className={classes.stack}>
+          {times(contentCards).map((i) => (
             <CardSkeleton key={i} contentRows={3} />
           ))}
         </div>
@@ -624,7 +654,7 @@ export function TabsDetailSkeleton({
 }
 
 interface SplitPaneSkeletonProps {
-  /** Tailwind width class for the sidebar (e.g. "w-64", "w-1/4") */
+  /** Width class for the sidebar (e.g. "w-64", "w-1/4"); defaults to a quarter */
   sidebarWidth?: string;
   /** Sidebar render style */
   sidebarVariant?: 'tree' | 'list' | 'cards';
@@ -638,7 +668,7 @@ interface SplitPaneSkeletonProps {
   tableRows?: number;
   /** Optional toolbar/header row above the split */
   showHeader?: boolean;
-  /** Total min height (Tailwind class) for the split */
+  /** Total min height class for the split; defaults to 400px */
   minHeight?: string;
 }
 
@@ -648,14 +678,14 @@ interface SplitPaneSkeletonProps {
  * collections, hierarchy-browser, ontology-generator, schema-importer.
  */
 export function SplitPaneSkeleton({
-  sidebarWidth = 'w-1/4',
+  sidebarWidth,
   sidebarVariant = 'list',
   sidebarItems = 6,
   main = 'table',
   tableColumns = 6,
   tableRows = 6,
   showHeader = true,
-  minHeight = 'min-h-[400px]',
+  minHeight,
 }: SplitPaneSkeletonProps) {
   const renderSidebar = () => {
     if (sidebarVariant === 'tree') {
@@ -663,19 +693,19 @@ export function SplitPaneSkeleton({
     }
     if (sidebarVariant === 'cards') {
       return (
-        <div className="p-4 space-y-3">
-          {[...Array(sidebarItems)].map((_, i) => (
-            <div key={i} className="border rounded-lg p-3 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+        <div className={cn(classes.padded, classes.stackSm)}>
+          {times(sidebarItems).map((i) => (
+            <div key={i} className={cn(classes.pane, classes.paddedSm, classes.stackSm)}>
+              <Bone h={LINE} w="75%" />
+              <Bone h={SMALL} w="50%" />
             </div>
           ))}
         </div>
       );
     }
     return (
-      <div className="p-2">
-        <ListItemSkeleton count={sidebarItems} height="h-10" />
+      <div className={classes.paddedSm}>
+        <ListItemSkeleton count={sidebarItems} />
       </div>
     );
   };
@@ -689,8 +719,8 @@ export function SplitPaneSkeleton({
     }
     if (main === 'cards') {
       return (
-        <div className="p-4 space-y-3">
-          {[...Array(tableRows)].map((_, i) => (
+        <div className={cn(classes.padded, classes.stackSm)}>
+          {times(tableRows).map((i) => (
             <CardSkeleton key={i} contentRows={2} />
           ))}
         </div>
@@ -700,22 +730,20 @@ export function SplitPaneSkeleton({
   };
 
   return (
-    <div className={`flex flex-col gap-4 ${minHeight}`.trim()}>
+    <div className={cn(classes.split, minHeight)} style={minHeight ? undefined : { minHeight: 400 }}>
       {showHeader && (
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-7 w-48" />
-          <div className="flex gap-2">
-            <Skeleton className="h-9 w-32" />
+        <div className={classes.spread}>
+          <Bone h={PAGE_TITLE} w={192} />
+          <div className={classes.row}>
+            <Bone h={CONTROL} w={128} />
           </div>
         </div>
       )}
-      <div className="flex gap-4 flex-1">
-        <div className={`${sidebarWidth} border rounded-lg overflow-hidden`}>
+      <div className={classes.splitBody}>
+        <div className={cn(classes.pane, sidebarWidth)} style={sidebarWidth ? undefined : { width: '25%' }}>
           {renderSidebar()}
         </div>
-        <div className="flex-1 border rounded-lg overflow-hidden">
-          {renderMain()}
-        </div>
+        <div className={cn(classes.pane, classes.grow)}>{renderMain()}</div>
       </div>
     </div>
   );
@@ -743,33 +771,33 @@ export function SettingsFormSkeleton({
   showTitle = true,
 }: SettingsFormSkeletonProps) {
   return (
-    <div className="space-y-6">
+    <div className={classes.stack}>
       {showTitle && (
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-96" />
+        <div className={classes.stackSm}>
+          <Bone h={PAGE_TITLE} w={256} />
+          <Bone h={LINE} w={384} />
         </div>
       )}
-      {[...Array(sections)].map((_, s) => (
-        <div key={s} className="border rounded-lg">
-          <div className="p-6 border-b space-y-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-4 w-72" />
+      {times(sections).map((s) => (
+        <div key={s} className={classes.pane}>
+          <div className={classes.paneHead}>
+            <Bone h={TITLE} w={160} />
+            <Bone h={LINE} w={288} />
           </div>
-          <div className="p-6 space-y-4">
-            {[...Array(fieldsPerSection)].map((_, f) => (
-              <div key={f} className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-9 w-full" />
+          <div className={cn(classes.paneBody, classes.stack)}>
+            {times(fieldsPerSection).map((f) => (
+              <div key={f} className={classes.stackXs}>
+                <Bone h={LINE} w={128} />
+                <Bone h={CONTROL} />
               </div>
             ))}
           </div>
         </div>
       ))}
       {showSaveBar && (
-        <div className="flex justify-end gap-2 pt-2">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-32" />
+        <div className={classes.end}>
+          <Bone h={CONTROL} w={96} />
+          <Bone h={CONTROL} w={128} />
         </div>
       )}
     </div>
@@ -795,40 +823,40 @@ export function HomeDashboardSkeleton({
   showRoleSections = true,
 }: HomeDashboardSkeletonProps) {
   return (
-    <div className="py-6 space-y-6">
+    <div className={classes.page}>
       {/* Hero (logo + title + search bar) */}
-      <div className="flex flex-col items-center text-center space-y-3 py-8">
-        <Skeleton className="h-12 w-12 rounded-full" />
-        <Skeleton className="h-8 w-72" />
-        <Skeleton className="h-4 w-96" />
-        <Skeleton className="h-11 w-full max-w-2xl rounded-lg" />
+      <div className={classes.hero}>
+        <Bone h={40} w={40} radius="50%" />
+        <Bone h={PAGE_TITLE} w={288} />
+        <Bone h={LINE} w={384} />
+        <Bone h={32} radius={6} style={{ maxWidth: 672 }} />
       </div>
 
       {/* Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {[...Array(tileCount)].map((_, i) => (
-          <div key={i} className="border rounded-lg p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-8 rounded-md" />
-              <Skeleton className="h-5 w-24" />
+      <div className={classes.tiles} style={{ '--cols': 4 } as CSSProperties}>
+        {times(tileCount).map((i) => (
+          <div key={i} className={cn(classes.pane, classes.padded, classes.stackSm)}>
+            <div className={classes.row}>
+              <Bone h={24} w={24} radius={4} />
+              <Bone h={TITLE} w={96} />
             </div>
-            <Skeleton className="h-7 w-12" />
-            <Skeleton className="h-3 w-32" />
+            <Bone h={PAGE_TITLE} w={48} />
+            <Bone h={SMALL} w={128} />
           </div>
         ))}
       </div>
 
       {showMyActions && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <PanelSkeleton rows={3} rowHeight="h-12" />
-          <PanelSkeleton rows={3} rowHeight="h-12" />
+        <div className={classes.twoCol}>
+          <PanelSkeleton rows={3} />
+          <PanelSkeleton rows={3} />
         </div>
       )}
 
       {showRoleSections && (
-        <div className="space-y-4">
-          <PanelSkeleton rows={3} rowHeight="h-14" />
-          <PanelSkeleton rows={2} rowHeight="h-12" />
+        <div className={classes.stack}>
+          <PanelSkeleton rows={3} />
+          <PanelSkeleton rows={2} />
         </div>
       )}
     </div>
@@ -842,7 +870,7 @@ interface TileGridSkeletonProps {
   columns?: 1 | 2 | 3 | 4;
   /** Render an optional title row above the grid */
   withHeader?: boolean;
-  /** Tile height class */
+  /** Tile height class (defaults to 140px) */
   tileHeight?: string;
 }
 
@@ -853,33 +881,29 @@ export function TileGridSkeleton({
   count = 8,
   columns = 4,
   withHeader = false,
-  tileHeight = 'h-40',
+  tileHeight,
 }: TileGridSkeletonProps) {
-  // Map columns to a static class so Tailwind's JIT can pick it up
-  const gridClass = {
-    1: 'grid-cols-1',
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-  }[columns];
-
   return (
-    <div className="space-y-4">
+    <div className={classes.stack}>
       {withHeader && (
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-9 w-32" />
+        <div className={classes.spread}>
+          <Bone h={TITLE} w={192} />
+          <Bone h={CONTROL} w={128} />
         </div>
       )}
-      <div className={`grid ${gridClass} gap-4`}>
-        {[...Array(count)].map((_, i) => (
-          <div key={i} className={`border rounded-lg p-4 space-y-3 ${tileHeight}`}>
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-            <Skeleton className="h-3 w-2/3" />
-            <div className="flex gap-2 pt-2">
-              <Skeleton className="h-5 w-12" />
-              <Skeleton className="h-5 w-16" />
+      <div className={classes.tiles} style={{ '--cols': columns } as CSSProperties}>
+        {times(count).map((i) => (
+          <div
+            key={i}
+            className={cn(classes.pane, classes.padded, classes.stackSm, tileHeight)}
+            style={tileHeight ? undefined : { height: 140 }}
+          >
+            <Bone h={14} w="75%" />
+            <Bone h={SMALL} w="50%" />
+            <Bone h={SMALL} w="66%" />
+            <div className={classes.row}>
+              <Bone h={BADGE} w={48} />
+              <Bone h={BADGE} w={64} />
             </div>
           </div>
         ))}
@@ -907,36 +931,30 @@ export function DocViewerSkeleton({
   showTitle = true,
 }: DocViewerSkeletonProps) {
   // Cycle through canonical widths so the prose looks varied
-  const widths = ['w-full', 'w-11/12', 'w-5/6', 'w-3/4', 'w-2/3'];
+  const widths = ['100%', '92%', '83%', '75%', '66%'];
   return (
-    <div className="space-y-6">
+    <div className={classes.stack}>
       {showTitle && (
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-72" />
-          <Skeleton className="h-4 w-96" />
+        <div className={classes.stackSm}>
+          <Bone h={PAGE_TITLE} w={288} />
+          <Bone h={LINE} w={384} />
         </div>
       )}
-      <div className={`flex gap-6 ${showToc ? '' : 'justify-center'}`}>
+      <div className={cn(classes.docs, !showToc && classes.center)}>
         {showToc && (
-          <div className="w-64 shrink-0 hidden lg:block">
-            <div className="space-y-2 sticky top-4">
-              <Skeleton className="h-4 w-24" />
-              <div className="space-y-1.5 pt-1">
-                {[...Array(8)].map((_, i) => (
-                  <Skeleton
-                    key={i}
-                    className="h-3"
-                    style={{ width: `${Math.round(Math.random() * 40 + 100)}px` }}
-                  />
-                ))}
-              </div>
+          <div className={classes.toc}>
+            <div className={classes.tocInner}>
+              <Bone h={LINE} w={96} />
+              {times(8).map((i) => (
+                <Bone key={i} h={SMALL} w={Math.round(Math.random() * 40 + 100)} />
+              ))}
             </div>
           </div>
         )}
-        <div className="flex-1 space-y-3 max-w-4xl">
-          <Skeleton className="h-7 w-1/2 mb-2" />
-          {[...Array(proseRows)].map((_, i) => (
-            <Skeleton key={i} className={`h-3 ${widths[i % widths.length]}`} />
+        <div className={classes.prose}>
+          <Bone h={TITLE} w="50%" />
+          {times(proseRows).map((i) => (
+            <Bone key={i} h={SMALL} w={widths[i % widths.length]} />
           ))}
         </div>
       </div>
@@ -949,7 +967,7 @@ interface GraphCanvasSkeletonProps {
   showFilterPanel?: boolean;
   /** Show a top toolbar */
   showToolbar?: boolean;
-  /** Tailwind height for the canvas block */
+  /** Height class for the canvas block; defaults to 600px */
   height?: string;
 }
 
@@ -959,39 +977,39 @@ interface GraphCanvasSkeletonProps {
 export function GraphCanvasSkeleton({
   showFilterPanel = false,
   showToolbar = true,
-  height = 'h-[600px]',
+  height,
 }: GraphCanvasSkeletonProps) {
   return (
-    <div className="space-y-3">
+    <div className={classes.stack}>
       {showToolbar && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-64" />
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-24" />
+        <div className={classes.spread}>
+          <div className={classes.row}>
+            <Bone h={CONTROL} w={256} />
+            <Bone h={CONTROL} w={96} />
+            <Bone h={CONTROL} w={96} />
           </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-9" />
-            <Skeleton className="h-9 w-9" />
-            <Skeleton className="h-9 w-32" />
+          <div className={classes.row}>
+            <Bone h={CONTROL} w={CONTROL} />
+            <Bone h={CONTROL} w={CONTROL} />
+            <Bone h={CONTROL} w={128} />
           </div>
         </div>
       )}
-      <div className="flex gap-3">
+      <div className={classes.canvasRow}>
         {showFilterPanel && (
-          <div className="w-64 shrink-0 border rounded-lg p-4 space-y-3">
-            <Skeleton className="h-5 w-32" />
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4" />
-                  <Skeleton className="h-4 flex-1" />
+          <div className={cn(classes.side, classes.pane, classes.padded, classes.stack)}>
+            <Bone h={TITLE} w={128} />
+            <div className={classes.stackSm}>
+              {times(5).map((i) => (
+                <div key={i} className={classes.row}>
+                  <Bone h={14} w={14} />
+                  <Bone h={LINE} style={{ flex: 1, width: 'auto' }} />
                 </div>
               ))}
             </div>
           </div>
         )}
-        <Skeleton className={`${height} flex-1 rounded-lg`} />
+        <Bone h={height ? undefined : 600} radius={6} className={height} style={{ flex: 1, width: 'auto' }} />
       </div>
     </div>
   );
@@ -1000,7 +1018,7 @@ export function GraphCanvasSkeleton({
 interface WorkflowCanvasSkeletonProps {
   /** Show the right-hand inspector panel */
   showSidebar?: boolean;
-  /** Tailwind height class for the canvas */
+  /** Height class for the canvas; defaults to the viewport less 12rem */
   height?: string;
 }
 
@@ -1008,37 +1026,34 @@ interface WorkflowCanvasSkeletonProps {
  * Skeleton for the Workflow Designer full-height layout.
  * Renders a top toolbar, a flow canvas and an optional inspector panel.
  */
-export function WorkflowCanvasSkeleton({
-  showSidebar = true,
-  height = 'h-[calc(100vh-12rem)]',
-}: WorkflowCanvasSkeletonProps) {
+export function WorkflowCanvasSkeleton({ showSidebar = true, height }: WorkflowCanvasSkeletonProps) {
   return (
-    <div className={`flex flex-col gap-3 ${height}`.trim()}>
+    <div className={cn(classes.stack, height)} style={height ? undefined : { height: 'calc(100vh - 12rem)' }}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-9 w-32" />
-          <Skeleton className="h-9 w-9" />
-          <Skeleton className="h-9 w-9" />
+      <div className={classes.spread}>
+        <div className={classes.row}>
+          <Bone h={CONTROL} w={128} />
+          <Bone h={CONTROL} w={CONTROL} />
+          <Bone h={CONTROL} w={CONTROL} />
         </div>
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-28" />
+        <div className={classes.row}>
+          <Bone h={CONTROL} w={96} />
+          <Bone h={CONTROL} w={112} />
         </div>
       </div>
 
       {/* Canvas + sidebar */}
-      <div className="flex gap-3 flex-1">
-        <Skeleton className="flex-1 rounded-lg" />
+      <div className={classes.splitBody}>
+        <Bone radius={6} style={{ flex: 1, width: 'auto' }} />
         {showSidebar && (
-          <div className="w-72 shrink-0 border rounded-lg p-4 space-y-3">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-4 w-32" />
-            <div className="space-y-2 pt-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="space-y-1">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-9 w-full" />
+          <div className={cn(classes.inspector, classes.pane, classes.padded, classes.stack)}>
+            <Bone h={TITLE} w={160} />
+            <Bone h={LINE} w={128} />
+            <div className={classes.stackSm}>
+              {times(5).map((i) => (
+                <div key={i} className={classes.stackXs}>
+                  <Bone h={SMALL} w={96} />
+                  <Bone h={CONTROL} />
                 </div>
               ))}
             </div>
@@ -1060,51 +1075,41 @@ interface HierarchyDetailSkeletonProps {
  * Skeleton for the right-hand detail pane of the Hierarchy Browser.
  * Includes an icon header, badge row, control bar, and tree rows.
  */
-export function HierarchyDetailSkeleton({
-  showControls = true,
-  treeRows = 6,
-}: HierarchyDetailSkeletonProps) {
+export function HierarchyDetailSkeleton({ showControls = true, treeRows = 6 }: HierarchyDetailSkeletonProps) {
   return (
-    <div className="space-y-4 p-4">
+    <div className={cn(classes.stack, classes.padded)}>
       {/* Icon + title + badges */}
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-9 w-9 rounded" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-5 w-56" />
-          <Skeleton className="h-3 w-40" />
+      <div className={classes.rowWide}>
+        <Bone h={CONTROL} w={CONTROL} />
+        <div className={cn(classes.grow, classes.stackSm)}>
+          <Bone h={TITLE} w={224} />
+          <Bone h={SMALL} w={160} />
         </div>
-        <Skeleton className="h-9 w-24" />
+        <Bone h={CONTROL} w={96} />
       </div>
 
-      <div className="flex gap-2">
-        <Skeleton className="h-5 w-16" />
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-5 w-16" />
+      <div className={classes.row}>
+        <Bone h={BADGE} w={64} />
+        <Bone h={BADGE} w={80} />
+        <Bone h={BADGE} w={64} />
       </div>
 
       {showControls && (
-        <div className="flex items-center gap-2 border-t pt-3">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-8 w-28" />
-          <div className="ml-auto flex gap-2">
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
+        <div className={cn(classes.row, classes.ruled)}>
+          <Bone h={CONTROL} w={128} />
+          <Bone h={CONTROL} w={112} />
+          <div className={cn(classes.row, classes.pushRight)}>
+            <Bone h={CONTROL} w={CONTROL} />
+            <Bone h={CONTROL} w={CONTROL} />
           </div>
         </div>
       )}
 
-      <div className="space-y-1.5">
-        {[...Array(treeRows)].map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2"
-            style={{ paddingLeft: `${(i % 3) * 16}px` }}
-          >
-            <Skeleton className="h-4 w-4" />
-            <Skeleton
-              className="h-4"
-              style={{ width: `${Math.round(Math.random() * 40 + 140)}px` }}
-            />
+      <div className={classes.stackXs}>
+        {times(treeRows).map((i) => (
+          <div key={i} className={classes.treeRow} style={{ paddingLeft: `${(i % 3) * 16}px` }}>
+            <Bone h={14} w={14} />
+            <Bone h={LINE} w={Math.round(Math.random() * 40 + 140)} />
           </div>
         ))}
       </div>
@@ -1125,18 +1130,14 @@ interface FilterBarSkeletonProps {
  * Skeleton for a filter row (search + N filter dropdowns + optional action).
  * Use above tables, hierarchical browsers, etc.
  */
-export function FilterBarSkeleton({
-  filterCount = 3,
-  withSearch = true,
-  withAction = false,
-}: FilterBarSkeletonProps) {
+export function FilterBarSkeleton({ filterCount = 3, withSearch = true, withAction = false }: FilterBarSkeletonProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {withSearch && <Skeleton className="h-9 w-64" />}
-      {[...Array(filterCount)].map((_, i) => (
-        <Skeleton key={i} className="h-9 w-32" />
+    <div className={cn(classes.row, classes.wrap)}>
+      {withSearch && <Bone h={CONTROL} w={256} />}
+      {times(filterCount).map((i) => (
+        <Bone key={i} h={CONTROL} w={128} />
       ))}
-      {withAction && <Skeleton className="h-9 w-24 ml-auto" />}
+      {withAction && <Bone h={CONTROL} w={96} style={{ marginLeft: 'auto' }} />}
     </div>
   );
 }

@@ -155,7 +155,10 @@
       "loading": "Metric view laden",
       "loadError": "De definitie van de metric view kon niet worden geladen.",
       "userTokenRequired": "Deze metric view wordt met uw eigen toegang uit Unity Catalog gelezen, en uw Databricks-aanmelding is in deze sessie niet beschikbaar."
-    }
+    },
+    "tableView": "Tabelweergave",
+    "graphView": "Grafiekweergave",
+    "relationshipGraph": "Relatiegrafiek"
   },
   "explorer": {
     "title": "Asset Explorer",

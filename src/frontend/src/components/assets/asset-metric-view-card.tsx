@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import MetricViewDefinitionPanel from '@/components/data-asset-reviews/metric-view-definition';
 import { useApi } from '@/hooks/use-api';
 import type { MetricViewDefinition } from '@/types/data-asset-review';
+import { Pane } from '@/mantine/page';
+import classes from './asset-metric-view-card.module.css';
 
 const METRIC_VIEW_TYPE = 'Metric View';
 // A metric view is imported as a Metric View asset; one imported before that type
@@ -66,33 +67,21 @@ export default function AssetMetricViewCard({ assetId, assetTypeName }: {
     if (state === 'none' || (quiet && state !== 'ready')) return null;
 
     return (
-        <Card>
-            <CardHeader className="pb-3">
-                <CardTitle className="text-base">{t('detail.metricView.title')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {state === 'loading' && (
-                    <div className="flex justify-center py-6">
-                        <Loader2
-                            className="h-6 w-6 animate-spin text-muted-foreground"
-                            aria-label={t('detail.metricView.loading')}
-                        />
-                    </div>
-                )}
-                {state === 'noToken' && (
-                    <p className="text-sm text-muted-foreground">
-                        {t('detail.metricView.userTokenRequired')}
-                    </p>
-                )}
-                {state === 'error' && (
-                    <p className="text-sm text-muted-foreground">
-                        {t('detail.metricView.loadError')}
-                    </p>
-                )}
-                {state === 'ready' && definition && (
-                    <MetricViewDefinitionPanel definition={definition} />
-                )}
-            </CardContent>
-        </Card>
+        <Pane title={t('detail.metricView.title')}>
+            {state === 'loading' && (
+                <div className={classes.loading}>
+                    <Loader2 className={classes.spin} aria-label={t('detail.metricView.loading')} />
+                </div>
+            )}
+            {state === 'noToken' && (
+                <p className={classes.note}>{t('detail.metricView.userTokenRequired')}</p>
+            )}
+            {state === 'error' && (
+                <p className={classes.note}>{t('detail.metricView.loadError')}</p>
+            )}
+            {state === 'ready' && definition && (
+                <MetricViewDefinitionPanel definition={definition} />
+            )}
+        </Pane>
     );
 }

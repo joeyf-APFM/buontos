@@ -27,7 +27,7 @@ import VersionCountBadge from '@/components/common/version-count-badge';
 import { Switch } from '@/components/ui/switch';
 import type { CertificationLevel } from '@/types/lifecycle';
 import { useApi } from '@/hooks/use-api';
-import { usePermissions } from '@/stores/permissions-store';
+import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { internalErrorText } from '@/lib/server-error-text';
 
@@ -67,15 +67,40 @@ export default function DataContracts() {
   // so we must also hide the create/upload controls from personas (e.g. Data
   // Consumer) that lack write access rather than letting them open a dialog
   // that only fails on save. See CUJ ONT-RBAC-007.
-  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const { hasPermission } = usePermissions();
+  // Known permissions only: on a fresh load the store is empty and not loading yet
+  const permissionsReady = usePermissionsReady();
   const featureId = 'data-contracts';
-  const canWrite = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
+  const canWrite = permissionsReady && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
   const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
   const { currentProject, hasProjectContext } = useProjectContext();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // The side menu's Build → Data Contracts → New Contract links here with
+  // ?new=1: it opens the create dialog, as the New Contract button does, for
+  // the users who see that button. The param goes (replace) when the dialog
+  // closes, so the menu highlights New Contract while it's open, and once it
+  // is closed neither a reload nor back reopens it.
+  const wantsNewContract = searchParams.get('new') === '1';
+  const wizardOpen = openWizard || (wantsNewContract && canWrite);
+  const clearNewContractParam = () =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('new');
+      return next;
+    }, { replace: true });
+  const setWizardOpen = (open: boolean) => {
+    setOpenWizard(open);
+    if (!open && wantsNewContract) clearNewContractParam();
+  };
+  // Without the create permission, the param is dropped and nothing opens
+  useEffect(() => {
+    if (wantsNewContract && permissionsReady && !canWrite) clearNewContractParam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsNewContract, permissionsReady, canWrite]);
 
   useEffect(() => {
     fetchContracts();
@@ -169,7 +194,7 @@ export default function DataContracts() {
         title: t('data-contracts:messages.success', 'Success'), 
         description: t('data-contracts:form.createSuccess', 'Data contract created successfully')
       });
-      setOpenWizard(false); // Close the wizard on success
+      setWizardOpen(false); // Close the wizard on success
     } catch (err) {
       const message = err instanceof Error ? err.message : t('data-contracts:form.createError', 'Failed to create data contract');
       setError(message);
@@ -801,8 +826,8 @@ export default function DataContracts() {
 
       {/* Basic Form Dialog */}
       <DataContractBasicFormDialog
-        isOpen={openWizard}
-        onOpenChange={setOpenWizard}
+        isOpen={wizardOpen}
+        onOpenChange={setWizardOpen}
         onSubmit={createContract}
       />
 

@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { usePermissions } from '@/stores/permissions-store';
-import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
-import { FeatureAccessLevel } from '@/types/settings';
-import { NAV_GROUPS, visibleNav } from './nav-config';
+import { NAV_GROUPS, isPanelGroup } from './nav-config';
+import { useShellNav } from './use-shell-nav';
 import { useShellStore } from './use-shell-store';
 import { SideStrip } from './side-strip';
 import { GroupPanel } from './group-panel';
@@ -22,42 +20,35 @@ import classes from './shell.module.css';
  * and Ask Ontos (strip button), each a floating window on every page (R25, R26).
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
-  const { permissions, hasPermission } = usePermissions();
-  const allowedMaturities = useFeatureVisibilityStore((s) => s.allowedMaturities);
+  const { pathname, search } = useLocation();
   const openGroup = useShellStore((s) => s.openGroup);
   const { afterNavigate } = useShellStore((s) => s.actions);
   const helixOpen = useHelixStore((s) => s.isOpen && !!s.config?.enabled);
   const ontosEnabled = useOntosStore((s) => !!s.status?.enabled);
   const ontosOpen = useCopilotStore((s) => s.isOpen) && ontosEnabled;
 
-  const nav = useMemo(
-    () =>
-      visibleNav(
-        (id) => hasPermission(id, FeatureAccessLevel.READ_ONLY),
-        (maturity) => allowedMaturities.includes(maturity),
-      ),
-    // hasPermission reads the store; recompute when the permissions change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [permissions, hasPermission, allowedMaturities],
-  );
+  const { nav, settingsGate, here } = useShellNav();
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
+  const shownGroup = isPanelGroup(openGroup) && nav[openGroup] ? openGroup : null;
 
-  // An unpinned panel closes once you have gone somewhere
-  const lastPath = useRef(pathname);
+  // After going anywhere (a menu item, an in-page link, back or forward, a
+  // typed URL) the panel closes when unpinned, and otherwise follows the page
+  // (a change of search alone counts too, such as New Contract's ?new=1)
+  const url = pathname + search;
+  const lastUrl = useRef(url);
   useEffect(() => {
-    if (lastPath.current === pathname) return;
-    lastPath.current = pathname;
-    afterNavigate();
-  }, [pathname, afterNavigate]);
+    if (lastUrl.current === url) return;
+    lastUrl.current = url;
+    afterNavigate(here);
+  }, [url, here, afterNavigate]);
 
   return (
     <div className={classes.shell}>
       <TopBar helixSlot={<HelixButton />} />
       <div className={classes.body}>
         <div className={`${classes.side} apfm-surface`}>
-          <SideStrip groups={groups} />
-          {openGroup && nav[openGroup] && <GroupPanel group={openGroup} sections={nav[openGroup]} />}
+          <SideStrip groups={groups} nav={nav} settingsGate={settingsGate} here={here} shownGroup={shownGroup} />
+          {shownGroup && <GroupPanel group={shownGroup} sections={nav[shownGroup]} settingsGate={settingsGate} here={here} />}
         </div>
         <div className={classes.main}>{children}</div>
       </div>

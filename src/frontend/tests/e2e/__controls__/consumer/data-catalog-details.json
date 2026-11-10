@@ -1,0 +1,10 @@
+[
+  "button \"\"",
+  "button \"Back to List\"",
+  "link \"Data Catalog\"",
+  "link \"Discover\"",
+  "link \"Home\"",
+  "tab \"Data Details\"",
+  "tab \"Lineage\"",
+  "tab \"Overview\""
+]

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Globe, Edit3, PlusCircle, Trash2, Share2, Database, Zap, ZapOff, Settings2, ShieldCheck, ListFilter } from 'lucide-react';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { DetailViewSkeleton } from '@/components/common/list-view-skeleton';
 import { buildEstateEditPath } from '@/lib/estate-paths';
 import AddSharingPolicyDialog from '@/components/estates/add-sharing-policy-dialog';
@@ -30,8 +30,8 @@ export default function EstateDetailsView() {
   const { toast } = useToast();
   
   // Destructure actions from the store
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
   const [estate, setEstate] = useState<Estate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +46,7 @@ export default function EstateDetailsView() {
     if (estateId) {
       fetchEstateDetails(estateId);
       // Initial dynamic title while loading specific estate
-      setDynamicTitle(t('common:states.loading'));
+      setDynamicTitle(null);
     } else {
       // If no estateId, this is an invalid state or direct access to a generic details page
       setDynamicTitle(t('estates:details.pageTitle'));

@@ -7,6 +7,10 @@ import { useHelixStore } from '@/mantine/helix/helix-store';
 import ExplorerPage from './explorer-page';
 import { LEADS, LEAD_EVENTS, calledUrls, json, mockBackend } from './test-fixtures';
 import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
+import useBreadcrumbStore from '@/stores/breadcrumb-store';
+
+/** The node's place in the tree, as the page gives it to the shell's breadcrumb. */
+const treePath = () => useBreadcrumbStore.getState().trailingSegments.map((s) => s.label).join(' / ');
 
 // The form dialog has its own tests; here it opens, and Save and Cancel act as
 // the real one does (Save reports the saved asset, then closes)
@@ -96,9 +100,7 @@ describe('ExplorerPage', () => {
 
     await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('parent')).toBe('asset:sch1'));
     expect(await screen.findByRole('heading', { name: 'insights.referrals' })).toBeInTheDocument();
-    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(crumbs).toHaveTextContent('Unity Catalog');
-    expect(crumbs).toHaveTextContent('insights');
+    expect(treePath()).toBe('Unity Catalog / insights / insights.referrals');
     const t = await table();
     expect(await within(t).findByText('insights.referrals.leads')).toBeInTheDocument();
     expect(within(t).getByText('data-eng +2')).toBeInTheDocument();
@@ -174,8 +176,7 @@ describe('ExplorerPage', () => {
     await waitFor(() => expect(lastAssetCall(fetchMock).searchParams.get('node')).toBe('asset:col2'));
     const heading = await screen.findByRole('heading', { name: 'event_ts' });
     expect(within(heading.parentElement!).getByText('Column')).toBeInTheDocument();
-    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(crumbs).toHaveTextContent('Unity Catalog / insights / insights.referrals / insights.referrals.leads / event_ts');
+    expect(treePath()).toBe('Unity Catalog / insights / insights.referrals / insights.referrals.leads / event_ts');
     const t = await table();
     expect(await within(t).findByText('event_ts')).toBeInTheDocument();
     expect(within(t).getAllByRole('row')).toHaveLength(2);
@@ -191,8 +192,23 @@ describe('ExplorerPage', () => {
     await clickRow(user, 'leads');
 
     expect(await screen.findByRole('heading', { name: 'insights.referrals.leads' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Unity Catalog / insights / insights.referrals / insights.referrals.leads');
+    expect(treePath()).toBe('Unity Catalog / insights / insights.referrals / insights.referrals.leads');
     expect(within(screen.getByRole('heading').parentElement!).getByText('Table')).toBeInTheDocument();
+
+    // An ancestor's crumb selects it; leaving the page clears the path
+    const ancestor = useBreadcrumbStore.getState().trailingSegments.find((c) => c.label === 'insights.referrals')!;
+    act(() => ancestor.onSelect!());
+    expect(await screen.findByRole('heading', { name: 'insights.referrals' })).toBeInTheDocument();
+    expect(treePath()).toBe('Unity Catalog / insights / insights.referrals');
+  });
+
+  it('clears its tree path from the breadcrumb when it unmounts', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderWithMantine(<ExplorerPage />, { route: '/assets' });
+    await clickRow(user, 'insights');
+    await waitFor(() => expect(treePath()).toBe('Unity Catalog / insights'));
+    unmount();
+    expect(treePath()).toBe('');
   });
 
   it('debounces the text filter into the name parameter', async () => {

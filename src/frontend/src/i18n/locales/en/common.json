@@ -594,7 +594,8 @@
     "summary": "Impact Summary",
     "affectedCount_one": "{{count}} affected entity",
     "affectedCount_other": "{{count}} affected entities",
-    "noDownstream": "No downstream entities affected by changes to this {{type}}."
+    "noDownstream": "No downstream entities affected by changes to this {{type}}.",
+    "graph": "Impact graph"
   },
   "lineageEditor": {
     "reviewStep": "Review & Save",

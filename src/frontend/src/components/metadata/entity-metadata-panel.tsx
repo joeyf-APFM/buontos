@@ -1,6 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -17,6 +15,8 @@ import EntityInfoDialog from '@/components/metadata/entity-info-dialog';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import classes from '@/components/common/panel.module.css';
 import { useSharedAssets, attachSharedAsset, RichTextItem, LinkItem, DocumentItem, MetadataAttachment } from '@/hooks/use-entity-metadata';
 
 export type EntityKind = 'data_domain' | 'data_product' | 'data_contract' | 'concept' | 'collection' | 'compliance_policy' | 'asset';
@@ -29,6 +29,7 @@ interface Props {
 const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
   const { toast } = useToast();
   const { t } = useTranslation(['metadata', 'common']);
+  const ids = React.useId();
 
   const [richTexts, setRichTexts] = React.useState<RichTextItem[]>([]);
   const [links, setLinks] = React.useState<LinkItem[]>([]);
@@ -128,36 +129,38 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
 
   return (
     <>
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center gap-2">
-          {t('title')}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => setShowPreview(true)}>
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('previewRenderedPage')}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </CardTitle>
-        <CardDescription>{t('description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Notes */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="text-base font-medium flex items-center"><FileText className="mr-2 h-5 w-5 text-primary" />{t('notes.title')}</div>
+    <section className={classes.pane} aria-labelledby={`${ids}-title`}>
+      <div className={classes.headGroup}>
+        <div className={classes.head}>
+          <h3 id={`${ids}-title`} className={classes.title}>
+            {t('title')}
             <TooltipProvider>
-              <div className="flex items-center gap-1 border rounded-md bg-muted/40 px-1 py-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => setShowPreview(true)}>
+                    <Eye />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('previewRenderedPage')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </h3>
+        </div>
+        <p className={classes.subtitle}>{t('description')}</p>
+      </div>
+      <div className={classes.body}>
+        {/* Notes */}
+        <section className={classes.section} aria-labelledby={`${ids}-notes`}>
+          <div className={classes.sectionHead}>
+            <h4 id={`${ids}-notes`} className={classes.sectionTitle}><FileText aria-hidden />{t('notes.title')}</h4>
+            <TooltipProvider>
+              <div className={classes.toolbar}>
                 {!addingNote && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setAddingNote(true)}>
-                          <Plus className="h-4 w-4" />
+                          <Plus />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('notes.add')}</TooltipContent>
@@ -165,7 +168,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setShowSharedPicker('rich_text')}>
-                          <Share2 className="h-4 w-4" />
+                          <Share2 />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('notes.attachShared') || 'Attach shared note'}</TooltipContent>
@@ -175,7 +178,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={fetchMetadata}>
-                      <RefreshCcw className="h-4 w-4" />
+                      <RefreshCcw />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('notes.refresh')}</TooltipContent>
@@ -186,41 +189,41 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
           {!addingNote ? (
             <div>
               {loading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('common:actions.loading')}</div>
+                <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('common:actions.loading')}</div>
               ) : richTexts.length === 0 ? (
-                <div className="text-sm text-muted-foreground">{t('notes.noNotes')}</div>
+                <div className={classes.empty}>{t('notes.noNotes')}</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-16">{t('notes.table.level') || 'Level'}</TableHead>
+                      <TableHead style={{ width: 64 }}>{t('notes.table.level') || 'Level'}</TableHead>
                       <TableHead>{t('notes.table.title')}</TableHead>
                       <TableHead>{t('notes.table.description')}</TableHead>
-                      <TableHead className="w-20">{t('notes.table.flags') || 'Flags'}</TableHead>
+                      <TableHead style={{ width: 80 }}>{t('notes.table.flags') || 'Flags'}</TableHead>
                       <TableHead>{t('notes.table.created')}</TableHead>
-                      <TableHead className="w-24">{t('notes.table.actions')}</TableHead>
+                      <TableHead style={{ width: 96 }}>{t('notes.table.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {richTexts.map(n => (
                       <TableRow key={n.id}>
-                        <TableCell className="text-xs text-muted-foreground font-mono">{n.level ?? 50}</TableCell>
-                        <TableCell className="font-medium">{n.title}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{truncate(n.short_description, 60)}</TableCell>
+                        <TableCell className={classes.level}>{n.level ?? 50}</TableCell>
+                        <TableCell className={classes.strong}>{n.title}</TableCell>
+                        <TableCell className={classes.cellMuted}>{truncate(n.short_description, 60)}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            {n.is_shared && <Badge variant="secondary" className="text-xs"><Share2 className="h-3 w-3 mr-1" />S</Badge>}
-                            {n.inheritable && <Badge variant="outline" className="text-xs"><ArrowDownToLine className="h-3 w-3 mr-1" />I</Badge>}
+                          <div className={classes.rowActions}>
+                            {n.is_shared && <Badge variant="secondary" className={classes.flag}><Share2 size={12} aria-hidden />S</Badge>}
+                            {n.inheritable && <Badge variant="outline" className={classes.flag}><ArrowDownToLine size={12} aria-hidden />I</Badge>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{n.created_at ? <RelativeDate date={n.created_at} /> : '—'}</TableCell>
+                        <TableCell className={classes.cellMuted}>{n.created_at ? <RelativeDate date={n.created_at} /> : '—'}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className={classes.rowActions}>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" onClick={() => setPreviewNote(n)}>
-                                    <Eye className="h-4 w-4" />
+                                    <Eye />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>{t('notes.preview')}</TooltipContent>
@@ -230,20 +233,20 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" onClick={() => { setEditingNote(n); setEditNoteTitle(n.title); setEditNoteDesc(n.short_description || ''); setEditNoteContent(n.content_markdown); setEditNoteLevel(n.level ?? 50); setEditNoteInheritable(n.inheritable ?? true); }}>
-                                    <Pencil className="h-4 w-4" />
+                                    <Pencil />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>{t('notes.edit')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={async () => {
+                            <Button variant="ghost" size="icon" className={classes.danger} onClick={async () => {
                               try {
                                 const resp = await fetch(`/api/rich-texts/${n.id}`, { method: 'DELETE' });
                                 if (!resp.ok) throw new Error(t('notes.messages.deleteFailed'));
                                 fetchMetadata();
                               } catch (e: any) { toast({ title: t('notes.messages.deleteFailed'), description: e.message, variant: 'destructive' }); }
                             }}>
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 />
                             </Button>
                           </div>
                         </TableCell>
@@ -254,25 +257,25 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              <div><Label htmlFor="note-title">{t('notes.form.title')}</Label><Input id="note-title" value={noteTitle} onChange={e => setNoteTitle(e.target.value)} /></div>
-              <div><Label htmlFor="note-desc">{t('notes.form.shortDescription')}</Label><Input id="note-desc" value={noteDesc} onChange={e => setNoteDesc(e.target.value)} /></div>
-              <div><Label htmlFor="note-content">{t('notes.form.content')}</Label><Textarea id="note-content" rows={6} value={noteContent} onChange={e => setNoteContent(e.target.value)} /></div>
-              <div className="grid grid-cols-3 gap-4">
+            <div className={classes.form}>
+              <div className={classes.field}><Label htmlFor="note-title">{t('notes.form.title')}</Label><Input id="note-title" value={noteTitle} onChange={e => setNoteTitle(e.target.value)} /></div>
+              <div className={classes.field}><Label htmlFor="note-desc">{t('notes.form.shortDescription')}</Label><Input id="note-desc" value={noteDesc} onChange={e => setNoteDesc(e.target.value)} /></div>
+              <div className={classes.field}><Label htmlFor="note-content">{t('notes.form.content')}</Label><Textarea id="note-content" rows={6} value={noteContent} onChange={e => setNoteContent(e.target.value)} /></div>
+              <div className={classes.formRow}>
                 <div>
                   <Label htmlFor="note-level">{t('notes.form.level') || 'Level'}</Label>
                   <Input id="note-level" type="number" min={0} max={999} value={noteLevel} onChange={e => setNoteLevel(Number(e.target.value))} />
                 </div>
-                <div className="flex items-center gap-2 pt-6">
+                <div className={classes.check}>
                   <Checkbox id="note-inheritable" checked={noteInheritable} onCheckedChange={(v) => setNoteInheritable(!!v)} />
-                  <Label htmlFor="note-inheritable" className="text-sm">{t('notes.form.inheritable') || 'Inheritable'}</Label>
+                  <Label htmlFor="note-inheritable">{t('notes.form.inheritable') || 'Inheritable'}</Label>
                 </div>
-                <div className="flex items-center gap-2 pt-6">
+                <div className={classes.check}>
                   <Checkbox id="note-shared" checked={noteIsShared} onCheckedChange={(v) => setNoteIsShared(!!v)} />
-                  <Label htmlFor="note-shared" className="text-sm">{t('notes.form.shared') || 'Shared asset'}</Label>
+                  <Label htmlFor="note-shared">{t('notes.form.shared') || 'Shared asset'}</Label>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className={classes.buttons}>
                 <Button size="sm" onClick={async () => {
                   try {
                     const payload = { entity_id: entityId, entity_type: entityType, title: noteTitle, short_description: noteDesc || undefined, content_markdown: noteContent, level: noteLevel, inheritable: noteInheritable, is_shared: noteIsShared };
@@ -288,22 +291,20 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
               </div>
             </div>
           )}
-        </div>
-
-        <Separator />
+        </section>
 
         {/* Links */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="text-base font-medium flex items-center"><LinkIcon className="mr-2 h-5 w-5 text-primary" />{t('links.title')}</div>
+        <section className={classes.section} aria-labelledby={`${ids}-links`}>
+          <div className={classes.sectionHead}>
+            <h4 id={`${ids}-links`} className={classes.sectionTitle}><LinkIcon aria-hidden />{t('links.title')}</h4>
             <TooltipProvider>
-              <div className="flex items-center gap-1 border rounded-md bg-muted/40 px-1 py-0.5">
+              <div className={classes.toolbar}>
                 {!addingLink && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setAddingLink(true)}>
-                          <Plus className="h-4 w-4" />
+                          <Plus />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('links.add')}</TooltipContent>
@@ -311,7 +312,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setShowSharedPicker('link')}>
-                          <Share2 className="h-4 w-4" />
+                          <Share2 />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('links.attachShared') || 'Attach shared link'}</TooltipContent>
@@ -321,7 +322,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={fetchMetadata}>
-                      <RefreshCcw className="h-4 w-4" />
+                      <RefreshCcw />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('links.refresh')}</TooltipContent>
@@ -332,41 +333,41 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
           {!addingLink ? (
             <div>
               {loading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('common:actions.loading')}</div>
+                <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('common:actions.loading')}</div>
               ) : links.length === 0 ? (
-                <div className="text-sm text-muted-foreground">{t('links.noLinks')}</div>
+                <div className={classes.empty}>{t('links.noLinks')}</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-16">{t('links.table.level') || 'Level'}</TableHead>
+                      <TableHead style={{ width: 64 }}>{t('links.table.level') || 'Level'}</TableHead>
                       <TableHead>{t('links.table.title')}</TableHead>
                       <TableHead>{t('links.table.url')}</TableHead>
-                      <TableHead className="w-20">{t('links.table.flags') || 'Flags'}</TableHead>
+                      <TableHead style={{ width: 80 }}>{t('links.table.flags') || 'Flags'}</TableHead>
                       <TableHead>{t('links.table.created')}</TableHead>
-                      <TableHead className="w-24">{t('links.table.actions')}</TableHead>
+                      <TableHead style={{ width: 96 }}>{t('links.table.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {links.map(l => (
                       <TableRow key={l.id}>
-                        <TableCell className="text-xs text-muted-foreground font-mono">{l.level ?? 50}</TableCell>
-                        <TableCell className="font-medium">{l.title}</TableCell>
-                        <TableCell className="text-xs text-primary max-w-[200px] truncate"><a href={l.url} target="_blank" rel="noreferrer" className="hover:underline">{l.url}</a></TableCell>
+                        <TableCell className={classes.level}>{l.level ?? 50}</TableCell>
+                        <TableCell className={classes.strong}>{l.title}</TableCell>
+                        <TableCell className={classes.cellLink}><a href={l.url} target="_blank" rel="noreferrer">{l.url}</a></TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            {l.is_shared && <Badge variant="secondary" className="text-xs"><Share2 className="h-3 w-3 mr-1" />S</Badge>}
-                            {l.inheritable && <Badge variant="outline" className="text-xs"><ArrowDownToLine className="h-3 w-3 mr-1" />I</Badge>}
+                          <div className={classes.rowActions}>
+                            {l.is_shared && <Badge variant="secondary" className={classes.flag}><Share2 size={12} aria-hidden />S</Badge>}
+                            {l.inheritable && <Badge variant="outline" className={classes.flag}><ArrowDownToLine size={12} aria-hidden />I</Badge>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{l.created_at ? <RelativeDate date={l.created_at} /> : '—'}</TableCell>
+                        <TableCell className={classes.cellMuted}>{l.created_at ? <RelativeDate date={l.created_at} /> : '—'}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className={classes.rowActions}>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" onClick={() => window.open(l.url, '_blank')}>
-                                    <Eye className="h-4 w-4" />
+                                    <Eye />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>{t('links.open')}</TooltipContent>
@@ -376,20 +377,20 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" onClick={() => { setEditingLink(l); setEditLinkTitle(l.title); setEditLinkUrl(l.url); setEditLinkDesc(l.short_description || ''); setEditLinkLevel(l.level ?? 50); setEditLinkInheritable(l.inheritable ?? true); }}>
-                                    <Pencil className="h-4 w-4" />
+                                    <Pencil />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>{t('links.edit')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={async () => {
+                            <Button variant="ghost" size="icon" className={classes.danger} onClick={async () => {
                               try {
                                 const resp = await fetch(`/api/links/${l.id}`, { method: 'DELETE' });
                                 if (!resp.ok) throw new Error(t('links.messages.deleteFailed'));
                                 fetchMetadata();
                               } catch (e: any) { toast({ title: t('links.messages.deleteFailed'), description: e.message, variant: 'destructive' }); }
                             }}>
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 />
                             </Button>
                           </div>
                         </TableCell>
@@ -400,25 +401,25 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              <div><Label htmlFor="link-title">{t('links.form.title')}</Label><Input id="link-title" value={linkTitle} onChange={e => setLinkTitle(e.target.value)} /></div>
-              <div><Label htmlFor="link-url">{t('links.form.url')}</Label><Input id="link-url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} /></div>
-              <div><Label htmlFor="link-desc">{t('links.form.shortDescription')}</Label><Input id="link-desc" value={linkDesc} onChange={e => setLinkDesc(e.target.value)} /></div>
-              <div className="grid grid-cols-3 gap-4">
+            <div className={classes.form}>
+              <div className={classes.field}><Label htmlFor="link-title">{t('links.form.title')}</Label><Input id="link-title" value={linkTitle} onChange={e => setLinkTitle(e.target.value)} /></div>
+              <div className={classes.field}><Label htmlFor="link-url">{t('links.form.url')}</Label><Input id="link-url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} /></div>
+              <div className={classes.field}><Label htmlFor="link-desc">{t('links.form.shortDescription')}</Label><Input id="link-desc" value={linkDesc} onChange={e => setLinkDesc(e.target.value)} /></div>
+              <div className={classes.formRow}>
                 <div>
                   <Label htmlFor="link-level">{t('links.form.level') || 'Level'}</Label>
                   <Input id="link-level" type="number" min={0} max={999} value={linkLevel} onChange={e => setLinkLevel(Number(e.target.value))} />
                 </div>
-                <div className="flex items-center gap-2 pt-6">
+                <div className={classes.check}>
                   <Checkbox id="link-inheritable" checked={linkInheritable} onCheckedChange={(v) => setLinkInheritable(!!v)} />
-                  <Label htmlFor="link-inheritable" className="text-sm">{t('links.form.inheritable') || 'Inheritable'}</Label>
+                  <Label htmlFor="link-inheritable">{t('links.form.inheritable') || 'Inheritable'}</Label>
                 </div>
-                <div className="flex items-center gap-2 pt-6">
+                <div className={classes.check}>
                   <Checkbox id="link-shared" checked={linkIsShared} onCheckedChange={(v) => setLinkIsShared(!!v)} />
-                  <Label htmlFor="link-shared" className="text-sm">{t('links.form.shared') || 'Shared asset'}</Label>
+                  <Label htmlFor="link-shared">{t('links.form.shared') || 'Shared asset'}</Label>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className={classes.buttons}>
                 <Button size="sm" onClick={async () => {
                   try {
                     const payload = { entity_id: entityId, entity_type: entityType, title: linkTitle, short_description: linkDesc || undefined, url: linkUrl, level: linkLevel, inheritable: linkInheritable, is_shared: linkIsShared };
@@ -434,22 +435,20 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
               </div>
             </div>
           )}
-        </div>
-
-        <Separator />
+        </section>
 
         {/* Documents */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="text-base font-medium flex items-center"><Paperclip className="mr-2 h-5 w-5 text-primary" />{t('documents.title')}</div>
+        <section className={classes.section} aria-labelledby={`${ids}-documents`}>
+          <div className={classes.sectionHead}>
+            <h4 id={`${ids}-documents`} className={classes.sectionTitle}><Paperclip aria-hidden />{t('documents.title')}</h4>
             <TooltipProvider>
-              <div className="flex items-center gap-1 border rounded-md bg-muted/40 px-1 py-0.5">
+              <div className={classes.toolbar}>
                 {!addingDoc && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setAddingDoc(true)}>
-                          <Plus className="h-4 w-4" />
+                          <Plus />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('documents.add')}</TooltipContent>
@@ -457,7 +456,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setShowSharedPicker('document')}>
-                          <Share2 className="h-4 w-4" />
+                          <Share2 />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>{t('documents.attachShared') || 'Attach shared document'}</TooltipContent>
@@ -467,7 +466,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={fetchMetadata}>
-                      <RefreshCcw className="h-4 w-4" />
+                      <RefreshCcw />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('documents.refresh')}</TooltipContent>
@@ -476,25 +475,25 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
             </TooltipProvider>
           </div>
           {addingDoc && (
-            <div className="space-y-2 mb-3">
-              <div><Label htmlFor="doc-title">{t('documents.form.title')}</Label><Input id="doc-title" value={docTitle} onChange={e => setDocTitle(e.target.value)} /></div>
-              <div><Label htmlFor="doc-desc">{t('documents.form.shortDescription')}</Label><Input id="doc-desc" value={docDesc} onChange={e => setDocDesc(e.target.value)} /></div>
-              <div><Label htmlFor="doc-file">{t('documents.form.file')}</Label><Input id="doc-file" type="file" onChange={e => setDocFile(e.target.files?.[0] || null)} /></div>
-              <div className="grid grid-cols-3 gap-4">
+            <div className={classes.form}>
+              <div className={classes.field}><Label htmlFor="doc-title">{t('documents.form.title')}</Label><Input id="doc-title" value={docTitle} onChange={e => setDocTitle(e.target.value)} /></div>
+              <div className={classes.field}><Label htmlFor="doc-desc">{t('documents.form.shortDescription')}</Label><Input id="doc-desc" value={docDesc} onChange={e => setDocDesc(e.target.value)} /></div>
+              <div className={classes.field}><Label htmlFor="doc-file">{t('documents.form.file')}</Label><Input id="doc-file" type="file" onChange={e => setDocFile(e.target.files?.[0] || null)} /></div>
+              <div className={classes.formRow}>
                 <div>
                   <Label htmlFor="doc-level">{t('documents.form.level') || 'Level'}</Label>
                   <Input id="doc-level" type="number" min={0} max={999} value={docLevel} onChange={e => setDocLevel(Number(e.target.value))} />
                 </div>
-                <div className="flex items-center gap-2 pt-6">
+                <div className={classes.check}>
                   <Checkbox id="doc-inheritable" checked={docInheritable} onCheckedChange={(v) => setDocInheritable(!!v)} />
-                  <Label htmlFor="doc-inheritable" className="text-sm">{t('documents.form.inheritable') || 'Inheritable'}</Label>
+                  <Label htmlFor="doc-inheritable">{t('documents.form.inheritable') || 'Inheritable'}</Label>
                 </div>
-                <div className="flex items-center gap-2 pt-6">
+                <div className={classes.check}>
                   <Checkbox id="doc-shared" checked={docIsShared} onCheckedChange={(v) => setDocIsShared(!!v)} />
-                  <Label htmlFor="doc-shared" className="text-sm">{t('documents.form.shared') || 'Shared asset'}</Label>
+                  <Label htmlFor="doc-shared">{t('documents.form.shared') || 'Shared asset'}</Label>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className={classes.buttons}>
                 <Button size="sm" disabled={uploadingDoc || !docFile || !docTitle} onClick={async () => {
                   try {
                     if (!docFile) return;
@@ -518,53 +517,53 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
             </div>
           )}
           {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('common:actions.loading')}</div>
+            <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('common:actions.loading')}</div>
           ) : documents.length === 0 ? (
-            <div className="text-sm text-muted-foreground">{t('documents.noDocuments')}</div>
+            <div className={classes.empty}>{t('documents.noDocuments')}</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-16">{t('documents.table.level') || 'Level'}</TableHead>
+                  <TableHead style={{ width: 64 }}>{t('documents.table.level') || 'Level'}</TableHead>
                   <TableHead>{t('documents.table.title')}</TableHead>
                   <TableHead>{t('documents.table.filename')}</TableHead>
-                  <TableHead className="w-20">{t('documents.table.flags') || 'Flags'}</TableHead>
+                  <TableHead style={{ width: 80 }}>{t('documents.table.flags') || 'Flags'}</TableHead>
                   <TableHead>{t('documents.table.size')}</TableHead>
                   <TableHead>{t('documents.table.created')}</TableHead>
-                  <TableHead className="w-24">{t('documents.table.actions')}</TableHead>
+                  <TableHead style={{ width: 96 }}>{t('documents.table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {documents.map(d => (
                   <TableRow key={d.id}>
-                    <TableCell className="text-xs text-muted-foreground font-mono">{d.level ?? 50}</TableCell>
-                    <TableCell className="font-medium">{d.title}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground truncate max-w-[180px]">{d.original_filename}</TableCell>
+                    <TableCell className={classes.level}>{d.level ?? 50}</TableCell>
+                    <TableCell className={classes.strong}>{d.title}</TableCell>
+                    <TableCell className={cn(classes.cellMuted, classes.cellFile)}>{d.original_filename}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {d.is_shared && <Badge variant="secondary" className="text-xs"><Share2 className="h-3 w-3 mr-1" />S</Badge>}
-                        {d.inheritable && <Badge variant="outline" className="text-xs"><ArrowDownToLine className="h-3 w-3 mr-1" />I</Badge>}
+                      <div className={classes.rowActions}>
+                        {d.is_shared && <Badge variant="secondary" className={classes.flag}><Share2 size={12} aria-hidden />S</Badge>}
+                        {d.inheritable && <Badge variant="outline" className={classes.flag}><ArrowDownToLine size={12} aria-hidden />I</Badge>}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{d.size_bytes ? `${(d.size_bytes/1024).toFixed(1)} KB` : '—'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{d.created_at ? <RelativeDate date={d.created_at} /> : '—'}</TableCell>
+                    <TableCell className={classes.cellMuted}>{d.size_bytes ? `${(d.size_bytes/1024).toFixed(1)} KB` : '—'}</TableCell>
+                    <TableCell className={classes.cellMuted}>{d.created_at ? <RelativeDate date={d.created_at} /> : '—'}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className={classes.rowActions}>
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => setPreviewDoc(d)}>
-                                <Eye className="h-4 w-4" />
+                                <Eye />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>{t('documents.preview')}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={async () => {
+                        <Button variant="ghost" size="icon" className={classes.danger} onClick={async () => {
                           try { const resp = await fetch(`/api/documents/${d.id}`, { method: 'DELETE' }); if (!resp.ok) throw new Error(t('documents.messages.deleteFailed')); fetchMetadata(); }
                           catch (e: any) { toast({ title: t('documents.messages.deleteFailed'), description: e.message, variant: 'destructive' }); }
                         }}>
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 />
                         </Button>
                       </div>
                     </TableCell>
@@ -573,7 +572,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
               </TableBody>
             </Table>
           )}
-        </div>
+        </section>
 
         <FilePreviewDialog
           open={!!previewDoc}
@@ -596,13 +595,13 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
 
         {/* Note Preview */}
         <Dialog open={!!previewNote} onOpenChange={() => setPreviewNote(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent style={{ maxWidth: 672 }}>
             <DialogHeader>
               <DialogTitle>{previewNote?.title}</DialogTitle>
             </DialogHeader>
             {previewNote && (
-              <div className="space-y-2">
-                {previewNote.short_description && <div className="text-sm text-muted-foreground">{previewNote.short_description}</div>}
+              <div className={classes.stack}>
+                {previewNote.short_description && <div className={classes.empty}>{previewNote.short_description}</div>}
                 <MarkdownViewer markdown={previewNote.content_markdown} />
               </div>
             )}
@@ -611,12 +610,12 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
 
         {/* Note Edit Dialog */}
         <Dialog open={!!editingNote} onOpenChange={(open) => { if (!open) setEditingNote(null); }}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent style={{ maxWidth: 672 }}>
             <DialogHeader>
               <DialogTitle>{t('notes.editTitle')}</DialogTitle>
             </DialogHeader>
             {editingNote && (
-              <div className="space-y-3">
+              <div className={classes.form}>
                 <div>
                   <Label htmlFor="edit-note-title">{t('notes.form.title')}</Label>
                   <Input id="edit-note-title" value={editNoteTitle} onChange={(e) => setEditNoteTitle(e.target.value)} />
@@ -629,17 +628,17 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                   <Label htmlFor="edit-note-content">{t('notes.form.content')}</Label>
                   <Textarea id="edit-note-content" rows={8} value={editNoteContent} onChange={(e) => setEditNoteContent(e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className={classes.formRow} style={{ '--cols': 2 } as React.CSSProperties}>
                   <div>
                     <Label htmlFor="edit-note-level">{t('notes.form.level') || 'Level'}</Label>
                     <Input id="edit-note-level" type="number" min={0} max={999} value={editNoteLevel} onChange={(e) => setEditNoteLevel(Number(e.target.value))} />
                   </div>
-                  <div className="flex items-center gap-2 pt-6">
+                  <div className={classes.check}>
                     <Checkbox id="edit-note-inheritable" checked={editNoteInheritable} onCheckedChange={(v) => setEditNoteInheritable(!!v)} />
-                    <Label htmlFor="edit-note-inheritable" className="text-sm">{t('notes.form.inheritable') || 'Inheritable'}</Label>
+                    <Label htmlFor="edit-note-inheritable">{t('notes.form.inheritable') || 'Inheritable'}</Label>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end">
+                <div className={classes.buttonsEnd}>
                   <Button variant="outline" onClick={() => setEditingNote(null)}>{t('notes.form.cancel')}</Button>
                   <Button
                     onClick={async () => {
@@ -673,12 +672,12 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
 
         {/* Link Edit Dialog */}
         <Dialog open={!!editingLink} onOpenChange={(open) => { if (!open) setEditingLink(null); }}>
-          <DialogContent className="max-w-xl">
+          <DialogContent style={{ maxWidth: 576 }}>
             <DialogHeader>
               <DialogTitle>{t('links.editTitle')}</DialogTitle>
             </DialogHeader>
             {editingLink && (
-              <div className="space-y-3">
+              <div className={classes.form}>
                 <div>
                   <Label htmlFor="edit-link-title">{t('links.form.title')}</Label>
                   <Input id="edit-link-title" value={editLinkTitle} onChange={(e) => setEditLinkTitle(e.target.value)} />
@@ -691,17 +690,17 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                   <Label htmlFor="edit-link-desc">{t('links.form.shortDescription')}</Label>
                   <Input id="edit-link-desc" value={editLinkDesc} onChange={(e) => setEditLinkDesc(e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className={classes.formRow} style={{ '--cols': 2 } as React.CSSProperties}>
                   <div>
                     <Label htmlFor="edit-link-level">{t('links.form.level') || 'Level'}</Label>
                     <Input id="edit-link-level" type="number" min={0} max={999} value={editLinkLevel} onChange={(e) => setEditLinkLevel(Number(e.target.value))} />
                   </div>
-                  <div className="flex items-center gap-2 pt-6">
+                  <div className={classes.check}>
                     <Checkbox id="edit-link-inheritable" checked={editLinkInheritable} onCheckedChange={(v) => setEditLinkInheritable(!!v)} />
-                    <Label htmlFor="edit-link-inheritable" className="text-sm">{t('links.form.inheritable') || 'Inheritable'}</Label>
+                    <Label htmlFor="edit-link-inheritable">{t('links.form.inheritable') || 'Inheritable'}</Label>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end">
+                <div className={classes.buttonsEnd}>
                   <Button variant="outline" onClick={() => setEditingLink(null)}>{t('links.form.cancel')}</Button>
                   <Button
                     onClick={async () => {
@@ -735,7 +734,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
 
         {/* Shared Asset Picker Dialog */}
         <Dialog open={!!showSharedPicker} onOpenChange={(open) => { if (!open) setShowSharedPicker(null); }}>
-          <DialogContent className="max-w-2xl max-h-[70vh]">
+          <DialogContent style={{ maxWidth: 672, maxHeight: '70vh' }}>
             <DialogHeader>
               <DialogTitle>
                 {showSharedPicker === 'rich_text' && (t('notes.selectShared') || 'Select Shared Note')}
@@ -746,25 +745,25 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 {t('sharedAssets.selectDescription') || 'Select a shared asset to attach to this entity'}
               </DialogDescription>
             </DialogHeader>
-            <div className="overflow-y-auto max-h-[50vh]">
+            <div className={classes.pickerScroll}>
               {sharedAssets.loading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground p-4"><Loader2 className="h-4 w-4 animate-spin" /> {t('sharedAssets.loading')}</div>
+                <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('sharedAssets.loading')}</div>
               ) : (
                 <>
                   {showSharedPicker === 'rich_text' && (
                     sharedAssets.richTexts.length === 0 ? (
-                      <div className="text-sm text-muted-foreground p-4">{t('sharedAssets.noSharedNotes') || 'No shared notes available'}</div>
+                      <div className={classes.empty}>{t('sharedAssets.noSharedNotes') || 'No shared notes available'}</div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className={classes.stack}>
                         {sharedAssets.richTexts.map(rt => (
-                          <div key={rt.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                          <div key={rt.id} className={cn(classes.row, classes.pickRow)}>
                             <div>
-                              <div className="font-medium">{rt.title}</div>
-                              <div className="text-xs text-muted-foreground">{truncate(rt.short_description, 60)}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{t('sharedAssets.levelInfo', { level: rt.level ?? 50 })} • {rt.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
+                              <div className={classes.strong}>{rt.title}</div>
+                              <div className={classes.meta}>{truncate(rt.short_description, 60)}</div>
+                              <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: rt.level ?? 50 })} • {rt.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
                             </div>
                             <Button size="sm" onClick={() => handleAttachSharedAsset('rich_text', rt.id)}>
-                              <Plus className="h-4 w-4 mr-1" /> {t('sharedAssets.attach')}
+                              <Plus /> {t('sharedAssets.attach')}
                             </Button>
                           </div>
                         ))}
@@ -773,18 +772,18 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                   )}
                   {showSharedPicker === 'link' && (
                     sharedAssets.links.length === 0 ? (
-                      <div className="text-sm text-muted-foreground p-4">{t('sharedAssets.noSharedLinks') || 'No shared links available'}</div>
+                      <div className={classes.empty}>{t('sharedAssets.noSharedLinks') || 'No shared links available'}</div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className={classes.stack}>
                         {sharedAssets.links.map(link => (
-                          <div key={link.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                          <div key={link.id} className={cn(classes.row, classes.pickRow)}>
                             <div>
-                              <div className="font-medium">{link.title}</div>
-                              <div className="text-xs text-primary truncate max-w-[300px]">{link.url}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{t('sharedAssets.levelInfo', { level: link.level ?? 50 })} • {link.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
+                              <div className={classes.strong}>{link.title}</div>
+                              <div className={classes.metaLink}>{link.url}</div>
+                              <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: link.level ?? 50 })} • {link.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
                             </div>
                             <Button size="sm" onClick={() => handleAttachSharedAsset('link', link.id)}>
-                              <Plus className="h-4 w-4 mr-1" /> {t('sharedAssets.attach')}
+                              <Plus /> {t('sharedAssets.attach')}
                             </Button>
                           </div>
                         ))}
@@ -793,18 +792,18 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                   )}
                   {showSharedPicker === 'document' && (
                     sharedAssets.documents.length === 0 ? (
-                      <div className="text-sm text-muted-foreground p-4">{t('sharedAssets.noSharedDocuments') || 'No shared documents available'}</div>
+                      <div className={classes.empty}>{t('sharedAssets.noSharedDocuments') || 'No shared documents available'}</div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className={classes.stack}>
                         {sharedAssets.documents.map(doc => (
-                          <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                          <div key={doc.id} className={cn(classes.row, classes.pickRow)}>
                             <div>
-                              <div className="font-medium">{doc.title}</div>
-                              <div className="text-xs text-muted-foreground">{doc.original_filename}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{t('sharedAssets.levelInfo', { level: doc.level ?? 50 })} • {doc.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
+                              <div className={classes.strong}>{doc.title}</div>
+                              <div className={classes.meta}>{doc.original_filename}</div>
+                              <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: doc.level ?? 50 })} • {doc.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
                             </div>
                             <Button size="sm" onClick={() => handleAttachSharedAsset('document', doc.id)}>
-                              <Plus className="h-4 w-4 mr-1" /> {t('sharedAssets.attach')}
+                              <Plus /> {t('sharedAssets.attach')}
                             </Button>
                           </div>
                         ))}
@@ -816,8 +815,8 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
             </div>
           </DialogContent>
         </Dialog>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
     <EntityInfoDialog
       entityType={entityType}
       entityId={entityId}

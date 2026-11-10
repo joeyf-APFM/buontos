@@ -30,7 +30,8 @@
     "resources": "Recursos",
     "resourcesTitle": "{{name}} — Recursos",
     "resourcesDescription": "Expanda os nós e marque os recursos que deseja importar",
-    "selectedCount": "{{count}} selecionados"
+    "selectedCount": "{{count}} selecionados",
+    "options": "Opções de importação"
   },
   "browser": {
     "selectConnection": "Selecione uma conexão para navegar por seus recursos",

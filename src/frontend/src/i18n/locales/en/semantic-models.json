@@ -622,7 +622,7 @@
   },
   "explore": {
     "emptyTitle": "Nothing to explore yet",
-    "emptyBody": "Import files or create concepts on the Define tab.",
+    "emptyBody": "Import files or create concepts on the Define page.",
     "emptyCta": "Go to Define"
   },
   "define": {

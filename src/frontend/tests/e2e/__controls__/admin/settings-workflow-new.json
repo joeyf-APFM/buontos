@@ -1,0 +1,10 @@
+[
+  "button \"Approval Workflow Interactive wizard before user actions — collect consent, terms, acknowledgements.\"",
+  "button \"Back\"",
+  "button \"Process Workflow Background automation triggered by events — validate, notify, tag, run scripts.\"",
+  "button \"Save\"",
+  "link \"Home\"",
+  "link \"Workflows\"",
+  "switch \"\"",
+  "textbox \"Workflow name\""
+]

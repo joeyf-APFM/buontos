@@ -30,7 +30,8 @@
     "resources": "リソース",
     "resourcesTitle": "{{name}} — リソース",
     "resourcesDescription": "ノードを展開し、インポートするリソースにチェックを入れてください",
-    "selectedCount": "{{count}} 件選択"
+    "selectedCount": "{{count}} 件選択",
+    "options": "インポートのオプション"
   },
   "browser": {
     "selectConnection": "接続を選択してリソースを参照してください",

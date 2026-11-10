@@ -1,0 +1,133 @@
+/*
+ * Asset detail (/assets/:assetId) on the page kit (Task 11): the kit's
+ * breadcrumb, one-line header and panes; what is left here is the page's own.
+ */
+
+/* Beside the title: the type and platform, as the explorer's tags */
+.tag {
+  flex: none;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-secondary);
+}
+
+.platform {
+  flex: none;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+/* Delete reads as destructive, as before (the text-red-600 outline button) */
+.danger {
+  color: var(--aura-critical);
+}
+
+.description {
+  max-width: 42rem;
+  margin: -4px 0 0;
+  padding: 0 14px 10px;
+  color: var(--aura-text-secondary);
+}
+
+/* The tab's icon (Lineage) */
+.tabIcon {
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+.tabIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The details pane: the grid, then the linked concepts under a rule */
+.section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border-subtle);
+}
+
+.sectionTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aura-navy);
+}
+
+/* The location keeps to one line, as before (truncate); the title has it all */
+.location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.preWrap {
+  white-space: pre-wrap;
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+/* Property values */
+.null {
+  font-style: italic;
+  color: var(--aura-text-secondary);
+}
+
+.json {
+  flex: 1;
+  min-width: 0;
+  max-height: 160px;
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+/* Relationships: the table / graph toggle above the view's stack */
+.viewToggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+/* Under the header: the tabs and their panes, then the panes on every tab,
+   12px under the tab content */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The graphs' height, in their flush panes */
+.graph {
+  height: 600px;
+}
+
+/* Loading and error, outside the kit's layout */
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 14px 14px;
+}
+
+.stateBack {
+  align-self: flex-start;
+}

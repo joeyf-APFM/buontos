@@ -1,0 +1,10 @@
+[
+  "button \"Apply Filters\"",
+  "button \"Clear Filters\"",
+  "button \"Export CSV\"",
+  "combobox \"\"",
+  "link \"Home\"",
+  "textbox \"Filter by action\"",
+  "textbox \"Filter by feature\"",
+  "textbox \"Filter by username\""
+]

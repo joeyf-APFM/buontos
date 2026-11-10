@@ -1,0 +1,6 @@
+/* Applied to restyle-check screenshots only (toHaveScreenshot stylePath).
+   The app's top bar is not part of a page: a restyle of it must not fail
+   every page's screenshot. It keeps its space. */
+header:not(main header) {
+  visibility: hidden !important;
+}

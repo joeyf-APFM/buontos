@@ -16,7 +16,7 @@ import { AlertCircle, ArrowLeft, PlayCircle, Scale, Pencil } from 'lucide-react'
 import { DetailViewSkeleton } from '@/components/common/list-view-skeleton';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { CommentSidebar } from '@/components/comments';
 import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
 import { formatRuleWarning, type RuleWarning } from '@/lib/compliance-rule-warnings';
@@ -69,8 +69,8 @@ export default function CompliancePolicyDetails() {
   const navigate = useNavigate();
   const { get, post, put } = useApi();
   const { toast } = useToast();
-  const setStaticSegments = useBreadcrumbStore((s) => s.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
+  // Ignored once the page has gone, so a late answer can't name the next page
+  const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

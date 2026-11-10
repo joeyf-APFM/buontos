@@ -1,0 +1,189 @@
+/*
+ * The asset review editor (Task 15), inside the review page's Modal
+ * (views/data-asset-review-details.tsx): its sections on 1px rules, Mantine
+ * fields, and the syntax highlighter and markdown renderer kept as they were,
+ * each in a frame that keeps a long line inside the editor.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* A section after a 1px rule */
+.ruled {
+  composes: section;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aura-navy);
+}
+
+.sparkles {
+  width: 16px;
+  height: 16px;
+  color: var(--aura-accent);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.mono {
+  composes: mono from '../../mantine/asset-explorer/explorer.module.css';
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+}
+
+/* The highlighter's frame: its block scrolls a long line sideways (and a
+   long definition down, at 24rem) inside the editor */
+.code {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+/* The table preview, scrolling in its frame */
+.preview {
+  max-height: 384px;
+  overflow: auto;
+  padding: 0 8px 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.cell {
+  composes: mono from '../../mantine/asset-explorer/explorer.module.css';
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* The review form: labels beside the fields, as before */
+.field {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+  color: var(--aura-text-body);
+}
+
+.labelTop {
+  composes: label;
+  align-self: start;
+  padding-top: 6px;
+}
+
+.option {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The AI analysis */
+.analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.analysisHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.analysisTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--aura-navy);
+}
+
+.meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* Failed the security check: plain text, as before */
+.plain {
+  padding: 12px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  composes: mono from '../../mantine/asset-explorer/explorer.module.css';
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The markdown's frame, around its prose typography: a long code block
+   scrolls sideways inside it */
+.markdown {
+  min-width: 0;
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+.markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+}

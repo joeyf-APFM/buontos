@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import useBreadcrumbStore, { BreadcrumbSegment } from './breadcrumb-store';
+import useBreadcrumbStore, { BreadcrumbSegment, usePageBreadcrumb } from './breadcrumb-store';
 
 describe('Breadcrumb Store', () => {
   beforeEach(() => {
@@ -405,6 +405,67 @@ describe('Breadcrumb Store', () => {
 
       expect(result.current.staticSegments[0].path).toBe('/search?q=test&page=1');
       expect(result.current.staticSegments[1].path).toBe('/results#top');
+    });
+  });
+
+  describe('the page segments (Task 16d)', () => {
+    it('keeps trailing segments, with actions, apart from the static ones', () => {
+      const onSelect = () => {};
+      act(() => {
+        useBreadcrumbStore.getState().setStaticSegments([{ label: 'Data Contracts', path: '/data-contracts' }]);
+        useBreadcrumbStore.getState().setTrailingSegments([{ label: 'Unity Catalog', onSelect }, { label: 'insights' }]);
+      });
+      const state = useBreadcrumbStore.getState();
+      expect(state.staticSegments).toEqual([{ label: 'Data Contracts', path: '/data-contracts' }]);
+      expect(state.trailingSegments).toEqual([{ label: 'Unity Catalog', onSelect }, { label: 'insights' }]);
+    });
+
+    it('clears everything a page set when the page changes', () => {
+      act(() => {
+        const s = useBreadcrumbStore.getState();
+        s.setStaticSegments([{ label: 'Compliance', path: '/compliance' }]);
+        s.setDynamicTitle('PII check');
+        s.setTrailingSegments([{ label: 'Runs' }]);
+      });
+      act(() => useBreadcrumbStore.getState().clearPage());
+      const state = useBreadcrumbStore.getState();
+      expect(state.staticSegments).toEqual([]);
+      expect(state.dynamicTitle).toBeNull();
+      expect(state.trailingSegments).toEqual([]);
+    });
+  });
+
+  describe('usePageBreadcrumb', () => {
+    it('sets the titles while the page is mounted, and ignores a late set after it unmounts', () => {
+      const { result, unmount } = renderHook(() => usePageBreadcrumb());
+      act(() => result.current.setDynamicTitle('Orders'));
+      expect(useBreadcrumbStore.getState().dynamicTitle).toBe('Orders');
+      const { setDynamicTitle, setStaticSegments } = result.current;
+      unmount();
+      act(() => useBreadcrumbStore.setState({ dynamicTitle: 'Finance', staticSegments: [] }));
+      setDynamicTitle('Orders');
+      setStaticSegments([{ label: 'Data Contracts', path: '/data-contracts' }]);
+      expect(useBreadcrumbStore.getState().dynamicTitle).toBe('Finance');
+      expect(useBreadcrumbStore.getState().staticSegments).toEqual([]);
+    });
+  });
+
+  describe('no page names itself with a placeholder', () => {
+    // A title that is only "Loading..." would be drawn as a crumb, and kept in
+    // the trail of a page the user went on to; null means "not known yet"
+    const sources = import.meta.glob('/src/**/*.tsx', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    it('sets null, not a loading text, while the name loads', () => {
+      const offenders = Object.entries(sources)
+        .filter(([file]) => !file.includes('.test.'))
+        .flatMap(([file, source]) =>
+          source
+            .split('\n')
+            .filter((line) => !line.trim().startsWith('//'))
+            .flatMap((line) => [...line.matchAll(/setDynamicTitle\(([^;]*)/g)])
+            .filter((m) => /loading/i.test(m[1]))
+            .map((m) => `${file}: setDynamicTitle(${m[1]}`),
+        );
+      expect(offenders).toEqual([]);
     });
   });
 });

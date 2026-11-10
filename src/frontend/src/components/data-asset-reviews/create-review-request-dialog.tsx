@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Alert, Input, Loader, Modal, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogFooter, DialogClose, DialogDescription
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from "@/hooks/use-toast";
 import { TreeView } from '@/components/ui/tree-view';
 import { CatalogItem, DataAssetReviewRequest, DataAssetReviewRequestCreate, AssetType } from '@/types/data-asset-review';
-import { Loader2, AlertCircle, Folder, FolderOpen, Table, Layout, FunctionSquare } from 'lucide-react';
+import { AlertCircle, Folder, FolderOpen, Table, Layout, FunctionSquare } from 'lucide-react';
 import { PrincipalPicker } from '@/components/common/principal-picker';
+import { Z_INDEX } from '@/mantine/z-index';
+import { useLayeredEscape } from '@/mantine/use-layered-escape';
+import classes from './create-review-request-dialog.module.css';
 
 // Define user info type based on backend response
 interface UserInfo {
@@ -35,6 +31,14 @@ interface CreateReviewRequestDialogProps {
     onOpenChange: (isOpen: boolean) => void;
     api: ReturnType<typeof useApi>;
     onSubmitSuccess: (newRequest: DataAssetReviewRequest) => void;
+    /**
+     * Called once the dialog has closed and its exit transition has ended:
+     * the caller then puts focus where it belongs (the list may have reloaded
+     * behind it). It gets the dialog's content element, so the caller can tell
+     * focus left in the closed dialog from focus the user moved elsewhere.
+     * Without it, focus goes back to what had it when it opened.
+     */
+    onExited?: (content: HTMLElement | null) => void;
 }
 
 const checkApiResponse = <T,>(response: { data?: T | { detail?: string }, error?: string | null | undefined }, name: string): T => {
@@ -48,7 +52,7 @@ const checkApiResponse = <T,>(response: { data?: T | { detail?: string }, error?
     return response.data as T;
 };
 
-export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, onSubmitSuccess }: CreateReviewRequestDialogProps) {
+export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, onSubmitSuccess, onExited }: CreateReviewRequestDialogProps) {
     const { t } = useTranslation(['data-asset-reviews', 'common']);
     const { post, get } = api;
     const { toast } = useToast();
@@ -131,11 +135,11 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
 
     const getIcon = (type: string | undefined) => {
          switch (type) {
-            case 'catalog': return <Folder className="h-4 w-4 text-blue-500" />;
-            case 'schema': return <FolderOpen className="h-4 w-4 text-green-500" />;
-            case AssetType.TABLE: return <Table className="h-4 w-4 text-orange-500" />;
-            case AssetType.VIEW: return <Layout className="h-4 w-4 text-purple-500" />;
-            case AssetType.FUNCTION: return <FunctionSquare className="h-4 w-4 text-red-500" />;
+            case 'catalog': return <Folder aria-hidden className={classes.catalogIcon} />;
+            case 'schema': return <FolderOpen aria-hidden className={classes.schemaIcon} />;
+            case AssetType.TABLE: return <Table aria-hidden className={classes.tableIcon} />;
+            case AssetType.VIEW: return <Layout aria-hidden className={classes.viewIcon} />;
+            case AssetType.FUNCTION: return <FunctionSquare aria-hidden className={classes.functionIcon} />;
             default: return null;
         }
     };
@@ -327,26 +331,54 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
         }
     };
 
+    // Escape closes the dialog, unless a layer above it took it first: the
+    // reviewer picker's results or its directory dialog (Radix layers)
+    useLayeredEscape(isOpen, () => onOpenChange(false));
+
+    const fieldClassNames = { label: classes.label };
+    const contentRef = useRef<HTMLDivElement | null>(null);
+
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>{t('data-asset-reviews:createRequest')}</DialogTitle>
-                    <DialogDescription>{t('data-asset-reviews:dialog.description')}</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4 px-1">
-                        <div>
-                            <Label htmlFor="requester-email">{t('data-asset-reviews:dialog.yourEmailLabel')}</Label>
-                            <Input
-                                id="requester-email"
-                                value={requesterEmail ?? t('common:states.loading')}
-                                disabled
-                                aria-disabled={true}
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="reviewer-email">{t('data-asset-reviews:dialog.reviewerLabel')}</Label>
+        <Modal.Root
+            opened={isOpen}
+            onClose={() => onOpenChange(false)}
+            size={600}
+            centered
+            // Below the Radix layers the reviewer picker opens over it
+            zIndex={Z_INDEX.modalUnderRadix}
+            // As the Radix dialog: a click outside leaves it open; Escape is
+            // left to useLayeredEscape
+            closeOnClickOutside={false}
+            closeOnEscape={false}
+            returnFocus={!onExited}
+            onExitTransitionEnd={() => onExited?.(contentRef.current)}
+        >
+            <Modal.Overlay />
+            <Modal.Content ref={contentRef} className={classes.content}>
+                <Modal.Header className={classes.header}>
+                    <Modal.Title className={classes.title}>{t('data-asset-reviews:createRequest')}</Modal.Title>
+                </Modal.Header>
+                {/* The Modal's body is only the description: the dialog's
+                    aria-describedby points at the body, as Radix's did at its
+                    DialogDescription. The form follows it. */}
+                <Modal.Body className={classes.description}>{t('data-asset-reviews:dialog.description')}</Modal.Body>
+                <form onSubmit={handleSubmit} className={classes.form}>
+                    <div className={classes.pair}>
+                        <TextInput
+                            id="requester-email"
+                            label={t('data-asset-reviews:dialog.yourEmailLabel')}
+                            value={requesterEmail ?? t('common:states.loading')}
+                            disabled
+                            aria-disabled={true}
+                            classNames={fieldClassNames}
+                        />
+                        {/* The shared picker, labelled by id as before (its own
+                            aria-label names it) */}
+                        <Input.Wrapper
+                            id="reviewer-email"
+                            label={t('data-asset-reviews:dialog.reviewerLabel')}
+                            classNames={fieldClassNames}
+                        >
                             <PrincipalPicker
                                 id="reviewer-email"
                                 accepts={['user']}
@@ -358,51 +390,50 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
                                 placeholder={t('data-asset-reviews:dialog.reviewerPlaceholder')}
                                 aria-label={t('common:labels.reviewer')}
                             />
-                        </div>
+                        </Input.Wrapper>
                     </div>
-                    <div className="px-1">
-                        <Label htmlFor="review-title">{t('data-asset-reviews:form.titleLabel')}</Label>
-                        <Input
-                            id="review-title"
-                            value={title}
-                            maxLength={200}
-                            onChange={(e) => {
-                                setTitle(e.target.value);
-                                setFormError(null);
-                            }}
-                            placeholder={t('data-asset-reviews:form.titlePlaceholder')}
-                        />
-                    </div>
-                    <div className="px-1">
-                        <Label htmlFor="notes">{t('data-asset-reviews:dialog.notesLabel')}</Label>
-                        <Textarea
-                            id="notes"
-                            value={notes}
-                            onChange={(e) => {
-                                setNotes(e.target.value);
-                                setFormError(null);
-                            }}
-                            placeholder={t('data-asset-reviews:dialog.notesPlaceholder')}
-                            rows={3}
-                        />
-                    </div>
+                    <TextInput
+                        id="review-title"
+                        label={t('data-asset-reviews:form.titleLabel')}
+                        value={title}
+                        maxLength={200}
+                        onChange={(e) => {
+                            setTitle(e.target.value);
+                            setFormError(null);
+                        }}
+                        placeholder={t('data-asset-reviews:form.titlePlaceholder')}
+                        classNames={fieldClassNames}
+                    />
+                    <Textarea
+                        id="notes"
+                        label={t('data-asset-reviews:dialog.notesLabel')}
+                        value={notes}
+                        onChange={(e) => {
+                            setNotes(e.target.value);
+                            setFormError(null);
+                        }}
+                        placeholder={t('data-asset-reviews:dialog.notesPlaceholder')}
+                        // Grows with long notes, so they read in full
+                        autosize
+                        minRows={3}
+                        maxRows={10}
+                        classNames={fieldClassNames}
+                    />
 
-                    <div className="flex-1 overflow-hidden border rounded-md mx-1">
-                         <Label className="text-sm font-medium block p-2 border-b">{t('data-asset-reviews:dialog.selectAssetsLabel')}</Label>
-                         <div className="h-[300px] overflow-y-auto p-2">
+                    <div className={classes.tree}>
+                        <div className={classes.treeLabel}>{t('data-asset-reviews:dialog.selectAssetsLabel')}</div>
+                        <div className={classes.treeBody}>
                             {isLoadingCatalog ? (
-                                 <div className="flex justify-center items-center h-full">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                <div className={classes.loading}>
+                                    <Loader size={24} />
                                 </div>
                             ) : catalogError ? (
-                                <Alert variant="destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>{catalogError}</AlertDescription>
+                                <Alert color="red" variant="light" icon={<AlertCircle />}>
+                                    {catalogError}
                                 </Alert>
                             ) : (
                                 <TreeView
                                     data={renderTree(catalogItems)}
-                                    className="text-sm"
                                     onSelectChange={handleSelectionChange}
                                 />
                             )}
@@ -410,21 +441,24 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
                     </div>
 
                     {formError && (
-                        <Alert variant="destructive" className="mx-1">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="break-words">{formError}</AlertDescription>
+                        <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.formError}>
+                            {formError}
                         </Alert>
                     )}
                 </form>
-                 <DialogFooter className="mt-auto pt-4 border-t">
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline" disabled={isSubmitting}>{t('common:actions.cancel')}</Button>
-                    </DialogClose>
-                    <Button type="submit" onClick={handleSubmit} disabled={isSubmitting || selectedAssetFqns.size === 0}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t('data-asset-reviews:dialog.submitRequest')}
+                {/* Outside the form, as before: Enter in a field doesn't submit */}
+                <div className={classes.footer}>
+                    <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
+                        {t('common:actions.cancel')}
                     </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <Button type="submit" onClick={handleSubmit} disabled={isSubmitting || selectedAssetFqns.size === 0}>
+                        {isSubmitting && <Loader size={12} color="currentColor" />} {t('data-asset-reviews:dialog.submitRequest')}
+                    </Button>
+                </div>
+                {/* The corner close comes last, as Radix's did: focus starts
+                    on the first field */}
+                <Modal.CloseButton className={classes.close} aria-label={t('common:actions.close')} />
+            </Modal.Content>
+        </Modal.Root>
     );
-} 
+}

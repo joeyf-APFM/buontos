@@ -11,7 +11,7 @@ import Layout from './layout';
 vi.mock('@/mantine/shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('@/components/ui/breadcrumbs', () => ({ Breadcrumbs: () => null }));
+vi.mock('@/mantine/shell/shell-breadcrumb', () => ({ ShellBreadcrumb: () => null }));
 
 const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 

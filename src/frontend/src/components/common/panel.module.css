@@ -1,0 +1,409 @@
+/*
+ * A detail-page pane laid out like the explorer's details panel
+ * (mantine/asset-explorer/explorer.module.css): 12px text, an 86px label
+ * column, rows about 23px apart with no rules between them (R12), and no
+ * cards inside. The ownership, metadata and comments panels share it, as does
+ * the page kit's DetailsGrid.
+ */
+.pane {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--aura-text-body);
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.title > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+/* A head with a description under it: one rule under both */
+.headGroup {
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.headGroup > .head {
+  border-bottom: 0;
+}
+
+.subtitle {
+  margin: 0;
+  padding: 0 12px 8px;
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+}
+
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.body {
+  padding: 4px 12px 10px;
+}
+
+/* Label / value rows */
+.kv {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  row-gap: 5px;
+  margin: 0;
+}
+
+.kv > dt,
+.kv > dd {
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.kv > dt {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.kv > dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+/* The value cell: the main text grows, the rest keep their size */
+.grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.muted {
+  flex: none;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.italic {
+  font-style: italic;
+}
+
+.dimmed {
+  opacity: 0.6;
+}
+
+/* A sub-heading inside the body, such as Current Owners */
+.sectionLabel {
+  margin: 8px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+/* A part of the pane under its own heading, divided from the one before */
+.section {
+  padding: 2px 0 8px;
+}
+
+.section + .section {
+  border-top: 1px solid var(--aura-border-subtle);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.sectionTitle > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--aura-accent);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.empty {
+  padding: 6px 0;
+  color: var(--aura-text-secondary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0;
+  color: var(--aura-text-secondary);
+}
+
+.inlineLoading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  color: var(--aura-text-secondary);
+}
+
+.spin {
+  width: 16px;
+  height: 16px;
+  animation: panel-spin 1s linear infinite;
+}
+
+@keyframes panel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The disclosure button for a collapsible part */
+.disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.disclosure > svg {
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+.spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Forms inside a pane or a dialog */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+.buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.buttonsEnd {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* A list of rows, each divided from the next, such as a dialog's members */
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.scroll {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dialogBody {
+  padding: 8px 0;
+}
+
+.center {
+  text-align: center;
+}
+
+/* A row's remove button turns critical on hover */
+.remove:hover {
+  color: var(--aura-critical);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Table cells inside a pane */
+.level {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.cellMuted {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.cellLink {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.cellLink a {
+  color: var(--aura-accent-hover);
+}
+
+.cellLink a:hover {
+  text-decoration: underline;
+}
+
+.cellFile {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The S(hared) and I(nheritable) flags */
+.flag {
+  gap: 4px;
+}
+
+/* Delete buttons */
+.danger {
+  color: var(--aura-critical);
+}
+
+.danger:hover {
+  color: var(--aura-critical);
+}
+
+/* The shared-asset picker */
+.pickerScroll {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.pickRow {
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.pickRow:hover {
+  background: var(--aura-surface-strong);
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.metaLink {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-accent-hover);
+}

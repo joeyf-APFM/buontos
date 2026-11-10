@@ -1,5 +1,6 @@
 {
   "title": "Révisions d'Actifs de Données",
+  "listPane": "Liste des demandes de revue",
   "subtitle": "Révisez et approuvez les actifs de données",
   "newReview": "Nouvelle Révision",
   "createRequest": "Créer une Nouvelle Demande de Révision d'Actif de Données",

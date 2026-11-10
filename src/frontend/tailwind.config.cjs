@@ -13,6 +13,12 @@ module.exports = {
   		}
   	},
   	extend: {
+  		// The app's one font stack (theme.ts BODY_FONT) and the code font, which
+  		// is written out once, as theme.ts MONO_FONT (--aura-font-mono on :root)
+  		fontFamily: {
+  			sans: ['Optima', 'Candara', '"Segoe UI"', 'sans-serif'],
+  			mono: ['var(--aura-font-mono)']
+  		},
   		colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
@@ -57,6 +63,10 @@ module.exports = {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
+  		},
+  		boxShadow: {
+  			// Floating parts (menus, popovers, dialogs) use Mantine's md shadow, as its own do
+  			floating: 'var(--mantine-shadow-md)'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
