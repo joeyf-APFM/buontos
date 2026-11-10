@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { reviewStatusLabel } from '@/lib/status-labels';
-import { ColumnDef } from "@tanstack/react-table";
-import { Loader2, AlertCircle, ArrowLeft, X, ArrowUpDown, Pencil, Check, Copy } from 'lucide-react';
+import { Column, ColumnDef } from "@tanstack/react-table";
+import { AlertCircle, ArrowLeft, X, ArrowUpDown, Pencil, Check, Copy } from 'lucide-react';
+import { ActionIcon, Alert, Loader, Modal, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from "@/hooks/use-toast";
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
@@ -15,13 +16,7 @@ import {
 } from '@/types/data-asset-review';
 import { appEntityAssetLink } from '@/lib/app-entity-asset';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-// Textarea - unused
-// import { Textarea } from '@/components/ui/textarea';
 import { DataTable } from "@/components/ui/data-table";
 import {
   CardSkeleton,
@@ -30,7 +25,10 @@ import {
 } from '@/components/common/list-view-skeleton';
 import { Toaster } from "@/components/ui/toaster";
 import { RelativeDate } from '@/components/common/relative-date';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
+import { Z_INDEX } from '@/mantine/z-index';
+import { useLayeredEscape } from '@/mantine/use-layered-escape';
+import classes from './data-asset-review-details.module.css';
 
 // Import Asset Review Editor Component
 import AssetReviewEditor from '@/components/data-asset-reviews/asset-review-editor';
@@ -46,30 +44,40 @@ function ConceptDiffPanel({ request, asset }: ConceptDiffPanelProps) {
   const diffData = (request as any)?.details?.diff || (request as any)?.notes;
 
   return (
-    <div className="mt-2 rounded border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 p-2 text-xs space-y-1">
-      <div className="font-mono text-blue-900 dark:text-blue-100 break-all">{iri}</div>
+    <div className={classes.diff}>
+      <div className={classes.diffIri}>{iri}</div>
       {diffData && typeof diffData === 'object' && (
-        <div className="text-blue-800 dark:text-blue-200">
+        <div>
           {diffData.definition && (
-            <div className="mt-1">
-              <span className="font-semibold">Definition:</span>
-              <div className="mt-0.5 whitespace-pre-wrap">{diffData.definition}</div>
+            <div className={classes.diffRow}>
+              <span className={classes.diffLabel}>Definition:</span>
+              <div className={classes.diffDefinition}>{diffData.definition}</div>
             </div>
           )}
           {diffData.prefLabel && (
-            <div className="mt-1">
-              <span className="font-semibold">Label:</span> {diffData.prefLabel}
+            <div className={classes.diffRow}>
+              <span className={classes.diffLabel}>Label:</span> {diffData.prefLabel}
             </div>
           )}
           {diffData.reference_count != null && (
-            <div className="mt-1">
-              <span className="font-semibold">Used by:</span> {diffData.reference_count} places
+            <div className={classes.diffRow}>
+              <span className={classes.diffLabel}>Used by:</span> {diffData.reference_count} places
             </div>
           )}
         </div>
       )}
     </div>
   );
+}
+
+/** A header label that sorts its column, in the grid's header-label look. */
+function SortButton({ column, label }: { column: Column<ReviewedAsset, unknown>; label: string }) {
+    return (
+        <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+            {label}
+            <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+        </UnstyledButton>
+    );
 }
 
 // Helper function to check API response (reuse if available globally)
@@ -107,9 +115,10 @@ export default function DataAssetReviewDetails() {
     const [isSavingTitle, setIsSavingTitle] = useState(false);
 
     // Navigation helpers for asset review
-    const pendingAssets = useMemo(() => 
-        request?.assets?.filter(a => a.status === ReviewedAssetStatus.PENDING) ?? [], 
-        [request?.assets]
+    const requestAssets = request?.assets;
+    const pendingAssets = useMemo(() =>
+        (Array.isArray(requestAssets) ? requestAssets : []).filter(a => a.status === ReviewedAssetStatus.PENDING),
+        [requestAssets]
     );
     
     const currentAssetIndexInPending = useMemo(() => {
@@ -253,59 +262,56 @@ export default function DataAssetReviewDetails() {
         }
     };
 
+    // Once the editor has closed, focus goes back to the row's Review button
+    // it was opened from, found again by its asset id (the table re-renders
+    // its cells while the editor is open, so the original button may be
+    // gone). Only if focus is nowhere (body) or still in the closed editor:
+    // focus the user has moved stays where they put it
+    const editorOpener = useRef<string | null>(null);
+    const editorExited = () => {
+        const id = editorOpener.current;
+        editorOpener.current = null;
+        if (id === null) return;
+        const active = document.activeElement;
+        const free = !active || active === document.body || active.closest('[data-modal-content]') !== null;
+        if (!free) return;
+        document.querySelector<HTMLButtonElement>(`[data-review-asset="${CSS.escape(id)}"]`)?.focus();
+    };
+
     // --- Asset Table Columns --- //
     const assetColumns = useMemo<ColumnDef<ReviewedAsset>[]>(() => [
         {
             accessorKey: "asset_fqn",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="h-8 px-2 -ml-2">
-                    {t('data-asset-reviews:details.columnAssetFqn')}
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
+            header: ({ column }) => <SortButton column={column} label={t('data-asset-reviews:details.columnAssetFqn')} />,
             cell: ({ row }) => {
                 const entityLink = appEntityAssetLink(row.original);
                 return entityLink
-                    ? <Link to={entityLink} className="font-mono text-xs underline">{row.original.asset_fqn}</Link>
-                    : <span className="font-mono text-xs">{row.original.asset_fqn}</span>;
+                    ? <Link to={entityLink} className={classes.fqnLink}>{row.original.asset_fqn}</Link>
+                    : <span className={classes.fqn}>{row.original.asset_fqn}</span>;
             },
         },
         {
             accessorKey: "asset_type",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="h-8 px-2 -ml-2">
-                    {t('common:labels.type')}
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
+            header: ({ column }) => <SortButton column={column} label={t('common:labels.type')} />,
             cell: ({ row }) => <Badge variant="secondary">{row.original.asset_type}</Badge>,
         },
         {
             accessorKey: "status",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="h-8 px-2 -ml-2">
-                    {t('common:labels.status')}
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
+            header: ({ column }) => <SortButton column={column} label={t('common:labels.status')} />,
             cell: ({ row }) => (
                 <Badge variant={getAssetStatusColor(row.original.status)}>{reviewStatusLabel(row.original.status, t)}</Badge>
             ),
         },
         {
             accessorKey: "updated_at",
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="h-8 px-2 -ml-2">
-                    {t('data-asset-reviews:details.columnLastReviewed')}
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
+            header: ({ column }) => <SortButton column={column} label={t('data-asset-reviews:details.columnLastReviewed')} />,
             cell: ({ row }) => <RelativeDate date={row.original.updated_at} />,
         },
         {
             id: "actions",
             cell: ({ row }) => (
-                <Button variant="outline" size="sm" onClick={() => {
+                <Button variant="outline" size="sm" className={classes.reviewButton} data-review-asset={row.original.id} onClick={() => {
+                    editorOpener.current = row.original.id ?? null;
                     setSelectedAsset(row.original);
                     // Find the index in the pending assets for navigation
                     const idx = pendingAssets.findIndex(a => a.id === row.original.id);
@@ -318,11 +324,35 @@ export default function DataAssetReviewDetails() {
         },
     ], [getAssetStatusColor]);
 
+    // Every status, by its label, once each; a status the list doesn't know still shows, by its value
+    const requestStatus = request?.status;
+    const statusOptions = useMemo(() => {
+        const values: string[] = Object.values(ReviewRequestStatus);
+        if (requestStatus && !values.includes(requestStatus)) values.push(requestStatus);
+        return values
+            .filter((value, i) => values.indexOf(value) === i)
+            .map((value) => ({ value, label: reviewStatusLabel(value, t) }));
+    }, [requestStatus, t]);
+
+    // The editor Modal: Escape closes it unless a layer above it (its status
+    // list, the LLM consent dialog, a shared reviewer's Radix pieces) took it
+    useLayeredEscape(isEditorOpen && !!selectedAsset, () => setIsEditorOpen(false));
 
     // --- Render Logic --- //
+    const listTitle = t('data-asset-reviews:title');
+    const breadcrumb = (current?: string) => (
+        <Breadcrumb
+            items={[
+                { label: listTitle, to: '/data-asset-reviews' },
+                ...(current ? [{ label: current }] : []),
+            ]}
+        />
+    );
+
     if (loading) {
         return (
-            <div className="py-6 space-y-6">
+            <div className={classes.state}>
+                {breadcrumb()}
                 <DetailHeaderSkeleton actionButtons={1} />
                 <CardSkeleton titleWidth="w-56" descriptionWidth="w-72" contentRows={4} />
                 <TableSkeleton columns={5} rows={5} />
@@ -330,155 +360,192 @@ export default function DataAssetReviewDetails() {
         );
     }
     if (error) {
-        return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
+        return (
+            <div className={classes.state}>
+                {breadcrumb()}
+                <Alert color="red" variant="light" icon={<AlertCircle />}>{error}</Alert>
+            </div>
+        );
     }
     if (!request) {
-        return <Alert><AlertDescription>{t('data-asset-reviews:details.notFound')}</AlertDescription></Alert>;
+        return (
+            <div className={classes.state}>
+                {breadcrumb()}
+                <Alert color="gray" variant="light">{t('data-asset-reviews:details.notFound')}</Alert>
+            </div>
+        );
     }
 
+    const displayTitle = request.title || t('data-asset-reviews:table.untitled');
+    const assets = Array.isArray(request.assets) ? request.assets : [];
+
+    const actions = (
+        <>
+            <div className={classes.status}>
+                <label htmlFor="overall-status" className={classes.statusLabel}>{t('data-asset-reviews:details.overallStatus')}:</label>
+                <Select
+                    id="overall-status"
+                    data={statusOptions}
+                    value={request.status}
+                    onChange={(value) => value && handleOverallStatusChange(value as ReviewRequestStatus)}
+                    disabled={isUpdatingStatus}
+                    allowDeselect={false}
+                    placeholder={t('common:placeholders.setStatus')}
+                    className={classes.statusSelect}
+                    classNames={{ option: classes.option }}
+                />
+                {isUpdatingStatus && <Loader size={14} />}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/data-asset-reviews')}>
+                <ArrowLeft /> {t('data-asset-reviews:details.backToList')}
+            </Button>
+        </>
+    );
+
+    const header = isEditingTitle ? (
+        // The kit header's shape, with the title in a field
+        <div className={classes.header}>
+            <TextInput
+                autoFocus
+                value={titleDraft}
+                maxLength={200}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSaveTitle();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelEditTitle();
+                    }
+                }}
+                placeholder={t('data-asset-reviews:form.titlePlaceholder')}
+                className={classes.titleField}
+                classNames={{ input: classes.titleInput }}
+                disabled={isSavingTitle}
+            />
+            <ActionIcon
+                variant="filled"
+                onClick={handleSaveTitle}
+                disabled={isSavingTitle}
+                aria-label={t('common:actions.save')}
+                className={classes.titleAction}
+            >
+                {isSavingTitle ? <Loader size={12} color="currentColor" /> : <Check aria-hidden />}
+            </ActionIcon>
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                onClick={cancelEditTitle}
+                disabled={isSavingTitle}
+                aria-label={t('common:actions.cancel')}
+                className={classes.titleAction}
+            >
+                <X aria-hidden />
+            </ActionIcon>
+            <div className={classes.headerEnd}>{actions}</div>
+        </div>
+    ) : (
+        <PageHeader
+            title={displayTitle}
+            badges={
+                <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    className={classes.editTitle}
+                    onClick={beginEditTitle}
+                    aria-label={t('data-asset-reviews:actions.editTitle')}
+                    title={t('data-asset-reviews:actions.editTitle')}
+                >
+                    <Pencil aria-hidden />
+                </ActionIcon>
+            }
+            actions={actions}
+        />
+    );
+
+    const infoRows: DetailsRow[] = [
+        { label: t('common:labels.requester'), value: <span className={classes.wrap}>{request.requester_email}</span> },
+        { label: t('common:labels.reviewer'), value: <span className={classes.wrap}>{request.reviewer_email}</span> },
+        {
+            label: t('data-asset-reviews:details.currentStatus'),
+            value: <Badge variant={getRequestStatusColor(request.status)}>{reviewStatusLabel(request.status, t)}</Badge>,
+        },
+        { label: t('common:labels.created'), value: <RelativeDate date={request.created_at} /> },
+        { label: t('common:labels.lastUpdated'), value: <RelativeDate date={request.updated_at} /> },
+        { label: t('common:labels.notes'), value: <p className={classes.notes}>{request.notes || t('common:states.none')}</p> },
+    ];
+
     return (
-        <div className="py-6">
-            <div className="space-y-6">
-                <div className="flex justify-between items-start mb-4 gap-4">
-                    <div className="min-w-0 flex-1">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/data-asset-reviews')} className="mb-2">
-                            <ArrowLeft className="mr-2 h-4 w-4" /> {t('data-asset-reviews:details.backToList')}
-                        </Button>
-                        {isEditingTitle ? (
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    autoFocus
-                                    value={titleDraft}
-                                    maxLength={200}
-                                    onChange={(e) => setTitleDraft(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleSaveTitle();
-                                        } else if (e.key === 'Escape') {
-                                            e.preventDefault();
-                                            cancelEditTitle();
-                                        }
-                                    }}
-                                    placeholder={t('data-asset-reviews:form.titlePlaceholder')}
-                                    className="text-2xl font-bold h-auto py-1 px-2"
-                                    disabled={isSavingTitle}
-                                />
-                                <Button
-                                    size="icon"
-                                    variant="default"
-                                    onClick={handleSaveTitle}
-                                    disabled={isSavingTitle}
-                                    aria-label={t('common:actions.save')}
-                                >
-                                    {isSavingTitle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                </Button>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={cancelEditTitle}
-                                    disabled={isSavingTitle}
-                                    aria-label={t('common:actions.cancel')}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2 group">
-                                <h1 className="text-3xl font-bold truncate">
-                                    {request.title || t('data-asset-reviews:table.untitled')}
-                                </h1>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={beginEditTitle}
-                                    aria-label={t('data-asset-reviews:actions.editTitle')}
-                                    title={t('data-asset-reviews:actions.editTitle')}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-1 mt-1">
-                            <span className="text-xs text-muted-foreground font-mono">{request.id}</span>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground"
+        <>
+            <PageLayout
+                breadcrumb={breadcrumb(displayTitle)}
+                header={
+                    <div className={classes.headerArea}>
+                        {header}
+                        <div className={classes.idLine}>
+                            <span className={classes.id}>{request.id}</span>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                className={classes.copy}
                                 onClick={handleCopyId}
                                 aria-label={t('data-asset-reviews:actions.copyId')}
                                 title={t('data-asset-reviews:actions.copyId')}
                             >
-                                <Copy className="h-3 w-3" />
-                            </Button>
+                                <Copy aria-hidden />
+                            </ActionIcon>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="overall-status" className="text-sm font-medium">{t('data-asset-reviews:details.overallStatus')}:</Label>
-                        <Select
-                            value={request.status}
-                            onValueChange={(value) => handleOverallStatusChange(value as ReviewRequestStatus)}
-                            disabled={isUpdatingStatus}
-                        >
-                            <SelectTrigger id="overall-status" className="w-[180px]">
-                                <SelectValue placeholder={t('common:placeholders.setStatus')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.values(ReviewRequestStatus).map((status) => (
-                                    <SelectItem key={status} value={status}>{reviewStatusLabel(status, t)}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {isUpdatingStatus && <Loader2 className="h-4 w-4 animate-spin" />}
-                    </div>
-                </div>
+                }
+            >
+                <PaneStack>
+                    <Pane title={t('data-asset-reviews:details.requestInformation')}>
+                        <DetailsGrid rows={infoRows} />
+                    </Pane>
+                    <Pane flush title={t('data-asset-reviews:details.assetsForReview', { count: assets.length })}>
+                        <div className={classes.tableBody}>
+                            <DataTable
+                                columns={assetColumns}
+                                data={assets}
+                                // No search needed for this small table within details
+                            />
+                        </div>
+                    </Pane>
+                </PaneStack>
+            </PageLayout>
 
-                {/* Request Info Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('data-asset-reviews:details.requestInformation')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid md:grid-cols-3 gap-4 text-sm">
-                        <div><Label>{t('common:labels.requester')}:</Label> {request.requester_email}</div>
-                        <div><Label>{t('common:labels.reviewer')}:</Label> {request.reviewer_email}</div>
-                        <div><Label>{t('data-asset-reviews:details.currentStatus')}:</Label> <Badge variant={getRequestStatusColor(request.status)}>{reviewStatusLabel(request.status, t)}</Badge></div>
-                        <div><Label>{t('common:labels.created')}:</Label> <RelativeDate date={request.created_at} /></div>
-                        <div><Label>{t('common:labels.lastUpdated')}:</Label> <RelativeDate date={request.updated_at} /></div>
-                        <div className="md:col-span-3"><Label>{t('common:labels.notes')}:</Label> <p className="text-xs mt-1 whitespace-pre-wrap">{request.notes || t('common:states.none')}</p></div>
-                    </CardContent>
-                </Card>
-
-                {/* Assets Table Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('data-asset-reviews:details.assetsForReview', { count: request.assets?.length ?? 0 })}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <DataTable
-                            columns={assetColumns}
-                            data={request.assets ?? []}
-                            // No search needed for this small table within details
-                        />
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Asset Review Editor - Now outside the space-y-6 wrapper */}
-            {isEditorOpen && selectedAsset && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-                    <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col bg-background">
-                        <CardHeader className="flex flex-row justify-between items-center">
-                            <div className="flex-1 min-w-0">
-                                <CardTitle className="truncate">Reviewing: {selectedAsset.asset_fqn}</CardTitle>
+            {/* Asset Review Editor: a Modal over the page. As the overlay it
+                replaces, a click outside leaves it open */}
+            <Modal.Root
+                opened={isEditorOpen && !!selectedAsset}
+                onClose={() => setIsEditorOpen(false)}
+                size={896}
+                centered
+                // Below the shared Radix dialogs it may open (the LLM consent)
+                zIndex={Z_INDEX.modalUnderRadix}
+                closeOnClickOutside={false}
+                closeOnEscape={false}
+                returnFocus={false}
+                onExitTransitionEnd={editorExited}
+            >
+                <Modal.Overlay />
+                {selectedAsset && (
+                    <Modal.Content className={classes.editor}>
+                        <Modal.Header className={classes.editorHeader}>
+                            <div className={classes.editorHeading}>
+                                <Modal.Title className={classes.editorTitle}>
+                                    {t('data-asset-reviews:details.reviewing', { fqn: selectedAsset.asset_fqn })}
+                                </Modal.Title>
                                 {/* Concept diff panel for knowledge concepts */}
                                 {selectedAsset.asset_fqn?.startsWith('knowledge-concept://') && request && (
                                     <ConceptDiffPanel request={request} asset={selectedAsset} />
                                 )}
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => setIsEditorOpen(false)}><X className="h-4 w-4" /></Button>
-                        </CardHeader>
-                        <CardContent className="flex-1 overflow-auto space-y-4">
+                            {/* Unnamed, as before (R16) */}
+                            <Modal.CloseButton />
+                        </Modal.Header>
+                        <div className={classes.editorBody}>
                              {/* Render AssetReviewEditor component */}
                              <AssetReviewEditor
                                 requestId={requestId!}
@@ -490,7 +557,7 @@ export default function DataAssetReviewDetails() {
                                         if (!prevRequest) return null;
                                         return {
                                             ...prevRequest,
-                                            assets: prevRequest.assets.map(a =>
+                                            assets: (Array.isArray(prevRequest.assets) ? prevRequest.assets : []).map(a =>
                                                 a.id === updatedAsset.id ? updatedAsset : a
                                             ),
                                             // Optionally update the overall request updated_at timestamp
@@ -508,19 +575,16 @@ export default function DataAssetReviewDetails() {
                                 currentIndex={selectedAssetIndex}
                                 totalCount={pendingAssets.length}
                              />
-                             {/* Footer with save button is now part of AssetReviewEditor logic,
-                                but usually triggered from parent dialog for consistency.
-                                Keeping a simplified footer here for closing. */}
-                             <div className="flex justify-end p-4 border-t">
-                                <Button variant="outline" onClick={() => setIsEditorOpen(false)} className="mr-2">{t('common:actions.close')}</Button>
-                                {/* Save action is triggered within AssetReviewEditor via its internal state/button */}
+                             {/* The save action is in AssetReviewEditor; this closes */}
+                             <div className={classes.editorFooter}>
+                                <Button variant="outline" onClick={() => setIsEditorOpen(false)}>{t('common:actions.close')}</Button>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+                        </div>
+                    </Modal.Content>
+                )}
+            </Modal.Root>
 
             <Toaster />
-        </div>
+        </>
     );
-} 
+}

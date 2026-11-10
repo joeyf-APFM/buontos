@@ -19,6 +19,10 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   // own, so the page can own the area; the other Settings pages keep the
   // layout's padding and breadcrumb until their wave
   '/settings/asset-types',
+  // The review list (full bleed: one pane fills the area) and one review
+  // (its panes stacked at their own height, scrolling with the page)
+  '/data-asset-reviews',
+  '/data-asset-reviews/:requestId',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

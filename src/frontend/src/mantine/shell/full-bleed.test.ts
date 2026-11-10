@@ -3,7 +3,7 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId']);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);
@@ -43,6 +43,18 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/settings/tags')).toBe(false);
     // The old route only redirects
     expect(isFullBleed('/asset-types')).toBe(false);
+  });
+
+  it('matches the Data Asset Reviews list and one review, nothing under it', () => {
+    // Task 15
+    expect(isFullBleed('/data-asset-reviews')).toBe(true);
+    expect(isFullBleed('/data-asset-reviews/')).toBe(true);
+    expect(isFullBleed('/data-asset-reviews/r-1')).toBe(true);
+    expect(isFullBleed('/data-asset-reviews/r-1/assets')).toBe(false);
+    expect(isFullBleed('/Data-Asset-Reviews')).toBe(false);
+    expect(isFullBleed('/data-asset-review')).toBe(false);
+    // My Requests, which lists the user's reviews, is wave 2
+    expect(isFullBleed('/my-requests')).toBe(false);
   });
 
   it('takes route patterns, such as a detail route', () => {
