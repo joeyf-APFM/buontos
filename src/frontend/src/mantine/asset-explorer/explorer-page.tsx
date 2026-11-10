@@ -17,6 +17,7 @@ import { AssetTable } from './asset-table';
 import { useExpansions } from './use-expansions';
 import { useExplorerStore } from './explorer-store';
 import { DetailsPanel } from './details-panel';
+import { FilterBar, PageHeader } from '@/mantine/page';
 import classes from './explorer.module.css';
 
 const PAGE_SIZE = 50;
@@ -417,36 +418,35 @@ export default function ExplorerPage() {
               <span>{node.label}</span>
             </nav>
 
-            <div className={classes.header}>
-              <h4 className={classes.title}>{node.label}</h4>
-              {node.kind === 'asset' && node.assetTypeName && <span className={classes.tag}>{node.assetTypeName}</span>}
-              {status && (
-                <span className={classes.tag}>
-                  {t(`status.${status}`, status)}
-                </span>
-              )}
-              {canWrite && (
-                <div className={classes.headerEnd}>
-                  {fixedType ? (
-                    newAssetButton
-                  ) : (
-                    <Menu position="bottom-end" shadow="md">
-                      <Menu.Target>{newAssetButton}</Menu.Target>
-                      <Menu.Dropdown mah={320} style={{ overflowY: 'auto' }}>
-                        <Menu.Label>{t('chooseType')}</Menu.Label>
-                        {assetTypes.map((ty) => (
-                          <Menu.Item key={ty.id} onClick={() => setCreateType(ty)}>
-                            {ty.name}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Dropdown>
-                    </Menu>
-                  )}
-                </div>
-              )}
-            </div>
+            <PageHeader
+              title={node.label}
+              badges={
+                <>
+                  {node.kind === 'asset' && node.assetTypeName && <span className={classes.tag}>{node.assetTypeName}</span>}
+                  {status && <span className={classes.tag}>{t(`status.${status}`, status)}</span>}
+                </>
+              }
+              actions={
+                canWrite &&
+                (fixedType ? (
+                  newAssetButton
+                ) : (
+                  <Menu position="bottom-end" shadow="md">
+                    <Menu.Target>{newAssetButton}</Menu.Target>
+                    <Menu.Dropdown mah={320} style={{ overflowY: 'auto' }}>
+                      <Menu.Label>{t('chooseType')}</Menu.Label>
+                      {assetTypes.map((ty) => (
+                        <Menu.Item key={ty.id} onClick={() => setCreateType(ty)}>
+                          {ty.name}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Dropdown>
+                  </Menu>
+                ))
+              }
+            />
 
-            <div className={classes.bar}>
+            <FilterBar hint={(!loading || current) && t('count', { count: page.total })}>
               <TextInput
                 className={classes.filter}
                 aria-label={t('filter.label')}
@@ -487,8 +487,7 @@ export default function ExplorerPage() {
                 nothingFoundMessage={t('filter.conceptSearch')}
                 clearable
               />
-              {(!loading || current) && <span className={classes.count}>{t('count', { count: page.total })}</span>}
-            </div>
+            </FilterBar>
 
             {filterActive && <div className={classes.gridHint}>{t('grid.matchesHint', { node: node.label })}</div>}
             <div className={classes.tableWrap}>

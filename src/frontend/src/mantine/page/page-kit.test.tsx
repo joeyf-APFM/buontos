@@ -1,0 +1,166 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { screen, within } from '@testing-library/react';
+import { renderWithMantine, userEvent } from '@/test/utils';
+import usePermissionsStore from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/settings';
+import { useHelixStore } from '@/mantine/helix/helix-store';
+import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
+import ExplorerPage from '@/mantine/asset-explorer/explorer-page';
+import { mockBackend } from '@/mantine/asset-explorer/test-fixtures';
+import panel from '@/components/common/panel.module.css';
+import { DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs } from '.';
+import classes from './page.module.css';
+
+vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
+
+describe('page kit', () => {
+  it('page layout renders breadcrumb, a one-line header, filters and panes with shared borders', () => {
+    renderWithMantine(
+      <PageLayout
+        breadcrumb={<nav aria-label="Breadcrumb">Data / Tables</nav>}
+        header={
+          <PageHeader
+            title="Orders"
+            titleId="orders-title"
+            badges={<span>Table</span>}
+            actions={<button type="button">New asset</button>}
+          />
+        }
+        filters={
+          <FilterBar hint="2 assets">
+            <input aria-label="Filter assets" />
+          </FilterBar>
+        }
+        aside={<aside aria-label="Details">details</aside>}
+      >
+        <Pane title="Columns" actions={<button type="button">Refresh</button>}>
+          grid
+        </Pane>
+        <Pane aria-label="Preview">preview</Pane>
+      </PageLayout>,
+    );
+
+    // Breadcrumb, then the header, then the filters, then the panes, in that order
+    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    const heading = screen.getByRole('heading', { level: 1, name: 'Orders' });
+    const filter = screen.getByRole('textbox', { name: 'Filter assets' });
+    const columns = screen.getByRole('region', { name: 'Columns' });
+    const preview = screen.getByRole('region', { name: 'Preview' });
+    const order = [crumb, heading, filter, columns, preview];
+    order.slice(1).forEach((el, i) =>
+      expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(),
+    );
+
+    // One line: the title, its badges and its actions share one row; the title doesn't wrap
+    const header = heading.parentElement!;
+    expect(header).toHaveClass(classes.header);
+    expect(heading).toHaveAttribute('id', 'orders-title');
+    expect(within(header).getByText('Table')).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'New asset' })).toBeInTheDocument();
+    expect(getComputedStyle(heading).whiteSpace).toBe('nowrap');
+    expect(getComputedStyle(heading).fontSize).toBe('16px');
+
+    // The filter bar carries its controls and its hint
+    const bar = filter.closest(`.${classes.bar}`)!;
+    expect(bar).not.toBeNull();
+    expect(within(bar as HTMLElement).getByText('2 assets')).toBeInTheDocument();
+
+    // Panes sit side by side in one row, so neighbours share one border
+    expect(columns.parentElement).toBe(preview.parentElement);
+    expect(columns.nextElementSibling).toBe(preview);
+    expect(columns).toHaveClass(classes.pane);
+    expect(preview).toHaveClass(classes.pane);
+    expect(within(columns).getByRole('heading', { name: 'Columns' })).toBeInTheDocument();
+    expect(within(columns).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+    // The aside sits beside the main column
+    expect(screen.getByRole('complementary', { name: 'Details' })).toBeInTheDocument();
+  });
+
+  it('details grid renders label/value rows', () => {
+    renderWithMantine(
+      <DetailsGrid
+        rows={[
+          { label: 'Type', value: 'Table' },
+          { label: 'Owner', value: <strong>Sales Analytics</strong> },
+        ]}
+      />,
+    );
+
+    const terms = screen.getAllByRole('term');
+    const definitions = screen.getAllByRole('definition');
+    expect(terms.map((t) => t.textContent)).toEqual(['Type', 'Owner']);
+    expect(definitions.map((d) => d.textContent)).toEqual(['Table', 'Sales Analytics']);
+    // The same label/value module as the shared panels, so the two can't drift
+    expect(terms[0].parentElement).toHaveClass(panel.kv);
+    expect(terms[0].nextElementSibling).toBe(definitions[0]);
+  });
+
+  it('tabs switch with arrow keys', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(
+      <Tabs defaultValue="details">
+        <Tabs.List>
+          <Tabs.Tab value="details">Details</Tabs.Tab>
+          <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="details">Details panel</Tabs.Panel>
+        <Tabs.Panel value="lineage">Lineage panel</Tabs.Panel>
+      </Tabs>,
+    );
+
+    const details = screen.getByRole('tab', { name: 'Details' });
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    expect(details).toHaveClass(classes.tab);
+    expect(screen.getByRole('tablist')).toHaveClass(classes.tabList);
+    await user.click(details);
+    await user.keyboard('{ArrowRight}');
+    const lineage = screen.getByRole('tab', { name: 'Lineage' });
+    expect(lineage).toHaveFocus();
+    expect(lineage).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Lineage panel');
+    await user.keyboard('{ArrowLeft}');
+    expect(details).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+describe('the explorer on the page kit', () => {
+  beforeEach(() => {
+    useExplorerStore.getState().actions.reset();
+    usePermissionsStore.setState({
+      permissions: { assets: FeatureAccessLevel.READ_WRITE },
+      appliedRoleId: null,
+      isLoading: false,
+      _initAttempted: true,
+      _isInitializing: false,
+    });
+    useHelixStore.setState({ isOpen: false, context: null });
+    mockBackend();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('the explorer still renders its header via PageHeader', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<ExplorerPage />, { route: '/assets' });
+
+    const grid = await screen.findByRole('treegrid');
+    await within(grid).findByText('leads');
+    const heading = screen.getByRole('heading', { name: 'Unity Catalog' });
+    expect(heading.parentElement).toHaveClass(classes.header);
+    expect(within(heading.parentElement!).getByRole('button', { name: 'New asset' })).toBeInTheDocument();
+    // The filters sit in the kit's filter bar, the count as its hint
+    const bar = screen.getByRole('textbox', { name: 'Filter assets' }).closest(`.${classes.bar}`) as HTMLElement;
+    expect(bar).not.toBeNull();
+    expect(within(bar).getByText('3 assets')).toHaveClass(classes.hint);
+
+    // The details panel lists its fields in the kit's details grid
+    await user.click(within(grid).getByText('leads'));
+    const details = await screen.findByRole('complementary', { name: 'leads' });
+    const terms = within(details).getAllByRole('term');
+    expect(terms[0]).toHaveTextContent('Type');
+    expect(terms[0].parentElement).toHaveClass(panel.kv);
+    expect(terms[0].nextElementSibling).toHaveTextContent('Table');
+  });
+});

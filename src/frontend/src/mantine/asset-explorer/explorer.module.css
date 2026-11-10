@@ -130,21 +130,7 @@
   text-decoration: underline;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 14px 8px;
-}
-
-.title {
-  margin: 0;
-  font-family: var(--aura-font-display);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--aura-navy);
-}
-
+/* Header badges (the header itself is the page kit's PageHeader) */
 .tag {
   font-size: 10.5px;
   padding: 1px 6px;
@@ -153,30 +139,13 @@
   color: var(--aura-text-secondary);
 }
 
-.headerEnd {
-  margin-left: auto;
-}
-
-.bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px 8px;
-  border-bottom: 1px solid var(--aura-border);
-}
-
+/* Filter widths, in the page kit's FilterBar */
 .filter {
   width: 220px;
 }
 
 .barSelect {
   width: 140px;
-}
-
-.count {
-  margin-left: auto;
-  color: var(--aura-text-muted);
-  white-space: nowrap;
 }
 
 /* Table */
@@ -417,23 +386,6 @@ button.rowChevron:hover {
   font-size: 11.5px;
   color: var(--aura-critical);
   background: var(--aura-critical-bg);
-}
-
-.kv {
-  display: grid;
-  grid-template-columns: 84px 1fr;
-  gap: 5px 8px;
-  margin: 0;
-}
-
-.kv dt {
-  color: var(--aura-text-muted);
-}
-
-.kv dd {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .detailsHeading {

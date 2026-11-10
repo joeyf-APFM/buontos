@@ -6,6 +6,7 @@ import { RelativeDate } from '@/components/common/relative-date';
 import type { AssetSummary } from './api';
 import { StatusDot } from './asset-table';
 import { ownerText } from './format';
+import { DetailsGrid } from '@/mantine/page';
 import classes from './explorer.module.css';
 
 const primaryDomainName = (a: AssetSummary) =>
@@ -54,14 +55,7 @@ export function DetailsPanel({ asset, onClose, onEdit, editPending = false, edit
             {t('details.editError', { message: editError })}
           </div>
         )}
-        <dl className={classes.kv}>
-          {rows.map(([key, value]) => (
-            <div key={key} style={{ display: 'contents' }}>
-              <dt>{t(`details.${key}`)}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <DetailsGrid rows={rows.map(([key, value]) => ({ label: t(`details.${key}`), value }))} />
         <h5 className={classes.detailsHeading}>{t('details.description')}</h5>
         <div className={classes.description}>{asset.description || t('details.noDescription')}</div>
         <Link className={classes.fullPage} to={`/assets/${asset.id}`}>
