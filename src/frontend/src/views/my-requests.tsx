@@ -83,7 +83,8 @@ function entityTypeLabel(entityType: string, t: TFunction): string {
 
 export default function MyRequests() {
   const { t } = useTranslation(['data-asset-reviews', 'common', 'home']);
-  const api = useApi();
+  // The hook returns a new object every render; its functions are stable
+  const { get: apiGet, delete: apiDelete } = useApi();
   const { toast } = useToast();
   const { pathname } = useLocation();
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
@@ -145,7 +146,7 @@ export default function MyRequests() {
     setSubscriptionsLoading(true);
     setSubscriptionsError(null);
     try {
-      const data = await api.get('/api/data-products/my-subscriptions');
+      const data = await apiGet('/api/data-products/my-subscriptions');
       setSubscriptions(Array.isArray(data) ? data : []);
     } catch (e) {
       console.warn('Failed to fetch subscriptions:', e);
@@ -154,7 +155,7 @@ export default function MyRequests() {
     } finally {
       setSubscriptionsLoading(false);
     }
-  }, [api, t]);
+  }, [apiGet, t]);
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
   useEffect(() => { loadSubscriptions(); }, [loadSubscriptions]);
@@ -162,7 +163,7 @@ export default function MyRequests() {
   const handleCancel = async (requestId: string) => {
     try {
       setCancellingId(requestId);
-      await api.delete(`/api/access-grants/requests/${requestId}`);
+      await apiDelete(`/api/access-grants/requests/${requestId}`);
       toast({ title: t('home:myRequests.cancelSuccess'), variant: 'default' });
       await loadRequests();
     } catch (e) {

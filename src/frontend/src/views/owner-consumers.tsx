@@ -23,7 +23,8 @@ interface ProductWithSubscribers {
 
 export default function OwnerConsumersView() {
   const { t } = useTranslation(['data-products', 'common']);
-  const api = useApi();
+  // The hook returns a new object every render; its functions are stable
+  const { get: apiGet } = useApi();
   const setStaticSegments = useBreadcrumbStore((s) => s.setStaticSegments);
 
   const [products, setProducts] = useState<DataProduct[]>([]);
@@ -39,14 +40,14 @@ export default function OwnerConsumersView() {
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true);
     try {
-      const resp = await api.get<DataProduct[]>('/api/data-products');
+      const resp = await apiGet<DataProduct[]>('/api/data-products');
       setProducts(resp.data ?? []);
     } catch (err) {
       console.error('Failed to fetch products:', err);
     } finally {
       setProductsLoading(false);
     }
-  }, [api]);
+  }, [apiGet]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -56,7 +57,7 @@ export default function OwnerConsumersView() {
       [productId]: { ...prev[productId], loading: true },
     }));
     try {
-      const resp = await api.get<{ subscribers: SubscriberInfo[] }>(`/api/data-products/${productId}/subscribers`);
+      const resp = await apiGet<{ subscribers: SubscriberInfo[] }>(`/api/data-products/${productId}/subscribers`);
       setProductSubscribers((prev) => ({
         ...prev,
         [productId]: {
@@ -72,7 +73,7 @@ export default function OwnerConsumersView() {
         [productId]: { ...prev[productId], subscribers: [], loading: false },
       }));
     }
-  }, [api, products]);
+  }, [apiGet, products]);
 
   useEffect(() => {
     if (selectedProductId && !productSubscribers[selectedProductId]) {
