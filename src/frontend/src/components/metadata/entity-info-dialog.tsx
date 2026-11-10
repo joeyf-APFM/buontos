@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -184,14 +184,58 @@ export default function EntityInfoDialog({
   const showSubscribeFooter = onSubscribe !== undefined;
   const showFooter = showSubscribeFooter || onGoToDetails !== undefined;
 
+  const footer = (
+    <>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t('common:actions.close')}
+            </Button>
+            {onGoToDetails && (
+              <Button
+                variant="outline"
+                onClick={onGoToDetails}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {t('metadata:info.goToDetails')}
+              </Button>
+            )}
+            {showSubscribeFooter && (
+              isSubscribed ? (
+                <Button variant="secondary" disabled>
+                  <Check className="mr-2 h-4 w-4" />
+                  {t('metadata:info.alreadySubscribed')}
+                </Button>
+              ) : (
+                <Button
+                  onClick={onSubscribe}
+                  disabled={subscriptionLoading}
+                >
+                  {subscriptionLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('common:actions.loading')}
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="mr-2 h-4 w-4" />
+                      {t('metadata:info.subscribe')}
+                    </>
+                  )}
+                </Button>
+              )
+            )}
+    </>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-5xl h-[80vh] flex flex-col p-0"
-        style={{ top: '2rem', transform: 'translateX(-50%) translateY(0)' }}
-      >
-        <DialogHeader className="px-6 pt-4 pb-2 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-3 text-xl">
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="xl"
+      title={
+          <span className="flex items-center gap-3">
             {showBackButton && (
               <Button 
                 variant="ghost" 
@@ -209,10 +253,11 @@ export default function EntityInfoDialog({
                 {t('metadata:info.subscribed')}
               </span>
             )}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto px-6">
+          </span>
+      }
+      footer={showFooter && footer}
+    >
+        <div>
           {loading ? (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -355,51 +400,6 @@ export default function EntityInfoDialog({
           )}
         </div>
 
-        {showFooter && (
-          <DialogFooter className="px-6 py-4 border-t flex-shrink-0 bg-background">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t('common:actions.close')}
-            </Button>
-            {onGoToDetails && (
-              <Button
-                variant="outline"
-                onClick={onGoToDetails}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {t('metadata:info.goToDetails')}
-              </Button>
-            )}
-            {showSubscribeFooter && (
-              isSubscribed ? (
-                <Button variant="secondary" disabled>
-                  <Check className="mr-2 h-4 w-4" />
-                  {t('metadata:info.alreadySubscribed')}
-                </Button>
-              ) : (
-                <Button
-                  onClick={onSubscribe}
-                  disabled={subscriptionLoading}
-                >
-                  {subscriptionLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('common:actions.loading')}
-                    </>
-                  ) : (
-                    <>
-                      <Bell className="mr-2 h-4 w-4" />
-                      {t('metadata:info.subscribe')}
-                    </>
-                  )}
-                </Button>
-              )
-            )}
-          </DialogFooter>
-        )}
-      </DialogContent>
     </Dialog>
   );
 }

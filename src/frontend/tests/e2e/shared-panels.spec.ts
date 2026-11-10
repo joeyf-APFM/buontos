@@ -199,3 +199,53 @@ test('badges: the Aura status colours, with text at least 4.5:1 on the fill', as
   const value = (await style(chip.getByText('4.2'), ['color']))['color'];
   expect(contrast(value, hovered)).toBeGreaterThanOrEqual(4.5);
 });
+
+test('entity metadata panel rows are 28px inside a Pane', async ({ page }) => {
+  // The panels in flush mode (wave 2 Task 3), each in a kit Pane: the Pane
+  // has the frame and padding, the panel none of its own
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await mockApi(page, PERSONAS.admin, PANEL_FIXTURES);
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => {
+    const harness = await import(/* @vite-ignore */ path);
+    harness.mountFlushPanels();
+  }, '/tests/e2e/fixtures/panels-harness.tsx');
+  const stage = page.getByTestId('stage');
+  await expect(stage.getByText('Read me')).toBeVisible();
+  await expect(stage.getByText('Alice Doe')).toBeVisible();
+  await capture(page, 'flush-panels', stage);
+
+  const host = stage.getByRole('region', { name: 'Metadata pane' });
+  const panel = host.getByRole('region', { name: 'Metadata' });
+  // No frame or padding of the panel's own, inside the Pane's 1px border
+  expect(await style(host, ['border-left-width'])).toEqual({ 'border-left-width': '1px' });
+  expect(await style(panel, ['border-top-width', 'padding-left', 'background-color', 'font-size'])).toEqual({
+    'border-top-width': '0px', 'padding-left': '0px', 'background-color': 'rgba(0, 0, 0, 0)', 'font-size': '12px',
+  });
+  const [hostBox, panelBox] = [(await host.boundingBox())!, (await panel.boundingBox())!];
+  // The Pane's 12px body padding is the only inset
+  expect(panelBox.x - hostBox.x).toBe(1 + 12);
+  const body = panel.locator(':scope > div').last();
+  expect(await style(body, ['padding-left', 'padding-top'])).toEqual({ 'padding-left': '0px', 'padding-top': '0px' });
+
+  // The table rows, with their icon buttons, are 28px; labels and headings 12px
+  for (const name of ['Additional Notes', 'Related Links']) {
+    const rows = panel.getByRole('region', { name }).getByRole('row');
+    await expect(rows).toHaveCount(2);
+    // Measured on the cells, as the explorer grid's (data-catalog.spec.ts)
+    for (const i of [0, 1]) {
+      expect((await rows.nth(i).locator('th, td').first().boundingBox())!.height, `${name} row ${i}`).toBe(28);
+    }
+    expect((await style(rows.nth(0).getByRole('columnheader').first(), ['font-size']))['font-size']).toBe('12px');
+    expect((await style(panel.getByRole('heading', { name }), ['font-size']))['font-size']).toBe('12px');
+  }
+  expect((await style(panel.getByRole('heading', { name: 'Metadata' }), ['font-size']))['font-size']).toBe('12px');
+
+  // The ownership panel's labels: the DetailsGrid's 86px column, 12px, text-secondary
+  const owners = stage.getByRole('region', { name: 'Owners pane' }).getByRole('region', { name: 'Owners' });
+  expect(await style(owners, ['border-top-width', 'padding-left'])).toEqual({ 'border-top-width': '0px', 'padding-left': '0px' });
+  const term = owners.locator('dl dt').first();
+  expect((await term.boundingBox())!.width).toBe(86);
+  expect(await style(term, ['font-size', 'color'])).toEqual({ 'font-size': '12px', color: 'rgb(86, 93, 101)' });
+});

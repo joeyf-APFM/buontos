@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PrincipalPicker } from '@/components/common/principal-picker';
 import type { OwnerObjectType } from '@/types/business-owner';
 import type { BusinessRoleRead } from '@/types/business-role';
+import classes from './panel.module.css';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AssignOwnerDialogProps {
@@ -96,57 +97,55 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
   const isValid = userEmail.trim().length > 0 && !noRolesError && defaultRoleId != null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{t('common:assignOwner.title')}</DialogTitle>
-          <DialogDescription>
-            {t('assignDialog.description', { defaultValue: 'Assign a business owner.' })}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          {noRolesError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {t('assignDialog.noRolesError', { defaultValue: 'No business roles configured; ask an admin.' })}
-              </AlertDescription>
-            </Alert>
-          )}
-          <div className="grid gap-2">
-            <Label htmlFor="owner-email">{t('common:assignOwner.emailLabel')} *</Label>
-            <PrincipalPicker
-              id="owner-email"
-              accepts={['user']}
-              value={userEmail || null}
-              onChange={(next) => setUserEmail(next ?? '')}
-              placeholder={t('common:assignOwner.emailPlaceholder')}
-              aria-label={t('common:assignOwner.ownerUserAria')}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="owner-name">{t('common:assignOwner.nameLabel')}</Label>
-            <Input
-              id="owner-name"
-              placeholder={t('common:assignOwner.namePlaceholder')}
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="sm"
+      title={t('common:assignOwner.title')}
+      description={t('assignDialog.description', { defaultValue: 'Assign a business owner.' })}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid || submitting}>
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {submitting && <Loader2 className={classes.spin} />}
             {t('common:assignOwner.title')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={classes.form}>
+        {noRolesError && (
+          <Alert variant="destructive">
+            <AlertCircle size={16} />
+            <AlertDescription>
+              {t('assignDialog.noRolesError', { defaultValue: 'No business roles configured; ask an admin.' })}
+            </AlertDescription>
+          </Alert>
+        )}
+        <div className={classes.field}>
+          <Label htmlFor="owner-email">{t('common:assignOwner.emailLabel')} *</Label>
+          <PrincipalPicker
+            id="owner-email"
+            accepts={['user']}
+            value={userEmail || null}
+            onChange={(next) => setUserEmail(next ?? '')}
+            placeholder={t('common:assignOwner.emailPlaceholder')}
+            aria-label={t('common:assignOwner.ownerUserAria')}
+          />
+        </div>
+
+        <div className={classes.field}>
+          <Label htmlFor="owner-name">{t('common:assignOwner.nameLabel')}</Label>
+          <Input
+            id="owner-name"
+            placeholder={t('common:assignOwner.namePlaceholder')}
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+          />
+        </div>
+      </div>
     </Dialog>
   );
 }

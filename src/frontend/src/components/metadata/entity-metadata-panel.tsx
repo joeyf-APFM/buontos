@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Plus, RefreshCcw, Eye, Trash2, FileText, LinkIcon, Paperclip, Pencil, Loader2, Share2, ArrowDownToLine } from 'lucide-react';
 import FilePreviewDialog from '@/components/preview/file-preview-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import MarkdownViewer from '@/components/ui/markdown-viewer';
 import EntityInfoDialog from '@/components/metadata/entity-info-dialog';
 import { useTranslation } from 'react-i18next';
@@ -24,9 +24,15 @@ export type EntityKind = 'data_domain' | 'data_product' | 'data_contract' | 'con
 interface Props {
   entityId: string;
   entityType: EntityKind;
+  /**
+   * For a page-kit Pane: no border, background or padding of the panel's own,
+   * a compact head, and 28px table rows. Put it in a Pane without a title,
+   * which the panel's head would repeat.
+   */
+  flush?: boolean;
 }
 
-const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
+const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = false }) => {
   const { toast } = useToast();
   const { t } = useTranslation(['metadata', 'common']);
   const ids = React.useId();
@@ -129,7 +135,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
 
   return (
     <>
-    <section className={classes.pane} aria-labelledby={`${ids}-title`}>
+    <section className={classes.pane} aria-labelledby={`${ids}-title`} data-flush={flush || undefined}>
       <div className={classes.headGroup}>
         <div className={classes.head}>
           <h3 id={`${ids}-title`} className={classes.title}>
@@ -594,26 +600,17 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
         />
 
         {/* Note Preview */}
-        <Dialog open={!!previewNote} onOpenChange={() => setPreviewNote(null)}>
-          <DialogContent style={{ maxWidth: 672 }}>
-            <DialogHeader>
-              <DialogTitle>{previewNote?.title}</DialogTitle>
-            </DialogHeader>
-            {previewNote && (
-              <div className={classes.stack}>
-                {previewNote.short_description && <div className={classes.empty}>{previewNote.short_description}</div>}
-                <MarkdownViewer markdown={previewNote.content_markdown} />
-              </div>
-            )}
-          </DialogContent>
+        <Dialog opened={!!previewNote} onClose={() => setPreviewNote(null)} size="lg" title={previewNote?.title}>
+          {previewNote && (
+            <div className={classes.stack}>
+              {previewNote.short_description && <div className={classes.empty}>{previewNote.short_description}</div>}
+              <MarkdownViewer markdown={previewNote.content_markdown} />
+            </div>
+          )}
         </Dialog>
 
         {/* Note Edit Dialog */}
-        <Dialog open={!!editingNote} onOpenChange={(open) => { if (!open) setEditingNote(null); }}>
-          <DialogContent style={{ maxWidth: 672 }}>
-            <DialogHeader>
-              <DialogTitle>{t('notes.editTitle')}</DialogTitle>
-            </DialogHeader>
+        <Dialog opened={!!editingNote} onClose={() => setEditingNote(null)} size="lg" title={t('notes.editTitle')}>
             {editingNote && (
               <div className={classes.form}>
                 <div>
@@ -667,15 +664,10 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 </div>
               </div>
             )}
-          </DialogContent>
         </Dialog>
 
         {/* Link Edit Dialog */}
-        <Dialog open={!!editingLink} onOpenChange={(open) => { if (!open) setEditingLink(null); }}>
-          <DialogContent style={{ maxWidth: 576 }}>
-            <DialogHeader>
-              <DialogTitle>{t('links.editTitle')}</DialogTitle>
-            </DialogHeader>
+        <Dialog opened={!!editingLink} onClose={() => setEditingLink(null)} title={t('links.editTitle')}>
             {editingLink && (
               <div className={classes.form}>
                 <div>
@@ -729,22 +721,22 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 </div>
               </div>
             )}
-          </DialogContent>
         </Dialog>
 
         {/* Shared Asset Picker Dialog */}
-        <Dialog open={!!showSharedPicker} onOpenChange={(open) => { if (!open) setShowSharedPicker(null); }}>
-          <DialogContent style={{ maxWidth: 672, maxHeight: '70vh' }}>
-            <DialogHeader>
-              <DialogTitle>
-                {showSharedPicker === 'rich_text' && (t('notes.selectShared') || 'Select Shared Note')}
-                {showSharedPicker === 'link' && (t('links.selectShared') || 'Select Shared Link')}
-                {showSharedPicker === 'document' && (t('documents.selectShared') || 'Select Shared Document')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('sharedAssets.selectDescription') || 'Select a shared asset to attach to this entity'}
-              </DialogDescription>
-            </DialogHeader>
+        <Dialog
+          opened={!!showSharedPicker}
+          onClose={() => setShowSharedPicker(null)}
+          size="lg"
+          title={
+            <>
+              {showSharedPicker === 'rich_text' && (t('notes.selectShared') || 'Select Shared Note')}
+              {showSharedPicker === 'link' && (t('links.selectShared') || 'Select Shared Link')}
+              {showSharedPicker === 'document' && (t('documents.selectShared') || 'Select Shared Document')}
+            </>
+          }
+          description={t('sharedAssets.selectDescription') || 'Select a shared asset to attach to this entity'}
+        >
             <div className={classes.pickerScroll}>
               {sharedAssets.loading ? (
                 <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('sharedAssets.loading')}</div>
@@ -813,7 +805,6 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType }) => {
                 </>
               )}
             </div>
-          </DialogContent>
         </Dialog>
       </div>
     </section>

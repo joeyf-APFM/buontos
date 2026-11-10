@@ -13,14 +13,13 @@
  *   />
  */
 import { Fragment, useState, useEffect, useCallback, useId } from 'react';
-import { ActionIcon } from '@mantine/core';
+import { ActionIcon, Collapse } from '@mantine/core';
 import { Users2, History, UserPlus, Loader2, Trash2, ChevronDown, ChevronRight, Import, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RelativeDate } from '@/components/common/relative-date';
 import { AssignOwnerDialog } from '@/components/common/assign-owner-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApi } from '@/hooks/use-api';
@@ -57,6 +56,12 @@ interface OwnershipPanelProps {
   ownerTeamId?: string;
   /** Ontos Team name for display */
   ownerTeamName?: string;
+  /**
+   * For a page-kit Pane: no border, background or padding of the panel's own,
+   * and a compact head (the title and actions). Put it in a Pane without a
+   * title, which the panel's head would repeat.
+   */
+  flush?: boolean;
 }
 
 export function OwnershipPanel({
@@ -69,6 +74,7 @@ export function OwnershipPanel({
   onImportAsOwners,
   ownerTeamId,
   ownerTeamName,
+  flush = false,
 }: OwnershipPanelProps) {
   const [currentOwners, setCurrentOwners] = useState<BusinessOwnerRead[]>([]);
   const [previousOwners, setPreviousOwners] = useState<BusinessOwnerRead[]>([]);
@@ -92,6 +98,7 @@ export function OwnershipPanel({
 
   const { t } = useTranslation(['business-owners', 'common']);
   const titleId = useId();
+  const importedId = useId();
   const { get: apiGet, post: apiPost } = useApi();
   const { toast } = useToast();
 
@@ -153,11 +160,16 @@ export function OwnershipPanel({
     }
   };
 
+  const closeRemove = () => {
+    setRemoveTarget(null);
+    setRemoveReason('');
+  };
+
   const hasImportedContacts = importedContacts && importedContacts.length > 0;
 
   return (
     <>
-      <section className={cn(classes.pane, className)} aria-labelledby={titleId}>
+      <section className={cn(classes.pane, className)} aria-labelledby={titleId} data-flush={flush || undefined}>
         <div className={classes.head}>
           <h3 id={titleId} className={classes.title}>
             <Users2 aria-hidden />
@@ -254,14 +266,18 @@ export function OwnershipPanel({
 
           {/* Imported Contacts (from ODCS/ODPS) - read-only, collapsible */}
           {hasImportedContacts && (
-            <Collapsible open={importedOpen} onOpenChange={setImportedOpen}>
+            <div>
               <div className={classes.spread}>
-                <CollapsibleTrigger asChild>
-                  <button type="button" className={cn(classes.disclosure, classes.sectionLabel)}>
-                    {importedOpen ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
-                    {importedContactsLabel ?? t('common:ownership.importedContacts')} ({importedContacts!.length})
-                  </button>
-                </CollapsibleTrigger>
+                <button
+                  type="button"
+                  className={cn(classes.disclosure, classes.sectionLabel)}
+                  aria-expanded={importedOpen}
+                  aria-controls={importedId}
+                  onClick={() => setImportedOpen((open) => !open)}
+                >
+                  {importedOpen ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+                  {importedContactsLabel ?? t('common:ownership.importedContacts')} ({importedContacts!.length})
+                </button>
                 {canAssign && onImportAsOwners && (
                   <Button variant="outline" size="sm" onClick={() => onImportAsOwners(importedContacts!)}>
                     <Import />
@@ -269,7 +285,7 @@ export function OwnershipPanel({
                   </Button>
                 )}
               </div>
-              <CollapsibleContent>
+              <Collapse in={importedOpen} id={importedId}>
                 <dl className={classes.kv}>
                   {importedContacts!.map((contact, idx) => (
                     <Fragment key={idx}>
@@ -282,8 +298,8 @@ export function OwnershipPanel({
                     </Fragment>
                   ))}
                 </dl>
-              </CollapsibleContent>
-            </Collapsible>
+              </Collapse>
+            </div>
           )}
         </div>
       </section>
@@ -300,89 +316,89 @@ export function OwnershipPanel({
       />
 
       {/* Remove Owner Confirmation Dialog */}
-      <Dialog open={!!removeTarget} onOpenChange={(open) => { if (!open) { setRemoveTarget(null); setRemoveReason(''); } }}>
-        <DialogContent style={{ maxWidth: 400 }}>
-          <DialogHeader>
-            <DialogTitle>{t('removeDialog.title')}</DialogTitle>
-            <DialogDescription>{t('removeDialog.description')}</DialogDescription>
-          </DialogHeader>
-          <div className={classes.field}>
-            <Label htmlFor="remove-reason">{t('removeDialog.reasonLabel')}</Label>
-            <Input
-              id="remove-reason"
-              placeholder={t('removeDialog.reasonPlaceholder')}
-              value={removeReason}
-              onChange={(e) => setRemoveReason(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setRemoveTarget(null); setRemoveReason(''); }} disabled={isRemoving}>
+      <Dialog
+        opened={!!removeTarget}
+        onClose={closeRemove}
+        size="sm"
+        role="alertdialog"
+        title={t('removeDialog.title')}
+        description={t('removeDialog.description')}
+        footer={
+          <>
+            <Button variant="outline" onClick={closeRemove} disabled={isRemoving}>
               {t('removeDialog.cancel')}
             </Button>
             <Button variant="destructive" onClick={handleRemove} disabled={isRemoving}>
               {isRemoving && <Loader2 className={classes.spin} />}
               {t('removeDialog.remove')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </>
+        }
+      >
+        <div className={classes.field}>
+          <Label htmlFor="remove-reason">{t('removeDialog.reasonLabel')}</Label>
+          <Input
+            id="remove-reason"
+            placeholder={t('removeDialog.reasonPlaceholder')}
+            value={removeReason}
+            onChange={(e) => setRemoveReason(e.target.value)}
+          />
+        </div>
       </Dialog>
 
       {/* Copy from Team Dialog */}
-      <Dialog open={copyFromTeamOpen} onOpenChange={setCopyFromTeamOpen}>
-        <DialogContent style={{ maxWidth: 500 }}>
-          <DialogHeader>
-            <DialogTitle>{t('common:ownership.copyFromTeam')}{ownerTeamName ? `: ${ownerTeamName}` : ''}</DialogTitle>
-            <DialogDescription>
-              {t('common:ownership.copyFromTeamDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className={classes.scroll}>
-            {teamMembersLoading ? (
-              <div className={classes.loading}>
-                <Loader2 className={classes.spin} />
-              </div>
-            ) : teamMembers.length === 0 ? (
-              <p className={cn(classes.empty, classes.center)}>{t('common:ownership.noTeamMembers')}</p>
-            ) : (
-              <div className={classes.rows}>
-                {teamMembers.map((member) => {
-                  const alreadyOwner = currentOwners.some(
-                    (o) => o.user_email.toLowerCase() === member.member_identifier.toLowerCase()
-                  );
-                  return (
-                    <div key={member.id} className={classes.row}>
-                      <div className={classes.rowMain}>
-                        <Badge variant="outline">{member.member_type}</Badge>
-                        <span className={classes.grow}>{member.member_name || member.member_identifier}</span>
-                      </div>
-                      {alreadyOwner ? (
-                        <Badge variant="secondary">{t('common:ownership.alreadyOwner')}</Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setPendingMember(member);
-                            setCopyFromTeamOpen(false);
-                            setAssignDialogOpen(true);
-                          }}
-                        >
-                          <UserPlus />
-                          {t('common:actions.assign')}
-                        </Button>
-                      )}
+      <Dialog
+        opened={copyFromTeamOpen}
+        onClose={() => setCopyFromTeamOpen(false)}
+        title={`${t('common:ownership.copyFromTeam')}${ownerTeamName ? `: ${ownerTeamName}` : ''}`}
+        description={t('common:ownership.copyFromTeamDescription')}
+        footer={
+          <Button variant="outline" onClick={() => setCopyFromTeamOpen(false)}>
+            {t('common:actions.close')}
+          </Button>
+        }
+      >
+        <div className={classes.scroll}>
+          {teamMembersLoading ? (
+            <div className={classes.loading}>
+              <Loader2 className={classes.spin} />
+            </div>
+          ) : teamMembers.length === 0 ? (
+            <p className={cn(classes.empty, classes.center)}>{t('common:ownership.noTeamMembers')}</p>
+          ) : (
+            <div className={classes.rows}>
+              {teamMembers.map((member) => {
+                const alreadyOwner = currentOwners.some(
+                  (o) => o.user_email.toLowerCase() === member.member_identifier.toLowerCase()
+                );
+                return (
+                  <div key={member.id} className={classes.row}>
+                    <div className={classes.rowMain}>
+                      <Badge variant="outline">{member.member_type}</Badge>
+                      <span className={classes.grow}>{member.member_name || member.member_identifier}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCopyFromTeamOpen(false)}>
-              {t('common:actions.close')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+                    {alreadyOwner ? (
+                      <Badge variant="secondary">{t('common:ownership.alreadyOwner')}</Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPendingMember(member);
+                          setCopyFromTeamOpen(false);
+                          setAssignDialogOpen(true);
+                        }}
+                      >
+                        <UserPlus />
+                        {t('common:actions.assign')}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </Dialog>
     </>
   );

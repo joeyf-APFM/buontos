@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Loader2 } from 'lucide-react';
 
 type FilePreviewSource = {
@@ -64,11 +64,7 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({ open, onOp
   }, [url, fetchUrl]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+    <Dialog opened={open} onClose={() => onOpenChange(false)} size="xl" title={title}>
         <div className="relative min-h-[320px] flex items-center justify-center">
           {url ? (
             isImage(ct) ? (
@@ -115,7 +111,6 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({ open, onOp
             </div>
           )}
         </div>
-      </DialogContent>
     </Dialog>
   );
 };

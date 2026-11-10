@@ -1,0 +1,63 @@
+/*
+ * The data quality panel (entity-quality-panel.tsx) in flush mode, inside a
+ * page-kit Pane: the summary row (refresh, last measured, the gauge, the
+ * overall score and Add measurement) at the explorer's density.
+ */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.summaryStart,
+.summaryEnd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summaryEnd {
+  gap: 12px;
+}
+
+.gauge {
+  border: 1px solid var(--aura-border);
+}
+
+.gaugeValue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--aura-surface);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.score {
+  text-align: right;
+}
+
+.scoreValue {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* The create / edit dialog */
+.capitalize {
+  text-transform: capitalize;
+}
+
+.required,
+.error {
+  color: var(--aura-critical);
+}
+
+.error {
+  margin-top: 2px;
+  font-size: 11px;
+}
