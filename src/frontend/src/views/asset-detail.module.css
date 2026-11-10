@@ -3,24 +3,6 @@
  * breadcrumb, one-line header and panes; what is left here is the page's own.
  */
 
-/* Breadcrumb: Home / Asset Explorer / the asset, in the kit's crumb slot */
-.crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.home {
-  display: inline-flex;
-  align-items: center;
-}
-
-.home svg {
-  width: 13px;
-  height: 13px;
-}
-
 /* Beside the title: the type and platform, as the explorer's tags */
 .tag {
   flex: none;

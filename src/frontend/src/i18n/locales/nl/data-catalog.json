@@ -2,6 +2,7 @@
   "title": "Data Catalogus",
   "subtitle": "Blader door alle kolommen in Unity Catalog tabellen en views",
   "searchPlaceholder": "Zoek kolommen...",
+  "listPane": "Catalogkolommen",
   "noResults": "Geen kolommen gevonden",
   "tryDifferentSearch": "Probeer een andere zoekterm",
   "noTablesAccessible": "Geen tabellen toegankelijk in Unity Catalog",

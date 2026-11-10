@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -18,7 +18,6 @@ import {
   Check,
   Columns,
   GitBranch,
-  Home as HomeIcon,
   Info,
 } from 'lucide-react';
 import { ActionIcon, Alert, Tooltip } from '@mantine/core';
@@ -29,7 +28,7 @@ import { TabsDetailSkeleton } from '@/components/common/list-view-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import LineageGraphComponent from '@/components/data-catalog/lineage-graph';
-import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
+import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
 // The Asset Explorer's grid: 28px header and rows, monospace names
 import grid from '@/mantine/asset-explorer/explorer.module.css';
 import classes from './data-catalog-details.module.css';
@@ -223,17 +222,13 @@ const DataCatalogDetails: React.FC = () => {
 
   // The layout breadcrumb's trail (Home icon, Home, Data Catalog, the table), in the kit's slot
   const breadcrumb = (
-    <nav aria-label="breadcrumb" className={classes.crumbs}>
-      <Link to="/" className={classes.home}>
-        <HomeIcon aria-hidden />
-      </Link>
-      <span aria-hidden>/</span>
-      <Link to="/">{t('common:home')}</Link>
-      <span aria-hidden>/</span>
-      <Link to="/data-catalog">{t('data-catalog:title', 'Data Catalog')}</Link>
-      <span aria-hidden>/</span>
-      <span>{tableInfo?.name || decodedFqn.split('.').pop() || t('data-catalog:details.fallbackTitle')}</span>
-    </nav>
+    <Breadcrumb
+      items={[
+        { label: t('common:home'), to: '/' },
+        { label: t('data-catalog:title', 'Data Catalog'), to: '/data-catalog' },
+        { label: tableInfo?.name || decodedFqn.split('.').pop() || t('data-catalog:details.fallbackTitle') },
+      ]}
+    />
   );
 
   const backButton = (
@@ -247,6 +242,7 @@ const DataCatalogDetails: React.FC = () => {
     // (Overview / Data Details / Lineage), and the overview panes.
     return (
       <div className={classes.state}>
+        {breadcrumb}
         <TabsDetailSkeleton tabs={3} actionButtons={1} contentVariant="two-col" />
       </div>
     );
@@ -415,8 +411,8 @@ const DataCatalogDetails: React.FC = () => {
                           <Badge variant="destructive">{t('data-catalog:dataDetails.no')}</Badge>
                         )}
                       </td>
-                      <td className={classes.muted}>
-                        <span className={grid.truncate}>{col.comment || '—'}</span>
+                      <td className={classes.commentCell}>
+                        <span className={classes.wrap}>{col.comment || '—'}</span>
                       </td>
                     </tr>
                   ))}

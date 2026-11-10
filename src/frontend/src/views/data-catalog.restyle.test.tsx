@@ -40,10 +40,10 @@ const json = (body: unknown, status = 200) =>
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function mockBackend({ hasMore = false, total = COLUMNS.length } = {}) {
+function mockBackend({ hasMore = false, total = COLUMNS.length, hierarchy = HIERARCHY as unknown } = {}) {
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input), 'http://localhost');
-    if (url.pathname === '/api/data-catalog/hierarchy') return json(HIERARCHY);
+    if (url.pathname === '/api/data-catalog/hierarchy') return json(hierarchy);
     if (url.pathname === '/api/data-catalog/columns/search') {
       return json({ query: url.searchParams.get('q'), total_count: 1, columns: [COLUMNS[0]], has_more: false, offset: 0, limit: 50, filters_applied: {} });
     }
@@ -85,7 +85,10 @@ const renderPage = () =>
 
 // A Mantine Select's visible field (it keeps its value in a hidden input as well)
 const pageSizeField = () => screen.getAllByDisplayValue('50').find((el) => el.getAttribute('aria-haspopup') === 'listbox')!;
-/** Waits until no request is in flight and the pager is shown. */
+/**
+ * Waits until no request is in flight and the pager is shown: the call count
+ * holds across one poll, longer than the search's 300ms debounce.
+ */
 const settled = async () => {
   let seen = -1;
   await waitFor(
@@ -96,7 +99,7 @@ const settled = async () => {
       expect(stable).toBe(true);
       expect(screen.getByText(/^Showing /)).toBeInTheDocument();
     },
-    { interval: 100 },
+    { interval: 350, timeout: 3000 },
   );
 };
 const findGrid = () => screen.findByRole('table');
@@ -130,7 +133,7 @@ describe('data catalog on the page kit', () => {
 
     // The grid is the explorer's, in a flush kit pane
     expect(grid).toHaveClass(explorer.table);
-    const pane = screen.getByRole('region', { name: 'Columns' });
+    const pane = screen.getByRole('region', { name: 'Catalog columns' });
     expect(pane).toHaveClass(kit.pane);
     expect(pane).toContainElement(grid);
     // Names in monospace
@@ -184,6 +187,50 @@ describe('data catalog on the page kit', () => {
     // Refresh clears the search and refetches
     await user.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(screen.getByPlaceholderText('Search columns...')).toHaveValue(''));
+  });
+
+  it('data catalog sends the type, system and schema filters to the server', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await findGrid();
+
+    const choose = async (value: string, option: string) => {
+      await settled();
+      const field = screen.getByDisplayValue(value);
+      await user.click(field);
+      const list = await waitFor(() => document.getElementById(field.getAttribute('aria-controls')!)!);
+      await user.click(within(list).getByRole('option', { name: option, hidden: true }));
+    };
+    await choose('All Types', 'view');
+    await waitFor(() => expect(lastColumnCall().searchParams.get('asset_type')).toBe('view'));
+    await choose('All Systems', 'Databricks');
+    await waitFor(() => expect(lastColumnCall().searchParams.get('system')).toBe('Databricks'));
+    await choose('All Schemas', 'sales');
+    await waitFor(() => expect(lastColumnCall().searchParams.get('schema')).toBe('sales'));
+    // All three together, and no catalog
+    const params = lastColumnCall().searchParams;
+    expect([params.get('asset_type'), params.get('system'), params.get('schema'), params.get('catalog')]).toEqual([
+      'view', 'Databricks', 'sales', null,
+    ]);
+  });
+
+  it('data catalog filters a value named "all" like any other', async () => {
+    mockBackend({ hierarchy: { asset_types: ['all', 'table'], systems: ['all'], catalogs: ['all', 'main'], schemas: ['all'] } });
+    const user = userEvent.setup();
+    renderPage();
+    await findGrid();
+
+    // The page renders (Mantine Select rejects duplicate values) with "All Catalogs" chosen
+    expect(screen.getByDisplayValue('All Catalogs')).toBeInTheDocument();
+    expect(lastColumnCall().searchParams.get('catalog')).toBeNull();
+    await settled();
+    const catalogField = screen.getByDisplayValue('All Catalogs');
+    await user.click(catalogField);
+    // Every filter has an "all" option now; take the open catalog list's
+    const list = await waitFor(() => document.getElementById(catalogField.getAttribute('aria-controls')!)!);
+    await user.click(within(list).getByRole('option', { name: 'all', hidden: true }));
+    await waitFor(() => expect(lastColumnCall().searchParams.get('catalog')).toBe('all'));
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument();
   });
 
   it('data catalog pages with previous and next', async () => {

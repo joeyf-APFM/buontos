@@ -5,32 +5,10 @@
  * and the pager. What is left here is the page's own.
  */
 
-/* Breadcrumb: Home icon / Home / Data Catalog, in the kit's crumb slot */
-.crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.home {
-  display: inline-flex;
-  align-items: center;
-}
-
-.home svg {
-  width: 13px;
-  height: 13px;
-}
-
 /* Beside the title: the table count, as the explorer's tags */
 .tag {
+  composes: tag from '../mantine/asset-explorer/explorer.module.css';
   flex: none;
-  font-size: 10.5px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--aura-surface-strong);
-  color: var(--aura-text-secondary);
 }
 
 .subtitle {
@@ -119,9 +97,20 @@ table.grid > tbody > tr:focus-visible:not(.stateRow) > td:first-child {
   font-weight: 500;
 }
 
-/* Descriptions keep to one line in the 28px row (the explorer's .truncate) */
-.description {
+/* Descriptions wrap, as before, so the (100-character) text reads in full;
+   rows without one keep the 28px height */
+table.grid > tbody > tr > td.description {
+  white-space: normal;
   color: var(--aura-text-secondary);
+}
+
+/* Table cells ignore max-width, so the text's own box sets the measure */
+.wrap {
+  display: block;
+  min-width: 250px;
+  max-width: 420px;
+  /* The cell's own line height, so a one-line value sits as the other cells do */
+  padding: 4px 0;
 }
 
 .code {
@@ -193,13 +182,10 @@ table.grid > tbody > tr.stateRow > td.state {
 
 /* Pager: the explorer's, with the count on the left */
 .pager {
-  flex: none;
-  display: flex;
+  composes: pager from '../mantine/asset-explorer/explorer.module.css';
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 14px;
-  border-top: 1px solid var(--aura-border-subtle);
 }
 
 .pagerEnd {

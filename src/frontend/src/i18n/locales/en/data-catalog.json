@@ -2,6 +2,7 @@
   "title": "Data Catalog",
   "subtitle": "Browse all columns across Unity Catalog tables and views",
   "searchPlaceholder": "Search columns...",
+  "listPane": "Catalog columns",
   "noResults": "No columns found",
   "tryDifferentSearch": "Try a different search term",
   "noTablesAccessible": "No tables accessible in Unity Catalog",

@@ -2,6 +2,7 @@
   "title": "Catalogue de données",
   "subtitle": "Parcourez toutes les colonnes des tables et vues Unity Catalog",
   "searchPlaceholder": "Rechercher des colonnes...",
+  "listPane": "Colonnes du catalogue",
   "noResults": "Aucune colonne trouvée",
   "tryDifferentSearch": "Essayez un autre terme de recherche",
   "noTablesAccessible": "Aucune table accessible dans Unity Catalog",

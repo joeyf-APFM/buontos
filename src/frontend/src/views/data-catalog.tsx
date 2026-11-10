@@ -12,7 +12,7 @@
  */
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Search,
@@ -23,7 +23,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Home as HomeIcon,
 } from 'lucide-react';
 
 import { ActionIcon, Loader, Select, Skeleton, TextInput } from '@mantine/core';
@@ -31,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
-import { FilterBar, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { Breadcrumb, FilterBar, PageHeader, PageLayout, Pane } from '@/mantine/page';
 // The Asset Explorer's grid: 28px header and rows, monospace names, its hover
 // and selection highlight
 import grid from '@/mantine/asset-explorer/explorer.module.css';
@@ -50,6 +49,13 @@ import type {
 
 type SortField = 'column_label' | 'column_name' | 'table_name' | 'column_type';
 type SortDirection = 'asc' | 'desc';
+
+/**
+ * The "all" choice of a filter. Mantine's Select rejects duplicate values, so
+ * it must not collide with a real type, system, catalog or schema; a name
+ * can't hold a NUL character.
+ */
+const ALL = '\u0000all';
 
 interface SortConfig {
   field: SortField;
@@ -86,10 +92,10 @@ const DataCatalog: React.FC = () => {
   // Filters
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [hierarchyFilters, setHierarchyFilters] = useState<HierarchyFilters | null>(null);
-  const [selectedAssetType, setSelectedAssetType] = useState<string>('all');
-  const [selectedSystem, setSelectedSystem] = useState<string>('all');
-  const [selectedCatalog, setSelectedCatalog] = useState<string>('all');
-  const [selectedSchema, setSelectedSchema] = useState<string>('all');
+  const [selectedAssetType, setSelectedAssetType] = useState<string>(ALL);
+  const [selectedSystem, setSelectedSystem] = useState<string>(ALL);
+  const [selectedCatalog, setSelectedCatalog] = useState<string>(ALL);
+  const [selectedSchema, setSelectedSchema] = useState<string>(ALL);
 
   // Sorting (client-side within page)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -121,10 +127,10 @@ const DataCatalog: React.FC = () => {
   // Build query params for API calls
   const buildFilterParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (selectedAssetType !== 'all') params.append('asset_type', selectedAssetType);
-    if (selectedSystem !== 'all') params.append('system', selectedSystem);
-    if (selectedCatalog !== 'all') params.append('catalog', selectedCatalog);
-    if (selectedSchema !== 'all') params.append('schema', selectedSchema);
+    if (selectedAssetType !== ALL) params.append('asset_type', selectedAssetType);
+    if (selectedSystem !== ALL) params.append('system', selectedSystem);
+    if (selectedCatalog !== ALL) params.append('catalog', selectedCatalog);
+    if (selectedSchema !== ALL) params.append('schema', selectedSchema);
     return params;
   }, [selectedAssetType, selectedSystem, selectedCatalog, selectedSchema]);
 
@@ -292,18 +298,18 @@ const DataCatalog: React.FC = () => {
 
   // Clear all filters
   const clearFilters = () => {
-    setSelectedAssetType('all');
-    setSelectedSystem('all');
-    setSelectedCatalog('all');
-    setSelectedSchema('all');
+    setSelectedAssetType(ALL);
+    setSelectedSystem(ALL);
+    setSelectedCatalog(ALL);
+    setSelectedSchema(ALL);
     setSearchQuery('');
   };
 
   const hasActiveFilters =
-    selectedAssetType !== 'all' ||
-    selectedSystem !== 'all' ||
-    selectedCatalog !== 'all' ||
-    selectedSchema !== 'all';
+    selectedAssetType !== ALL ||
+    selectedSystem !== ALL ||
+    selectedCatalog !== ALL ||
+    selectedSchema !== ALL;
 
   // Navigate to table details or contract details
   const handleRowClick = (entry: ColumnDictionaryEntry) => {
@@ -362,18 +368,15 @@ const DataCatalog: React.FC = () => {
 
   // The layout breadcrumb's trail (Home icon, Home, Data Catalog), in the kit's slot
   const breadcrumb = (
-    <nav aria-label="breadcrumb" className={classes.crumbs}>
-      <Link to="/" className={classes.home}>
-        <HomeIcon aria-hidden />
-      </Link>
-      <span aria-hidden>/</span>
-      <Link to="/">{t('common:home')}</Link>
-      <span aria-hidden>/</span>
-      <Link to="/data-catalog">{t('data-catalog:title', 'Data Catalog')}</Link>
-    </nav>
+    <Breadcrumb
+      items={[
+        { label: t('common:home'), to: '/' },
+        { label: t('data-catalog:title', 'Data Catalog'), to: '/data-catalog' },
+      ]}
+    />
   );
 
-  const allOption = (label: string) => ({ value: 'all', label });
+  const allOption = (label: string) => ({ value: ALL, label });
   const options = (values: string[]) => values.map((v) => ({ value: v, label: v }));
   const COLUMN_COUNT = 8;
 
@@ -415,7 +418,7 @@ const DataCatalog: React.FC = () => {
       >
         <td className={classes.label}>{getDisplayLabel(entry)}</td>
         <td className={classes.description}>
-          <span className={grid.truncate}>{truncateDescription(entry.description)}</span>
+          <span className={classes.wrap}>{truncateDescription(entry.description)}</span>
         </td>
         <td>
           <code className={`${grid.mono} ${classes.code}`}>{entry.column_name}</code>
@@ -557,7 +560,7 @@ const DataCatalog: React.FC = () => {
         </FilterBar>
       }
     >
-      <Pane flush aria-label={t('data-catalog:dataDetails.title', 'Columns')}>
+      <Pane flush aria-label={t('data-catalog:listPane', 'Catalog columns')}>
         <div className={classes.gridColumn}>
           <div className={grid.tableWrap}>
             <table className={`${grid.table} ${classes.grid}`}>

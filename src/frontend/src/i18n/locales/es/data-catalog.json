@@ -2,6 +2,7 @@
   "title": "Catálogo de datos",
   "subtitle": "Explore todas las columnas de las tablas y vistas de Unity Catalog",
   "searchPlaceholder": "Buscar columnas...",
+  "listPane": "Columnas del catálogo",
   "noResults": "No se encontraron columnas",
   "tryDifferentSearch": "Pruebe con otro término de búsqueda",
   "noTablesAccessible": "No hay tablas accesibles en Unity Catalog",

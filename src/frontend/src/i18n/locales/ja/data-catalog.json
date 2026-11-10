@@ -2,6 +2,7 @@
   "title": "データカタログ",
   "subtitle": "Unity Catalog のテーブルとビュー全体のすべての列を参照します",
   "searchPlaceholder": "列を検索...",
+  "listPane": "カタログの列",
   "noResults": "列が見つかりません",
   "tryDifferentSearch": "別の検索キーワードをお試しください",
   "noTablesAccessible": "Unity Catalog にアクセス可能なテーブルがありません",

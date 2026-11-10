@@ -145,6 +145,58 @@ test.describe('the list', () => {
   });
 });
 
+const LONG = 'A long description that runs well past the width of one grid cell, so it has to wrap onto further lines to stay readable in full.';
+const MANY_COLUMNS = {
+  ...(DATA_FIXTURES['/api/data-catalog/columns'] as Record<string, unknown>),
+  column_count: 60,
+  columns: Array.from({ length: 60 }, (_, i) => ({
+    ...((DATA_FIXTURES['/api/data-catalog/columns'] as { columns: Record<string, unknown>[] }).columns[0]),
+    column_name: `col_${String(i).padStart(2, '0')}`,
+    description: i === 0 ? LONG : 'Short',
+  })),
+};
+
+test.describe('the list, long and many', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockApi(page, PERSONAS.admin, { ...DATA_FIXTURES, '/api/data-catalog/columns': MANY_COLUMNS });
+    await page.goto('/data-catalog');
+    await expect(page.locator('main table tbody tr').first()).toContainText('col_00');
+  });
+
+  test('a long description wraps and is shown in full; short rows stay 28px', async ({ page }) => {
+    const rows = page.locator('main table tbody tr');
+    const cell = rows.first().locator('td').nth(1);
+    // The list's 100-character cut, as before, all of it visible
+    await expect(cell).toHaveText(`${LONG.slice(0, 100)}...`);
+    expect(await cell.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('normal');
+    expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect((await box(cell)).height).toBeGreaterThan(28);
+    expect((await box(rows.nth(1).locator('td').first())).height).toBe(28);
+  });
+
+  test('full bleed has a single scroller: the grid, under a sticky header', async ({ page }) => {
+    const overflow = await page.evaluate(() => {
+      const main = document.querySelector('main')!;
+      const doc = document.scrollingElement!;
+      return {
+        doc: doc.scrollHeight - doc.clientHeight,
+        main: main.scrollHeight - main.clientHeight,
+        // Every element in main that can scroll and has more than it shows
+        scrollers: Array.from(main.querySelectorAll('*'))
+          .filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1)
+          .map((el) => el.className),
+      };
+    });
+    expect(overflow.doc).toBeLessThanOrEqual(0);
+    expect(overflow.main).toBeLessThanOrEqual(0);
+    expect(overflow.scrollers).toHaveLength(1);
+    expect(overflow.scrollers[0]).toContain('tableWrap');
+    // The pager stays at the window's bottom
+    const p = await box(page.getByText('Page 1 of 2'));
+    expect(p.y + p.height).toBeGreaterThan(800 - 30);
+  });
+});
+
 test.describe('a table', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`/data-catalog/${FQN}`);
@@ -201,6 +253,32 @@ test.describe('a table', () => {
     expect(Math.abs(schema.y - (await box(label)).y - 23)).toBeLessThanOrEqual(1);
   });
 
+  test('the white page surface fills the window under a short page', async ({ page }) => {
+    const main = await box(page.locator('main'));
+    const surface = page.locator('main > *').first();
+    expect((await style(surface, ['background-color']))['background-color']).toBe('rgb(255, 255, 255)');
+    const s = await box(surface);
+    expect(Math.round(s.y + s.height)).toBeGreaterThanOrEqual(Math.round(main.y + main.height) - 1);
+    expect(Math.round(s.y + s.height)).toBeGreaterThanOrEqual(799);
+  });
+
+  test('a long column comment wraps and is shown in full', async ({ page }) => {
+    await page.route('**/api/data-catalog/tables/main.sales.orders', (route) =>
+      route.fulfill({
+        json: {
+          ...(DATA_FIXTURES[`/api/data-catalog/tables/${FQN}`] as { columns: Record<string, unknown>[] }),
+          columns: [{ name: 'order_id', type_text: 'bigint', position: 0, nullable: false, comment: LONG, partition_index: null }],
+        },
+      }),
+    );
+    await page.reload();
+    await page.getByRole('tab', { name: 'Data Details' }).click();
+    const cell = page.getByRole('region', { name: 'Columns', exact: true }).locator('tbody td').nth(4);
+    await expect(cell).toHaveText(LONG);
+    expect(await cell.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect((await box(cell)).height).toBeGreaterThan(28);
+  });
+
   test("tabs: the kit's 30px list with 14px icons; columns in the explorer's grid; lineage in panes", async ({ page }) => {
     const list = page.getByRole('tablist');
     expect((await box(list)).height).toBe(30);
@@ -216,6 +294,11 @@ test.describe('a table', () => {
     // A flush pane: the grid runs to the pane's edges
     expect((await box(grid)).x).toBe((await box(pane)).x + 1);
     await expect(page.getByRole('region', { name: 'Basic Information' })).toHaveCount(0);
+
+    // Its rows open nothing, so they take no hover tint
+    const firstRow = grid.locator('tbody tr').first();
+    await firstRow.hover();
+    expect(await style(firstRow.locator('td').nth(1), ['background-color'])).toEqual({ 'background-color': 'rgba(0, 0, 0, 0)' });
 
     await page.getByRole('tab', { name: 'Lineage' }).click();
     const lineage = page.getByRole('region', { name: 'Data Lineage', exact: true });

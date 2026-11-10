@@ -5,24 +5,6 @@
  * is left here is the page's own.
  */
 
-/* Breadcrumb: Home icon / Home / Data Catalog / the table, in the kit's crumb slot */
-.crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.home {
-  display: inline-flex;
-  align-items: center;
-}
-
-.home svg {
-  width: 13px;
-  height: 13px;
-}
-
 /* Under the header: the full name and its copy button */
 .fqn {
   display: flex;
@@ -88,9 +70,29 @@
   gap: 4px;
 }
 
-/* The columns grid: rows open nothing here */
+/* The columns grid: rows open nothing here, so no pointer and no hover
+   tint (above the explorer's hover rule, specificity 0,3,3) */
 table.columns > tbody > tr {
   cursor: default;
+}
+
+table.columns > tbody > tr:hover:not([data-selected]) > td {
+  background: transparent;
+}
+
+/* Comments wrap, as before, so they read in full; rows without one keep
+   the 28px height */
+table.columns > tbody > tr > td.commentCell {
+  white-space: normal;
+  color: var(--aura-text-secondary);
+}
+
+/* Table cells ignore max-width, so the text's own box sets the measure */
+.wrap {
+  display: block;
+  max-width: 560px;
+  /* The cell's own line height, so a one-line value sits as the other cells do */
+  padding: 4px 0;
 }
 
 table.columns > thead > tr > th.index {

@@ -34,6 +34,12 @@
   align-items: stretch;
 }
 
+/* Away from full bleed, the white surface still fills the window under a
+   short page, so the canvas doesn't show below it */
+.page:not([data-full-bleed]) {
+  min-height: calc(100vh - var(--shell-top-height, 44px));
+}
+
 /* Away from full bleed, the panes sit in a margin of their own */
 .page:not([data-full-bleed]) .content {
   padding: 0 14px 14px;
@@ -73,6 +79,24 @@
 .crumb a:hover,
 .crumb button:hover {
   text-decoration: underline;
+}
+
+/* Breadcrumb: the Home icon link, then items behind "/" separators */
+.crumbTrail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.crumbHome {
+  display: inline-flex;
+  align-items: center;
+}
+
+.crumbHome svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* Header: one line, the 16px display-font title, badges, then actions at the end */

@@ -8,7 +8,7 @@ import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 import ExplorerPage from '@/mantine/asset-explorer/explorer-page';
 import { mockBackend } from '@/mantine/asset-explorer/test-fixtures';
 import panel from '@/components/common/panel.module.css';
-import { DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, PaneStack, Tabs } from '.';
+import { Breadcrumb, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, PaneStack, Tabs } from '.';
 import classes from './page.module.css';
 
 vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
@@ -74,6 +74,32 @@ describe('page kit', () => {
     expect(within(columns).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
     // The aside sits beside the main column
     expect(screen.getByRole('complementary', { name: 'Details' })).toBeInTheDocument();
+  });
+
+  it('breadcrumb draws the Home icon link, then each item after a "/", the last as text', () => {
+    renderWithMantine(
+      <Breadcrumb items={[{ label: 'Home', to: '/' }, { label: 'Data Catalog', to: '/data-catalog' }, { label: 'orders' }]} />,
+    );
+    const nav = screen.getByRole('navigation', { name: 'breadcrumb' });
+    expect(nav).toHaveClass(classes.crumbTrail);
+    const links = within(nav).getAllByRole('link');
+    // The Home icon link stays unnamed (R16), then the items' links
+    expect(links.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['', '/'],
+      ['Home', '/'],
+      ['Data Catalog', '/data-catalog'],
+    ]);
+    expect(links[0]).toHaveClass(classes.crumbHome);
+    expect(links[0].querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    // Separators are hidden from assistive tech; the last item is plain text
+    const children = Array.from(nav.children);
+    expect(children.map((c) => c.tagName)).toEqual(['A', 'SPAN', 'A', 'SPAN', 'A', 'SPAN', 'SPAN']);
+    expect(children.filter((c) => c.textContent === '/').every((c) => c.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(children[6]).toHaveTextContent('orders');
+
+    // With no items: only the Home icon link
+    renderWithMantine(<Breadcrumb />);
+    expect(within(screen.getAllByRole('navigation', { name: 'breadcrumb' })[1]).getAllByRole('link')).toHaveLength(1);
   });
 
   it('details grid renders label/value rows', () => {

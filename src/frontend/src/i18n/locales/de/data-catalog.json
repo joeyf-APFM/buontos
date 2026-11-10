@@ -2,6 +2,7 @@
   "title": "Datenkatalog",
   "subtitle": "Durchsuchen Sie alle Spalten über Unity-Catalog-Tabellen und -Views hinweg",
   "searchPlaceholder": "Spalten suchen...",
+  "listPane": "Katalogspalten",
   "noResults": "Keine Spalten gefunden",
   "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff",
   "noTablesAccessible": "Keine Tabellen in Unity Catalog zugänglich",

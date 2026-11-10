@@ -1,4 +1,5 @@
 export { PageLayout, type PageLayoutProps } from './page-layout';
+export { Breadcrumb, type BreadcrumbItem, type BreadcrumbProps } from './breadcrumb';
 export { PageHeader, type PageHeaderProps } from './page-header';
 export { FilterBar, type FilterBarProps } from './filter-bar';
 export { Pane, type PaneProps } from './pane';

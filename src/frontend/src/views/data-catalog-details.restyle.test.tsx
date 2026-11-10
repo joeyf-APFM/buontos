@@ -214,6 +214,23 @@ describe('data catalog details on the page kit', () => {
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true'));
   });
 
+  it('data catalog details shows its breadcrumb while loading', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const inner = fetchMock;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => { await gate; return inner(input); }));
+    renderPage();
+
+    const crumb = await screen.findByRole('navigation', { name: 'breadcrumb' });
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(within(crumb).getByRole('link', { name: 'Data Catalog' })).toHaveAttribute('href', '/data-catalog');
+    // The table's name from the URL, until the table has loaded
+    expect(within(crumb).getByText('orders')).toBeInTheDocument();
+    release();
+    await findHeading();
+    expect(screen.getAllByRole('navigation', { name: 'breadcrumb' })).toHaveLength(1);
+  });
+
   it('data catalog details shows an error with Back and Retry', async () => {
     mockBackend({ table: { detail: 'missing' }, status: 404 });
     const user = userEvent.setup();

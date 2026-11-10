@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, AlertCircle, Pencil, Trash2, Network, GitBranch,
-  LayoutGrid, Share2, Home as HomeIcon,
+  LayoutGrid, Share2,
 } from 'lucide-react';
 import { Alert } from '@mantine/core';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
-import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
+import { Breadcrumb, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
 import classes from './asset-detail.module.css';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -209,15 +209,6 @@ export default function AssetDetailView() {
     return () => { setStaticSegments([]); setDynamicTitle(null); };
   }, [asset, setStaticSegments, setDynamicTitle]);
 
-  // Home, as the layout's breadcrumb had it; then the explorer and the asset
-  const breadcrumb = (trail?: ReactNode) => (
-    <nav aria-label="breadcrumb" className={classes.crumbs}>
-      <Link to="/" className={classes.home}>
-        <HomeIcon aria-hidden />
-      </Link>
-      {trail}
-    </nav>
-  );
 
   const backButton = (
     <Button variant="outline" onClick={() => navigate(-1)} size="sm">
@@ -238,7 +229,7 @@ export default function AssetDetailView() {
   if (error || !asset) {
     return (
       <div className={classes.state}>
-        {breadcrumb()}
+        <Breadcrumb />
         <div className={classes.stateBack}>{backButton}</div>
         <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:states.error')}>
           {error || t('assets:detail.notFound')}
@@ -280,14 +271,7 @@ export default function AssetDetailView() {
   return (
     <>
       <PageLayout
-        breadcrumb={breadcrumb(
-          <>
-            <span aria-hidden>/</span>
-            <Link to="/assets">{t('assets:explorer.title')}</Link>
-            <span aria-hidden>/</span>
-            <span>{asset.name}</span>
-          </>,
-        )}
+        breadcrumb={<Breadcrumb items={[{ label: t('assets:explorer.title'), to: '/assets' }, { label: asset.name }]} />}
         header={
           <>
             <PageHeader

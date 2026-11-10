@@ -232,8 +232,20 @@ const LevelLayout: React.FC<LevelLayoutProps> = ({ graph, onNodeClick }) => {
 // Main Component
 // =============================================================================
 
+/**
+ * The graph, if the response is one: an array, an object without a nodes
+ * array, or nothing becomes null (the empty state); missing edges become []
+ * (as business-lineage-view's asLineageGraph).
+ */
+function asLineageGraph(data: unknown): LineageGraphType | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const graph = data as Partial<LineageGraphType>;
+  if (!Array.isArray(graph.nodes)) return null;
+  return { ...(graph as LineageGraphType), edges: Array.isArray(graph.edges) ? graph.edges : [] };
+}
+
 const LineageGraphComponent: React.FC<LineageGraphProps> = ({
-  graph,
+  graph: response,
   isLoading = false,
   error = null,
   direction,
@@ -242,6 +254,7 @@ const LineageGraphComponent: React.FC<LineageGraphProps> = ({
 }) => {
   const { t } = useTranslation(['data-catalog', 'common']);
   const navigate = useNavigate();
+  const graph = useMemo(() => asLineageGraph(response), [response]);
 
   const handleNodeClick = (node: LineageNode) => {
     // Navigate to table details if it's a UC table/view
