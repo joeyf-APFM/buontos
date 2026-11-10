@@ -197,20 +197,106 @@ test.describe('kit Dialog', () => {
 
   test('Dialog: Escape in an open Select closes only the Select', async ({ page }) => {
     const dialog = page.getByRole('dialog', { name: 'Rename data product' });
-    await dialog.getByRole('textbox', { name: 'Name' }).fill('Customer 361');
-    await dialog.getByLabel('Status', { exact: true }).click();
+    const name = dialog.getByRole('textbox', { name: 'Name' });
+    await name.fill('Customer 361');
+    const status = dialog.getByLabel('Status', { exact: true });
+    await status.click();
     await expect(page.getByRole('option', { name: 'Deprecated' })).toBeVisible();
+    await expect(status).toHaveAttribute('data-expanded', 'true');
     await page.keyboard.press('Escape');
+    // Only the list closed: the Select keeps its value and focus
     await expect(page.getByRole('option', { name: 'Deprecated' })).toHaveCount(0);
-    // Past the Modal's 200ms exit transition: still open, the input kept
+    await expect(status).not.toHaveAttribute('data-expanded');
+    await expect(status).toHaveValue('Active');
+    await expect(status).toBeFocused();
+    // Past the Modal's 200ms exit transition: still open, the typed input kept
     await page.waitForTimeout(400);
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Customer 361');
+    await expect(name).toHaveValue('Customer 361');
     expect(await closes(page)).toBe(0);
     // With the list closed, Escape closes the dialog
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in an open Mantine Popover closes only the popover', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('button', { name: 'Filters' }).click();
+    const filter = page.getByRole('textbox', { name: 'Filter text' });
+    await expect(filter).toBeFocused();
+    await filter.fill('orders');
+    await page.keyboard.press('Escape');
+    await expect(filter).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    expect(await closes(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in an open Mantine Menu closes only the menu', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('button', { name: 'Actions' }).click();
+    const item = page.getByRole('menuitem', { name: 'Duplicate' });
+    await expect(item).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Escape');
+    await expect(item).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    expect(await closes(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in a Dialog opened from a Dialog closes only the top one', async ({ page }) => {
+    const nestedCloses = () =>
+      page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).dialogEvents.nestedCloses, harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Customer 361');
+    await dialog.getByRole('button', { name: 'Discard' }).click();
+    const confirm = page.getByRole('alertdialog', { name: 'Discard changes?' });
+    await expect(confirm.getByRole('button', { name: 'Keep editing' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(confirm).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Customer 361');
+    expect([await closes(page), await nestedCloses()]).toEqual([0, 1]);
+    // Then Escape closes the dialog under it
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect([await closes(page), await nestedCloses()]).toEqual([1, 1]);
+  });
+
+  test('Dialog sizes: sm 420, lg 720, xl 960', async ({ page }) => {
+    // Wide enough for xl beside Mantine's gutter
+    await page.setViewportSize({ width: 1280, height: 900 });
+    for (const [size, px] of [['sm', 420], ['lg', 720], ['xl', 960]] as const) {
+      await page.evaluate(async ([path, s]) => (await import(/* @vite-ignore */ path)).mountDialog({ size: s }), [harness, size] as const);
+      const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+      await expect(dialog).toBeVisible();
+      expect(Math.round((await dialog.boundingBox())!.width), size).toBe(px);
+    }
+  });
+
+  test('Dialog covers an open assistant window', async ({ page }) => {
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ assistant: true }), harness);
+    const assistant = page.locator('[role="dialog"][aria-modal="false"]', { hasText: 'Assistant body' });
+    await expect(assistant).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Rename data product' })).toBeVisible();
+    const level = await zIndex(assistant);
+    // Above the shell's top bar (40), under the Dialog's overlay
+    expect(level).toBeGreaterThan(40);
+    expect(level).toBeLessThan(await zIndex(page.locator('.mantine-Modal-overlay')));
+    const b = (await assistant.boundingBox())!;
+    expect(await page.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      return el?.classList.contains('mantine-Modal-overlay') ?? false;
+    }, [b.x + 20, b.y + b.height / 2])).toBe(true);
   });
 
   test('Dialog: Escape in an open Radix popover closes only the popover', async ({ page }) => {

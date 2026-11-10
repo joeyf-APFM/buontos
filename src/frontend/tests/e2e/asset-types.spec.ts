@@ -282,6 +282,23 @@ test.describe('the form dialog', () => {
     expect(posted).toEqual([{ name: 'Dashboard', status: 'deprecated' }]);
   });
 
+  test('create: Enter in a field submits, though Create sits in the footer outside the form', async ({ page }) => {
+    await setUp(page);
+    const posted: unknown[] = [];
+    await page.route((url) => url.pathname === '/api/asset-types', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      posted.push(route.request().postDataJSON());
+      return route.fulfill({ json: { ...ASSET_TYPES[1], id: 'new', name: 'Dashboard' } });
+    });
+    await page.getByRole('button', { name: 'Add Asset Type' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Create Asset Type' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Dashboard');
+    await dialog.getByRole('textbox', { name: 'Icon' }).fill('BarChart');
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    expect(posted).toEqual([{ name: 'Dashboard', icon: 'BarChart', status: 'active' }]);
+  });
+
   test('edit: opened from the row menu, prefilled, long values readable, focus back on the row menu', async ({ page }) => {
     await setUp(page);
     const trigger = openMenu(page, LONG_NAME);

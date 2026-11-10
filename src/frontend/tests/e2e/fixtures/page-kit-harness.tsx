@@ -12,12 +12,13 @@
 /* eslint-disable react-refresh/only-export-components -- a test fixture, never hot-reloaded */
 import { useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { Select } from '@mantine/core';
+import { Menu, Popover as MantinePopover, Select } from '@mantine/core';
 import { AppMantineProvider } from '@/mantine/provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs as RadixTabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs } from '@/mantine/page';
+import { Dialog, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs, type DialogProps } from '@/mantine/page';
+import { AssistantWindow } from '@/mantine/assistant/assistant-window';
 
 function Layout({ fullBleed, id }: { fullBleed?: boolean; id: string }) {
   return (
@@ -84,36 +85,97 @@ export function mountPageKit() {
 }
 
 /** What the dialog scene reports back to the spec. */
-export const dialogEvents = { closes: 0 };
+export const dialogEvents = { closes: 0, nestedCloses: 0 };
 
-function DialogScene() {
+export interface DialogSceneOptions {
+  size?: DialogProps['size'];
+  /** Also open the floating assistant window, as if the user had it open. */
+  assistant?: boolean;
+}
+
+function DialogScene({ size, assistant }: DialogSceneOptions) {
   const [opened, setOpened] = useState(true);
+  const [nested, setNested] = useState(false);
   return (
-    <Dialog
-      opened={opened}
-      onClose={() => {
-        dialogEvents.closes += 1;
-        setOpened(false);
-      }}
-      title="Rename data product"
-      description="The new name shows everywhere the product is listed."
-      footer={<button type="button">Save</button>}
-    >
-      <input aria-label="Name" defaultValue="Customer 360" />
-      <Select aria-label="Status" data={['Active', 'Deprecated']} defaultValue="Active" />
-      <Popover>
-        <PopoverTrigger>More</PopoverTrigger>
-        <PopoverContent>Popover body</PopoverContent>
-      </Popover>
-    </Dialog>
+    <>
+      {assistant && (
+        <AssistantWindow
+          title="Ask Ontos"
+          icon={null}
+          closeLabel="Close assistant"
+          onClose={() => {}}
+          isOpen={() => true}
+          rect={{ x: 40, y: 80, width: 360, height: 480 }}
+          onRectChange={() => {}}
+          focusRequested={false}
+          takeFocusRequest={() => false}
+        >
+          <p>Assistant body</p>
+        </AssistantWindow>
+      )}
+      <Dialog
+        opened={opened}
+        onClose={() => {
+          dialogEvents.closes += 1;
+          setOpened(false);
+        }}
+        size={size}
+        title="Rename data product"
+        description="The new name shows everywhere the product is listed."
+        footer={
+          <>
+            <button type="button" onClick={() => setNested(true)}>Discard</button>
+            <button type="button">Save</button>
+          </>
+        }
+      >
+        <input aria-label="Name" defaultValue="Customer 360" />
+        <Select aria-label="Status" data={['Active', 'Deprecated']} defaultValue="Active" />
+        <Popover>
+          <PopoverTrigger>More</PopoverTrigger>
+          <PopoverContent>Popover body</PopoverContent>
+        </Popover>
+        {/* A Mantine Popover picker, focus inside it, and a Mantine Menu */}
+        <MantinePopover trapFocus>
+          <MantinePopover.Target>
+            <button type="button">Filters</button>
+          </MantinePopover.Target>
+          <MantinePopover.Dropdown>
+            <input aria-label="Filter text" />
+          </MantinePopover.Dropdown>
+        </MantinePopover>
+        <Menu>
+          <Menu.Target>
+            <button type="button">Actions</button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item>Duplicate</Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Dialog>
+      {/* A confirm opened from the dialog, above it */}
+      <Dialog
+        opened={nested}
+        onClose={() => {
+          dialogEvents.nestedCloses += 1;
+          setNested(false);
+        }}
+        role="alertdialog"
+        size="sm"
+        title="Discard changes?"
+        description="Your edits will be lost."
+        footer={<button type="button" data-autofocus onClick={() => setNested(false)}>Keep editing</button>}
+      />
+    </>
   );
 }
 
 let dialogRoot: Root | null = null;
 
 /** Opens the kit Dialog over the app, which stays mounted with its shell. */
-export function mountDialog() {
+export function mountDialog(options: DialogSceneOptions = {}) {
   dialogEvents.closes = 0;
+  dialogEvents.nestedCloses = 0;
   root?.unmount();
   root = null;
   document.getElementById('root')?.style.removeProperty('display');
@@ -121,5 +183,5 @@ export function mountDialog() {
   document.body.append(host);
   dialogRoot?.unmount();
   dialogRoot = createRoot(host);
-  dialogRoot.render(<AppMantineProvider><TooltipProvider><DialogScene /></TooltipProvider></AppMantineProvider>);
+  dialogRoot.render(<AppMantineProvider><TooltipProvider><DialogScene {...options} /></TooltipProvider></AppMantineProvider>);
 }
