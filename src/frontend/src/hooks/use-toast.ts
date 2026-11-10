@@ -29,7 +29,9 @@ function toNotification({ title, description, variant, action, duration }: Toast
   }
 }
 
+/** One toast at a time: a new one replaces the last at once (Mantine's `limit` would queue it). */
 function toast(props: Toast) {
+  notifications.clean()
   const id = notifications.show(toNotification(props))
   return {
     id,
