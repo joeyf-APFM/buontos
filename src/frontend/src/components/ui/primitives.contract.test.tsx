@@ -1,6 +1,7 @@
 /**
- * Contract tests for the form-control primitives in components/ui: the same
- * exported API as the shadcn originals, with Mantine behind it.
+ * Contract tests for the primitives in components/ui (form controls and
+ * display parts): the same exported API as the shadcn originals, with Mantine
+ * behind it.
  */
 import { useEffect, type ReactNode } from 'react';
 import { describe, it, expect, vi } from 'vitest';
@@ -17,6 +18,23 @@ import { Checkbox } from './checkbox';
 import { Switch } from './switch';
 import { RadioGroup, RadioGroupItem } from './radio-group';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './form';
+import { Badge, type BadgeProps } from './badge';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
+import { Alert, AlertDescription, AlertTitle } from './alert';
+import { Separator } from './separator';
+import { Skeleton } from './skeleton';
+import { Progress } from './progress';
+import { Avatar, AvatarFallback, AvatarImage } from './avatar';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './table';
 
 const buttonHeight = (el: HTMLElement) =>
   getComputedStyle(el).getPropertyValue('--button-height') || el.style.getPropertyValue('--button-height');
@@ -413,5 +431,256 @@ describe('Enter on checkbox, radio and switch', () => {
     expect(toggle).not.toBeChecked();
     expect(onCheckedChange).toHaveBeenLastCalledWith(false);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+const cssVar = (el: HTMLElement, name: string) => el.style.getPropertyValue(name);
+
+describe('Badge', () => {
+  it('badge variants map to Mantine variants at 18px and 10.5px', () => {
+    const variants: [NonNullable<BadgeProps['variant']>, string][] = [
+      ['default', 'filled'],
+      ['secondary', 'light'],
+      ['destructive', 'filled'],
+      ['outline', 'outline'],
+      ['info', 'light'],
+    ];
+    for (const [variant, mantineVariant] of variants) {
+      const { unmount } = renderWithMantine(<Badge variant={variant}>{variant}</Badge>);
+      const badge = screen.getByText(variant).closest('.mantine-Badge-root') as HTMLElement;
+      expect(badge).toHaveAttribute('data-variant', mantineVariant);
+      expect(cssVar(badge, '--badge-height')).toBe('18px');
+      expect(cssVar(badge, '--badge-fz')).toBe('10.5px');
+      unmount();
+    }
+  });
+
+  it('badge colours: accent by default, gray secondary, critical destructive', () => {
+    renderWithMantine(
+      <>
+        <Badge>Accent</Badge>
+        <Badge variant="secondary">Gray</Badge>
+        <Badge variant="destructive">Critical</Badge>
+      </>,
+    );
+    const root = (text: string) => screen.getByText(text).closest('.mantine-Badge-root') as HTMLElement;
+    expect(cssVar(root('Accent'), '--badge-bg')).toContain('aura');
+    expect(cssVar(root('Gray'), '--badge-bg')).toContain('gray');
+    expect(cssVar(root('Critical'), '--badge-bg').toUpperCase()).toBe('#D41C16');
+  });
+
+  it('badge renders a div with the ref, caller classes and props, keeping case and the children gap', () => {
+    const ref = { current: null as HTMLDivElement | null };
+    const onClick = vi.fn();
+    renderWithMantine(
+      <Badge ref={ref} className="gap-1 cursor-pointer" title="Status" onClick={onClick}>
+        <svg data-testid="dot" />
+        Active
+      </Badge>,
+    );
+    const badge = screen.getByTitle('Status');
+    expect(badge.tagName).toBe('DIV');
+    expect(ref.current).toBe(badge);
+    expect(badge).toHaveClass('gap-1', 'cursor-pointer', 'normal-case');
+    // The children sit in Mantine's label span, which takes the root's gap
+    const label = screen.getByTestId('dot').parentElement as HTMLElement;
+    expect(label.style.gap).toBe('inherit');
+    badge.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Card', () => {
+  it('card renders as a bordered pane without shadow', () => {
+    const ref = { current: null as HTMLDivElement | null };
+    renderWithMantine(
+      <Card ref={ref} data-testid="card" className="mt-2">
+        <CardHeader data-testid="header">
+          <CardTitle>Owners</CardTitle>
+          <CardDescription>People who own it</CardDescription>
+        </CardHeader>
+        <CardContent data-testid="content">Body</CardContent>
+        <CardFooter data-testid="footer">Footer</CardFooter>
+      </Card>,
+    );
+    const card = screen.getByTestId('card');
+    expect(ref.current).toBe(card);
+    expect(card).toHaveAttribute('data-with-border');
+    expect(card).toHaveClass('[--paper-border-color:var(--aura-border)]');
+    // The theme's md radius is 6px
+    expect(cssVar(card, '--paper-radius')).toBe('var(--mantine-radius-md)');
+    expect(cssVar(card, '--paper-shadow')).toBe('');
+    expect(card.className).not.toMatch(/(^|\s)shadow/);
+    expect(card).toHaveClass('mt-2');
+    // 12px padding in the parts
+    expect(screen.getByTestId('header')).toHaveClass('p-3');
+    expect(screen.getByTestId('content')).toHaveClass('p-3', 'pt-0');
+    expect(screen.getByTestId('footer')).toHaveClass('p-3', 'pt-0');
+    // Title: 13px semibold navy
+    expect(screen.getByText('Owners')).toHaveClass(
+      'text-[13px]',
+      'font-semibold',
+      'text-[color:var(--aura-text-navy)]',
+    );
+  });
+
+  it('card parts let caller classes win', () => {
+    renderWithMantine(
+      <Card data-testid="card" className="border-0 rounded-none">
+        <CardTitle className="text-lg">Big</CardTitle>
+        <CardContent data-testid="content" className="p-0">Body</CardContent>
+      </Card>,
+    );
+    expect(screen.getByTestId('card')).toHaveClass('border-0', 'rounded-none');
+    expect(screen.getByText('Big')).toHaveClass('text-lg');
+    expect(screen.getByText('Big')).not.toHaveClass('text-[13px]');
+    expect(screen.getByTestId('content')).toHaveClass('p-0');
+    expect(screen.getByTestId('content')).not.toHaveClass('p-3');
+  });
+});
+
+describe('Alert', () => {
+  it('alert destructive uses role alert and the critical colour', () => {
+    renderWithMantine(
+      <>
+        <Alert variant="destructive" className="mb-2">
+          <svg data-testid="icon" />
+          <AlertTitle>Failed</AlertTitle>
+          <AlertDescription>Could not save</AlertDescription>
+        </Alert>
+        <Alert>
+          <AlertDescription>Saved</AlertDescription>
+        </Alert>
+      </>,
+    );
+    const [destructive, plain] = screen.getAllByRole('alert');
+    expect(destructive).toHaveTextContent('FailedCould not save');
+    expect(destructive).toHaveClass(
+      'mb-2',
+      'text-[color:var(--aura-critical)]',
+      'border-[color:var(--aura-critical)]',
+      'bg-[color:var(--aura-critical-bg)]',
+    );
+    expect(plain.className).not.toContain('--aura-critical');
+    expect(screen.getByText('Failed').tagName).toBe('H5');
+    // The icon stays a direct child, where the alert positions it
+    expect(screen.getByTestId('icon').parentElement).toBe(destructive);
+  });
+});
+
+describe('Table', () => {
+  it('table parts render a table with 28px rows', () => {
+    const ref = { current: null as HTMLTableElement | null };
+    renderWithMantine(
+      <Table ref={ref} className="min-w-full">
+        <TableCaption>Assets</TableCaption>
+        <TableHeader data-testid="thead">
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow data-state="selected">
+            <TableCell>orders</TableCell>
+            <TableCell>table</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell colSpan={2}>No more rows</TableCell>
+          </TableRow>
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableCell colSpan={2}>2 assets</TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>,
+    );
+    const table = screen.getByRole('table', { name: 'Assets' });
+    expect(ref.current).toBe(table);
+    expect(table).toHaveClass('min-w-full');
+    expect(screen.getAllByRole('rowgroup')).toHaveLength(3);
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers.map((h) => h.textContent)).toEqual(['Name', 'Type']);
+    for (const header of headers) expect(header).toHaveClass('h-7');
+    expect(screen.getByTestId('thead')).toHaveClass('bg-[color:var(--aura-surface-strong)]');
+    for (const cell of screen.getAllByRole('cell')) expect(cell).toHaveClass('h-7');
+    expect(screen.getByRole('cell', { name: 'No more rows' })).toHaveAttribute('colspan', '2');
+  });
+});
+
+describe('Skeleton, Progress, Separator and Avatar', () => {
+  it('skeleton and progress render with aria attributes', () => {
+    const ref = { current: null as HTMLDivElement | null };
+    renderWithMantine(
+      <>
+        <Skeleton data-testid="skeleton" aria-label="Loading owners" className="h-4 w-24" />
+        <Progress ref={ref} value={40} aria-label="Import" className="h-2 flex-1" data-testid="progress" />
+        <Progress value={3} max={4} aria-label="Steps" />
+      </>,
+    );
+    const skeleton = screen.getByTestId('skeleton');
+    expect(skeleton).toHaveAttribute('aria-label', 'Loading owners');
+    expect(skeleton).toHaveAttribute('data-animate');
+    expect(skeleton).toHaveClass('h-4', 'w-24');
+
+    const bar = screen.getByRole('progressbar', { name: 'Import' });
+    expect(bar).toHaveAttribute('aria-valuenow', '40');
+    expect(bar).toHaveAttribute('aria-valuemin', '0');
+    expect(bar).toHaveAttribute('aria-valuemax', '100');
+    // The ref and the caller's classes are on the track around the bar
+    expect(ref.current).toBe(screen.getByTestId('progress'));
+    expect(ref.current).toContainElement(bar);
+    expect(ref.current).toHaveClass('h-2', 'flex-1');
+    expect(screen.getByRole('progressbar', { name: 'Steps' })).toHaveAttribute('aria-valuenow', '75');
+  });
+
+  it('separator is decorative by default and a separator when it is not', () => {
+    renderWithMantine(
+      <>
+        <Separator data-testid="decorative" className="my-4" />
+        <Separator decorative={false} orientation="vertical" />
+      </>,
+    );
+    expect(screen.getByTestId('decorative')).toHaveAttribute('role', 'none');
+    expect(screen.getByTestId('decorative')).toHaveClass('my-4');
+    const separator = screen.getByRole('separator');
+    expect(separator).toHaveAttribute('aria-orientation', 'vertical');
+    expect(separator).toHaveAttribute('data-orientation', 'vertical');
+  });
+
+  it('avatar shows its fallback without an image', () => {
+    renderWithMantine(
+      <Avatar data-testid="avatar" className="h-8 w-8">
+        <AvatarFallback className="text-xs">JF</AvatarFallback>
+      </Avatar>,
+    );
+    expect(screen.getByTestId('avatar')).toHaveClass('h-8', 'w-8');
+    expect(screen.getByText('JF')).toHaveClass('text-xs');
+  });
+
+  it('avatar swaps the fallback for the image once it loads', async () => {
+    class LoadingImage {
+      onload: (() => void) | null = null;
+      set src(_value: string) {
+        setTimeout(() => this.onload?.());
+      }
+    }
+    vi.stubGlobal('Image', LoadingImage);
+    try {
+      renderWithMantine(
+        <Avatar>
+          <AvatarImage src="/me.png" alt="Joey" />
+          <AvatarFallback>JF</AvatarFallback>
+        </Avatar>,
+      );
+      expect(screen.getByText('JF')).toBeInTheDocument();
+      expect(screen.queryByRole('img')).toBeNull();
+      expect(await screen.findByRole('img', { name: 'Joey' })).toHaveAttribute('src', '/me.png');
+      expect(screen.queryByText('JF')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

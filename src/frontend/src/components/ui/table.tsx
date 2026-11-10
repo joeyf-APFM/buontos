@@ -1,15 +1,22 @@
 import * as React from "react"
+import { Table as MantineTable } from "@mantine/core"
 
 import { cn } from "@/lib/utils"
+
+// The root is Mantine's table; the parts are native table elements (Mantine's
+// parts need its context and add nothing here), so roles, colSpan and the
+// caller's attributes are unchanged. Density matches the explorer grid: 28px
+// rows and a 28px header on surface-strong, with 12px text.
 
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
-    <table
+    <MantineTable
       ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
+      withRowBorders={false}
+      className={cn("w-full caption-bottom text-xs", className)}
       {...props}
     />
   </div>
@@ -20,7 +27,11 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+  <thead
+    ref={ref}
+    className={cn("bg-[color:var(--aura-surface-strong)] [&_tr]:border-b", className)}
+    {...props}
+  />
 ))
 TableHeader.displayName = "TableHeader"
 
@@ -70,7 +81,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      "h-7 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -84,7 +95,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    className={cn("h-7 px-2 py-1 align-middle [&:has([role=checkbox])]:pr-0", className)}
     {...props}
   />
 ))
@@ -96,7 +107,7 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    className={cn("mt-3 text-xs text-muted-foreground", className)}
     {...props}
   />
 ))
@@ -111,4 +122,4 @@ export {
   TableRow,
   TableCell,
   TableCaption,
-} 
+}

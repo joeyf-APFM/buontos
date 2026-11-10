@@ -1,31 +1,38 @@
-"use client"
-
 import * as React from "react"
-import * as SeparatorPrimitive from "@radix-ui/react-separator"
+import { Divider } from "@mantine/core"
 
 import { cn } from "@/lib/utils"
+import { AURA } from "@/mantine/theme"
 
-const Separator = React.forwardRef<
-  React.ElementRef<typeof SeparatorPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>
->(
-  (
-    { className, orientation = "horizontal", decorative = true, ...props },
-    ref
-  ) => (
-    <SeparatorPrimitive.Root
+export interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {
+  orientation?: "horizontal" | "vertical"
+  /** Purely visual (the default): hidden from assistive technology. */
+  decorative?: boolean
+}
+
+/**
+ * A 1px line in the Aura border colour. Mantine's Divider is always
+ * role="separator"; the Radix separator this replaces was role="none" unless
+ * `decorative={false}`, so the root's role is set here.
+ */
+const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
+  ({ className, orientation = "horizontal", decorative = true, ...props }, ref) => (
+    <Divider
       ref={ref}
-      decorative={decorative}
       orientation={orientation}
-      className={cn(
-        "shrink-0 bg-border",
-        orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
-        className
+      color={AURA.border}
+      className={cn("shrink-0", orientation === "vertical" && "h-full", className)}
+      renderRoot={(rootProps) => (
+        <div
+          {...rootProps}
+          role={decorative ? "none" : "separator"}
+          aria-orientation={!decorative && orientation === "vertical" ? "vertical" : undefined}
+        />
       )}
       {...props}
     />
   )
 )
-Separator.displayName = SeparatorPrimitive.Root.displayName
+Separator.displayName = "Separator"
 
 export { Separator }
