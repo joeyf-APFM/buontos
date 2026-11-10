@@ -2,6 +2,7 @@
   "button \"\"",
   "button \"\"",
   "button \"Generate Ontology (0 selected)\"",
+  "button \"Large View: Advanced view reveals the ontology layer: RDF/SKOS, IRIs, property domain & range, and technical delivery settings. Simple hides them. Your choice is remembered.\"",
   "button \"Small View\"",
   "checkbox \"\"",
   "checkbox \"\"",
@@ -16,5 +17,6 @@
   "tab \"Enrich\"",
   "tab \"Explore\"",
   "textbox \"Base URI\"",
-  "textbox \"Guidelines\""
+  "textbox \"Guidelines\"",
+  "textbox \"Search: t:catalog.schema.table\""
 ]

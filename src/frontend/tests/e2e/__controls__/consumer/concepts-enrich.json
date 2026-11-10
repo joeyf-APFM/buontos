@@ -15,6 +15,7 @@
   "button \"Go to last page\"",
   "button \"Go to next page\"",
   "button \"Go to previous page\"",
+  "button \"Large View: Advanced view reveals the ontology layer: RDF/SKOS, IRIs, property domain & range, and technical delivery settings. Simple hides them. Your choice is remembered.\"",
   "button \"Manage in Settings\"",
   "button \"Products\"",
   "button \"Review\"",

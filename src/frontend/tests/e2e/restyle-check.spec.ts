@@ -22,7 +22,7 @@ import { expect, test } from '@playwright/test';
 import { mockApi, unmockedRequests } from './fixtures/api';
 import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
-import { RESTYLE_PAGES, SELECT_LIKE, controlInventory } from './restyle-pages';
+import { RESTYLE_PAGES, SEARCH_LIKE, SELECT_LIKE, controlInventory } from './restyle-pages';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROLS_DIR = path.join(HERE, '__controls__');
@@ -61,6 +61,34 @@ test.describe('controlInventory', () => {
     // The DOM is left as it was
     await expect(select).not.toHaveAttribute('role', /./);
     await expect(page.locator('main [data-restyle-role]')).toHaveCount(0);
+  });
+
+  test('lists a search field as searchbox, from shadcn or Mantine', async ({ page }) => {
+    // shadcn Input type="search" (Marketplace)
+    await page.goto('/marketplace');
+    const shadcn = page.locator('main input[type="search"]');
+    await expect(shadcn).toBeVisible();
+    expect(await shadcn.evaluate((el, sel) => el.matches(sel), SEARCH_LIKE)).toBe(true);
+    expect(await controlInventory(page)).toContain('searchbox "What can we help you find today?"');
+
+    // A Mantine TextInput turned into type="search" (the explorer's filter),
+    // with a library role on it that the inventory must override
+    await page.goto('/assets');
+    const mantine = page.locator('main input[aria-label="Filter assets"]');
+    await expect(mantine).toBeVisible();
+    await mantine.evaluate((el) => { el.setAttribute('type', 'search'); el.setAttribute('role', 'textbox'); });
+    const controls = await controlInventory(page);
+    expect(controls).toContain('searchbox "Filter assets"');
+    expect(controls).not.toContain('textbox "Filter assets"');
+    await expect(mantine).toHaveAttribute('role', 'textbox');
+  });
+
+  test('reads names that the aria snapshot quotes', async ({ page }) => {
+    // The schema browser's search box is named "Search: t:catalog.schema.table",
+    // which the snapshot writes as a single-quoted YAML scalar
+    await page.goto('/schema-importer');
+    await expect(page.locator('main input[placeholder^="Search:"]')).toBeVisible();
+    expect(await controlInventory(page)).toContain('textbox "Search: t:catalog.schema.table"');
   });
 
   test('lists a Radix Select as combobox', async ({ page }) => {

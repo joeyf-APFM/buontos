@@ -1,6 +1,7 @@
 [
   "button \"Save Settings\"",
   "link \"\"",
+  "spinbutton \"Max objects fetched per level\"",
   "switch \"Allow users to request background job enablement\"",
   "switch \"Enable AI Features\"",
   "textbox \"Audit Log Directory\"",

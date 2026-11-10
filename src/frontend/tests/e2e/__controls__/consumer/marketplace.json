@@ -4,5 +4,6 @@
   "button \"List\"",
   "combobox \"\"",
   "combobox \"\"",
-  "link \"\""
+  "link \"\"",
+  "searchbox \"What can we help you find today?\""
 ]

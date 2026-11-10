@@ -9,5 +9,6 @@
   "link \"\"",
   "radio \"Full recursive Everything nested below selected nodes\"",
   "radio \"One level Selected items + immediate children\"",
-  "radio \"Selected only Import only the selected items\""
+  "radio \"Selected only Import only the selected items\"",
+  "textbox \"Search: t:catalog.schema.table\""
 ]

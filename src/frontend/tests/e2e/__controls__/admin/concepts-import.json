@@ -2,6 +2,7 @@
   "button \"\"",
   "button \"\"",
   "button \"Import\"",
+  "button \"Large View: Advanced view reveals the ontology layer: RDF/SKOS, IRIs, property domain & range, and technical delivery settings. Simple hides them. Your choice is remembered.\"",
   "button \"Preview (0 selected)\"",
   "button \"Small View\"",
   "checkbox \"\"",
@@ -13,5 +14,6 @@
   "radio \"Selected only Import only the selected items\"",
   "tab \"Define\"",
   "tab \"Enrich\"",
-  "tab \"Explore\""
+  "tab \"Explore\"",
+  "textbox \"Search: t:catalog.schema.table\""
 ]

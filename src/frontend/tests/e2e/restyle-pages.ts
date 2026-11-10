@@ -109,12 +109,14 @@ export const RESTYLE_PAGES: RestylePage[] = [
   { id: 'settings-helix', route: '/settings/helix', wave: 0 },
 ];
 
-// The roles whose controls the restyle must keep (ruling R3 adds textbox,
-// radio and treeitem)
+// The roles whose controls the restyle must keep (ruling R3 added textbox,
+// radio and treeitem; fix round 3 searchbox, spinbutton and slider)
 const CONTROL_ROLES = [
   'button', 'link', 'menuitem', 'tab', 'checkbox', 'switch', 'combobox', 'textbox', 'radio', 'treeitem',
+  'searchbox', 'spinbutton', 'slider',
 ];
-const CONTROL_LINE = new RegExp(`^\\s*- (${CONTROL_ROLES.join('|')})(?: "((?:[^"\\\\]|\\\\.)*)")?(?=[\\s:\\[]|$)`);
+// `role "name"` at the start of an aria-snapshot entry
+const CONTROL_ENTRY = new RegExp(`^(${CONTROL_ROLES.join('|')})(?: "((?:[^"\\\\]|\\\\.)*)")?(?=[\\s:\\[]|$)`);
 
 /**
  * Select-like fields that are not `role="combobox"`, such as Mantine's Select
@@ -123,21 +125,51 @@ const CONTROL_LINE = new RegExp(`^\\s*- (${CONTROL_ROLES.join('|')})(?: "((?:[^"
  */
 export const SELECT_LIKE = 'input[aria-haspopup="listbox"], button[aria-haspopup="listbox"]';
 
+/** Search fields, recorded as searchbox whatever role the library gives them. */
+export const SEARCH_LIKE = 'input[type="search"]:not([aria-haspopup="listbox"])';
+
+// The roles the inventory gives fields, whatever the library renders
+const NORMALISED_ROLES: [selector: string, role: string][] = [
+  [SELECT_LIKE, 'combobox'],
+  [SEARCH_LIKE, 'searchbox'],
+];
+
+/**
+ * One aria-snapshot line's entry, without the `- ` and with YAML quoting
+ * undone: a name with ": " in it makes the whole entry a single-quoted
+ * scalar, e.g. `- 'textbox "Search: t:catalog"'`.
+ */
+function snapshotEntry(line: string): string | null {
+  const m = /^\s*- (.*)$/.exec(line);
+  if (!m) return null;
+  const rest = m[1];
+  if (!rest.startsWith("'")) return rest;
+  let out = '';
+  for (let i = 1; i < rest.length; i++) {
+    if (rest[i] !== "'") out += rest[i];
+    else if (rest[i + 1] === "'") out += rest[i++];
+    else break;
+  }
+  return out;
+}
+
 /**
  * The controls in <main>, as sorted `role "name"` lines, one per control (so
  * a duplicated control appears twice). Names are Playwright's accessible
  * names, read from its aria snapshot; hidden controls are not listed.
- * Select-like fields (SELECT_LIKE) are listed as combobox.
+ * Select-like fields are listed as combobox and search fields as searchbox.
  */
 export async function controlInventory(page: Page): Promise<string[]> {
   const main = page.locator('main');
-  // Give select-like fields the combobox role just for the snapshot
-  await main.evaluate((root, selector) => {
-    for (const el of root.querySelectorAll(selector)) {
-      el.setAttribute('data-restyle-role', el.getAttribute('role') ?? '');
-      el.setAttribute('role', 'combobox');
+  // Give the fields their normalised role just for the snapshot
+  await main.evaluate((root, rules) => {
+    for (const [selector, role] of rules) {
+      for (const el of root.querySelectorAll(selector)) {
+        if (!el.hasAttribute('data-restyle-role')) el.setAttribute('data-restyle-role', el.getAttribute('role') ?? '');
+        el.setAttribute('role', role);
+      }
     }
-  }, SELECT_LIKE);
+  }, NORMALISED_ROLES);
   let snapshot: string;
   try {
     snapshot = await main.ariaSnapshot();
@@ -153,7 +185,8 @@ export async function controlInventory(page: Page): Promise<string[]> {
   }
   const controls: string[] = [];
   for (const line of snapshot.split('\n')) {
-    const match = CONTROL_LINE.exec(line);
+    const entry = snapshotEntry(line);
+    const match = entry === null ? null : CONTROL_ENTRY.exec(entry);
     if (!match) continue;
     const name = match[2] === undefined ? '' : (JSON.parse(`"${match[2]}"`) as string);
     controls.push(`${match[1]} ${JSON.stringify(name)}`);
