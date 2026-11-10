@@ -3,6 +3,7 @@ import i18n from '@/i18n/config';
 import { SETTINGS_GATE, activeLocation, locateIn, visibleNav, type NavGroupId } from './nav-config';
 import {
   buildTrail,
+  withLiveCrumbs,
   navKind,
   pageCrumbs,
   storable,
@@ -88,7 +89,7 @@ describe('pageCrumbs: the hierarchy from the menu', () => {
   });
 
   it('leaves the Settings group crumb as plain text: it has no default page', () => {
-    expect(own({ path: '/settings/general' })[1]).toEqual({ label: 'Settings', role: 'group' });
+    expect(own({ path: '/settings/general' })[1]).toEqual({ label: 'Settings', role: 'group', group: 'Settings' });
   });
 
   it('puts the Govern and Deploy sections under Settings, with no section crumb', () => {
@@ -155,8 +156,13 @@ describe('pageCrumbs: detail pages', () => {
     expect(text(record)).toBe('Home > Security Features');
   });
 
-  it("drops a sub-page's title that only repeats its menu item (Search's tabs)", () => {
-    expect(text(visit({ path: '/search/llm', page: { dynamicTitle: 'Search' } }))).toBe('Home > Discover > Search');
+  it('keeps an entity named like its own list (a domain named Data domains)', () => {
+    const page = { staticSegments: [{ label: 'Data Domains', path: '/settings/data-domains' }], dynamicTitle: 'Data domains' };
+    expect(text(visit({ path: '/settings/data-domains/d1', page }))).toBe('Home > Organization > Data domains > Data domains');
+  });
+
+  it('marks a group crumb with its group, for the breadcrumb to go there as the menu does', () => {
+    expect(own({ path: '/settings/data-domains/d1', page: { dynamicTitle: 'Finance' } })[1]).toMatchObject({ role: 'group', group: 'Organization' });
   });
 
   it('keeps an entity named like a crumb above it (the title is compared by path)', () => {
@@ -233,11 +239,11 @@ describe('the trail: following the user', () => {
   });
 
   it('cuts a crumb click right after the crumb, where an in-page link to the same page would not', () => {
-    // A group crumb: just Home > Build, not the default page's own hierarchy
-    // (an in-page link to /assets gives Home > Build > Assets > Explorer)
-    const build = visit({ path: '/assets', previous: atDomain(), kind: 'crumb', crumbIndex: 1 });
-    expect(text(build)).toBe('Home > Build');
-    expect(text(visit({ path: '/assets', previous: atDomain(), kind: 'push' }))).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Assets > Explorer');
+    // A parent crumb: just up to Data Contracts, not the list's own hierarchy
+    // (an in-page link to the list gives its place: … > Data Contracts > Explorer)
+    const parent = visit({ path: '/data-contracts', previous: atDomain(), kind: 'crumb', crumbIndex: 2 });
+    expect(text(parent)).toBe('Home > Build > Data Contracts');
+    expect(text(visit({ path: '/data-contracts', previous: atDomain(), kind: 'push' }))).toBe('Home > Build > Data Contracts > Explorer');
     // A later of two crumbs to the same page: the trail is cut there, not at the first
     const returns = visit({ path: '/data-contracts/c2', page: { ...contract, dynamicTitle: 'Returns' }, previous: atDomain(), kind: 'push' });
     expect(text(returns)).toBe('Home > Build > Data Contracts > Orders > Data domains > Finance > Data Contracts > Returns');
@@ -289,6 +295,22 @@ describe('the trail: following the user', () => {
     expect(text(fromExplorer)).toBe('Home > Build > Assets > Explorer > Data Contracts > Orders');
   });
 
+  it("keeps a page's live crumbs after a crumb click: its in-page crumbs and its renamed entity", () => {
+    const cut = visit({ path: '/data-contracts/c1', page: contract, previous: atDomain(), kind: 'crumb', crumbIndex: 3 });
+    expect(text(cut)).toBe('Home > Build > Data Contracts > Orders');
+    // The page then selects something within it, and is renamed
+    const own = pageCrumbs({
+      pathname: '/data-contracts/c1', nav: navFor(), here: activeLocation('/data-contracts/c1'), settingsGate: true, label,
+      page: { ...contract, dynamicTitle: 'Orders v2', trailingSegments: [{ label: 'Schema' }, { label: 'order_id' }] },
+    });
+    expect(text(withLiveCrumbs(cut, own))).toBe('Home > Build > Data Contracts > Orders v2 > Schema > order_id');
+    // A crumb within the page's own in-page crumbs gives way to the page's live ones
+    const explorer = visit({ path: '/assets', page: { trailingSegments: [{ label: 'Unity Catalog', path: '/assets?node=uc' }, { label: 'main' }] } });
+    const toUc = visit({ path: '/assets', previous: explorer, kind: 'crumb', crumbIndex: 4 });
+    const live = pageCrumbs({ pathname: '/assets', nav: navFor(), here: activeLocation('/assets'), settingsGate: true, label, page: { trailingSegments: [{ label: 'Unity Catalog' }] } });
+    expect(text(withLiveCrumbs(toUc, live))).toBe('Home > Build > Assets > Explorer > Unity Catalog');
+  });
+
   it('keeps the first page and the last nine steps of a long trail', () => {
     let record = atDomain();
     for (let i = 0; i < 12; i++) {
@@ -296,6 +318,9 @@ describe('the trail: following the user', () => {
     }
     const steps = [...record.base, record.current];
     expect(steps).toHaveLength(10);
+    // The gap the cap left is marked, after the first page, and kept in history
+    expect(steps.map((st) => !!st.gapBefore)).toEqual([false, true, false, false, false, false, false, false, false, false]);
+    expect(storable(record).base[1].gapBefore).toBe(true);
     expect(trailCrumbs(record)[0].label).toBe('Home');
     // The first page, then the steps from P3 on (each project a sibling of the last)
     expect(text(record)).toBe('Home > Build > Data Contracts > Orders > P3 > P4 > P5 > P6 > P7 > P8 > P9 > P10 > P11');

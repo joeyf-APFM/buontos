@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, UnstyledButton } from '@mantine/core';
 import { Home as HomeIcon } from 'lucide-react';
@@ -15,6 +15,8 @@ export interface BreadcrumbItem {
   onSelect?: () => void;
   /** The Home crumb: its icon sits before the word. */
   home?: boolean;
+  /** Pages were left out before this one (a trimmed trail): the "…" menu marks the gap. */
+  gapBefore?: boolean;
 }
 
 export interface BreadcrumbProps {
@@ -24,6 +26,8 @@ export interface BreadcrumbProps {
   label: string;
   /** The name of the "…" button that lists the collapsed crumbs. */
   moreLabel?: string;
+  /** The "…" menu's note where a trimmed trail left pages out. */
+  gapLabel?: string;
   /** More crumbs than this fold between the sub-topic and the previous page, into "…". */
   max?: number;
   /** The last item is the current page (plain text, aria-current); off, it keeps its link. */
@@ -72,7 +76,7 @@ function Crumb({ item, current }: { item: BreadcrumbItem; current: boolean }) {
  * previous page (Home > main > sub-topic > … > previous > current), listing
  * the folded crumbs in the "…" menu.
  */
-export function Breadcrumb({ items, label, moreLabel, max = 6, lastIsCurrent = true }: BreadcrumbProps) {
+export function Breadcrumb({ items, label, moreLabel, gapLabel, max = 6, lastIsCurrent = true }: BreadcrumbProps) {
   const trail = collapseTrail(items, max);
   const last = lastIsCurrent ? items.length - 1 : -1;
   const entries: { key: string; node: ReactNode }[] = [];
@@ -93,17 +97,25 @@ export function Breadcrumb({ items, label, moreLabel, max = 6, lastIsCurrent = t
             </UnstyledButton>
           </Menu.Target>
           <Menu.Dropdown>
-            {trail.hidden.map((item, i) =>
-              item.to ? (
-                <Menu.Item key={i} component={Link} to={item.to} state={item.state}>
-                  {item.label}
-                </Menu.Item>
-              ) : (
-                <Menu.Item key={i} onClick={item.onSelect} disabled={!item.onSelect}>
-                  {item.label}
-                </Menu.Item>
-              ),
-            )}
+            {trail.hidden.map((item, i) => (
+              <Fragment key={i}>
+                {item.gapBefore && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Item disabled>{gapLabel}</Menu.Item>
+                  </>
+                )}
+                {item.to ? (
+                  <Menu.Item component={Link} to={item.to} state={item.state}>
+                    {item.label}
+                  </Menu.Item>
+                ) : (
+                  <Menu.Item onClick={item.onSelect} disabled={!item.onSelect}>
+                    {item.label}
+                  </Menu.Item>
+                )}
+              </Fragment>
+            ))}
           </Menu.Dropdown>
         </Menu>
       ),

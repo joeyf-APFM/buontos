@@ -155,6 +155,22 @@ describe('page kit', () => {
     expect(seen).toEqual({ nav: 'crumb', crumbIndex: 4 });
   });
 
+  it('breadcrumb: the "…" menu marks where a trimmed trail left pages out', async () => {
+    const user = userEvent.setup();
+    const items = [
+      { label: 'Home', to: '/', home: true },
+      ...Array.from({ length: 7 }, (_, i) => ({ label: `Level ${i + 1}`, to: `/l${i + 1}`, gapBefore: i === 3 })),
+    ];
+    renderWithMantine(<Breadcrumb label="Breadcrumb" moreLabel="Show the hidden levels" gapLabel="Earlier pages left out" items={items} />);
+    await user.click(screen.getByRole('button', { name: 'Show the hidden levels' }));
+    const menu = await screen.findByRole('menu', { hidden: true });
+    // Level 3, then the gap (a divider and a disabled note), then Level 4 and 5
+    const entries = Array.from(menu.querySelectorAll('[role="menuitem"], .mantine-Menu-divider')).map((el) =>
+      el.getAttribute('role') === 'menuitem' ? `${el.textContent}${el.hasAttribute('data-disabled') ? ' (disabled)' : ''}` : '---',
+    );
+    expect(entries).toEqual(['Level 3', '---', 'Earlier pages left out (disabled)', 'Level 4', 'Level 5']);
+  });
+
   it('breadcrumb: a long trail collapses its middle crumbs into "…", listing them in a menu', async () => {
     const user = userEvent.setup();
     const items = [{ label: 'Home', to: '/', home: true }, ...Array.from({ length: 7 }, (_, i) => ({ label: `Level ${i + 1}`, to: `/l${i + 1}` }))];

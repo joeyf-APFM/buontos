@@ -5,19 +5,21 @@ import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { features } from '@/config/features';
 import { Breadcrumb } from '@/mantine/page/breadcrumb';
 import {
+  allSteps,
   attachPage,
   crumbNavState,
   cutAtCrumb,
+  withLiveCrumbs,
   navKind,
   pageCrumbs,
   priorSteps,
   storable,
-  trailCrumbs,
   type CrumbNavState,
   type TrailRecord,
   type TrailStep,
 } from './breadcrumb-trail';
 import { useShellNav } from './use-shell-nav';
+import { menuNavState } from './nav-config';
 import classes from './shell.module.css';
 
 /** Each history entry's trail, by location key, so back, forward and a reload bring it back. */
@@ -41,7 +43,8 @@ const isStep = (s: unknown): s is TrailStep => {
     typeof step.pathname === 'string' &&
     Array.isArray(step.crumbs) &&
     step.crumbs.every((c) => !!c && typeof c.label === 'string' && (c.to === undefined || typeof c.to === 'string')) &&
-    (step.links === undefined || (Array.isArray(step.links) && step.links.every((l) => typeof l === 'string')))
+    (step.links === undefined || (Array.isArray(step.links) && step.links.every((l) => typeof l === 'string'))) &&
+    (step.gapBefore === undefined || step.gapBefore === true)
   );
 };
 
@@ -134,8 +137,10 @@ export function ShellBreadcrumb({ fullBleed = false }: { fullBleed?: boolean }) 
     label: (key) => t(key),
     fallbackTitle: feature ? t(`features:${feature.id}.name`, feature.name) : null,
   });
-  const record = reached.cut ?? attachPage(reached.prior, location.pathname, own);
-  const crumbs = trailCrumbs(record);
+  // After a crumb click, the cut, with the page's live in-page crumbs and name
+  const record = reached.cut ? withLiveCrumbs(reached.cut, own) : attachPage(reached.prior, location.pathname, own);
+  // Each crumb, with whether a trimmed trail left pages out before it
+  const crumbs = allSteps(record).flatMap((step) => step.crumbs.map((c, i) => ({ ...c, gapBefore: i === 0 && !!step.gapBefore })));
   // A page with no crumb of its own yet (no title) isn't shown as Home or as the page before it
   const lastIsCurrent = location.pathname === '/' || record.current.crumbs.some((c) => c.role !== 'home');
 
@@ -151,11 +156,14 @@ export function ShellBreadcrumb({ fullBleed = false }: { fullBleed?: boolean }) 
       <Breadcrumb
         label={t('breadcrumb.label')}
         moreLabel={t('breadcrumb.more')}
+        gapLabel={t('breadcrumb.gap')}
         lastIsCurrent={lastIsCurrent}
         items={crumbs.map((c, i) => ({
           label: c.label,
           to: c.to,
-          state: c.to ? crumbNavState(i) : undefined,
+          // A group crumb goes to the group's default page as the menu does, in its own place
+          state: c.to ? (c.role === 'group' && c.group ? menuNavState(c.group) : crumbNavState(i)) : undefined,
+          gapBefore: c.gapBefore,
           onSelect: c.onSelect,
           home: c.role === 'home',
         }))}

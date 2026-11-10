@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, screen, waitFor, within } from '@testing-library/react';
-import { Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import Layout from '@/components/layout/layout';
 import SettingsPageWrapper from '@/components/settings/settings-page-wrapper';
@@ -65,6 +65,28 @@ function Titled({ title, links = [], trailing }: { title?: string; links?: { to:
   );
 }
 
+/** A page with in-page levels, as the explorer's tree: ?at= picks one, and a button goes a level deeper. */
+function Levels({ title }: { title?: string }) {
+  const at = new URLSearchParams(useLocation().search).get('at');
+  const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
+  const setTrailingSegments = useBreadcrumbStore((s) => s.setTrailingSegments);
+  useEffect(() => {
+    if (title) setDynamicTitle(title);
+  }, [title, setDynamicTitle]);
+  useEffect(() => {
+    const upTo = at ? DEEP.findIndex((d) => d.label === at) + 1 : title ? 0 : DEEP.length;
+    setTrailingSegments(DEEP.slice(0, upTo));
+  }, [at, title, setTrailingSegments]);
+  return (
+    <>
+      <button type="button" onClick={() => setTrailingSegments([{ label: 'Deeper' }])}>
+        go deeper
+      </button>
+      <Link to="/settings/data-domains/d1">open Finance</Link>
+    </>
+  );
+}
+
 /** A redirect, as app.tsx's <Navigate replace> routes are. */
 function Redirect({ to }: { to: string }) {
   const navigate = useNavigate();
@@ -105,7 +127,9 @@ function App() {
         <Route path="/settings/data-domains" element={<Titled />} />
         <Route path="/settings/data-domains/d1" element={<Titled title="Finance" />} />
         <Route path="/settings/data-domains/d2" element={<Titled />} />
-        <Route path="/settings/data-domains/d4" element={<Titled trailing={DEEP} />} />
+        <Route path="/settings/data-domains/d4" element={<Levels />} />
+        <Route path="/settings/data-domains/d5" element={<Levels title="Five" />} />
+        <Route path="/assets" element={<Titled />} />
         <Route path="/data-asset-reviews/:requestId" element={<DataAssetReviewDetails />} />
         <Route path="/old-domains" element={<Redirect to="/settings/data-domains" />} />
         <Route path="/dev/untitled" element={<Titled />} />
@@ -254,6 +278,29 @@ describe('the shell breadcrumb', () => {
     await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', 's1']));
   });
 
+  it("keeps the page's live crumbs after a crumb click: a level picked in the page shows", async () => {
+    const user = userEvent.setup();
+    await renderApp('/settings/data-domains/d5');
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', 'Five']));
+    await user.click(screen.getByRole('link', { name: 'open Finance' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', 'Five', 'Finance']));
+    // Back to Five by its crumb, then a level deeper within the page
+    await user.click(within(crumbNavs()[0]).getByRole('link', { name: 'Five' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', 'Five']));
+    await user.click(screen.getByRole('button', { name: 'go deeper' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Organization', 'Data domains', 'Five', 'Deeper']));
+  });
+
+  it('goes to a group crumb as the menu does: the default page, in its own place', async () => {
+    const user = userEvent.setup();
+    await renderApp('/data-contracts/c1');
+    await user.click(screen.getByRole('link', { name: 'open Finance' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Data Contracts', 'Orders', 'Data domains', 'Finance']));
+    await user.click(within(crumbNavs()[0]).getByRole('link', { name: 'Build' }));
+    await waitFor(() => expect(trail()).toEqual(['Home', 'Build', 'Assets', 'Explorer']));
+    expect(window.history.state?.usr).toEqual({ nav: 'menu', navGroup: 'Build' });
+  });
+
   it('shows no placeholder while a name loads, and lets no late name onto the next page', async () => {
     const user = userEvent.setup();
     await renderApp('/marketplace');
@@ -274,6 +321,14 @@ describe('the shell breadcrumb', () => {
     // The first entry's key in a fresh history is "default"
     const oldFormat = { base: [{ pathname: '/marketplace', crumbs: 'Marketplace' }], current: { pathname: '/settings/general' } };
     sessionStorage.setItem(TRAILS_KEY, JSON.stringify([['default', oldFormat]]));
+    await renderApp('/settings/general');
+    expect(trail()).toEqual(['Home', 'Settings', 'General']);
+  });
+
+  it('ignores a stored trail whose gap mark it cannot read', async () => {
+    const step = (pathname: string, label: string) => ({ pathname, crumbs: [{ label, to: pathname }] });
+    const marked = { base: [step('/', 'Home'), { ...step('/marketplace', 'Marketplace'), gapBefore: 'yes' }], current: step('/settings/general', 'General') };
+    sessionStorage.setItem(TRAILS_KEY, JSON.stringify([['default', marked]]));
     await renderApp('/settings/general');
     expect(trail()).toEqual(['Home', 'Settings', 'General']);
   });

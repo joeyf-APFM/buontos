@@ -27,6 +27,12 @@ export interface Crumb {
   onSelect?: () => void;
   /** The Home crumb, or the group's: a later step leaves them out. */
   role?: 'home' | 'group';
+  /** A group crumb's group: the breadcrumb goes there as the menu does. */
+  group?: NavGroupId;
+  /** The page's own name, from its store title (kept live after a crumb click). */
+  entity?: true;
+  /** A crumb within the page, from its trailing segments (kept live after a crumb click). */
+  inPage?: true;
 }
 
 export interface TrailStep {
@@ -35,6 +41,8 @@ export interface TrailStep {
   crumbs: Crumb[];
   /** Where the page's own crumbs (after its group) link, shown or not: for its siblings' skip. */
   links?: string[];
+  /** The trail's cap left steps out before this one. */
+  gapBefore?: true;
 }
 
 /** What the page says about itself through the breadcrumb store. */
@@ -78,7 +86,7 @@ function hierarchy(here: ActiveLocation, input: PageCrumbsInput, exact: boolean)
   const groupLabel = label(groupFace(group, input.settingsGate).labelKey);
   // A link group (Workflows) is its one item: the page's own crumb, kept in a later step
   if (group.link) return [home, { label: groupLabel, to: group.link }];
-  const crumbs: Crumb[] = [home, { label: groupLabel, to: groupDefaultPath(group, sections) ?? undefined, role: 'group' }];
+  const crumbs: Crumb[] = [home, { label: groupLabel, to: groupDefaultPath(group, sections) ?? undefined, role: 'group', group: group.id }];
   const child = here.childId ? item.children?.find((c) => c.id === here.childId) : undefined;
   if (!child) return [...crumbs, { label: label(item.labelKey), to: item.path }];
   const parentTo = item.path ?? item.children?.find((c) => c.id === item.defaultChildId)?.path;
@@ -109,7 +117,7 @@ export function pageCrumbs(input: PageCrumbsInput): Crumb[] {
   const { pathname, search = '', page = {}, label } = input;
   const url = pathname + search;
   const home: Crumb = { label: label('shell:breadcrumb.home'), to: '/', role: 'home' };
-  const trailing = (page.trailingSegments ?? []).map((s) => ({ label: s.label, to: s.path, onSelect: s.onSelect }));
+  const trailing: Crumb[] = (page.trailingSegments ?? []).map((s) => ({ label: s.label, to: s.path, onSelect: s.onSelect, inPage: true }));
   if (pathname === '/') return [home, ...trailing];
 
   let crumbs: Crumb[] | null = null;
@@ -139,13 +147,10 @@ export function pageCrumbs(input: PageCrumbsInput): Crumb[] {
     c.path !== '/';
   const middle = extras.filter(shown).map((s) => ({ label: s.label, to: s.path, onSelect: s.onSelect }));
   const all: Crumb[] = [...crumbs, ...middle];
-  // The title is the page's own name: kept unless a crumb already is this page,
-  // or it only repeats the crumb just above it (a sub-page of Search titled
-  // Search). An entity may share another crumb's label: a domain named Organization.
+  // The title is the page's own name: kept unless a crumb already is this page.
+  // An entity may share another crumb's label: a domain named Organization.
   const title = (page.dynamicTitle || (middle.length === 0 ? input.fallbackTitle : null))?.trim();
-  const above = all[all.length - 1];
-  const repeats = middle.length === 0 && !!above && !above.role && same(above.label, title ?? '');
-  if (title && !repeats && !all.some((c) => c.to && pathOf(c.to) === pathname)) all.push({ label: title });
+  if (title && !all.some((c) => c.to && pathOf(c.to) === pathname)) all.push({ label: title, entity: true });
   return withCurrent([...all, ...trailing], url);
 }
 
@@ -238,7 +243,10 @@ export function attachPage(prior: TrailStep[], pathname: string, own: Crumb[]): 
   let skip = 0;
   while (skip < tail.length - 1 && tail[skip].to && shown.has(pathOf(tail[skip].to!))) skip++;
   // At most MAX_STEPS steps: the first page's, then the latest
-  const base = prior.length < MAX_STEPS ? prior : [prior[0], ...prior.slice(prior.length - (MAX_STEPS - 2))];
+  const base =
+    prior.length < MAX_STEPS
+      ? prior
+      : [prior[0], ...prior.slice(prior.length - (MAX_STEPS - 2)).map((st, i) => (i === 0 ? { ...st, gapBefore: true as const } : st))];
   return { base, current: { pathname, crumbs: tail.slice(skip), links: ownLinks } };
 }
 
@@ -265,6 +273,19 @@ export function cutAtCrumb(previous: TrailRecord | null, crumbIndex: number | un
   return null;
 }
 
+/**
+ * A crumb click's cut, with the page's live crumbs: its renamed entity, and
+ * its in-page crumbs (the explorer's tree path) in place of the cut's.
+ */
+export function withLiveCrumbs(cut: TrailRecord, own: Crumb[]): TrailRecord {
+  let crumbs = cut.current.crumbs;
+  while (crumbs.length > 1 && crumbs[crumbs.length - 1].inPage) crumbs = crumbs.slice(0, -1);
+  const entity = own.find((c) => c.entity);
+  const last = crumbs[crumbs.length - 1];
+  if (entity && last?.entity) crumbs = [...crumbs.slice(0, -1), { ...last, label: entity.label }];
+  return { ...cut, current: { ...cut.current, crumbs: [...crumbs, ...own.filter((c) => c.inPage)] } };
+}
+
 /** Everything a page's trail depends on. */
 export interface TrailInput extends PageCrumbsInput {
   kind: NavKind;
@@ -279,7 +300,7 @@ export interface TrailInput extends PageCrumbsInput {
 /** The page's trail: where the user came from, then the page's own crumbs. */
 export function buildTrail(input: TrailInput): TrailRecord {
   const cut = input.kind === 'crumb' ? cutAtCrumb(input.previous, input.crumbIndex, input.pathname) : null;
-  if (cut) return cut;
+  if (cut) return withLiveCrumbs(cut, pageCrumbs(input));
   const prior = priorSteps(input.kind, input.previous, input.stored);
   return attachPage(prior, input.pathname, pageCrumbs(input));
 }
@@ -290,6 +311,7 @@ export function storable(record: TrailRecord): TrailRecord {
     pathname: s.pathname,
     crumbs: s.crumbs.map(({ onSelect: _onSelect, ...c }) => c),
     ...(s.links ? { links: s.links } : {}),
+    ...(s.gapBefore ? { gapBefore: true as const } : {}),
   });
   return { base: record.base.map(step), current: step(record.current) };
 }
