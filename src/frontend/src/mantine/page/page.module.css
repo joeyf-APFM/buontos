@@ -196,6 +196,25 @@
   padding: 0;
 }
 
+/* A column of panes, 12px apart. Each keeps its content height (a pane's
+   flex: 1 would share the column's height out equally instead), and its own
+   full border and corners: the shared-border rules above are for panes side
+   by side. These tie with those rules on specificity and win by coming after
+   them. */
+.stack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stack > .pane {
+  flex: none;
+  border-left-width: 1px;
+  border-radius: 6px;
+}
+
 /* Details grid: the shared panels' .kv (components/common/panel.module.css), at
    body size wherever it sits */
 .details {

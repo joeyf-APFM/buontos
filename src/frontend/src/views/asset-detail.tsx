@@ -1,20 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, AlertCircle, Pencil, Trash2,
-  MapPin, Globe, Calendar, User, Tag, FileJson, Network, GitBranch,
-  LayoutGrid, Share2,
+  ArrowLeft, AlertCircle, Pencil, Trash2, Network, GitBranch,
+  LayoutGrid, Share2, Home as HomeIcon,
 } from 'lucide-react';
+import { Alert } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
 import { TabsDetailSkeleton } from '@/components/common/list-view-skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AssetDeleteDialog } from '@/components/assets/asset-delete-dialog';
 import DomainBadgeList from '@/components/ui/domain-badge-list';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssetRead } from '@/types/asset';
 import { EntityTypeDefinition } from '@/types/ontology-schema';
 import { AssetFormDialog } from '@/components/common/asset-form-dialog';
@@ -40,6 +35,8 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, Tabs, type DetailsRow } from '@/mantine/page';
+import classes from './asset-detail.module.css';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   draft: 'outline',
@@ -51,52 +48,38 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'dest
 function PropertyValue({ value }: { value: any }) {
   const { t } = useTranslation(['assets', 'common']);
   if (value === null || value === undefined) {
-    return <span className="text-muted-foreground italic">{t('assets:detail.nullValue')}</span>;
+    return <span className={classes.null}>{t('assets:detail.nullValue')}</span>;
   }
   if (typeof value === 'boolean') {
     return <Badge variant={value ? 'default' : 'secondary'}>{value ? t('assets:detail.yes') : t('assets:detail.no')}</Badge>;
   }
   if (typeof value === 'object') {
-    return (
-      <pre className="text-xs bg-muted p-2 rounded-md overflow-auto max-h-40 font-mono">
-        {JSON.stringify(value, null, 2)}
-      </pre>
-    );
+    return <pre className={classes.json}>{JSON.stringify(value, null, 2)}</pre>;
   }
-  return <span className="text-sm">{String(value)}</span>;
+  return <span>{String(value)}</span>;
 }
 
-function PropertiesCard({ properties }: { properties?: Record<string, any> | null }) {
+function PropertiesPane({ properties }: { properties?: Record<string, any> | null }) {
   const { t } = useTranslation(['assets', 'common']);
   if (!properties || Object.keys(properties).length === 0) {
     return null;
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileJson className="h-4 w-4" />
-          {t('assets:detail.properties')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3">
-          {Object.entries(properties).map(([key, value]) => (
-            <div key={key} className="grid grid-cols-3 gap-2 items-start">
-              <Label className="text-sm font-medium text-muted-foreground col-span-1 pt-1">
-                {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-              </Label>
-              <div className="col-span-2">
-                <PropertyValue value={value} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <Pane title={t('assets:detail.properties')}>
+      <DetailsGrid
+        rows={Object.entries(properties).map(([key, value]) => ({
+          label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: <PropertyValue value={value} />,
+        }))}
+      />
+    </Pane>
   );
 }
+
+/** Label / value rows, leaving out the empty ones. */
+const rowsOf = (rows: (DetailsRow | false | null | undefined | '' | 0)[]): DetailsRow[] =>
+  rows.filter((r): r is DetailsRow => !!r);
 
 export default function AssetDetailView() {
   const { assetId } = useParams<{ assetId: string }>();
@@ -226,407 +209,349 @@ export default function AssetDetailView() {
     return () => { setStaticSegments([]); setDynamicTitle(null); };
   }, [asset, setStaticSegments, setDynamicTitle]);
 
+  // Home, as the layout's breadcrumb had it; then the explorer and the asset
+  const breadcrumb = (trail?: ReactNode) => (
+    <nav aria-label="breadcrumb" className={classes.crumbs}>
+      <Link to="/" className={classes.home}>
+        <HomeIcon aria-hidden />
+      </Link>
+      {trail}
+    </nav>
+  );
+
+  const backButton = (
+    <Button variant="outline" onClick={() => navigate(-1)} size="sm">
+      <ArrowLeft /> {t('common:actions.back')}
+    </Button>
+  );
+
   if (loading) {
     // Asset Detail uses a tabbed layout (Overview / Relationships / Lineage /
     // Impact) above a hero title row. Match that structure.
-    return <TabsDetailSkeleton tabs={4} actionButtons={5} contentVariant="two-col" />;
+    return (
+      <div className={classes.state}>
+        <TabsDetailSkeleton tabs={4} actionButtons={5} contentVariant="two-col" />
+      </div>
+    );
   }
 
   if (error || !asset) {
     return (
-      <div className="py-6 space-y-4">
-        <Button variant="outline" onClick={() => navigate(-1)} size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" /> {t('common:actions.back')}
-        </Button>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('common:states.error')}</AlertTitle>
-          <AlertDescription>{error || t('assets:detail.notFound')}</AlertDescription>
+      <div className={classes.state}>
+        {breadcrumb()}
+        <div className={classes.stateBack}>{backButton}</div>
+        <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:states.error')}>
+          {error || t('assets:detail.notFound')}
         </Alert>
       </div>
     );
   }
 
+  const domainLabel = asset.domains && asset.domains.length > 1 ? t('assets:detail.domains') : t('common:labels.domain');
+  const detailRows = rowsOf([
+    asset.location && { label: t('assets:table.location'), value: <span className={classes.mono}>{asset.location}</span> },
+    asset.platform && { label: t('assets:table.platform'), value: asset.platform },
+    ((asset.domains && asset.domains.length > 0) || asset.domain_id) && {
+      label: domainLabel,
+      value: (
+        <DomainBadgeList
+          domains={asset.domains}
+          domainIds={asset.domain_id ? [asset.domain_id] : []}
+          primaryDomainId={asset.primary_domain_id ?? asset.domain_id}
+          onDomainClick={(id) => navigate(`/settings/data-domains/${id}`)}
+        />
+      ),
+    },
+    asset.created_by && { label: t('common:labels.createdBy'), value: asset.created_by },
+    { label: t('common:labels.created'), value: <RelativeDate date={asset.created_at} /> },
+    { label: t('common:labels.updated'), value: <RelativeDate date={asset.updated_at} /> },
+    asset.tags && asset.tags.length > 0 && {
+      label: t('common:labels.tags'),
+      value: (
+        <span className={classes.chips}>
+          {asset.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+        </span>
+      ),
+    },
+  ]);
+
+  const properties = asset.properties;
+
   return (
-    <div className="py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate(-1)} size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" /> {t('common:actions.back')}
-        </Button>
-        <div className="flex items-center gap-2">
-          <CommentSidebar
-            entityType="asset"
-            entityId={assetId!}
-            isOpen={isCommentSidebarOpen}
-            onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
-            className="h-8"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/hierarchy?type=${ontologyTypeName}&id=${assetId}`)}
-          >
-            <Network className="mr-2 h-4 w-4" /> {t('assets:detail.viewInHierarchy')}
-          </Button>
-          {showLineageTab && canWrite && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsLineageEditorOpen(true)}
-            >
-              <GitBranch className="mr-2 h-4 w-4" /> {t('assets:detail.manageLineage')}
-            </Button>
-          )}
-          <Button variant="outline" size="sm" disabled={!canWrite} onClick={() => setIsEditOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" /> {t('common:actions.edit')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-red-600 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-            disabled={!canAdmin}
-            onClick={() => setIsDeleteDialogOpen(true)}
-          >
-            <Trash2 className="mr-2 h-4 w-4" /> {t('common:actions.delete')}
-          </Button>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{asset.name}</h1>
-          <Badge variant={STATUS_VARIANT[asset.status] ?? 'outline'}>
-            {asset.status}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-          <Badge variant="outline" className="text-xs">{entityType}</Badge>
-          {asset.platform && (
-            <>
-              <span className="text-muted-foreground">&middot;</span>
-              <span>{asset.platform}</span>
-            </>
-          )}
-        </div>
-        {asset.description && (
-          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{asset.description}</p>
+    <>
+      <PageLayout
+        breadcrumb={breadcrumb(
+          <>
+            <span aria-hidden>/</span>
+            <Link to="/assets">{t('assets:explorer.title')}</Link>
+            <span aria-hidden>/</span>
+            <span>{asset.name}</span>
+          </>,
         )}
-      </div>
+        header={
+          <>
+            <PageHeader
+              title={asset.name}
+              badges={
+                <>
+                  <Badge variant={STATUS_VARIANT[asset.status] ?? 'outline'}>{asset.status}</Badge>
+                  <span className={classes.tag}>{entityType}</span>
+                  {asset.platform && <span className={classes.platform}>{asset.platform}</span>}
+                </>
+              }
+              actions={
+                <>
+                  {backButton}
+                  <CommentSidebar
+                    entityType="asset"
+                    entityId={assetId!}
+                    isOpen={isCommentSidebarOpen}
+                    onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/hierarchy?type=${ontologyTypeName}&id=${assetId}`)}
+                  >
+                    <Network /> {t('assets:detail.viewInHierarchy')}
+                  </Button>
+                  {showLineageTab && canWrite && (
+                    <Button variant="outline" size="sm" onClick={() => setIsLineageEditorOpen(true)}>
+                      <GitBranch /> {t('assets:detail.manageLineage')}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" disabled={!canWrite} onClick={() => setIsEditOpen(true)}>
+                    <Pencil /> {t('common:actions.edit')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={classes.danger}
+                    disabled={!canAdmin}
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <Trash2 /> {t('common:actions.delete')}
+                  </Button>
+                </>
+              }
+            />
+            {asset.description && <p className={classes.description}>{asset.description}</p>}
+          </>
+        }
+      >
+        <PaneStack>
+          <Tabs defaultValue="overview" classNames={{ tabSection: classes.tabIcon }}>
+            <Tabs.List>
+              <Tabs.Tab value="overview">{t('assets:detail.tabs.overview')}</Tabs.Tab>
+              <Tabs.Tab value="relationships">{t('assets:detail.tabs.relationships')}</Tabs.Tab>
+              {showLineageTab && (
+                <Tabs.Tab value="lineage" leftSection={<GitBranch aria-hidden />}>
+                  {t('assets:detail.tabs.lineage')}
+                </Tabs.Tab>
+              )}
+              {(isPolicy || isBusinessTerm) && (
+                <Tabs.Tab value="impact">{t('assets:detail.tabs.impact')}</Tabs.Tab>
+              )}
+            </Tabs.List>
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">{t('assets:detail.tabs.overview')}</TabsTrigger>
-          <TabsTrigger value="relationships">{t('assets:detail.tabs.relationships')}</TabsTrigger>
-          {showLineageTab && (
-            <TabsTrigger value="lineage">
-              <GitBranch className="mr-1 h-3.5 w-3.5" />
-              {t('assets:detail.tabs.lineage')}
-            </TabsTrigger>
-          )}
-          {(isPolicy || isBusinessTerm) && (
-            <TabsTrigger value="impact">{t('assets:detail.tabs.impact')}</TabsTrigger>
-          )}
-        </TabsList>
+            <Tabs.Panel value="overview">
+              <PaneStack>
+                {/* Core metadata: the explorer's details grid */}
+                <Pane title={t('common:labels.details')}>
+                  <DetailsGrid rows={detailRows} />
 
-        <TabsContent value="overview" className="mt-4 space-y-6">
-          {/* Core metadata card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t('common:labels.details')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {asset.location && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> {t('assets:table.location')}
-                    </Label>
-                    <p className="text-sm font-mono mt-1 truncate">{asset.location}</p>
-                  </div>
-                )}
-                {asset.platform && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Globe className="h-3 w-3" /> {t('assets:table.platform')}
-                    </Label>
-                    <p className="text-sm mt-1">{asset.platform}</p>
-                  </div>
-                )}
-                {((asset.domains && asset.domains.length > 0) || asset.domain_id) && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      {asset.domains && asset.domains.length > 1 ? t('assets:detail.domains') : t('common:labels.domain')}
-                    </Label>
-                    <div className="mt-1">
-                      <DomainBadgeList
-                        domains={asset.domains}
-                        domainIds={asset.domain_id ? [asset.domain_id] : []}
-                        primaryDomainId={asset.primary_domain_id ?? asset.domain_id}
-                        onDomainClick={(id) => navigate(`/settings/data-domains/${id}`)}
+                  {/* Linked Business Concepts */}
+                  {(semanticLinks.length > 0 || canEditSemanticLinks) && (
+                    <div className={classes.section}>
+                      <h3 className={classes.sectionTitle}>{t('assets:detail.linkedConcepts')}</h3>
+                      <LinkedConceptChips
+                        links={semanticLinks}
+                        onRemove={canEditSemanticLinks ? removeSemanticLink : undefined}
+                        trailing={canEditSemanticLinks ? (
+                          <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add')}</Button>
+                        ) : undefined}
                       />
                     </div>
-                  </div>
-                )}
-                {asset.created_by && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <User className="h-3 w-3" /> {t('common:labels.createdBy')}
-                    </Label>
-                    <p className="text-sm mt-1">{asset.created_by}</p>
-                  </div>
-                )}
-                <div>
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> {t('common:labels.created')}
-                  </Label>
-                  <div className="text-sm mt-1">
-                    <RelativeDate date={asset.created_at} />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> {t('common:labels.updated')}
-                  </Label>
-                  <div className="text-sm mt-1">
-                    <RelativeDate date={asset.updated_at} />
-                  </div>
-                </div>
-              </div>
+                  )}
+                </Pane>
 
-              {/* Tags */}
-              {asset.tags && asset.tags.length > 0 && (
-                <>
-                  <Separator className="my-4" />
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
-                      <Tag className="h-3 w-3" /> {t('common:labels.tags')}
-                    </Label>
-                    <div className="flex flex-wrap gap-1">
-                      {asset.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Linked Business Concepts */}
-              {(semanticLinks.length > 0 || canEditSemanticLinks) && (
-                <>
-                  <Separator className="my-4" />
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">{t('assets:detail.linkedConcepts')}</Label>
-                    <LinkedConceptChips
-                      links={semanticLinks}
-                      onRemove={canEditSemanticLinks ? removeSemanticLink : undefined}
-                      trailing={canEditSemanticLinks ? (
-                        <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)} className="h-6 text-xs">{t('common:actions.add')}</Button>
-                      ) : undefined}
+                {/* Type-specific: BusinessTerm - Definition & Synonyms */}
+                {isBusinessTerm && properties && (
+                  <Pane title={t('assets:detail.businessDefinition')}>
+                    <DetailsGrid
+                      rows={rowsOf([
+                        properties.definition && { label: t('assets:detail.definition'), value: properties.definition },
+                        properties.synonyms && {
+                          label: t('assets:detail.synonyms'),
+                          value: (
+                            <span className={classes.chips}>
+                              {String(properties.synonyms).split(',').map((s) => (
+                                <Badge key={s.trim()} variant="secondary">{s.trim()}</Badge>
+                              ))}
+                            </span>
+                          ),
+                        },
+                        properties.examples && {
+                          label: t('assets:detail.examples'),
+                          value: <span className={classes.muted}>{properties.examples}</span>,
+                        },
+                      ])}
                     />
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                  </Pane>
+                )}
 
-          {/* Type-specific: BusinessTerm - Definition & Synonyms */}
-          {isBusinessTerm && asset.properties && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">{t('assets:detail.businessDefinition')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {asset.properties.definition && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.definition')}</Label>
-                    <p className="text-sm mt-1">{asset.properties.definition}</p>
-                  </div>
+                {/* Type-specific: LogicalEntity - Domain & Supertype */}
+                {isLogicalEntity && properties && (
+                  <Pane title={t('assets:detail.logicalModel')}>
+                    <DetailsGrid
+                      rows={rowsOf([
+                        properties.entityDomain && { label: t('common:labels.domain'), value: properties.entityDomain },
+                        properties.entitySupertype && { label: t('assets:detail.supertype'), value: properties.entitySupertype },
+                      ])}
+                    />
+                  </Pane>
                 )}
-                {asset.properties.synonyms && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.synonyms')}</Label>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {String(asset.properties.synonyms).split(',').map((s) => (
-                        <Badge key={s.trim()} variant="secondary" className="text-xs">{s.trim()}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {asset.properties.examples && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.examples')}</Label>
-                    <p className="text-sm mt-1 text-muted-foreground">{asset.properties.examples}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Type-specific: LogicalEntity - Domain & Supertype */}
-          {isLogicalEntity && asset.properties && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">{t('assets:detail.logicalModel')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {asset.properties.entityDomain && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('common:labels.domain')}</Label>
-                    <p className="text-sm mt-1">{asset.properties.entityDomain}</p>
-                  </div>
+                {/* Type-specific: Policy - Type & Enforcement */}
+                {isPolicy && properties && (
+                  <Pane title={t('assets:detail.policyDetails')}>
+                    <DetailsGrid
+                      rows={rowsOf([
+                        properties.policyType && {
+                          label: t('assets:detail.policyType'),
+                          value: <Badge variant="outline">{properties.policyType}</Badge>,
+                        },
+                        properties.enforcementLevel && {
+                          label: t('assets:detail.enforcement'),
+                          value: <Badge variant="outline">{properties.enforcementLevel}</Badge>,
+                        },
+                        properties.policyContent && {
+                          label: t('assets:detail.content'),
+                          value: <span className={classes.preWrap}>{properties.policyContent}</span>,
+                        },
+                      ])}
+                    />
+                  </Pane>
                 )}
-                {asset.properties.entitySupertype && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.supertype')}</Label>
-                    <p className="text-sm mt-1">{asset.properties.entitySupertype}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Type-specific: Policy - Type & Enforcement */}
-          {isPolicy && asset.properties && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">{t('assets:detail.policyDetails')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {asset.properties.policyType && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.policyType')}</Label>
-                    <Badge variant="outline" className="ml-2">{asset.properties.policyType}</Badge>
-                  </div>
+                {/* A Unity Catalog metric view: its fields and their concept links */}
+                {mayBeMetricView(asset) && (
+                  <AssetMetricViewCard assetId={asset.id} assetTypeName={asset.asset_type_name} />
                 )}
-                {asset.properties.enforcementLevel && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.enforcement')}</Label>
-                    <Badge variant="outline" className="ml-2">{asset.properties.enforcementLevel}</Badge>
-                  </div>
+
+                {/* Properties (non-type-specific fields) */}
+                {!isBusinessTerm && <PropertiesPane properties={properties} />}
+
+                {/* Quick relationship summary on overview */}
+                <EntityTreePanel
+                  entityType={ontologyTypeName}
+                  entityId={asset.id}
+                  title={t('assets:detail.tabs.relationships')}
+                  canEdit={canWrite}
+                  pane
+                />
+              </PaneStack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="relationships">
+              <PaneStack>
+                <div className={classes.viewToggle}>
+                  <Button
+                    variant={relViewMode === 'table' ? 'default' : 'outline'}
+                    size="icon"
+                    aria-label={t('assets:detail.tableView')}
+                    aria-pressed={relViewMode === 'table'}
+                    onClick={() => setRelViewMode('table')}
+                  >
+                    <LayoutGrid />
+                  </Button>
+                  <Button
+                    variant={relViewMode === 'graph' ? 'default' : 'outline'}
+                    size="icon"
+                    aria-label={t('assets:detail.graphView')}
+                    aria-pressed={relViewMode === 'graph'}
+                    onClick={() => setRelViewMode('graph')}
+                  >
+                    <Share2 />
+                  </Button>
+                </div>
+                {relViewMode === 'table' ? (
+                  <EntityTreePanel
+                    entityType={ontologyTypeName}
+                    entityId={asset.id}
+                    title={t('assets:detail.allRelationships')}
+                    canEdit={canWrite}
+                    pane
+                  />
+                ) : (
+                  <Pane aria-label={t('assets:detail.relationshipGraph')} flush>
+                    <BusinessLineageGraph
+                      entityType={ontologyTypeName}
+                      entityId={asset.id}
+                      entityName={asset.name}
+                      className={classes.graph}
+                      source="relationships"
+                    />
+                  </Pane>
                 )}
-                {asset.properties.policyContent && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{t('assets:detail.content')}</Label>
-                    <p className="text-sm mt-1 whitespace-pre-wrap">{asset.properties.policyContent}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+              </PaneStack>
+            </Tabs.Panel>
 
-          {/* A Unity Catalog metric view: its fields and their concept links */}
-          {mayBeMetricView(asset) && (
-            <AssetMetricViewCard assetId={asset.id} assetTypeName={asset.asset_type_name} />
-          )}
+            {showLineageTab && (
+              <Tabs.Panel value="lineage">
+                <PaneStack>
+                  <Pane aria-label={t('assets:detail.tabs.lineage')} flush>
+                    <BusinessLineageView
+                      entityType={ontologyTypeName}
+                      entityId={asset.id}
+                      className={classes.graph}
+                      bare
+                    />
+                  </Pane>
+                </PaneStack>
+              </Tabs.Panel>
+            )}
 
-          {/* Properties (non-type-specific fields) */}
-          {!isBusinessTerm && <PropertiesCard properties={asset.properties} />}
+            {(isPolicy || isBusinessTerm) && (
+              <Tabs.Panel value="impact">
+                <ImpactAnalysisPanel
+                  entityType={ontologyTypeName}
+                  entityId={asset.id}
+                  maxDepth={4}
+                />
+              </Tabs.Panel>
+            )}
+          </Tabs>
 
-          {/* Quick relationship summary on overview */}
-          <EntityTreePanel
-            entityType={ontologyTypeName}
-            entityId={asset.id}
-            title={t('assets:detail.tabs.relationships')}
-            canEdit={canWrite}
+          {/* The shared panels (Task 8), and the ratings, costs and quality panes */}
+          <OwnershipPanel objectType="asset" objectId={assetId!} canAssign={canWrite} />
+          <EntityMetadataPanel entityId={assetId!} entityType="asset" />
+          <RatingPanel
+            entityType="asset"
+            entityId={assetId!}
+            title={t('assets:detail.ratingsReviews')}
+            showDistribution
+            allowSubmit
+            pane
           />
-        </TabsContent>
-
-        <TabsContent value="relationships" className="mt-4 space-y-3">
-          <div className="flex items-center gap-1">
-            <Button
-              variant={relViewMode === 'table' ? 'default' : 'outline'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setRelViewMode('table')}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={relViewMode === 'graph' ? 'default' : 'outline'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setRelViewMode('graph')}
-            >
-              <Share2 className="h-4 w-4" />
-            </Button>
-          </div>
-          {relViewMode === 'table' ? (
-            <EntityTreePanel
-              entityType={ontologyTypeName}
-              entityId={asset.id}
-              title={t('assets:detail.allRelationships')}
-              canEdit={canWrite}
-            />
-          ) : (
-            <BusinessLineageGraph
-              entityType={ontologyTypeName}
-              entityId={asset.id}
-              entityName={asset.name}
-              className="h-[600px]"
-              source="relationships"
-            />
-          )}
-        </TabsContent>
-
-        {showLineageTab && (
-          <TabsContent value="lineage" className="mt-4">
-            <BusinessLineageView
-              entityType={ontologyTypeName}
-              entityId={asset.id}
-              className="h-[600px]"
-            />
-          </TabsContent>
-        )}
-
-        {(isPolicy || isBusinessTerm) && (
-          <TabsContent value="impact" className="mt-4">
-            <ImpactAnalysisPanel
-              entityType={ontologyTypeName}
-              entityId={asset.id}
-              maxDepth={4}
-            />
-          </TabsContent>
-        )}
-      </Tabs>
-
-      {/* Ownership Panel */}
-      <OwnershipPanel objectType="asset" objectId={assetId!} canAssign={canWrite} className="mb-6" />
-
-      {/* Metadata Panel */}
-      <EntityMetadataPanel entityId={assetId!} entityType="asset" />
-
-      {/* Ratings Panel */}
-      <RatingPanel
-        entityType="asset"
-        entityId={assetId!}
-        title={t('assets:detail.ratingsReviews')}
-        showDistribution
-        allowSubmit
-      />
-
-      {/* Costs Panel */}
-      <EntityCostsPanel entityId={assetId!} entityType="asset" />
-
-      {/* Quality Panel */}
-      <EntityQualityPanel entityId={assetId!} entityType="asset" />
+          <EntityCostsPanel entityId={assetId!} entityType="asset" pane />
+          <EntityQualityPanel entityId={assetId!} entityType="asset" pane />
+        </PaneStack>
+      </PageLayout>
 
       {/* Edit dialog */}
-      {asset && (
-        <AssetFormDialog
-          isOpen={isEditOpen}
-          onOpenChange={setIsEditOpen}
-          onSuccess={() => fetchAsset()}
-          assetTypeId={asset.asset_type_id}
-          assetTypeName={asset.asset_type_name || 'Asset'}
-          assetTypeIri={ontologyIri}
-          asset={asset}
-        />
-      )}
+      <AssetFormDialog
+        isOpen={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        onSuccess={() => fetchAsset()}
+        assetTypeId={asset.asset_type_id}
+        assetTypeName={asset.asset_type_name || 'Asset'}
+        assetTypeIri={ontologyIri}
+        asset={asset}
+      />
 
       {/* Lineage Editor */}
-      {showLineageTab && asset && (
+      {showLineageTab && (
         <LineageEditor
           isOpen={isLineageEditorOpen}
           onOpenChange={setIsLineageEditorOpen}
@@ -654,6 +579,6 @@ export default function AssetDetailView() {
         onOpenChange={setIriDialogOpen}
         onSelect={addSemanticLink}
       />
-    </div>
+    </>
   );
 }

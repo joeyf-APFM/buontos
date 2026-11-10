@@ -155,7 +155,10 @@
       "loading": "メトリックビューを読み込み中",
       "loadError": "メトリックビューの定義を読み込めませんでした。",
       "userTokenRequired": "このメトリックビューはあなた自身のアクセス権で Unity Catalog から読み取られますが、このセッションでは Databricks のサインイン情報を利用できません。"
-    }
+    },
+    "tableView": "テーブル表示",
+    "graphView": "グラフ表示",
+    "relationshipGraph": "関係グラフ"
   },
   "explorer": {
     "title": "アセットエクスプローラー",

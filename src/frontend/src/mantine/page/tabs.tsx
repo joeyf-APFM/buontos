@@ -18,14 +18,16 @@ const withKit = (own?: TabsClassNames): TabsClassNames => {
  * Mantine Tabs in the Task 7 tab look (components/ui/tabs.tsx), for pages
  * moving off ui/tabs. Always unstyled, so only page.module.css draws them; a
  * caller's classNames add to the kit's. Arrow keys move between tabs and
- * activate them (Mantine's defaults).
+ * activate them (Mantine's defaults). Inactive panels are unmounted, as with
+ * Radix Tabs (Mantine keeps them mounted by default); pass keepMounted to
+ * keep them.
  */
 export function Tabs({ classNames, ...props }: TabsProps) {
   const merged: TabsProps['classNames'] =
     typeof classNames === 'function'
       ? (theme, p, ctx) => withKit(classNames(theme, p, ctx) as TabsClassNames)
       : withKit(classNames as TabsClassNames | undefined);
-  return <MantineTabs {...props} classNames={merged} unstyled />;
+  return <MantineTabs keepMounted={false} {...props} classNames={merged} unstyled />;
 }
 
 Tabs.List = MantineTabs.List;

@@ -583,7 +583,8 @@
     "summary": "Auswirkungszusammenfassung",
     "affectedCount_one": "{{count}} betroffene Entität",
     "affectedCount_other": "{{count}} betroffene Entitäten",
-    "noDownstream": "Keine nachgelagerten Entitäten von Änderungen an diesem {{type}} betroffen."
+    "noDownstream": "Keine nachgelagerten Entitäten von Änderungen an diesem {{type}} betroffen.",
+    "graph": "Auswirkungsgraph"
   },
   "lineageEditor": {
     "reviewStep": "Prüfen & Speichern",

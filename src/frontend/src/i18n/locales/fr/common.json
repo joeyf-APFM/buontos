@@ -583,7 +583,8 @@
     "summary": "Résumé d'impact",
     "affectedCount_one": "{{count}} entité affectée",
     "affectedCount_other": "{{count}} entités affectées",
-    "noDownstream": "Aucune entité en aval affectée par les modifications de ce/cette {{type}}."
+    "noDownstream": "Aucune entité en aval affectée par les modifications de ce/cette {{type}}.",
+    "graph": "Graphe d'impact"
   },
   "lineageEditor": {
     "reviewStep": "Vérifier et enregistrer",

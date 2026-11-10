@@ -99,6 +99,13 @@ test('header: one line with the 16px display-font title', async ({ page }) => {
   const bar = layout.getByRole('textbox', { name: 'Filter' }).locator('..');
   expect((await style(bar, ['border-bottom-width', 'border-bottom-color']))).toEqual({ 'border-bottom-width': '1px', 'border-bottom-color': BORDER });
   expect((await style(bar.getByText('2 assets'), ['color']))['color']).toBe('rgb(130, 141, 150)');
+
+  // Under a breadcrumb the header's top padding is 4px; as the page's first
+  // child (no breadcrumb, the lone layout) it takes the breadcrumb's 10px
+  expect((await style(header, ['padding-top']))['padding-top']).toBe('4px');
+  const lone = page.getByTestId('lone').getByRole('heading', { level: 1 }).locator('..');
+  expect(await lone.evaluate((el) => el.previousElementSibling)).toBeNull();
+  expect((await style(lone, ['padding-top', 'padding-bottom']))).toEqual({ 'padding-top': '10px', 'padding-bottom': '8px' });
 });
 
 test('details grid: the 86px label column in text-secondary, at the explorer density', async ({ page }) => {

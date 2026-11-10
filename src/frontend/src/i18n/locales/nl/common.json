@@ -587,7 +587,8 @@
     "summary": "Impactsamenvatting",
     "affectedCount_one": "{{count}} beïnvloede entiteit",
     "affectedCount_other": "{{count}} beïnvloede entiteiten",
-    "noDownstream": "Geen downstream-entiteiten beïnvloed door wijzigingen aan deze {{type}}."
+    "noDownstream": "Geen downstream-entiteiten beïnvloed door wijzigingen aan deze {{type}}.",
+    "graph": "Impactgrafiek"
   },
   "lineageEditor": {
     "reviewStep": "Controleren & Opslaan",

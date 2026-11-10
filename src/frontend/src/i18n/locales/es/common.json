@@ -583,7 +583,8 @@
     "summary": "Resumen de impacto",
     "affectedCount_one": "{{count}} entidad afectada",
     "affectedCount_other": "{{count}} entidades afectadas",
-    "noDownstream": "Ninguna entidad descendente afectada por los cambios en este {{type}}."
+    "noDownstream": "Ninguna entidad descendente afectada por los cambios en este {{type}}.",
+    "graph": "Grafo de impacto"
   },
   "lineageEditor": {
     "reviewStep": "Revisar y guardar",

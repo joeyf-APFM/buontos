@@ -7,7 +7,7 @@ import { matchPath } from 'react-router-dom';
  * detail route, '/data-catalog/*' for a route and everything under it. Each
  * restyle wave adds its pages' routes here.
  */
-export const FULL_BLEED_ROUTES: readonly string[] = ['/assets'];
+export const FULL_BLEED_ROUTES: readonly string[] = ['/assets', '/assets/:assetId'];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>
   routes.some((path) => matchPath({ path, caseSensitive: true, end: true }, pathname) !== null);

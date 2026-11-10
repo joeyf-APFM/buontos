@@ -111,6 +111,8 @@ export interface BusinessLineageViewProps {
   maxDepth?: number;
   showToolbar?: boolean;
   showMinimap?: boolean;
+  /** No frame of its own (border and corners), inside a page-kit Pane that draws one. */
+  bare?: boolean;
 }
 
 // ─── Inner component (needs ReactFlowProvider ancestor) ─────────────────
@@ -123,6 +125,7 @@ function BusinessLineageViewInner({
   maxDepth: pinnedMaxDepth,
   showToolbar = true,
   showMinimap = true,
+  bare = false,
 }: BusinessLineageViewProps) {
   const navigate = useNavigate();
   const { t } = useTranslation(['data-catalog', 'common']);
@@ -415,7 +418,7 @@ function BusinessLineageViewInner({
   }
 
   return (
-    <div className={cn('flex flex-col rounded-md border bg-background', className)}>
+    <div className={cn('flex flex-col bg-background', !bare && 'rounded-md border', className)}>
       {showToolbar && (
         <LineageToolbar
           direction={direction}

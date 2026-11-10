@@ -8,7 +8,7 @@ import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 import ExplorerPage from '@/mantine/asset-explorer/explorer-page';
 import { mockBackend } from '@/mantine/asset-explorer/test-fixtures';
 import panel from '@/components/common/panel.module.css';
-import { DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs } from '.';
+import { DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, PaneStack, Tabs } from '.';
 import classes from './page.module.css';
 
 vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
@@ -121,6 +121,52 @@ describe('page kit', () => {
     await user.keyboard('{ArrowLeft}');
     expect(details).toHaveAttribute('aria-selected', 'true');
   });
+
+  it('tabs unmount inactive panels, as Radix Tabs do, unless kept mounted', () => {
+    const { unmount } = renderWithMantine(
+      <Tabs defaultValue="details">
+        <Tabs.List>
+          <Tabs.Tab value="details">Details</Tabs.Tab>
+          <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="details">Details panel</Tabs.Panel>
+        <Tabs.Panel value="lineage">Lineage panel</Tabs.Panel>
+      </Tabs>,
+    );
+    expect(screen.getByText('Details panel')).toBeInTheDocument();
+    expect(screen.queryByText('Lineage panel')).toBeNull();
+    unmount();
+
+    renderWithMantine(
+      <Tabs defaultValue="details" keepMounted>
+        <Tabs.List>
+          <Tabs.Tab value="details">Details</Tabs.Tab>
+          <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="details">Details panel</Tabs.Panel>
+        <Tabs.Panel value="lineage">Lineage panel</Tabs.Panel>
+      </Tabs>,
+    );
+    expect(screen.getByText('Lineage panel')).toBeInTheDocument();
+  });
+});
+
+it('pane stack lays panes out in one column, each at its own height', () => {
+  renderWithMantine(
+    <PageLayout header={<PageHeader title="Orders" />}>
+      <PaneStack>
+        <Pane title="Details">details</Pane>
+        <Pane title="Owners">owners</Pane>
+      </PaneStack>
+    </PageLayout>,
+  );
+  const details = screen.getByRole('region', { name: 'Details' });
+  const owners = screen.getByRole('region', { name: 'Owners' });
+  const stack = details.parentElement!;
+  expect(stack).toHaveClass(classes.stack);
+  expect(owners.parentElement).toBe(stack);
+  // The stack is the content row's one child, so it takes the row's width
+  expect(stack.parentElement).toHaveClass(classes.content);
 });
 
 it('tabs keep the kit look with a caller’s classNames and unstyled=false', () => {

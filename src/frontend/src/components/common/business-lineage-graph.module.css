@@ -1,0 +1,88 @@
+/*
+ * The relationship graph's frame (Task 11). Its page draws the border (a
+ * page-kit Pane, flush), so the graph has none: a toolbar ruled off like a
+ * pane head, then the Cytoscape canvas.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--aura-surface);
+}
+
+/* The default sizes, when the caller gives none */
+.graphHeight {
+  height: 500px;
+}
+
+.stateHeight {
+  height: 256px;
+}
+
+.toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 6px 4px 10px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.layout {
+  width: 160px;
+}
+
+.canvas {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+/* Loading, error and empty */
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.column {
+  flex-direction: column;
+}
+
+.muted {
+  margin: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--aura-critical);
+}
+
+.errorIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--aura-critical);
+}
+
+.spin {
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
