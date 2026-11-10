@@ -24,16 +24,18 @@
   color: var(--aura-text-navy);
 }
 
+/* The summary: Mantine's Modal body, so it describes the dialog */
+.description {
+  padding: 4px 16px 0;
+  color: var(--aura-text-secondary);
+}
+
+/* The tree, the run and the footer, after the summary */
 .body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 4px 16px 16px;
-}
-
-.description {
-  margin: 0;
-  color: var(--aura-text-secondary);
+  padding: 12px 16px 16px;
 }
 
 /* The tree, scrolling inside a 1px frame */

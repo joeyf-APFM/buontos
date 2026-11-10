@@ -16,6 +16,11 @@ export interface PageLayoutProps {
    * natural height and the panes sit in a 14px margin with full borders.
    */
   fullBleed?: boolean;
+  /**
+   * Below this width the panes stack in one column, sharing a top border
+   * instead of a side one: 'lg' is under 1024px, Tailwind's lg. Off by default.
+   */
+  stackBelow?: 'lg';
   /** The panes, side by side. */
   children: ReactNode;
 }
@@ -26,14 +31,16 @@ export interface PageLayoutProps {
  * FULL_BLEED_ROUTES (mantine/shell/full-bleed.ts), so the layout's padding and
  * breadcrumbs give way to these.
  */
-export function PageLayout({ breadcrumb, header, filters, aside, fullBleed = false, children }: PageLayoutProps) {
+export function PageLayout({ breadcrumb, header, filters, aside, fullBleed = false, stackBelow, children }: PageLayoutProps) {
   return (
     <div className={classes.page} data-full-bleed={fullBleed || undefined}>
       <div className={classes.main}>
         {breadcrumb && <div className={classes.crumb}>{breadcrumb}</div>}
         {header}
         {filters}
-        <div className={classes.content}>{children}</div>
+        <div className={classes.content} data-stack-below={stackBelow}>
+          {children}
+        </div>
       </div>
       {aside && <div className={classes.aside}>{aside}</div>}
     </div>

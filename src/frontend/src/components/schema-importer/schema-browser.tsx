@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, useId, useRef, useMemo, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronRight,
@@ -18,7 +18,7 @@ import {
   Search,
   AlertCircle,
 } from 'lucide-react';
-import { Loader, TextInput } from '@mantine/core';
+import { Alert as MantineAlert, Collapse, Loader, TextInput } from '@mantine/core';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,6 +31,7 @@ import {
 import { useApi } from '@/hooks/use-api';
 import { parseSearchQuery, matchesSegment } from '@/lib/uc-search-parser';
 import type { BrowseNode, BrowseResponse } from '@/types/schema-import';
+import { AURA } from '@/mantine/theme';
 import classes from './schema-browser.module.css';
 
 interface TreeNode extends BrowseNode {
@@ -130,6 +131,9 @@ export default function SchemaBrowser({
   const [rootTruncatedAt, setRootTruncatedAt] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [highlightedPath, setHighlightedPath] = useState<string | null>(null);
+  // The pane-mode error's "Show details"
+  const [errorDetailOpen, setErrorDetailOpen] = useState(false);
+  const errorDetailId = useId();
   const apiGetRef = useRef(apiGet);
   apiGetRef.current = apiGet;
   const rootsRef = useRef(roots);
@@ -177,6 +181,7 @@ export default function SchemaBrowser({
     let cancelled = false;
     setIsInitialLoading(true);
     setBrowseError(null);
+    setErrorDetailOpen(false);
     setBrowseErrorDetail(null);
     setSearch('');
     setHighlightedPath(null);
@@ -531,21 +536,55 @@ export default function SchemaBrowser({
   }
 
   if (roots.length === 0) {
+    if (browseError && pane) {
+      // A Mantine Alert in the critical tone, with the detail in a Collapse
+      return (
+        <div className={classes.errorState}>
+          <MantineAlert
+            color={AURA.critical}
+            variant="light"
+            icon={<AlertCircle />}
+            title={t('database-schema:browser.connectionError')}
+            classNames={{ title: classes.errorTitle, message: classes.errorMessage }}
+          >
+            <p className={classes.errorText}>{browseError}</p>
+            {browseErrorDetail && (
+              <>
+                <button
+                  type="button"
+                  className={classes.detailToggle}
+                  aria-expanded={errorDetailOpen}
+                  aria-controls={errorDetailId}
+                  onClick={() => setErrorDetailOpen((open) => !open)}
+                >
+                  {t('database-schema:browser.showDetails')}
+                </button>
+                <Collapse in={errorDetailOpen}>
+                  <pre id={errorDetailId} className={classes.errorDetail}>
+                    {browseErrorDetail}
+                  </pre>
+                </Collapse>
+              </>
+            )}
+          </MantineAlert>
+        </div>
+      );
+    }
     if (browseError) {
       return (
-        <div className={cls(classes.errorState, 'flex items-center justify-center h-64 px-4')}>
+        <div className="flex items-center justify-center h-64 px-4">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>{t('database-schema:browser.connectionError')}</AlertTitle>
-            <AlertDescription className={pane ? undefined : 'space-y-2'}>
+            <AlertDescription className="space-y-2">
               <p>{browseError}</p>
               {browseErrorDetail && (
                 <Collapsible>
-                  <CollapsibleTrigger className={cls(classes.detailToggle, 'text-xs underline cursor-pointer')}>
+                  <CollapsibleTrigger className="text-xs underline cursor-pointer">
                     {t('database-schema:browser.showDetails')}
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <pre className={cls(classes.errorDetail, 'text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap break-all')}>
+                    <pre className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap break-all">
                       {browseErrorDetail}
                     </pre>
                   </CollapsibleContent>

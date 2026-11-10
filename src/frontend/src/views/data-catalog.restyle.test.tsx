@@ -150,6 +150,8 @@ describe('data catalog on the page kit', () => {
     const user = userEvent.setup();
     renderPage();
     await findGrid();
+    // Past the search debounce, so the filter click below is the last request
+    await settled();
 
     // Filters: type, system, catalog, schema (Mantine Selects), and search
     for (const value of ['All Types', 'All Systems', 'All Catalogs', 'All Schemas']) {
@@ -187,6 +189,36 @@ describe('data catalog on the page kit', () => {
     // Refresh clears the search and refetches
     await user.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(screen.getByPlaceholderText('Search columns...')).toHaveValue(''));
+  });
+
+  it('data catalog keeps a filter picked straight after load, whatever order the answers arrive in', async () => {
+    // The unfiltered answers (the initial load) arrive late; the filtered one at once
+    const base = fetchMock.getMockImplementation()!;
+    const filtered = { ...COLUMNS[0], column_name: 'only_in_main', description: 'Filtered row' };
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname === '/api/data-catalog/columns') {
+        if (url.searchParams.get('catalog') === 'main') {
+          return json({ table_count: 1, column_count: 1, columns: [filtered], offset: 0, limit: 50, has_more: false });
+        }
+        await new Promise((r) => setTimeout(r, 450));
+      }
+      return base(input);
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    // Pick a catalog within the search debounce (300ms) of mount
+    const field = await screen.findByDisplayValue('All Catalogs');
+    await user.click(field);
+    const list = await waitFor(() => document.getElementById(field.getAttribute('aria-controls')!)!);
+    await user.click(within(list).getByRole('option', { name: 'main', hidden: true }));
+
+    // Once every answer is in, the last request and the rows are the filtered ones
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(lastColumnCall().searchParams.get('catalog')).toBe('main');
+    expect((await screen.findAllByText('only_in_main')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Order key')).toBeNull();
   });
 
   it('data catalog sends the type, system and schema filters to the server', async () => {

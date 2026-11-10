@@ -175,6 +175,21 @@ span.label {
   padding: 12px;
 }
 
+.errorTitle {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The message in body text: the critical tone stays on the icon, border and title */
+.errorMessage {
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.errorText {
+  margin: 0 0 4px;
+}
+
 .errorDetail {
   margin: 6px 0 0;
   padding: 6px 8px;

@@ -13,13 +13,27 @@ export interface PaneProps {
   'aria-label'?: string;
   /** Added to the pane's own class, such as a caller's margin. */
   className?: string;
+  /**
+   * Puts the whole title in the heading's `title` attribute, for a title that
+   * can be too long for the head (it keeps to one line). Off by default, so
+   * a short title gets no tooltip repeating it.
+   */
+  titleTooltip?: boolean;
 }
 
 /**
  * A region of the page with a 1px border and no shadow. Panes side by side
  * share one border and drop their corners (page.module.css).
  */
-export function Pane({ title, actions, flush = false, children, 'aria-label': ariaLabel, className }: PaneProps) {
+export function Pane({
+  title,
+  actions,
+  flush = false,
+  children,
+  'aria-label': ariaLabel,
+  className,
+  titleTooltip = false,
+}: PaneProps) {
   const titleId = useId();
   const head = title || actions;
   return (
@@ -31,8 +45,7 @@ export function Pane({ title, actions, flush = false, children, 'aria-label': ar
       {head && (
         <div className={classes.paneHead}>
           {title && (
-            // A long title keeps to one line; its title shows it in full
-            <h2 id={titleId} className={classes.paneTitle} title={title}>
+            <h2 id={titleId} className={classes.paneTitle} title={titleTooltip ? title : undefined}>
               {title}
             </h2>
           )}

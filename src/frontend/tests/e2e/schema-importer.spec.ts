@@ -277,6 +277,78 @@ test.describe('its own route', () => {
   });
 });
 
+test.describe('below the lg width (1024px)', () => {
+  for (const route of ['/schema-importer', '/concepts/import']) {
+    test(`${route}: the panes stack, options above the resources, as the old grid did`, async ({ page }) => {
+      await setUp(page);
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.goto(route);
+      const main = page.locator('main');
+      await expect(main.getByText('finance', { exact: true })).toBeVisible();
+      const options = await box(main.getByRole('region', { name: 'Import options' }));
+      const resourcesPane = main.getByRole('region', { name: 'Workspace catalog — Resources' });
+      const resources = await box(resourcesPane);
+      // One column: the same width, the resources under the options
+      expect(Math.abs(options.x - resources.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(options.width - resources.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(resources.y - (options.y + options.height))).toBeLessThanOrEqual(1);
+      // One border between them: full bleed draws only that one, on the
+      // resources' top; framed panes share the options' bottom border
+      const fullBleed = route === '/schema-importer';
+      expect(await style(resourcesPane, ['border-top-width', 'border-left-width'])).toEqual({
+        'border-top-width': fullBleed ? '1px' : '0px', 'border-left-width': fullBleed ? '0px' : '1px',
+      });
+      // The tree still gets room
+      expect(resources.height).toBeGreaterThanOrEqual(360);
+      await expect(main.getByText('orders', { exact: true })).toHaveCount(0);
+    });
+  }
+
+  test('a kit page that does not ask to stack keeps its row (the Data Catalog)', async ({ page }) => {
+    await setUp(page);
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.goto('/data-catalog');
+    const pane = page.locator('main').getByRole('region', { name: 'Catalog columns' });
+    await expect(pane).toBeVisible();
+    const content = pane.locator('xpath=..');
+    expect(await content.evaluate((el) => [el.hasAttribute('data-stack-below'), getComputedStyle(el).flexDirection])).toEqual([
+      false, 'row',
+    ]);
+  });
+});
+
+test.describe('linking to an existing asset', () => {
+  test('after "Use selected", focus stays in the preview: on the row\'s Unlink, and Tab stays inside', async ({ page }) => {
+    await setUp(page);
+    await page.goto('/schema-importer');
+    await expect(page.locator('main').getByText('finance', { exact: true })).toBeVisible();
+    await selectOrders(page);
+    await page.getByRole('button', { name: 'Preview (1 selected)' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Import Preview' });
+    await expect(dialog.getByText('orders', { exact: true })).toBeVisible();
+
+    // Open the selector from the keyboard, as a keyboard user would
+    await dialog.locator('button:has(svg.lucide-link-2)').first().focus();
+    await page.keyboard.press('Enter');
+    const selector = page.getByRole('dialog', { name: 'Link to existing asset' });
+    await selector.getByPlaceholder('Search assets by name...').fill('ma');
+    await selector.getByRole('button', { name: /main\.sales\.orders/ }).first().click();
+    await selector.getByRole('button', { name: 'Use selected' }).click();
+    await expect(selector).toHaveCount(0);
+    await expect(dialog.getByText('linked', { exact: true })).toBeVisible();
+
+    const inModal = () => page.evaluate(() => !!document.activeElement?.closest('.mantine-Modal-content'));
+    await expect.poll(inModal).toBe(true);
+    // Focus is on the row's Unlink button, which replaced Link
+    expect(await page.evaluate(() => !!document.activeElement?.querySelector('svg.lucide-unlink'))).toBe(true);
+    await page.keyboard.press('Tab');
+    expect(await inModal()).toBe(true);
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    expect(await inModal()).toBe(true);
+  });
+});
+
 test.describe('inside the Concepts layout', () => {
   test('keeps the layout padding and breadcrumb, with framed panes under its tabs', async ({ page }) => {
     await setUp(page);

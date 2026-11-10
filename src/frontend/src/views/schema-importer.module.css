@@ -149,3 +149,22 @@ div.row {
   flex: none;
   height: 600px;
 }
+
+/* Below lg the panes stack (data-stack-below, page.module.css): the options
+   take the full width and their own height, the resources a fixed height for
+   the tree to scroll in */
+@media (max-width: 1023.98px) {
+  section.optionsPane {
+    flex: none;
+    width: auto;
+  }
+
+  section.resourcesPane {
+    flex: none;
+    height: 480px;
+  }
+
+  div.row {
+    height: auto;
+  }
+}

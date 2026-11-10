@@ -179,6 +179,26 @@
   border-left-width: 1px;
 }
 
+/* PageLayout's stackBelow="lg" (or a content row with data-stack-below="lg"):
+   under 1024px the panes stack, sharing a top border; the column scrolls if
+   it is taller than a full-bleed page */
+@media (max-width: 1023.98px) {
+  .content[data-stack-below='lg'] {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .content[data-stack-below='lg'] > .pane + .pane {
+    border-left-width: 1px;
+    border-top-width: 0;
+  }
+
+  .page[data-full-bleed] .content[data-stack-below='lg'] > .pane + .pane {
+    border-left-width: 0;
+    border-top-width: 1px;
+  }
+}
+
 .paneHead {
   flex: none;
   display: flex;

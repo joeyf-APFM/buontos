@@ -11,7 +11,7 @@
  * - Click-through to table/contract details
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -134,8 +134,13 @@ const DataCatalog: React.FC = () => {
     return params;
   }, [selectedAssetType, selectedSystem, selectedCatalog, selectedSchema]);
 
+  // Each columns request takes the next id; an answer for an older id is
+  // dropped, so a slow earlier request never overwrites a newer one
+  const requestId = useRef(0);
+
   // Fetch columns (paginated)
   const fetchColumns = useCallback(async (currentOffset: number) => {
+    const id = ++requestId.current;
     setIsLoading(true);
     setError(null);
 
@@ -151,12 +156,14 @@ const DataCatalog: React.FC = () => {
       }
 
       const data: DataDictionaryResponse = await response.json();
+      if (id !== requestId.current) return;
       setColumns(data.columns);
       setTableCount(data.table_count);
       setTotalCount(data.column_count);
       setHasMore(data.has_more);
       setOffset(data.offset);
     } catch (err) {
+      if (id !== requestId.current) return;
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
       toast({
@@ -165,7 +172,7 @@ const DataCatalog: React.FC = () => {
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      if (id === requestId.current) setIsLoading(false);
     }
   }, [buildFilterParams, pageSize, t, toast]);
 
@@ -176,6 +183,7 @@ const DataCatalog: React.FC = () => {
       return;
     }
 
+    const id = ++requestId.current;
     setIsSearching(true);
 
     try {
@@ -188,6 +196,7 @@ const DataCatalog: React.FC = () => {
       if (!response.ok) throw new Error('Search failed');
 
       const data: ColumnSearchResponse = await response.json();
+      if (id !== requestId.current) return;
       setColumns(data.columns);
       setTotalCount(data.total_count);
       setHasMore(data.has_more);
@@ -195,8 +204,10 @@ const DataCatalog: React.FC = () => {
     } catch (err) {
       console.error('Search error:', err);
     } finally {
-      setIsSearching(false);
-      setIsLoading(false);
+      if (id === requestId.current) {
+        setIsSearching(false);
+        setIsLoading(false);
+      }
     }
   }, [buildFilterParams, fetchColumns, pageSize]);
 
@@ -222,19 +233,29 @@ const DataCatalog: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAssetType, selectedSystem, selectedCatalog, selectedSchema, pageSize]);
 
-  // Debounced search
+  // The latest fetchers, for the debounce timer: the ones its effect
+  // captured would send the filters of the render that typed
+  const latest = useRef({ fetchColumns, searchColumns });
   useEffect(() => {
+    latest.current = { fetchColumns, searchColumns };
+  });
+
+  // Debounced search: only when the query changes (the initial load and the
+  // filter effect already fetch on mount)
+  const debouncedQuery = useRef(searchQuery);
+  useEffect(() => {
+    if (searchQuery === debouncedQuery.current) return;
+    debouncedQuery.current = searchQuery;
     const timer = setTimeout(() => {
       setOffset(0);
       if (searchQuery.trim()) {
-        searchColumns(searchQuery, 0);
+        latest.current.searchColumns(searchQuery, 0);
       } else {
-        fetchColumns(0);
+        latest.current.fetchColumns(0);
       }
     }, 300);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   // Pagination handlers

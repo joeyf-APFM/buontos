@@ -177,17 +177,41 @@ describe('page kit', () => {
   });
 });
 
-it('a pane title shows its whole text in a title, as the page title does', () => {
+it('a pane title gets a title attribute only when the caller asks (titleTooltip)', () => {
   const long = 'Workspace catalog with a very long name that will not fit in the pane head — Resources';
   renderWithMantine(
     <PageLayout header={<PageHeader title="Orders" />}>
-      <Pane title={long}>body</Pane>
+      <Pane title="Details">details</Pane>
+      <Pane title={long} titleTooltip>body</Pane>
     </PageLayout>,
   );
+  // By default no tooltip repeats the title
+  expect(screen.getByRole('heading', { level: 2, name: 'Details' })).not.toHaveAttribute('title');
   const heading = screen.getByRole('heading', { level: 2, name: long });
   expect(heading).toHaveAttribute('title', long);
   // The pane is still named by its heading's text
   expect(screen.getByRole('region', { name: long })).toContainElement(heading);
+});
+
+it('page layout stacks its panes below lg only when asked (stackBelow)', () => {
+  const { unmount } = renderWithMantine(
+    <PageLayout header={<PageHeader title="Orders" />}>
+      <Pane title="A">a</Pane>
+      <Pane title="B">b</Pane>
+    </PageLayout>,
+  );
+  // Off by default: the pages before Task 13 keep their row at every width
+  expect(screen.getByRole('region', { name: 'A' }).parentElement).not.toHaveAttribute('data-stack-below');
+  unmount();
+  renderWithMantine(
+    <PageLayout header={<PageHeader title="Orders" />} stackBelow="lg">
+      <Pane title="A">a</Pane>
+      <Pane title="B">b</Pane>
+    </PageLayout>,
+  );
+  const row = screen.getByRole('region', { name: 'A' }).parentElement!;
+  expect(row).toHaveClass(classes.content);
+  expect(row).toHaveAttribute('data-stack-below', 'lg');
 });
 
 it('pane stack lays panes out in one column, each at its own height', () => {

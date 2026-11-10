@@ -210,6 +210,9 @@ export default function SchemaImporterView() {
         )
       }
       flush
+      // The connection's name can be too long for the head
+      titleTooltip
+      className={classes.resourcesPane}
     >
       <div className={classes.resourcesBody}>
         <p className={classes.paneHint}>{t('database-schema:importer.resourcesDescription')}</p>
@@ -263,6 +266,7 @@ export default function SchemaImporterView() {
       <>
         <PageLayout
           fullBleed
+          stackBelow="lg"
           breadcrumb={<Breadcrumb items={[{ label: title }]} />}
           header={<>{header}{intro}</>}
         >
@@ -278,7 +282,8 @@ export default function SchemaImporterView() {
     <div className={classes.embedded}>
       {header}
       {intro}
-      <div className={classes.row}>
+      {/* The kit's content row (composed), stacking below lg like PageLayout's stackBelow */}
+      <div className={classes.row} data-stack-below="lg">
         {options}
         {resources}
       </div>

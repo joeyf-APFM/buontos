@@ -15,6 +15,7 @@ import kit from '@/mantine/page/page.module.css';
 import explorer from '@/mantine/asset-explorer/explorer.module.css';
 import SchemaBrowser from '@/components/schema-importer/schema-browser';
 import browserClasses from '@/components/schema-importer/schema-browser.module.css';
+import dialogClasses from '@/components/schema-importer/import-preview-dialog.module.css';
 import SchemaImporterView from './schema-importer';
 
 // The store fetches its settings when it loads, before fetch is mocked
@@ -242,16 +243,29 @@ describe('schema importer on the page kit', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Import Preview' });
     await within(dialog).findByText('orders');
     expect(within(dialog).getByText('3 to create, 0 already exist')).toBeInTheDocument();
+    // The summary describes the dialog, as Radix's DialogDescription did
+    expect(dialog).toHaveAccessibleDescription('3 to create, 0 already exist');
     expect(calls('/api/schema-import/preview')).toEqual([
       { connection_id: 'c1', selected_paths: ['main.sales.orders'], depth: 'full_recursive', dry_run: true },
     ]);
 
-    // Ancestors: a checkbox and a link button each; the collapse buttons for parents
+    // Ancestors (main, sales): a checkbox, a collapse toggle and a link
+    // button each; the table (orders) none. Those are the dialog's only
+    // unnamed buttons (R16).
     expect(within(dialog).getAllByRole('checkbox')).toHaveLength(2);
-    const links = within(dialog).getAllByRole('button', { name: '' });
-    expect(links.length).toBeGreaterThanOrEqual(4);
+    expect(within(dialog).getAllByRole('button', { name: '' })).toHaveLength(4);
+    for (const name of ['main', 'sales']) {
+      const row = within(dialog).getByText(name, { exact: true }).closest('[data-tree-row]') as HTMLElement;
+      const [toggle, link, ...rest] = within(row).getAllByRole('button');
+      expect(rest).toEqual([]);
+      expect(toggle).toHaveClass(dialogClasses.toggle);
+      expect(link).toHaveClass(dialogClasses.iconButton);
+      expect(link.querySelector('svg.lucide-link-2')).not.toBeNull();
+    }
+    const ordersRow = within(dialog).getByText('orders', { exact: true }).closest('[data-tree-row]') as HTMLElement;
+    expect(within(ordersRow).queryAllByRole('button')).toEqual([]);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeEnabled();
-    const importButton = within(dialog).getByRole('button', { name: 'Import 3 assets' });
+    expect(within(dialog).getByRole('button', { name: 'Import 3 assets' })).toBeEnabled();
     // Below the background threshold there is no Run in background
     expect(within(dialog).queryByRole('button', { name: 'Run in background' })).toBeNull();
 
@@ -260,8 +274,10 @@ describe('schema importer on the page kit', () => {
     await user.click(schemaCheckbox);
     expect(within(dialog).getByText('2 to create, 0 already exist')).toBeInTheDocument();
     expect(within(dialog).getByText('skip')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Import 2 assets' }));
-    expect(importButton).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Import 3 assets' })).toBeNull();
+    const importTwo = within(dialog).getByRole('button', { name: 'Import 2 assets' });
+    expect(importTwo).toBeEnabled();
+    await user.click(importTwo);
 
     // Step 5: the result, with only Close
     const results = await screen.findByRole('dialog', { name: 'Import Results' });
@@ -415,5 +431,30 @@ describe('schema importer on the page kit', () => {
     expect(rowOf('main')).not.toHaveClass(explorer.treeRow);
     expect(container.querySelector(`.${browserClasses.browser}`)).toBeNull();
     expect(within(rowOf('main')).getByRole('checkbox')).toBeChecked();
+  });
+
+  it('the schema browser shows a connection error in a Mantine Alert, its detail in a Collapse', async () => {
+    fetchMock.mockImplementation(async () =>
+      json({ connection_id: 'c1', path: null, nodes: [], error: 'Cannot reach the workspace', error_detail: 'Traceback: timeout' }),
+    );
+    const user = userEvent.setup();
+    renderWithMantine(<SchemaBrowser pane connectionId="c1" selectedPaths={new Set()} onSelectionChange={() => {}} />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveClass('mantine-Alert-root');
+    expect(within(alert).getByText('Connection Error')).toBeInTheDocument();
+    expect(within(alert).getByText('Cannot reach the workspace')).toBeInTheDocument();
+    // No shadcn or Radix pieces in pane mode
+    expect(alert.closest(`.${browserClasses.errorState}`)).not.toBeNull();
+    expect(document.querySelector('[data-state][data-radix-collection-item], [data-state="closed"]')).toBeNull();
+
+    const toggle = within(alert).getByRole('button', { name: 'Show details' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const detail = within(alert).getByText('Traceback: timeout');
+    expect(toggle).toHaveAttribute('aria-controls', detail.id);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(detail).toBeVisible());
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 });
