@@ -475,7 +475,11 @@
       "descriptionLabel": "Descripción (opcional)",
       "descriptionPlaceholder": "Describe el propósito de este esquema de conceptos de ontología...",
       "importSummary": "Se importarán {{classes}} clases y {{properties}} propiedades."
-    }
+    },
+    "runPane": "Ejecución",
+    "results": "Resultados",
+    "connectionsFailed": "No se pudieron cargar las conexiones.",
+    "runsFailed": "No se pudieron cargar las ejecuciones recientes."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Incluir otros esquemas de conceptos",

@@ -475,7 +475,11 @@
       "descriptionLabel": "説明（任意）",
       "descriptionPlaceholder": "このオントロジーのコンセプトスキームの目的を説明してください...",
       "importSummary": "クラス {{classes}} 件とプロパティ {{properties}} 件がインポートされます。"
-    }
+    },
+    "runPane": "実行",
+    "results": "結果",
+    "connectionsFailed": "接続を読み込めませんでした。",
+    "runsFailed": "最近の実行を読み込めませんでした。"
   },
   "conceptSelect": {
     "includeOtherSchemes": "他のコンセプトスキームを含める",

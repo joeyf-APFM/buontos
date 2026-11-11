@@ -475,7 +475,11 @@
       "descriptionLabel": "Descrizione (facoltativa)",
       "descriptionPlaceholder": "Descrivi lo scopo di questo schema di concetti di ontologia...",
       "importSummary": "Verranno importate {{classes}} classi e {{properties}} proprietà."
-    }
+    },
+    "runPane": "Esecuzione",
+    "results": "Risultati",
+    "connectionsFailed": "Impossibile caricare le connessioni.",
+    "runsFailed": "Impossibile caricare le esecuzioni recenti."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Includi altri schemi di concetti",

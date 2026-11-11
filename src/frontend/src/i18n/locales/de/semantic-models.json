@@ -475,7 +475,11 @@
       "descriptionLabel": "Beschreibung (optional)",
       "descriptionPlaceholder": "Beschreiben Sie den Zweck dieses Ontologie-Konzeptschemas...",
       "importSummary": "{{classes}} Klassen und {{properties}} Eigenschaften werden importiert."
-    }
+    },
+    "runPane": "Ausführung",
+    "results": "Ergebnisse",
+    "connectionsFailed": "Die Verbindungen konnten nicht geladen werden.",
+    "runsFailed": "Die letzten Ausführungen konnten nicht geladen werden."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Andere Konzeptschemata einbeziehen",

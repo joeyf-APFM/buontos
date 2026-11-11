@@ -609,7 +609,11 @@
       "descriptionLabel": "Description (optional)",
       "descriptionPlaceholder": "Describe the purpose of this ontology scheme...",
       "importSummary": "{{classes}} classes and {{properties}} properties will be imported."
-    }
+    },
+    "runPane": "Run",
+    "results": "Results",
+    "connectionsFailed": "Could not load the connections.",
+    "runsFailed": "Could not load the recent runs."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Include other schemes",

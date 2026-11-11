@@ -537,7 +537,11 @@
       "descriptionLabel": "Beschrijving (optioneel)",
       "descriptionPlaceholder": "Beschrijf het doel van dit ontologieconceptschema...",
       "importSummary": "{{classes}} klassen en {{properties}} eigenschappen worden geïmporteerd."
-    }
+    },
+    "runPane": "Uitvoering",
+    "results": "Resultaten",
+    "connectionsFailed": "De verbindingen konden niet worden geladen.",
+    "runsFailed": "De recente uitvoeringen konden niet worden geladen."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Andere conceptschema's meenemen",

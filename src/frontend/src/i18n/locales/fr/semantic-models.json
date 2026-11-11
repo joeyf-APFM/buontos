@@ -475,7 +475,11 @@
       "descriptionLabel": "Description (facultatif)",
       "descriptionPlaceholder": "Décrivez l'objet de ce schéma de concepts d'ontologie...",
       "importSummary": "{{classes}} classes et {{properties}} propriétés seront importées."
-    }
+    },
+    "runPane": "Exécution",
+    "results": "Résultats",
+    "connectionsFailed": "Impossible de charger les connexions.",
+    "runsFailed": "Impossible de charger les exécutions récentes."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Inclure les autres schémas de concepts",
