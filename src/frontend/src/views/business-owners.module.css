@@ -1,0 +1,68 @@
+/*
+ * Business Owners (/business-owners) on the page kit (wave 2 Task 5): full
+ * bleed, the shell's breadcrumb, the kit header and its description, then one
+ * flush pane holding the shared DataTable (components/ui/data-table.tsx), 14px
+ * in from the page's edges, as Data Asset Reviews. The sort headers are
+ * Settings → Asset Types' (asset-types.module.css).
+ */
+
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
+   pane scrolls a long list */
+.body {
+  padding: 4px 14px 14px;
+}
+
+.alert {
+  margin: 4px 0 8px;
+}
+
+/* Sortable headers: the grid's header label with a sort mark */
+.sort {
+  composes: sort from './asset-types.module.css';
+}
+
+.sortIcon {
+  composes: sortIcon from './asset-types.module.css';
+}
+
+/* The name over its email. A long name wraps, so it reads in full; table
+   cells ignore max-width, so the text's own box sets the measure */
+.owner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.ownerName {
+  display: block;
+  min-width: 160px;
+  max-width: 420px;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ownerEmail {
+  max-width: 420px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* An identifier: mono, cut off at 200px with the whole id in its title */
+.objectId {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: var(--aura-text-secondary);
+}

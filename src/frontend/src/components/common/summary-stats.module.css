@@ -1,0 +1,85 @@
+/*
+ * A page's summary counts (components/common/summary-stats.tsx): one strip of
+ * cells sharing 1px borders, as panes side by side do, under the page header
+ * and inside the kit's 14px margin. No shadow: it is not floating.
+ */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: 0 14px 12px;
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 12px;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--aura-border);
+}
+
+.icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.icon[data-tone='warning'] {
+  color: var(--aura-warning);
+  background: var(--aura-warning-bg);
+}
+
+.icon[data-tone='good'] {
+  color: var(--aura-good);
+  background: var(--aura-good-bg);
+}
+
+.icon[data-tone='info'] {
+  color: var(--aura-info);
+  background: var(--aura-accent-subtle);
+}
+
+.text {
+  min-width: 0;
+}
+
+.label,
+.value {
+  margin: 0;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.value {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--aura-text-body);
+}

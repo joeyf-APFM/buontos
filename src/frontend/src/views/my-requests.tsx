@@ -1,26 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { ActionIcon, Alert, Loader } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Inbox, XCircle, Loader2, ShieldCheck, Package, Bell } from 'lucide-react';
+import { AlertCircle, Inbox, XCircle, ShieldCheck, Package, Bell } from 'lucide-react';
 import { RelativeDate } from '@/components/common/relative-date';
-import { ListViewSkeleton, SkeletonLine } from '@/components/common/list-view-skeleton';
+import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
+import { SummaryStat, SummaryStats } from '@/components/common/summary-stats';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { PageHeader, PageLayout, Pane, Tabs } from '@/mantine/page';
+import grid from '@/mantine/asset-explorer/explorer.module.css';
 import type { DataProduct } from '@/types/data-product';
+import classes from './my-requests.module.css';
 
 interface AccessGrantRequestItem {
   id: string;
@@ -87,7 +81,6 @@ export default function MyRequests() {
   const { get: apiGet, delete: apiDelete } = useApi();
   const { toast } = useToast();
   const { pathname } = useLocation();
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
 
   const [activeTab, setActiveTab] = useState('requests');
 
@@ -102,10 +95,7 @@ export default function MyRequests() {
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
   const [subscriptionsError, setSubscriptionsError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setStaticSegments([{ label: t('home:myRequests.title') }]);
-    return () => setStaticSegments([]);
-  }, [setStaticSegments, t]);
+  // The shell's breadcrumb names this menu page from the menu: no titles to set
 
   const loadRequests = useCallback(async () => {
     setRequestsLoading(true);
@@ -178,225 +168,189 @@ export default function MyRequests() {
   };
 
   const pendingCount = rows.filter((r) => r.status === 'pending').length;
+  const prefix = pathname.split('/').slice(0, 2).join('/');
+  const requestsLabel = t('data-asset-reviews:myRequests.accessRequestsTab');
+  const subscriptionsLabel = t('data-asset-reviews:myRequests.subscriptionsTab');
+
+  const errorState = (message: string, onRetry: () => void) => (
+    <div className={classes.state}>
+      <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.alert}>{message}</Alert>
+      <Button variant="outline" onClick={onRetry}>{t('common:retry')}</Button>
+    </div>
+  );
+
+  const emptyState = (icon: ReactNode, message: string) => (
+    <div className={classes.empty}>
+      {icon}
+      <p>{message}</p>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('home:myRequests.title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('home:myRequests.description')}</p>
-      </div>
+    <PageLayout
+      header={
+        <>
+          <PageHeader title={t('home:myRequests.title')} />
+          <p className={classes.subtitle}>{t('home:myRequests.description')}</p>
+          <SummaryStats label={t('data-asset-reviews:myRequests.summary')}>
+            <SummaryStat
+              icon={<ShieldCheck aria-hidden />}
+              tone="warning"
+              label={t('data-asset-reviews:myRequests.pendingRequests')}
+              value={pendingCount}
+              loading={requestsLoading}
+            />
+            <SummaryStat
+              icon={<Bell aria-hidden />}
+              tone="info"
+              label={t('data-asset-reviews:myRequests.totalRequests')}
+              value={rows.length}
+              loading={requestsLoading}
+            />
+            <SummaryStat
+              icon={<Package aria-hidden />}
+              tone="good"
+              label={t('data-asset-reviews:myRequests.activeSubscriptions')}
+              value={subscriptions.length}
+              loading={subscriptionsLoading}
+            />
+          </SummaryStats>
+        </>
+      }
+    >
+      <div className={classes.body}>
+        <Tabs value={activeTab} onChange={(v) => v && setActiveTab(v)}>
+          <Tabs.List>
+            <Tabs.Tab value="requests">
+              {requestsLabel}
+              {pendingCount > 0 && <Badge variant="secondary" className={classes.tabCount}>{pendingCount}</Badge>}
+            </Tabs.Tab>
+            <Tabs.Tab value="subscriptions">
+              {subscriptionsLabel}
+              {subscriptions.length > 0 && (
+                <Badge variant="secondary" className={classes.tabCount}>{subscriptions.length}</Badge>
+              )}
+            </Tabs.Tab>
+          </Tabs.List>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-amber-500/10 p-2.5">
-                <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('data-asset-reviews:myRequests.pendingRequests')}</p>
-                {requestsLoading ? (
-                  <SkeletonLine height="h-7" width="w-10" className="mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{pendingCount}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-500/10 p-2.5">
-                <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('data-asset-reviews:myRequests.totalRequests')}</p>
-                {requestsLoading ? (
-                  <SkeletonLine height="h-7" width="w-10" className="mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{rows.length}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-green-500/10 p-2.5">
-                <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('data-asset-reviews:myRequests.activeSubscriptions')}</p>
-                {subscriptionsLoading ? (
-                  <SkeletonLine height="h-7" width="w-10" className="mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{subscriptions.length}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="requests">
-            {t('data-asset-reviews:myRequests.accessRequestsTab')}
-            {pendingCount > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">{pendingCount}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="subscriptions">
-            {t('data-asset-reviews:myRequests.subscriptionsTab')}
-            {subscriptions.length > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">{subscriptions.length}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="requests" className="mt-4">
-          {requestsLoading ? (
-            <ListViewSkeleton columns={7} rows={5} toolbarButtons={0} showToolbar={false} showPagination={false} />
-          ) : requestsError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-destructive">{requestsError}</p>
-              <Button variant="outline" onClick={loadRequests}>{t('common:retry')}</Button>
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="border rounded-lg flex flex-col items-center justify-center py-12">
-              <Inbox className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground text-center">{t('home:myRequests.empty')}</p>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('data-asset-reviews:myRequests.assetType')}</TableHead>
-                    <TableHead>{t('common:labels.name')}</TableHead>
-                    <TableHead>{t('common:labels.permission')}</TableHead>
-                    <TableHead>{t('common:labels.status')}</TableHead>
-                    <TableHead>{t('home:myRequests.requestedAt')}</TableHead>
-                    <TableHead>{t('home:myRequests.handledAt')}</TableHead>
-                    <TableHead className="w-[80px]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => {
-                    const variant = STATUS_VARIANTS[row.status] ?? 'outline';
-                    const detailPath = getEntityDetailPath(row.entityType, row.entityId, pathname);
-                    return (
-                      <TableRow key={row.id}>
-                        <TableCell className="text-muted-foreground">
-                          {entityTypeLabel(row.entityType, t)}
-                        </TableCell>
-                        <TableCell>
-                          {detailPath ? (
-                            <Link to={detailPath} className="font-medium text-primary hover:underline">
-                              {row.entityName}
-                            </Link>
-                          ) : (
-                            <span className="font-medium">{row.entityName}</span>
-                          )}
-                          <span className="text-muted-foreground text-sm ml-1">
-                            ({row.permissionLevel}, {row.durationDays}d)
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{row.permissionLevel}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={variant}>{row.status}</Badge>
-                        </TableCell>
-                        <TableCell><RelativeDate date={row.created_at} /></TableCell>
-                        <TableCell>
-                          {row.handled_at ? <RelativeDate date={row.handled_at} /> : <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell>
-                          {row.canCancel && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                              onClick={() => handleCancel(row.id)}
-                              disabled={cancellingId === row.id}
-                              title={t('common:actions.cancel')}
-                            >
-                              {cancellingId === row.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <XCircle className="h-4 w-4" />
+          <Tabs.Panel value="requests">
+            <Pane flush aria-label={requestsLabel}>
+              {requestsLoading ? (
+                <div className={classes.skeleton}>
+                  <ListViewSkeleton columns={7} rows={5} toolbarButtons={0} showToolbar={false} showPagination={false} />
+                </div>
+              ) : requestsError ? (
+                errorState(requestsError, loadRequests)
+              ) : rows.length === 0 ? (
+                emptyState(<Inbox aria-hidden />, t('home:myRequests.empty'))
+              ) : (
+                <div className={grid.tableWrap}>
+                  <table className={`${grid.table} ${classes.grid}`}>
+                    <thead>
+                      <tr>
+                        <th>{t('data-asset-reviews:myRequests.assetType')}</th>
+                        <th>{t('common:labels.name')}</th>
+                        <th>{t('common:labels.permission')}</th>
+                        <th>{t('common:labels.status')}</th>
+                        <th>{t('home:myRequests.requestedAt')}</th>
+                        <th>{t('home:myRequests.handledAt')}</th>
+                        <th className={classes.actions} />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => {
+                        const variant = STATUS_VARIANTS[row.status] ?? 'outline';
+                        const detailPath = getEntityDetailPath(row.entityType, row.entityId, pathname);
+                        return (
+                          <tr key={row.id}>
+                            <td className={classes.muted}>{entityTypeLabel(row.entityType, t)}</td>
+                            <td className={classes.nameCell}>
+                              <span className={classes.name}>
+                                {detailPath ? (
+                                  <Link to={detailPath} className={classes.link}>{row.entityName}</Link>
+                                ) : (
+                                  <span className={classes.strong}>{row.entityName}</span>
+                                )}
+                                <span className={classes.detail}>
+                                  ({row.permissionLevel}, {row.durationDays}d)
+                                </span>
+                              </span>
+                            </td>
+                            <td><Badge variant="outline">{row.permissionLevel}</Badge></td>
+                            <td><Badge variant={variant}>{row.status}</Badge></td>
+                            <td><RelativeDate date={row.created_at} /></td>
+                            <td>
+                              {row.handled_at ? <RelativeDate date={row.handled_at} /> : <span className={classes.none}>—</span>}
+                            </td>
+                            <td className={classes.actions}>
+                              {row.canCancel && (
+                                <ActionIcon
+                                  variant="subtle"
+                                  className={classes.cancel}
+                                  onClick={() => handleCancel(row.id)}
+                                  disabled={cancellingId === row.id}
+                                  title={t('common:actions.cancel')}
+                                >
+                                  {cancellingId === row.id ? <Loader size={12} color="currentColor" /> : <XCircle aria-hidden />}
+                                </ActionIcon>
                               )}
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Pane>
+          </Tabs.Panel>
 
-        <TabsContent value="subscriptions" className="mt-4">
-          {subscriptionsLoading ? (
-            <ListViewSkeleton columns={4} rows={4} toolbarButtons={0} showToolbar={false} showPagination={false} />
-          ) : subscriptionsError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-destructive">{subscriptionsError}</p>
-              <Button variant="outline" onClick={loadSubscriptions}>{t('common:retry')}</Button>
-            </div>
-          ) : subscriptions.length === 0 ? (
-            <div className="border rounded-lg flex flex-col items-center justify-center py-12">
-              <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground text-center">{t('data-asset-reviews:myRequests.noSubscriptions')}</p>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('data-asset-reviews:myRequests.product')}</TableHead>
-                    <TableHead>{t('common:labels.domain')}</TableHead>
-                    <TableHead>{t('common:labels.status')}</TableHead>
-                    <TableHead>{t('common:labels.version')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subscriptions.map((product) => {
-                    const prefix = pathname.split('/').slice(0, 2).join('/');
-                    const detailPath = `${prefix}/my-products/${product.id}`;
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <Link to={detailPath} className="font-medium text-primary hover:underline">
-                            {product.name ?? product.id}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {product.domain ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
-                            {product.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {product.version ?? '—'}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+          <Tabs.Panel value="subscriptions">
+            <Pane flush aria-label={subscriptionsLabel}>
+              {subscriptionsLoading ? (
+                <div className={classes.skeleton}>
+                  <ListViewSkeleton columns={4} rows={4} toolbarButtons={0} showToolbar={false} showPagination={false} />
+                </div>
+              ) : subscriptionsError ? (
+                errorState(subscriptionsError, loadSubscriptions)
+              ) : subscriptions.length === 0 ? (
+                emptyState(<Package aria-hidden />, t('data-asset-reviews:myRequests.noSubscriptions'))
+              ) : (
+                <div className={grid.tableWrap}>
+                  <table className={`${grid.table} ${classes.grid}`}>
+                    <thead>
+                      <tr>
+                        <th>{t('data-asset-reviews:myRequests.product')}</th>
+                        <th>{t('common:labels.domain')}</th>
+                        <th>{t('common:labels.status')}</th>
+                        <th>{t('common:labels.version')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subscriptions.map((product) => (
+                        <tr key={product.id}>
+                          <td className={classes.nameCell}>
+                            <span className={classes.name}>
+                              <Link to={`${prefix}/my-products/${product.id}`} className={classes.link}>
+                                {product.name ?? product.id}
+                              </Link>
+                            </span>
+                          </td>
+                          <td className={classes.muted}>{product.domain ?? '—'}</td>
+                          <td>
+                            <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>{product.status}</Badge>
+                          </td>
+                          <td className={classes.muted}>{product.version ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Pane>
+          </Tabs.Panel>
+        </Tabs>
+      </div>
+    </PageLayout>
   );
 }

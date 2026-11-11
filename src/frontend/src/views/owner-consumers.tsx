@@ -1,19 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton, TextInput, UnstyledButton } from '@mantine/core';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  ListItemSkeleton,
-  SkeletonLine,
-} from '@/components/common/list-view-skeleton';
 import { Package, Users, Search, User, Calendar, MessageSquare } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
-import { cn } from '@/lib/utils';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { RelativeDate } from '@/components/common/relative-date';
+import { SummaryStat, SummaryStats } from '@/components/common/summary-stats';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import grid from '@/mantine/asset-explorer/explorer.module.css';
 import type { DataProduct, SubscriberInfo } from '@/types/data-product';
+import classes from './owner-consumers.module.css';
 
 interface ProductWithSubscribers {
   product: DataProduct;
@@ -41,7 +38,8 @@ export default function OwnerConsumersView() {
     setProductsLoading(true);
     try {
       const resp = await apiGet<DataProduct[]>('/api/data-products');
-      setProducts(resp.data ?? []);
+      // A failed load answers with an error and an empty object: guard the list
+      setProducts(Array.isArray(resp.data) ? resp.data : []);
     } catch (err) {
       console.error('Failed to fetch products:', err);
     } finally {
@@ -51,6 +49,8 @@ export default function OwnerConsumersView() {
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
+  // Each answer is kept under its own product, so one that comes back late
+  // never shows under another
   const fetchSubscribers = useCallback(async (productId: string) => {
     setProductSubscribers((prev) => ({
       ...prev,
@@ -58,11 +58,12 @@ export default function OwnerConsumersView() {
     }));
     try {
       const resp = await apiGet<{ subscribers: SubscriberInfo[] }>(`/api/data-products/${productId}/subscribers`);
+      const subscribers = resp.data?.subscribers;
       setProductSubscribers((prev) => ({
         ...prev,
         [productId]: {
           product: products.find((p) => p.id === productId)!,
-          subscribers: resp.data?.subscribers ?? [],
+          subscribers: Array.isArray(subscribers) ? subscribers : [],
           loading: false,
         },
       }));
@@ -121,180 +122,147 @@ export default function OwnerConsumersView() {
 
   const activeProducts = products.filter((p) => p.status === 'active' || p.status === 'approved');
 
-  return (
-    <div className="space-y-6">
-      {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-2.5">
-                <Package className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('ownerConsumers.totalProducts')}</p>
-                <p className="text-2xl font-bold">
-                  {productsLoading ? <SkeletonLine height="h-8" width="w-12" /> : products.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-green-500/10 p-2.5">
-                <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('ownerConsumers.activeProducts')}</p>
-                <p className="text-2xl font-bold">
-                  {productsLoading ? <SkeletonLine height="h-8" width="w-12" /> : activeProducts.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-500/10 p-2.5">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('ownerConsumers.totalSubscribers')}</p>
-                <p className="text-2xl font-bold">
-                  {productsLoading ? <SkeletonLine height="h-8" width="w-12" /> : totalSubscribers}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Two-column layout: product list + subscriber detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Product list */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t('ownerConsumers.products')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 max-h-[600px] overflow-y-auto">
-            {productsLoading ? (
-              <ListItemSkeleton count={4} height="h-14" />
-            ) : products.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">{t('ownerConsumers.noProducts')}</p>
-            ) : (
-              products.map((p) => {
-                const subCount = productSubscribers[p.id]?.subscribers?.length ?? 0;
-                const isSelected = selectedProductId === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedProductId(p.id)}
-                    className={cn(
-                      'w-full flex items-center justify-between rounded-md px-3 py-2.5 text-left transition-colors',
-                      isSelected
-                        ? 'bg-primary/10 text-primary'
-                        : 'hover:bg-muted/50'
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{p.name ?? p.id}</p>
-                      <p className="text-xs text-muted-foreground">{p.domain ?? t('ownerConsumers.noDomain')}</p>
-                    </div>
-                    <Badge variant="secondary" className="ml-2 shrink-0">
-                      <Users className="h-3 w-3 mr-1" />
-                      {subCount}
-                    </Badge>
-                  </button>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Subscriber detail */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">
-                {selectedData?.product
-                  ? t('ownerConsumers.subscribersFor', { name: selectedData.product.name ?? selectedData.product.id })
-                  : t('ownerConsumers.selectProduct')}
-              </CardTitle>
-              {selectedProductId && (
-                <div className="relative w-64">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t('ownerConsumers.filterPlaceholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9"
-                  />
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!selectedProductId ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Users className="h-10 w-10 mb-3 opacity-40" />
-                <p className="text-sm">{t('ownerConsumers.selectProductHint')}</p>
-              </div>
-            ) : selectedData?.loading ? (
-              <ListItemSkeleton count={3} height="h-12" className="space-y-2" />
-            ) : filteredSubscribers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Users className="h-10 w-10 mb-3 opacity-40" />
-                <p className="text-sm">
-                  {searchQuery ? t('ownerConsumers.noSubscribersMatch') : t('ownerConsumers.noSubscribers')}
-                </p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('ownerConsumers.colSubscriber')}</TableHead>
-                    <TableHead>{t('ownerConsumers.colSubscribed')}</TableHead>
-                    <TableHead>{t('ownerConsumers.colReason')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSubscribers.map((sub) => (
-                    <TableRow key={sub.email}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="rounded-full bg-muted p-1.5">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                          </div>
-                          <span className="text-sm font-medium">{sub.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          <RelativeDate date={sub.subscribed_at} />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {sub.reason ? (
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            <span className="truncate max-w-[300px]">{sub.reason}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+  const emptyState = (message: string) => (
+    <div className={classes.empty}>
+      <Users aria-hidden />
+      <p>{message}</p>
     </div>
+  );
+
+  return (
+    <PageLayout
+      stackBelow="lg"
+      header={
+        <>
+          <PageHeader title={t('ownerConsumers.breadcrumb')} />
+          <SummaryStats label={t('ownerConsumers.summary')}>
+            <SummaryStat
+              icon={<Package aria-hidden />}
+              tone="accent"
+              label={t('ownerConsumers.totalProducts')}
+              value={products.length}
+              loading={productsLoading}
+            />
+            <SummaryStat
+              icon={<Package aria-hidden />}
+              tone="good"
+              label={t('ownerConsumers.activeProducts')}
+              value={activeProducts.length}
+              loading={productsLoading}
+            />
+            <SummaryStat
+              icon={<Users aria-hidden />}
+              tone="info"
+              label={t('ownerConsumers.totalSubscribers')}
+              value={totalSubscribers}
+              loading={productsLoading}
+            />
+          </SummaryStats>
+        </>
+      }
+    >
+      {/* Product list */}
+      <Pane title={t('ownerConsumers.products')} className={classes.productsPane}>
+        <div className={classes.productList}>
+          {productsLoading ? (
+            Array.from({ length: 4 }, (_, i) => <Skeleton key={i} height={40} radius="sm" />)
+          ) : products.length === 0 ? (
+            <p className={classes.noProducts}>{t('ownerConsumers.noProducts')}</p>
+          ) : (
+            products.map((p) => {
+              const subCount = productSubscribers[p.id]?.subscribers?.length ?? 0;
+              const name = p.name ?? p.id ?? '';
+              return (
+                <UnstyledButton
+                  key={p.id}
+                  onClick={() => setSelectedProductId(p.id)}
+                  className={classes.product}
+                  data-selected={selectedProductId === p.id || undefined}
+                >
+                  <span className={classes.productText}>
+                    <span className={classes.productName} title={name}>{name}</span>
+                    <span className={classes.productDomain}>{p.domain ?? t('ownerConsumers.noDomain')}</span>
+                  </span>
+                  <Badge variant="secondary" className={classes.count}>
+                    <Users aria-hidden />
+                    {subCount}
+                  </Badge>
+                </UnstyledButton>
+              );
+            })
+          )}
+        </div>
+      </Pane>
+
+      {/* Subscriber detail */}
+      <Pane
+        flush
+        className={classes.subscribersPane}
+        titleTooltip
+        title={selectedData?.product
+          ? t('ownerConsumers.subscribersFor', { name: selectedData.product.name ?? selectedData.product.id })
+          : t('ownerConsumers.selectProduct')}
+        actions={selectedProductId && (
+          <TextInput
+            size="xs"
+            placeholder={t('ownerConsumers.filterPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+            leftSection={<Search size={14} aria-hidden />}
+            className={classes.filter}
+          />
+        )}
+      >
+        {!selectedProductId ? (
+          emptyState(t('ownerConsumers.selectProductHint'))
+        ) : selectedData?.loading ? (
+          <div className={classes.skeleton}>
+            {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} height={28} radius="sm" />)}
+          </div>
+        ) : filteredSubscribers.length === 0 ? (
+          emptyState(searchQuery ? t('ownerConsumers.noSubscribersMatch') : t('ownerConsumers.noSubscribers'))
+        ) : (
+          <div className={grid.tableWrap}>
+            <table className={`${grid.table} ${classes.grid}`}>
+              <thead>
+                <tr>
+                  <th>{t('ownerConsumers.colSubscriber')}</th>
+                  <th>{t('ownerConsumers.colSubscribed')}</th>
+                  <th>{t('ownerConsumers.colReason')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSubscribers.map((sub) => (
+                  <tr key={sub.email}>
+                    <td className={classes.subscriberCell}>
+                      <span className={classes.subscriber}>
+                        <span className={classes.avatar}><User aria-hidden /></span>
+                        <span className={classes.email}>{sub.email}</span>
+                      </span>
+                    </td>
+                    <td>
+                      <span className={classes.iconText}>
+                        <Calendar aria-hidden />
+                        <RelativeDate date={sub.subscribed_at} />
+                      </span>
+                    </td>
+                    <td>
+                      {sub.reason ? (
+                        <span className={classes.iconText}>
+                          <MessageSquare aria-hidden />
+                          <span className={classes.reason} title={sub.reason}>{sub.reason}</span>
+                        </span>
+                      ) : (
+                        <span className={classes.none}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Pane>
+    </PageLayout>
   );
 }

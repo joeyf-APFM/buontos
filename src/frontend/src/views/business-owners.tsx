@@ -1,19 +1,31 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ColumnDef } from '@tanstack/react-table';
-import { AlertCircle, Users2, ChevronDown } from 'lucide-react';
+import { Column, ColumnDef } from '@tanstack/react-table';
+import { Alert, UnstyledButton } from '@mantine/core';
+import { AlertCircle, ArrowUpDown } from 'lucide-react';
 import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
-import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { BusinessOwnerRead } from '@/types/business-owner';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { RelativeDate } from '@/components/common/relative-date';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import grid from '@/mantine/asset-explorer/explorer.module.css';
 import { useTranslation } from 'react-i18next';
+import classes from './business-owners.module.css';
+
+/** A header label that sorts its column, in the grid's header-label look. */
+function SortButton({ column, label }: { column: Column<BusinessOwnerRead, unknown>; label: string }) {
+  return (
+    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+      {label}
+      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+    </UnstyledButton>
+  );
+}
 
 export default function BusinessOwnersView() {
   const [owners, setOwners] = useState<BusinessOwnerRead[]>([]);
@@ -53,19 +65,16 @@ export default function BusinessOwnersView() {
     return () => { setStaticSegments([]); setDynamicTitle(null); };
   }, [fetchOwners, setStaticSegments, setDynamicTitle, t]);
 
+  // Memoised for the DataTable, so the cells (and a focused header) are kept across renders
   const columns = useMemo<ColumnDef<BusinessOwnerRead>[]>(() => [
     {
       accessorKey: 'user_email',
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          {t('table.owner')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => (
-        <div>
-          <span className="font-medium">{row.original.user_name || row.original.user_email}</span>
+        <div className={classes.owner}>
+          <span className={classes.ownerName}>{row.original.user_name || row.original.user_email}</span>
           {row.original.user_name && (
-            <div className="text-xs text-muted-foreground">{row.original.user_email}</div>
+            <span className={classes.ownerEmail}>{row.original.user_email}</span>
           )}
         </div>
       ),
@@ -88,7 +97,7 @@ export default function BusinessOwnersView() {
       accessorKey: 'object_id',
       header: t('table.object'),
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground font-mono truncate max-w-[200px] inline-block">
+        <span className={`${grid.mono} ${classes.objectId}`} title={row.original.object_id}>
           {row.original.object_id}
         </span>
       ),
@@ -104,11 +113,7 @@ export default function BusinessOwnersView() {
     },
     {
       accessorKey: 'assigned_at',
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          {t('table.assignedAt')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.assignedAt')} />,
       cell: ({ row }) => row.original.assigned_at
         ? <RelativeDate date={row.original.assigned_at} />
         : t('common:states.notAvailable'),
@@ -116,37 +121,37 @@ export default function BusinessOwnersView() {
   ], [t]);
 
   return (
-    <div className="py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Users2 className="w-8 h-8" />
-          {t('title')}
-        </h1>
-        <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
-      </div>
-
-      {(apiIsLoading || permissionsLoading) ? (
-        <ListViewSkeleton columns={6} rows={5} toolbarButtons={0} />
-      ) : !canRead ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('permissions.permissionDenied')}</AlertTitle>
-          <AlertDescription>{t('permissions.deniedView')}</AlertDescription>
-        </Alert>
-      ) : componentError ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('messages.errorLoadingData')}</AlertTitle>
-          <AlertDescription>{componentError}</AlertDescription>
-        </Alert>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={owners}
-          searchColumn="user_email"
-          storageKey="business-owners-sort"
-        />
-      )}
-    </div>
+    <PageLayout
+      fullBleed
+      header={
+        <>
+          <PageHeader title={t('title')} />
+          <p className={classes.subtitle}>{t('subtitle')}</p>
+        </>
+      }
+    >
+      <Pane flush aria-label={t('listPane')}>
+        <div className={classes.body}>
+          {(apiIsLoading || permissionsLoading) ? (
+            <ListViewSkeleton columns={6} rows={5} toolbarButtons={0} />
+          ) : !canRead ? (
+            <Alert color="red" variant="light" icon={<AlertCircle />} title={t('permissions.permissionDenied')} className={classes.alert}>
+              {t('permissions.deniedView')}
+            </Alert>
+          ) : componentError ? (
+            <Alert color="red" variant="light" icon={<AlertCircle />} title={t('messages.errorLoadingData')} className={classes.alert}>
+              {componentError}
+            </Alert>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={owners}
+              searchColumn="user_email"
+              storageKey="business-owners-sort"
+            />
+          )}
+        </div>
+      </Pane>
+    </PageLayout>
   );
 }

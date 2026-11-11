@@ -1171,6 +1171,7 @@
   "ownerConsumers": {
     "breadcrumb": "消費者",
     "totalProducts": "製品の合計",
+    "summary": "概要",
     "activeProducts": "アクティブな製品",
     "totalSubscribers": "購読者の合計",
     "products": "製品",

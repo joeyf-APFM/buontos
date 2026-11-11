@@ -1171,6 +1171,7 @@
   "ownerConsumers": {
     "breadcrumb": "Consommateurs",
     "totalProducts": "Total des produits",
+    "summary": "Résumé",
     "activeProducts": "Produits actifs",
     "totalSubscribers": "Total des abonnés",
     "products": "Produits",

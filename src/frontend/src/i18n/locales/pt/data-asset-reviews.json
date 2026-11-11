@@ -190,6 +190,7 @@
     "activeSubscriptions": "Assinaturas Ativas",
     "accessRequestsTab": "Solicitações de Acesso",
     "subscriptionsTab": "Minhas Assinaturas",
+    "summary": "Resumo",
     "noSubscriptions": "Você ainda não assinou nenhum produto de dados.",
     "product": "Produto",
     "loadFailed": "Falha ao carregar",
