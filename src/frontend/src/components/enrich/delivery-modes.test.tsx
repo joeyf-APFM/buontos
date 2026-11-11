@@ -32,25 +32,25 @@ describe('DeliveryModes', () => {
   describe('active modes styling', () => {
     it('highlights direct mode when active', () => {
       const { container } = render(<DeliveryModes activeModes={['direct']} />)
-      const directCard = container.querySelector('[class*="border-emerald-500"]')
+      const directCard = container.querySelector('[data-active]')
       expect(directCard).toBeInTheDocument()
     })
 
     it('highlights indirect mode when active', () => {
       const { container } = render(<DeliveryModes activeModes={['indirect']} />)
-      const activeCards = container.querySelectorAll('[class*="border-emerald-500"]')
+      const activeCards = container.querySelectorAll('[data-active]')
       expect(activeCards.length).toBeGreaterThan(0)
     })
 
     it('highlights manual mode when active', () => {
       const { container } = render(<DeliveryModes activeModes={['manual']} />)
-      const activeCards = container.querySelectorAll('[class*="border-emerald-500"]')
+      const activeCards = container.querySelectorAll('[data-active]')
       expect(activeCards.length).toBeGreaterThan(0)
     })
 
     it('highlights multiple modes when multiple are active', () => {
       const { container } = render(<DeliveryModes activeModes={['direct', 'indirect']} />)
-      const activeCards = container.querySelectorAll('[class*="border-emerald-500"]')
+      const activeCards = container.querySelectorAll('[data-active]')
       expect(activeCards.length).toBeGreaterThanOrEqual(2)
     })
 
@@ -71,27 +71,27 @@ describe('DeliveryModes', () => {
     it('renders inactive direct mode without highlight', () => {
       const { container } = render(<DeliveryModes activeModes={['indirect']} />)
       // Count emerald cards, should be 1 (indirect)
-      const emeraldCards = container.querySelectorAll('[class*="border-emerald-500"]')
+      const emeraldCards = container.querySelectorAll('[data-active]')
       expect(emeraldCards.length).toBe(1)
     })
 
     it('renders inactive modes with default border color', () => {
       const { container } = render(<DeliveryModes activeModes={['direct']} />)
-      const defaultCards = container.querySelectorAll('[class*="bg-card"]')
+      const defaultCards = container.querySelectorAll('[data-mode]:not([data-active])')
       expect(defaultCards.length).toBeGreaterThan(0)
     })
 
     it('shows gray indicator dot for inactive modes', () => {
       const { container } = render(<DeliveryModes activeModes={[]} />)
       // All modes should be inactive, so all dots should be gray/border
-      const cards = container.querySelectorAll('[class*="rounded-lg"]')
+      const cards = container.querySelectorAll('[data-mode]')
       expect(cards.length).toBeGreaterThanOrEqual(3)
     })
 
     it('shows green indicator dot for active modes', () => {
       const { container } = render(<DeliveryModes activeModes={['direct']} />)
       // Should have at least one active mode with emerald styling
-      const activeIndicator = container.querySelector('[class*="border-emerald-500"]')
+      const activeIndicator = container.querySelector('[data-active]')
       expect(activeIndicator).toBeInTheDocument()
     })
   })
@@ -142,7 +142,7 @@ describe('DeliveryModes', () => {
       const { container } = render(
         <DeliveryModes activeModes={['direct', 'indirect', 'manual']} />,
       )
-      const activeCards = container.querySelectorAll('[class*="border-emerald-500"]')
+      const activeCards = container.querySelectorAll('[data-active]')
       expect(activeCards.length).toBeGreaterThanOrEqual(3)
     })
 
@@ -156,7 +156,7 @@ describe('DeliveryModes', () => {
   describe('mode cards structure', () => {
     it('renders three card containers', () => {
       const { container } = render(<DeliveryModes activeModes={[]} />)
-      const cards = container.querySelectorAll('[class*="rounded-lg"]')
+      const cards = container.querySelectorAll('[data-mode]')
       expect(cards.length).toBeGreaterThanOrEqual(3)
     })
 

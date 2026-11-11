@@ -1,0 +1,129 @@
+/*
+ * Enrich (/concepts/enrich) on the page kit (wave 2 Task 14), inside the
+ * Concepts layout: the kit header and its description, the "Deliver to"
+ * platform bar, then a stack of two panes, Map (the coverage matrix) and
+ * Deliver (the delivery modes and targets), and the pending tag changes
+ * dialog.
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.barLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+}
+
+.manageLink {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--aura-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.manageLink:hover {
+  text-decoration: underline;
+}
+
+/* A lane's body: its description, then its content */
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.laneDescription {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--aura-text-secondary);
+}
+
+/* The pending tag changes: one row per change, long names wrapping */
+.pendingEmpty {
+  margin: 0;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.pendingList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pendingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.pendingRow:last-child {
+  border-bottom: 0;
+}
+
+.pendingMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pendingLine {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pendingConcept,
+.pendingLink {
+  display: inline;
+  font-size: 12px;
+  color: var(--aura-accent);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.pendingConcept {
+  font-weight: 600;
+}
+
+.pendingConcept:hover,
+.pendingLink:hover {
+  text-decoration: underline;
+}
+
+.pendingConcept:focus-visible,
+.pendingLink:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.pendingAsset {
+  min-width: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.pendingType {
+  flex: none;
+}
+
+.pendingDate {
+  flex: none;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}

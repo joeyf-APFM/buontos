@@ -26,7 +26,8 @@
     "shippedTaxonomies": "Taxonomías incluidas",
     "reviewsLinkPrefix": "Las revisiones de los administradores viven en el espacio de",
     "reviewsLinkText": "Revisiones de activos",
-    "reviewsLinkSuffix": "Cada sugerencia se convierte en un ReviewedAsset allí; las decisiones vuelven automáticamente a esta ejecución."
+    "reviewsLinkSuffix": "Cada sugerencia se convierte en un ReviewedAsset allí; las decisiones vuelven automáticamente a esta ejecución.",
+    "paneLabel": "Detalle de la ejecución"
   },
   "stats": {
     "targets": "Objetivos",

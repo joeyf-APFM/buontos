@@ -26,7 +26,8 @@
     "shippedTaxonomies": "Meegeleverde taxonomieën",
     "reviewsLinkPrefix": "Steward-reviews staan in de",
     "reviewsLinkText": "Asset Reviews",
-    "reviewsLinkSuffix": "werkruimte. Elke suggestie wordt daar één ReviewedAsset; beslissingen vloeien automatisch terug in deze run."
+    "reviewsLinkSuffix": "werkruimte. Elke suggestie wordt daar één ReviewedAsset; beslissingen vloeien automatisch terug in deze run.",
+    "paneLabel": "Rundetails"
   },
   "stats": {
     "targets": "Doelen",

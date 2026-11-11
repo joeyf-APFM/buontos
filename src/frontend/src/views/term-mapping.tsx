@@ -1,23 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
-import {
-  AlertCircle,
-  ChevronRight,
-  Inbox,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Sparkles,
-  Undo2,
-} from 'lucide-react';
+import { Alert, Loader, UnstyledButton } from '@mantine/core';
+import { AlertCircle, ChevronRight, Inbox, Plus, RefreshCw, Undo2 } from 'lucide-react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { RelativeDate } from '@/components/common/relative-date';
+import { LoadError } from '@/components/search/search-pane';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/stores/permissions-store';
@@ -34,6 +25,7 @@ import type {
   RunSummary,
   UndoResult,
 } from '@/types/term-mapping';
+import classes from './term-mapping.module.css';
 
 const FEATURE_ID = 'term-mapping';
 
@@ -67,41 +59,53 @@ export default function TermMappingView() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [runDetailLoading, setRunDetailLoading] = useState(false);
+  const [runDetailError, setRunDetailError] = useState<string | null>(null);
 
   const [isNewRunOpen, setIsNewRunOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [actionPending, setActionPending] = useState(false);
 
+  // A newer request drops an older answer: the list on a Refresh or Retry,
+  // the detail when another run is picked
+  const runsSeq = useRef(0);
+  const detailSeq = useRef(0);
+
   const fetchRuns = useCallback(async () => {
+    const seq = ++runsSeq.current;
     setRunsLoading(true);
     setRunsError(null);
     try {
       const res = await get<RunSummary[]>('/api/term-mappings/runs?limit=50');
       if (res.error) throw new Error(res.error);
-      setRuns(Array.isArray(res.data) ? res.data : []);
+      if (seq === runsSeq.current) setRuns(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setRunsError(e instanceof Error ? e.message : t('errors.loadRunsFailed'));
+      if (seq === runsSeq.current) setRunsError(e instanceof Error ? e.message : t('errors.loadRunsFailed'));
     } finally {
-      setRunsLoading(false);
+      if (seq === runsSeq.current) setRunsLoading(false);
     }
   }, [get, t]);
 
   const fetchRunDetail = useCallback(
     async (runId: string) => {
+      const seq = ++detailSeq.current;
       setRunDetailLoading(true);
+      setRunDetailError(null);
       try {
         const res = await get<Run>(`/api/term-mappings/runs/${runId}`);
         if (res.error) throw new Error(res.error);
-        setSelectedRun(res.data ?? null);
+        if (seq === detailSeq.current) setSelectedRun(res.data ?? null);
       } catch (e) {
+        if (seq !== detailSeq.current) return;
+        const message = e instanceof Error ? e.message : t('toast.unknownError');
         toast({
           title: t('toast.loadRunFailed'),
-          description: e instanceof Error ? e.message : t('toast.unknownError'),
+          description: message,
           variant: 'destructive',
         });
         setSelectedRun(null);
+        setRunDetailError(message);
       } finally {
-        setRunDetailLoading(false);
+        if (seq === detailSeq.current) setRunDetailLoading(false);
       }
     },
     [get, toast, t],
@@ -113,7 +117,10 @@ export default function TermMappingView() {
 
   useEffect(() => {
     if (selectedRunId) void fetchRunDetail(selectedRunId);
-    else setSelectedRun(null);
+    else {
+      detailSeq.current += 1;
+      setSelectedRun(null);
+    }
   }, [selectedRunId, fetchRunDetail]);
 
   const handleRunCreated = useCallback(
@@ -198,7 +205,7 @@ export default function TermMappingView() {
   };
 
   const totalsRow = (stats: Run['stats']) => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+    <div className={classes.stats}>
       <Stat label={t('stats.targets')} value={stats.targets ?? 0} />
       <Stat label={t('stats.suggestions')} value={stats.suggestions_total ?? 0} />
       <Stat label={t('stats.pending')} value={stats.suggestions_pending ?? 0} />
@@ -210,213 +217,202 @@ export default function TermMappingView() {
     </div>
   );
 
-  const detailPane = useMemo(() => {
+  // The detail pane: its title and head actions, and its body
+  const renderDetailPane = () => {
+    const paneLabel = t('detail.paneLabel', 'Run detail');
     if (!selectedRunId) {
       return (
-        <Card className="h-full flex items-center justify-center">
-          <CardContent className="text-center py-12 text-muted-foreground">
-            <Inbox className="h-10 w-10 mx-auto mb-3 opacity-40" />
+        <Pane aria-label={paneLabel}>
+          <div className={classes.state}>
+            <Inbox size={32} className={classes.stateIcon} aria-hidden />
             <p>{t('actions.selectRunHint')}</p>
-          </CardContent>
-        </Card>
+          </div>
+        </Pane>
+      );
+    }
+    if (runDetailError) {
+      return (
+        <Pane aria-label={paneLabel}>
+          <LoadError error={runDetailError} onRetry={() => void fetchRunDetail(selectedRunId)} />
+        </Pane>
       );
     }
     if (runDetailLoading || !selectedRun) {
       return (
-        <div className="flex justify-center items-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <Pane aria-label={paneLabel}>
+          <div className={classes.state}>
+            <Loader size="sm" />
+          </div>
+        </Pane>
       );
     }
-    const stats = selectedRun.stats;
+    const stats = selectedRun.stats ?? {};
     const pending = (stats.suggestions_pending as number | undefined) ?? 0;
     const accepted = (stats.suggestions_accepted as number | undefined) ?? 0;
     const autoApply = (stats.suggestions_auto_apply as number | undefined) ?? 0;
     return (
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  {t('detail.runLabel')}{' '}
-                  <span className="font-mono text-xs">{selectedRun.id.slice(0, 8)}</span>
-                  <Badge variant={RUN_STATUS_VARIANT[selectedRun.status]}>{selectedRun.status}</Badge>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('detail.createdAt')} <RelativeDate date={selectedRun.created_at} />{' '}
-                  {selectedRun.created_by
-                    ? t('detail.createdBy', { email: selectedRun.created_by })
-                    : ''}
-                </p>
-                {selectedRun.comment && (
-                  <p className="text-sm mt-2 italic">{selectedRun.comment}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchRunDetail(selectedRun.id)}
-                  disabled={runDetailLoading}
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" /> {t('actions.refresh')}
-                </Button>
-                {canWrite && autoApply > 0 && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleApplyAuto}
-                    disabled={actionPending}
-                  >
-                    {actionPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-                    {t('actions.applyAuto', { count: autoApply })}
-                  </Button>
-                )}
-                {canWrite && (pending > 0 || accepted > 0) && (
-                  <Button
-                    size="sm"
-                    onClick={() => setIsReviewOpen(true)}
-                    disabled={actionPending}
-                  >
-                    {t('actions.generateReview')}
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                )}
-                {isAdmin && selectedRun.status === 'applied' && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleUndo}
-                    disabled={actionPending}
-                  >
-                    <Undo2 className="h-4 w-4 mr-1" /> {t('actions.undo')}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {totalsRow(stats)}
-            {selectedRun.error && (
-              <Alert variant="destructive" className="mt-3">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{selectedRun.error}</AlertDescription>
-              </Alert>
+      <Pane
+        aria-label={paneLabel}
+        title={`${t('detail.runLabel')} ${selectedRun.id.slice(0, 8)}`}
+        actions={
+          <>
+            <Badge variant={RUN_STATUS_VARIANT[selectedRun.status]}>{selectedRun.status}</Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchRunDetail(selectedRun.id)}
+              disabled={runDetailLoading}
+            >
+              <RefreshCw size={14} aria-hidden /> {t('actions.refresh')}
+            </Button>
+            {canWrite && autoApply > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleApplyAuto}
+                disabled={actionPending}
+              >
+                {actionPending && <Loader size={12} color="currentColor" />}
+                {t('actions.applyAuto', { count: autoApply })}
+              </Button>
             )}
-          </CardContent>
-        </Card>
+            {canWrite && (pending > 0 || accepted > 0) && (
+              <Button
+                size="sm"
+                onClick={() => setIsReviewOpen(true)}
+                disabled={actionPending}
+              >
+                {t('actions.generateReview')}
+                <ChevronRight size={14} aria-hidden />
+              </Button>
+            )}
+            {isAdmin && selectedRun.status === 'applied' && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleUndo}
+                disabled={actionPending}
+              >
+                <Undo2 size={14} aria-hidden /> {t('actions.undo')}
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div className={classes.detail}>
+          <div className={classes.meta}>
+            <p className={classes.muted}>
+              {t('detail.createdAt')} <RelativeDate date={selectedRun.created_at} />{' '}
+              {selectedRun.created_by
+                ? t('detail.createdBy', { email: selectedRun.created_by })
+                : ''}
+            </p>
+            {selectedRun.comment && (
+              <p className={classes.comment}>{selectedRun.comment}</p>
+            )}
+          </div>
+          {totalsRow(stats)}
+          {selectedRun.error && (
+            <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
+              <span className={classes.alertText}>{selectedRun.error}</span>
+            </Alert>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t('detail.sourcesTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <section className={classes.section} aria-labelledby="term-mapping-sources">
+            <h3 id="term-mapping-sources" className={classes.sectionTitle}>{t('detail.sourcesTitle')}</h3>
             <div>
-              <Label>{t('detail.customerOntologies')}</Label>
+              <FieldLabel>{t('detail.customerOntologies')}</FieldLabel>
               <ContextList items={selectedRun.ontology_contexts} />
             </div>
             <div>
-              <Label>{t('detail.shippedTaxonomies')}</Label>
+              <FieldLabel>{t('detail.shippedTaxonomies')}</FieldLabel>
               <ContextList items={selectedRun.include_shipped} />
             </div>
-            <Separator />
-            <div className="text-xs text-muted-foreground">
+            <p className={classes.reviewsNote}>
               {t('detail.reviewsLinkPrefix')}{' '}
-              <Link to="/data-asset-reviews" className="underline">
+              <Link to="/data-asset-reviews" className={classes.link}>
                 {t('detail.reviewsLinkText')}
               </Link>{' '}
               {t('detail.reviewsLinkSuffix')}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </p>
+          </section>
+        </div>
+      </Pane>
     );
-  }, [selectedRunId, selectedRun, runDetailLoading, actionPending, canWrite, isAdmin, fetchRunDetail, t]);
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Sparkles className="h-5 w-5" /> {t('title')}
-          </h2>
-          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => void fetchRuns()} disabled={runsLoading}>
-            <RefreshCw className="h-4 w-4 mr-1" /> {t('actions.refresh')}
-          </Button>
-          {canWrite && (
-            <Button size="sm" onClick={() => setIsNewRunOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> {t('actions.newRun')}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{t('recent.title')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 p-2">
-            {runsError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{runsError}</AlertDescription>
-              </Alert>
-            )}
-            {runsLoading && runs.length === 0 && (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            {!runsLoading && runs.length === 0 && !runsError && (
-              <p className="text-xs text-muted-foreground text-center py-6">
-                <Trans
-                  i18nKey="term-mapping:recent.empty"
-                  components={{ strong: <strong /> }}
-                />
-              </p>
-            )}
+    <PageLayout
+      stackBelow="lg"
+      header={
+        <>
+          <PageHeader
+            title={t('title')}
+            actions={
+              <>
+                <Button variant="outline" size="sm" onClick={() => void fetchRuns()} disabled={runsLoading}>
+                  <RefreshCw size={14} aria-hidden /> {t('actions.refresh')}
+                </Button>
+                {canWrite && (
+                  <Button size="sm" onClick={() => setIsNewRunOpen(true)}>
+                    <Plus size={14} aria-hidden /> {t('actions.newRun')}
+                  </Button>
+                )}
+              </>
+            }
+          />
+          <p className={classes.subtitle}>{t('subtitle')}</p>
+        </>
+      }
+    >
+      <Pane title={t('recent.title')} className={classes.runsPane}>
+        {runsError ? (
+          <LoadError error={runsError} onRetry={() => void fetchRuns()} />
+        ) : runsLoading && runs.length === 0 ? (
+          <div className={classes.state}>
+            <Loader size="sm" />
+          </div>
+        ) : !runsLoading && runs.length === 0 ? (
+          <p className={classes.empty}>
+            <Trans
+              i18nKey="term-mapping:recent.empty"
+              components={{ strong: <strong /> }}
+            />
+          </p>
+        ) : null}
+        {!runsError && runs.length > 0 && (
+          <ul className={classes.runs}>
             {runs.map((run) => {
               const stats = (run.stats ?? {}) as Record<string, number | undefined>;
               const isSelected = run.id === selectedRunId;
               return (
-                <button
-                  key={run.id}
-                  type="button"
-                  className={`block w-full text-left rounded-md border px-3 py-2 text-sm transition-colors ${
-                    isSelected
-                      ? 'border-primary bg-accent'
-                      : 'border-transparent hover:bg-accent/50'
-                  }`}
-                  onClick={() => setSelectedRunId(run.id)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs truncate">{run.id.slice(0, 8)}</span>
-                    <Badge variant={RUN_STATUS_VARIANT[run.status]} className="shrink-0">
-                      {run.status}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 truncate" title={run.comment ?? undefined}>
-                    {run.comment || t('recent.noComment')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <RelativeDate date={run.created_at} />
-                    {typeof stats.suggestions_total === 'number' &&
-                      ` · ${t('recent.suggestionsCount', { count: stats.suggestions_total })}`}
-                  </p>
-                </button>
+                <li key={run.id}>
+                  <UnstyledButton
+                    className={classes.run}
+                    aria-current={isSelected ? 'true' : undefined}
+                    onClick={() => setSelectedRunId(run.id)}
+                  >
+                    <span className={classes.runHead}>
+                      <span className={classes.runId}>{run.id.slice(0, 8)}</span>
+                      <Badge variant={RUN_STATUS_VARIANT[run.status]}>{run.status}</Badge>
+                    </span>
+                    <span className={classes.runComment} title={run.comment ?? undefined}>
+                      {run.comment || t('recent.noComment')}
+                    </span>
+                    <span className={classes.runMeta}>
+                      <RelativeDate date={run.created_at} />
+                      {typeof stats.suggestions_total === 'number' &&
+                        ` · ${t('recent.suggestionsCount', { count: stats.suggestions_total })}`}
+                    </span>
+                  </UnstyledButton>
+                </li>
               );
             })}
-          </CardContent>
-        </Card>
+          </ul>
+        )}
+      </Pane>
 
-        <div>{detailPane}</div>
-      </div>
+      {renderDetailPane()}
 
       <RunConfigDialog
         isOpen={isNewRunOpen}
@@ -430,33 +426,31 @@ export default function TermMappingView() {
         run={selectedRun}
         currentUserEmail={currentUser?.email ?? undefined}
       />
-    </div>
+    </PageLayout>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border bg-muted/30 p-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-base font-semibold">{value}</div>
+    <div className={classes.stat}>
+      <div className={classes.statLabel}>{label}</div>
+      <div className={classes.statValue}>{value}</div>
     </div>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-xs uppercase text-muted-foreground tracking-wide mb-1">{children}</div>
-  );
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <div className={classes.fieldLabel}>{children}</div>;
 }
 
 function ContextList({ items }: { items: string[] }) {
-  if (!items || items.length === 0) {
-    return <p className="text-xs text-muted-foreground">—</p>;
+  if (!Array.isArray(items) || items.length === 0) {
+    return <p className={classes.muted}>—</p>;
   }
   return (
-    <ul className="space-y-0.5">
+    <ul className={classes.contexts}>
       {items.map((it) => (
-        <li key={it} className="font-mono text-xs break-all">{it}</li>
+        <li key={it} className={classes.context}>{it}</li>
       ))}
     </ul>
   );

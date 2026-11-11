@@ -26,7 +26,8 @@
     "shippedTaxonomies": "Mitgelieferte Taxonomien",
     "reviewsLinkPrefix": "Steward-Reviews finden Sie im",
     "reviewsLinkText": "Asset-Reviews",
-    "reviewsLinkSuffix": "Arbeitsbereich. Jeder Vorschlag wird dort zu einem ReviewedAsset; Entscheidungen fließen automatisch in diesen Lauf zurück."
+    "reviewsLinkSuffix": "Arbeitsbereich. Jeder Vorschlag wird dort zu einem ReviewedAsset; Entscheidungen fließen automatisch in diesen Lauf zurück.",
+    "paneLabel": "Laufdetails"
   },
   "stats": {
     "targets": "Ziele",

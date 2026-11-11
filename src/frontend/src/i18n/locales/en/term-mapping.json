@@ -35,7 +35,8 @@
     "shippedTaxonomies": "Shipped taxonomies",
     "reviewsLinkPrefix": "Steward reviews live in the",
     "reviewsLinkText": "Asset Reviews",
-    "reviewsLinkSuffix": "workspace. Each suggestion becomes one ReviewedAsset there; decisions flow back into this run automatically."
+    "reviewsLinkSuffix": "workspace. Each suggestion becomes one ReviewedAsset there; decisions flow back into this run automatically.",
+    "paneLabel": "Run detail"
   },
   "stats": {
     "targets": "Targets",

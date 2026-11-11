@@ -9,6 +9,9 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+// The matrix's own CSS module (wave 2 Task 14): its truncation, tones and bar
+import matrix from './coverage-matrix.module.css'
+
 vi.mock('@/components/common/relative-date', () => ({
   RelativeDate: ({ date }: { date: string }) => <span>{date}</span>,
 }))
@@ -220,7 +223,7 @@ describe('CoverageMatrix', () => {
       const lines = (firstCell.firstElementChild as HTMLElement).children
       expect(lines).toHaveLength(2)
       expect(lines[1].textContent).toMatch(/^Last run /)
-      expect(lines[1]).toHaveClass('truncate')
+      expect(lines[1]).toHaveClass(matrix.lastRun)
     })
 
     it('shows no second line when the scheme never ran', () => {
@@ -441,7 +444,7 @@ describe('CoverageMatrix', () => {
       const { container } = render(
         <CoverageMatrix rows={sampleRows} platformNoun="assets" onReview={mockOnReview} />,
       )
-      const bars = container.querySelectorAll('[class*="bg-emerald-500"]')
+      const bars = container.querySelectorAll(`.${matrix.fill}`)
       expect(bars.length).toBeGreaterThan(0)
     })
 
@@ -523,7 +526,7 @@ describe('CoverageMatrix', () => {
     it('truncates a long scheme name and keeps the full name in the tooltip', () => {
       render(<CoverageMatrix rows={[longRow]} platformNoun="assets" onReview={mockOnReview} />)
       const nameCell = screen.getByText(longName)
-      expect(nameCell).toHaveClass('truncate', 'block')
+      expect(nameCell).toHaveClass(matrix.schemeName)
       expect(nameCell).toHaveAttribute('title', longName)
     })
 
@@ -562,10 +565,10 @@ describe('CoverageMatrix', () => {
         <CoverageMatrix rows={[longRow]} platformNoun="assets" onReview={mockOnReview} />,
       )
       const cells = container.querySelectorAll('tbody tr')[0].querySelectorAll('td')
-      expect(cells[1].firstElementChild).toHaveClass('text-right', 'tabular-nums')
-      expect(cells[3].firstElementChild).toHaveClass('text-sky-700')
-      expect(cells[4].firstElementChild).toHaveClass('text-sky-700')
-      expect(cells[5].firstElementChild).toHaveClass('text-amber-700')
+      expect(cells[1].firstElementChild).toHaveClass(matrix.num)
+      expect(cells[3].firstElementChild).toHaveAttribute('data-tone', 'sky')
+      expect(cells[4].firstElementChild).toHaveAttribute('data-tone', 'sky')
+      expect(cells[5].firstElementChild).toHaveAttribute('data-tone', 'amber')
     })
 
     it('keeps the InfoDot tooltip on the Assets header', () => {
