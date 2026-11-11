@@ -101,6 +101,9 @@ export function OwnershipPanel({
   const importedId = useId();
   // Copy from Team gives focus back here, unless the Assign dialog it opened has it
   const copyButtonRef = useRef<HTMLButtonElement>(null);
+  // Assign Owner gives focus back to its header button, also when Copy from
+  // Team opened it (that dialog's Assign button is gone by then)
+  const assignButtonRef = useRef<HTMLButtonElement>(null);
   const { get: apiGet, post: apiPost } = useApi();
   const { toast } = useToast();
 
@@ -197,7 +200,7 @@ export function OwnershipPanel({
               </Button>
             )}
             {canAssign && (
-              <Button variant="outline" size="sm" onClick={() => setAssignDialogOpen(true)}>
+              <Button ref={assignButtonRef} variant="outline" size="sm" onClick={() => setAssignDialogOpen(true)}>
                 <UserPlus />
                 {t('panel.assignOwner')}
               </Button>
@@ -317,6 +320,7 @@ export function OwnershipPanel({
         onSuccess={fetchOwners}
         initialEmail={pendingMember?.member_identifier}
         initialName={pendingMember?.member_name ?? ''}
+        returnFocusTo={assignButtonRef}
       />
 
       {/* Remove Owner Confirmation Dialog */}

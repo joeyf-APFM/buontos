@@ -2,7 +2,7 @@
  * Dialog for assigning a business owner to an object.
  * Used internally by OwnershipPanel.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/mantine/page';
 import { Button } from '@/components/ui/button';
@@ -25,9 +25,11 @@ interface AssignOwnerDialogProps {
   onSuccess: () => void;
   initialEmail?: string;
   initialName?: string;
+  /** Focus goes here once the dialog has closed, if `focusIsFree` says it may. */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
-export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, onSuccess, initialEmail, initialName }: AssignOwnerDialogProps) {
+export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, onSuccess, initialEmail, initialName, returnFocusTo }: AssignOwnerDialogProps) {
   const { t } = useTranslation('common');
   const { get: apiGet, post: apiPost } = useApi();
   const { toast } = useToast();
@@ -98,6 +100,7 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
     <Dialog
       opened={open}
       onClose={() => onOpenChange(false)}
+      returnFocusTo={returnFocusTo}
       size="sm"
       title={t('common:assignOwner.title')}
       description={t('assignDialog.description', { defaultValue: 'Assign a business owner.' })}

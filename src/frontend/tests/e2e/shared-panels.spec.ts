@@ -354,3 +354,27 @@ test('copy from team: Assign hands focus to the Assign Owner dialog it opens', a
   await page.waitForTimeout(500);
   expect(await assign.evaluate((el) => el.contains(document.activeElement))).toBe(true);
 });
+
+test('copy from team: closing the Assign Owner it opened returns focus to Assign Owner', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await mockApi(page, PERSONAS.admin, {
+    ...PANEL_FIXTURES,
+    '/api/teams/e2e-team-1/members': [{ id: 'm1', member_identifier: 'bea@example.com', member_type: 'user', member_name: 'Bea Poe' }],
+    '/api/business-roles': [{ id: 'r1', name: 'Business Owner', status: 'active' }],
+  });
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountFlushPanels(), '/tests/e2e/fixtures/panels-harness.tsx');
+  const owners = page.getByRole('region', { name: 'Owners' });
+  await owners.getByRole('button', { name: 'Copy from Team' }).click();
+  await page.getByRole('dialog', { name: /Copy from Team/ }).getByRole('button', { name: 'Assign', exact: true }).click();
+  const assign = page.getByRole('dialog', { name: 'Assign Owner' });
+  await expect(assign).toBeVisible();
+  await page.waitForTimeout(500);
+  await assign.getByRole('button', { name: 'Cancel' }).click();
+  await expect(assign).toHaveCount(0);
+  // Past the exit transition and Mantine's focus-return timer: on the header's
+  // Assign Owner button, never the body
+  await page.waitForTimeout(500);
+  await expect(owners.getByRole('button', { name: 'Assign Owner' })).toBeFocused();
+});
