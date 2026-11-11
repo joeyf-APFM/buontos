@@ -459,7 +459,13 @@ describe('hierarchy-browser deep trees and stale answers', () => {
     await user.click(screen.getByRole('button', { name: 'Sales Product' }));
     await user.click(screen.getByRole('button', { name: 'Billing System' }));
     await within(detailPane()).findByText('Bills the customers');
-    await act(async () => held?.release?.());
+    // Let the whole held chain settle (the body read and the state updates),
+    // so a missing guard would show here
+    await act(async () => {
+      held?.release?.();
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    });
     expect(within(detailPane()).getByRole('heading', { level: 2, name: 'Billing System' })).toBeInTheDocument();
     expect(screen.queryByText('Stale Product')).toBeNull();
     expect(location.search).toBe('?type=System&id=s1');

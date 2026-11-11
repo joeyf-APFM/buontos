@@ -205,8 +205,6 @@
     "noChildren": "Nessun figlio nella gerarchia",
     "noChildrenFound": "Nessun figlio trovato",
     "childrenLoadFailed": "Impossibile caricare gli elementi figli.",
-    "expand": "Espandi",
-    "collapse": "Comprimi",
     "levelsOption": "{{count}} livelli",
     "allLevels": "Tutti",
     "rootType": {

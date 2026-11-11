@@ -205,8 +205,6 @@
     "noChildren": "Geen onderliggende items in de hiërarchie",
     "noChildrenFound": "Geen onderliggende items gevonden",
     "childrenLoadFailed": "De onderliggende items konden niet worden geladen.",
-    "expand": "Uitklappen",
-    "collapse": "Inklappen",
     "levelsOption": "{{count}} niveaus",
     "allLevels": "Alle",
     "rootType": {

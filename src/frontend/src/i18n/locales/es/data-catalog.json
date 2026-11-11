@@ -205,8 +205,6 @@
     "noChildren": "No hay elementos secundarios en la jerarquía",
     "noChildrenFound": "No se encontraron elementos secundarios",
     "childrenLoadFailed": "No se pudieron cargar los elementos secundarios.",
-    "expand": "Expandir",
-    "collapse": "Contraer",
     "levelsOption": "{{count}} niveles",
     "allLevels": "Todos",
     "rootType": {

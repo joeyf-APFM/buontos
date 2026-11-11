@@ -205,8 +205,6 @@
     "noChildren": "階層内に子がありません",
     "noChildrenFound": "子が見つかりません",
     "childrenLoadFailed": "子要素を読み込めませんでした。",
-    "expand": "展開",
-    "collapse": "折りたたむ",
     "levelsOption": "{{count}} レベル",
     "allLevels": "すべて",
     "rootType": {

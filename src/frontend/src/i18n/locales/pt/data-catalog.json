@@ -205,8 +205,6 @@
     "noChildren": "Nenhum filho na hierarquia",
     "noChildrenFound": "Nenhum filho encontrado",
     "childrenLoadFailed": "Não foi possível carregar os elementos filhos.",
-    "expand": "Expandir",
-    "collapse": "Recolher",
     "levelsOption": "{{count}} níveis",
     "allLevels": "Todos",
     "rootType": {

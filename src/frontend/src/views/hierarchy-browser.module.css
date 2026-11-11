@@ -18,7 +18,19 @@
 }
 
 /* Both panes take the window's height under the header, so a deep tree
-   scrolls inside its pane and the heads stay in place */
+   scrolls inside its pane and the heads stay in place.
+   A flex fill of the kit's content row would overshoot: away from full bleed
+   the kit page's min-height is the window under the top bar and crumb, but
+   the Concepts layout puts its own row above the page, so the page (and a
+   filled pane) would run about 40px past the window (843px at 800). Instead the 150px is
+   what sits between the crumb and the window's bottom besides the panes,
+   measured at 1280x800:
+     8px   the shell's top padding (Concepts keeps it)
+     37px  the Concepts layout's Simple/Advanced row
+     12px  that layout's gap
+     64px  the kit header (42px) and the subtitle (26px, -4px margin)
+     29px  under the panes: the kit content's 14px bottom margin, and 15px
+           of room so the panes end inside the window */
 .browsePane,
 .detailPane {
   height: calc(100vh - var(--shell-top-height, 44px) - var(--shell-crumb-height, 0px) - 150px);
