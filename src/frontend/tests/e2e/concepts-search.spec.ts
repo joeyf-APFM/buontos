@@ -23,8 +23,6 @@ const NAVY = 'rgb(31, 48, 102)';
 // Review Focus 1: a 200-character concept label, and one with no break opportunity
 const LONG_LABEL = `Customer ${'lifetime-revenue-and-retention-measure-'.repeat(6)}`.slice(0, 200);
 const UNBROKEN = `urn:e2e:${'y'.repeat(192)}`;
-// A SPARQL row much wider than the pane
-const WIDE_VALUE = `urn:e2e:${'z'.repeat(600)}`;
 
 const CONCEPTS = [
   { value: 'urn:e2e:widgets', label: 'Widgets', type: 'class' },
@@ -79,7 +77,6 @@ async function setUp(page: Page, persona: Persona = PERSONAS.admin, route = '/co
       iri: UNBROKEN,
       triples: [{ predicate: 'http://www.w3.org/2000/01/rdf-schema#label', object: LONG_LABEL, objectType: 'literal' }],
     },
-    '/api/semantic-models/query': [{ s: WIDE_VALUE }],
     '/api/catalogs': [{ id: 'main', name: 'main', hasChildren: true, children: [] }],
     '/api/catalogs/main/schemas': [{ id: 'main.sales', name: 'sales', hasChildren: true, children: [] }],
     '/api/catalogs/main/schemas/sales/objects': [
@@ -167,7 +164,7 @@ test.describe('concepts-search', () => {
     expect(await noPageScroll(page)).toBe(true);
   });
 
-  test('the Knowledge Graph tab: a long path step truncates; a wide SPARQL row scrolls inside its pane', async ({ page }) => {
+  test('the Knowledge Graph tab: a long path step and long links truncate; no SPARQL pane (R57)', async ({ page }) => {
     await setUp(page, PERSONAS.admin, `/concepts/search?tab=kg&path=${encodeURIComponent(UNBROKEN)}`);
     const main = page.locator('main');
     const pathPane = main.getByRole('region', { name: 'Path Explorer' });
@@ -186,20 +183,14 @@ test.describe('concepts-search', () => {
     expect(await paneRight(prefixValue)).toBeLessThanOrEqual(await paneRight(main.getByRole('region', { name: 'Prefix Search' })));
     expect(await noPageScroll(page)).toBe(true);
 
-    const sparql = main.getByRole('region', { name: 'SPARQL' });
-    await sparql.getByRole('button', { name: 'Run SPARQL' }).click();
-    const row = sparql.locator('pre').first();
-    await expect(row).toContainText('zzzz');
-    // The row scrolls inside itself; the pane and the page keep their width
-    expect(await row.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
-    const paneBox = (await sparql.boundingBox())!;
-    expect((await row.boundingBox())!.width).toBeLessThanOrEqual(paneBox.width);
-    expect(await noPageScroll(page)).toBe(true);
-
-    // Examples is a Mantine Menu; its item fills the query
-    await sparql.getByRole('button', { name: 'Examples' }).click();
-    await page.getByRole('menuitem', { name: 'Top predicates by frequency' }).click();
-    await expect(sparql.getByRole('textbox', { name: 'SPARQL' })).toHaveValue(/COUNT\(\*\)/);
+    // The SPARQL editor is off as an interface option (R57): no SPARQL pane,
+    // and the two panes keep the row between them
+    await expect(main.getByRole('region', { name: 'SPARQL' })).toHaveCount(0);
+    await expect(main.getByRole('button', { name: 'Run SPARQL' })).toHaveCount(0);
+    const prefixBox = (await main.getByRole('region', { name: 'Prefix Search' }).boundingBox())!;
+    const pathBox = (await pathPane.boundingBox())!;
+    expect(Math.abs(prefixBox.y - pathBox.y)).toBeLessThan(1);
+    expect(prefixBox.x + prefixBox.width).toBeLessThanOrEqual(pathBox.x + 1);
   });
 
   test('Escape in the Assign dialog\'s Select closes only the Select', async ({ page }) => {

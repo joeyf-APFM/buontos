@@ -309,22 +309,23 @@ describe('explore on the page kit', () => {
     expect(within(concepts).queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
-  it('explore: Advanced adds SPARQL and the system ontologies switch', async () => {
+  it('explore: Advanced adds the knowledge-graph search (no longer "SPARQL", R57) and the system ontologies switch', async () => {
     const user = userEvent.setup();
     renderPage();
     await loaded();
-    expect(screen.queryByRole('button', { name: 'SPARQL' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Knowledge graph' })).toBeNull();
     act(() => setMode('advanced'));
-    const sparql = await screen.findByRole('button', { name: 'SPARQL' });
+    const sparql = await screen.findByRole('button', { name: 'Knowledge graph' });
+    expect(screen.queryByRole('button', { name: 'SPARQL' })).toBeNull();
     expect(sparql).toHaveAttribute('aria-pressed', 'false');
     expect(within(pane('Filters')).getByRole('switch', { name: 'Show system ontologies' })).not.toBeChecked();
     await user.click(sparql);
-    const panel = pane('SPARQL and knowledge graph search');
+    const panel = pane('Knowledge graph search');
     expect(panel).toHaveClass(kit.pane);
     expect(within(panel).getByTestId('kg-search')).toBeInTheDocument();
     expect(sparql).toHaveAttribute('aria-pressed', 'true');
     await user.click(within(panel).getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('region', { name: 'SPARQL and knowledge graph search' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Knowledge graph search' })).toBeNull();
   });
 
   it('explore: a 200-character label keeps its title in the list and the tree', async () => {

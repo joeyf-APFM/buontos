@@ -429,17 +429,19 @@ describe('Explore Create menu adapts to the scheme in focus', () => {
   });
 });
 
-describe('Explore SPARQL panel', () => {
-  it('has no SPARQL toggle in Simple view', () => {
+// The panel's toggle reads "Knowledge graph" while the SPARQL editor is off (R57)
+describe('Explore knowledge-graph panel', () => {
+  it('has no knowledge-graph toggle in Simple view', () => {
     renderExplore();
-    expect(screen.queryByRole('button', { name: /SPARQL/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /SPARQL|Knowledge graph/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId('kg-search')).not.toBeInTheDocument();
   });
 
   it('Advanced view: toggle is adv-only and opens/closes the full-width panel', async () => {
     modeMock = 'advanced';
     renderExplore();
-    const toggle = screen.getByRole('button', { name: /SPARQL/ });
+    const toggle = screen.getByRole('button', { name: 'Knowledge graph' });
+    expect(screen.queryByRole('button', { name: /SPARQL/ })).not.toBeInTheDocument();
     expect(toggle).toHaveClass('adv-only');
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByTestId('explore-sparql-panel')).not.toBeInTheDocument();

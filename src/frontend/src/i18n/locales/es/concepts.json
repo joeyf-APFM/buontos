@@ -6,5 +6,9 @@
     "search": "Búsqueda",
     "graph": "Grafo",
     "hierarchy": "Jerarquía"
+  },
+  "explore": {
+    "knowledgeGraph": "Grafo de conocimiento",
+    "knowledgeGraphPanel": "Búsqueda en el grafo de conocimiento"
   }
 }

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Pane } from '@/mantine/page';
 import { useHoverFocusCard } from '@/components/common/use-hover-focus-card';
 import { useApi } from '@/hooks/use-api';
+import { SPARQL_UI_ENABLED } from '@/config/features';
 import { LoadError } from './search-pane';
 import { asList } from './search-utils';
 import classes from './search.module.css';
@@ -145,8 +146,8 @@ function SparqlError({ error }: { error: string }) {
 
 /**
  * The knowledge-graph search (wave 2 Task 13b): Prefix Search and Path
- * Explorer side by side, SPARQL under both, as kit panes sharing their
- * borders. On Search's Knowledge Graph tab and in Explore's SPARQL pane.
+ * Explorer side by side, SPARQL under both (only with SPARQL_UI_ENABLED), as
+ * kit panes sharing their borders. On Search's Knowledge Graph tab and in Explore's SPARQL pane.
  */
 export default function KGSearch({
   initialPrefix = '',
@@ -238,7 +239,7 @@ export default function KGSearch({
       const localName = startIri.split('#').pop() || startIri.split('/').pop() || startIri;
       setPrefix(localName);
     }
-    if (urlSparql && urlSparql !== initialSparql) setSparql(urlSparql);
+    if (SPARQL_UI_ENABLED && urlSparql && urlSparql !== initialSparql) setSparql(urlSparql);
     if (urlDirection && urlDirection !== initialDirectionFilter) setDirectionFilter(urlDirection);
     if (urlConceptsOnly !== initialShowConceptsOnly) setShowConceptsOnly(urlConceptsOnly);
   }, [location.search]);
@@ -534,47 +535,50 @@ export default function KGSearch({
         )}
       </Pane>
 
-      {/* SPARQL Query Section - Full Width */}
-      <Pane
-        title={t('search:kg.sparql')}
-        actions={
-          <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-              <Button variant="outline" size="sm">
-                {t('search:kg.examples')}
-                <ChevronDown aria-hidden />
-              </Button>
-            </Menu.Target>
-            <Menu.Dropdown className={classes.examples}>
-              {EXAMPLES.map((example) => (
-                <Menu.Item key={example.key} onClick={() => setSparql(example.query)}>{t(example.key)}</Menu.Item>
-              ))}
-            </Menu.Dropdown>
-          </Menu>
-        }
-      >
-        <div className={classes.sparqlBody}>
-          <p className={classes.paneIntro}>{t('search:kg.sparqlDesc')}</p>
-          <Textarea
-            value={sparql}
-            onChange={(e) => setSparql(e.currentTarget.value)}
-            aria-label={t('search:kg.sparql')}
-            autosize
-            minRows={3}
-            maxRows={16}
-            className={classes.query}
-          />
-          <Button onClick={runSparql}>{t('search:kg.runSparql')}</Button>
-          {sparqlError !== null && <SparqlError error={sparqlError} />}
-          {sparqlRows.length > 0 && (
-            <div className={classes.rows}>
-              {sparqlRows.map((row, idx) => (
-                <pre key={idx} className={classes.json}>{JSON.stringify(row, null, 2)}</pre>
-              ))}
-            </div>
-          )}
-        </div>
-      </Pane>
+      {/* SPARQL Query Section - Full Width; off while the SPARQL editor
+          isn't an interface option (SPARQL_UI_ENABLED, R57) */}
+      {SPARQL_UI_ENABLED && (
+        <Pane
+          title={t('search:kg.sparql')}
+          actions={
+            <Menu position="bottom-end" withinPortal>
+              <Menu.Target>
+                <Button variant="outline" size="sm">
+                  {t('search:kg.examples')}
+                  <ChevronDown aria-hidden />
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown className={classes.examples}>
+                {EXAMPLES.map((example) => (
+                  <Menu.Item key={example.key} onClick={() => setSparql(example.query)}>{t(example.key)}</Menu.Item>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
+          }
+        >
+          <div className={classes.sparqlBody}>
+            <p className={classes.paneIntro}>{t('search:kg.sparqlDesc')}</p>
+            <Textarea
+              value={sparql}
+              onChange={(e) => setSparql(e.currentTarget.value)}
+              aria-label={t('search:kg.sparql')}
+              autosize
+              minRows={3}
+              maxRows={16}
+              className={classes.query}
+            />
+            <Button onClick={runSparql}>{t('search:kg.runSparql')}</Button>
+            {sparqlError !== null && <SparqlError error={sparqlError} />}
+            {sparqlRows.length > 0 && (
+              <div className={classes.rows}>
+                {sparqlRows.map((row, idx) => (
+                  <pre key={idx} className={classes.json}>{JSON.stringify(row, null, 2)}</pre>
+                ))}
+              </div>
+            )}
+          </div>
+        </Pane>
+      )}
     </div>
   );
 }

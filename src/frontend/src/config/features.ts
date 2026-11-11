@@ -257,3 +257,12 @@ import {
           feature.showInLanding && allowedMaturities.includes(feature.maturity)
       );
   };
+
+/**
+ * The SPARQL query editor as an interface option (owner, ruling R57: off for
+ * now). Off hides the SPARQL pane of the knowledge-graph search (Search's
+ * Knowledge Graph tab and Explore's panel) and makes Search ignore ?sparql=.
+ * Set it back to true to bring them back; the code is kept. Internal SPARQL
+ * use (the backend, the Turtle panel) doesn't depend on it.
+ */
+export const SPARQL_UI_ENABLED = false;

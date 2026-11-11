@@ -1,7 +1,7 @@
 /**
  * Wave 2 Task 13a: Explore (/concepts/browser) on the page kit, measured in a
  * real browser (ruling R10: jsdom ignores the cascade). The kit header with
- * the SPARQL toggle and the Create menu (a Mantine Menu), the filters pane,
+ * the knowledge-graph toggle (was SPARQL, R57) and the Create menu (a Mantine Menu), the filters pane,
  * and the List / Tree / Graph views in one pane. The concept editor
  * (ConceptEditorDialog) is a kit Dialog; its parent picker
  * (ConceptSelectDialog) stays Radix under ruling R38 and opens on top of it.
@@ -311,6 +311,22 @@ test.describe('explore', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(open).toBeFocused();
+  });
+
+  test('Advanced: the Knowledge graph panel opens the knowledge-graph search, without the SPARQL editor (R57)', async ({ page }) => {
+    await setUp(page);
+    const main = page.locator('main');
+    await main.getByRole('button', { name: /^Large View/ }).click();
+    await expect(main.getByRole('button', { name: 'SPARQL' })).toHaveCount(0);
+    const toggle = main.getByRole('button', { name: 'Knowledge graph' });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    const panel = main.getByRole('region', { name: 'Knowledge graph search' });
+    await expect(panel.getByRole('region', { name: 'Prefix Search' })).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'Path Explorer' })).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'SPARQL' })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'Run SPARQL' })).toHaveCount(0);
+    expect(await noPageScroll(page)).toBe(true);
   });
 
   test('a reader sees no write controls', async ({ page }) => {

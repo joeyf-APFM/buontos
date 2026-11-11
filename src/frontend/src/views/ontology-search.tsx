@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { SPARQL_UI_ENABLED } from '@/config/features';
 import { PageHeader, PageLayout, Tabs } from '@/mantine/page';
 import KGSearch from '@/components/search/kg-search';
 import ConceptsSearch from '@/components/search/concepts-search';
@@ -17,7 +18,8 @@ function getTabFromParams(search: string): SearchMode {
   const tab = params.get('tab') as SearchMode | null;
   if (tab && VALID_TABS.has(tab)) return tab;
   // Auto-select KG tab when KG-specific params are present
-  if (params.has('path') || params.has('prefix') || params.has('sparql')) return 'kg';
+  // (?sparql= only while the SPARQL editor is an interface option, R57)
+  if (params.has('path') || params.has('prefix') || (SPARQL_UI_ENABLED && params.has('sparql'))) return 'kg';
   return 'concepts';
 }
 
@@ -67,7 +69,7 @@ export default function OntologySearchView() {
 
   const kgPrefix = params.get('prefix') || '';
   const kgPath = params.get('path')?.split('|').filter(Boolean) || [];
-  const kgSparql = params.get('sparql') || 'SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10';
+  const kgSparql = (SPARQL_UI_ENABLED && params.get('sparql')) || 'SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10';
   const kgDirection = (params.get('direction') as 'all' | 'incoming' | 'outgoing') || 'all';
   const kgConceptsOnly = params.get('concepts_only') === 'true';
 

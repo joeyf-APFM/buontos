@@ -12,7 +12,9 @@
     "viewTree": "Tree",
     "viewGraph": "Graph",
     "createConcept": "New Concept",
-    "createScheme": "New Concept Scheme"
+    "createScheme": "New Concept Scheme",
+    "knowledgeGraph": "Knowledge graph",
+    "knowledgeGraphPanel": "Knowledge graph search"
   },
   "nav": {
     "collections": "Schemes",

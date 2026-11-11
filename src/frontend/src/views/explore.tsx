@@ -9,6 +9,7 @@ import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
 import { useConceptMode } from '@/components/concepts/mode-switch';
 import KGSearch from '@/components/search/kg-search';
 import { collectionSourceKey, stripSourcePrefix } from '@/lib/collection-source-key';
+import { SPARQL_UI_ENABLED } from '@/config/features';
 
 import {
   FolderTree,
@@ -423,7 +424,10 @@ export default function ExploreView() {
   const createTypes = createMenuTypes(focusedCollection);
 
   const conceptsPane = t('semantic-models:explore.conceptsPane', 'Concepts');
-  const sparqlTitle = t('concepts:explore.sparqlPanel', 'SPARQL and knowledge graph search');
+  // Without the SPARQL editor (R57) the panel is the knowledge-graph search only
+  const sparqlTitle = SPARQL_UI_ENABLED
+    ? t('concepts:explore.sparqlPanel', 'SPARQL and knowledge graph search')
+    : t('concepts:explore.knowledgeGraphPanel', 'Knowledge graph search');
 
   return (
     <PageLayout
@@ -445,7 +449,9 @@ export default function ExploreView() {
                     onClick={() => setSparqlOpen((open) => !open)}
                   >
                     <Code2 aria-hidden />
-                    {t('concepts:explore.sparql', 'SPARQL')}
+                    {SPARQL_UI_ENABLED
+                      ? t('concepts:explore.sparql', 'SPARQL')
+                      : t('concepts:explore.knowledgeGraph', 'Knowledge graph')}
                   </Button>
                 )}
                 {canWrite && (

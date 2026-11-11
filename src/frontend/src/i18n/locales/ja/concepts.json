@@ -6,5 +6,9 @@
     "search": "検索",
     "graph": "グラフ",
     "hierarchy": "階層"
+  },
+  "explore": {
+    "knowledgeGraph": "ナレッジグラフ",
+    "knowledgeGraphPanel": "ナレッジグラフ検索"
   }
 }

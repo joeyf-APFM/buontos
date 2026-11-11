@@ -23,6 +23,8 @@
     "viewTree": "Boom",
     "viewGraph": "Graaf",
     "createConcept": "Nieuw concept",
-    "createScheme": "Nieuw conceptschema"
+    "createScheme": "Nieuw conceptschema",
+    "knowledgeGraph": "Kennisgraaf",
+    "knowledgeGraphPanel": "Zoeken in de kennisgraaf"
   }
 }

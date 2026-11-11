@@ -22,6 +22,16 @@ import OntologySearchView from './ontology-search';
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast, dismiss: vi.fn() }), toast }));
 
+// The SPARQL editor is off as an interface option (R57); the tests of the
+// editor itself turn it on through this override
+const flags = vi.hoisted(() => ({ sparql: false }));
+vi.mock('@/config/features', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/config/features')>()),
+  get SPARQL_UI_ENABLED() {
+    return flags.sparql;
+  },
+}));
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -162,6 +172,7 @@ async function selectWidgets(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   failing = new Set();
   held = null;
+  flags.sparql = false;
   mockBackend();
   grant(FeatureAccessLevel.READ_WRITE);
 });
@@ -208,7 +219,7 @@ describe('concepts-search on the page kit', () => {
     expect(within(screen.getByRole('tabpanel', { name: 'Properties' })).getByRole('region', { name: 'Property search' })).toHaveClass(kit.pane);
     await user.click(within(tabs).getByRole('tab', { name: 'Knowledge Graph' }));
     const kg = screen.getByRole('tabpanel', { name: 'Knowledge Graph' });
-    for (const name of ['Prefix Search', 'Path Explorer', 'SPARQL']) {
+    for (const name of ['Prefix Search', 'Path Explorer']) {
       expect(within(kg).getByRole('region', { name })).toHaveClass(kit.pane);
     }
     expect(tailwindIn(container)).toEqual([]);
@@ -355,6 +366,35 @@ describe('concepts-search on the page kit', () => {
     await waitFor(() => expect(params().get('direction')).toBe('incoming'));
     await user.click(within(path).getByRole('switch', { name: 'Show concepts/classes only' }));
     await waitFor(() => expect(params().get('concepts_only')).toBe('true'));
+  });
+
+  it('the SPARQL editor is off: no SPARQL pane, editor or Run, and ?sparql= does nothing', async () => {
+    renderPage(`/concepts/search?sparql=${encodeURIComponent('SELECT ?x WHERE { ?x ?p ?o }')}`);
+    // ?sparql= alone no longer picks the Knowledge Graph tab
+    expect(screen.getByRole('tab', { name: 'Concepts' })).toHaveAttribute('aria-selected', 'true');
+    cleanup();
+    renderPage(`/concepts/search?tab=kg&sparql=${encodeURIComponent('SELECT ?x WHERE { ?x ?p ?o }')}`);
+    const kg = screen.getByRole('tabpanel', { name: 'Knowledge Graph' });
+    expect(within(kg).getByRole('region', { name: 'Prefix Search' })).toBeInTheDocument();
+    expect(within(kg).getByRole('region', { name: 'Path Explorer' })).toBeInTheDocument();
+    expect(within(kg).queryByRole('region', { name: 'SPARQL' })).toBeNull();
+    expect(within(kg).queryByRole('textbox', { name: 'SPARQL' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Run SPARQL' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Examples' })).toBeNull();
+    await new Promise((r) => setTimeout(r, 300));
+    expect(posts().filter((c) => c.path === '/api/semantic-models/query')).toEqual([]);
+    // ?path= and ?prefix= still pick the tab
+    cleanup();
+    renderPage('/concepts/search?prefix=widg');
+    expect(screen.getByRole('tab', { name: 'Knowledge Graph' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('with the SPARQL editor on (the flag), ?sparql= fills it; Examples and Run work', async () => {
+    flags.sparql = true;
+    const user = userEvent.setup();
+    renderPage(`/concepts/search?sparql=${encodeURIComponent('SELECT ?x WHERE { ?x ?p ?o }')}`);
+    expect(screen.getByRole('tab', { name: 'Knowledge Graph' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(pane('SPARQL')).getByRole('textbox', { name: 'SPARQL' })).toHaveValue('SELECT ?x WHERE { ?x ?p ?o }');
 
     // SPARQL: the examples menu fills the query; Run posts it and shows the rows
     const sparql = pane('SPARQL');
@@ -545,7 +585,7 @@ describe('concepts-search empty, no-results and error states keep their actions'
     spy.mockRestore();
   });
 
-  it('Knowledge Graph: failed prefix, path and SPARQL loads show the error and a way to retry', async () => {
+  it('Knowledge Graph: failed prefix and path loads show the error and a way to retry', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     failing.add('/api/semantic-models/prefix');
     const user = userEvent.setup();
@@ -565,8 +605,14 @@ describe('concepts-search empty, no-results and error states keep their actions'
     failing.delete('/api/semantic-models/neighbors');
     await user.click(within(path).getByRole('button', { name: 'Retry' }));
     expect((await within(path).findAllByRole('button', { name: 'Step' })).length).toBeGreaterThan(0);
+    spy.mockRestore();
+  });
 
-    // SPARQL: the error, and Run stays to run it again
+  it('Knowledge Graph with the SPARQL editor on: a failed run shows the error, and Run stays', async () => {
+    flags.sparql = true;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderPage('/concepts/search?tab=kg');
     failing.add('/api/semantic-models/query');
     const sparql = pane('SPARQL');
     await user.click(within(sparql).getByRole('button', { name: 'Run SPARQL' }));
