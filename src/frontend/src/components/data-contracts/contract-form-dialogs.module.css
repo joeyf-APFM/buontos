@@ -57,9 +57,7 @@
 
 /* Column and table references are identifiers */
 .mono {
-  font-family: var(--aura-font-mono);
-  font-size: 11px;
-  overflow-wrap: anywhere;
+  composes: code from '../common/dialog-form.module.css';
 }
 
 .arrow {
@@ -149,9 +147,10 @@
   margin-bottom: 0;
 }
 
-/* Code: the custom property's JSON value, the quality rule's SQL */
+/* Code: the custom property's JSON value, the quality rule's SQL, typed in
+   a field at the field's 12px (the shared rule is 11px, for inline ids) */
 .code {
-  font-family: var(--aura-font-mono);
+  composes: code from '../common/dialog-form.module.css';
   font-size: 12px;
 }
 

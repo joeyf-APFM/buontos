@@ -200,11 +200,24 @@ test('a 409 from the quality rule form opens the version prompt on top, with foc
 test('the column editor\'s quality check form opens kit on kit over the schema form: on top, Escape closes only it', async ({ page }) => {
   await openWide(page);
   const dialog = await openSchemaEdit(page);
+  await expect(dialog).toHaveClass(/mantine-Modal-content/);
+  // The column editor's own (Radix) Selects: Escape closes only the list
+  const info = dialog.getByRole('region', { name: 'Schema Information' });
+  await info.getByRole('textbox', { name: /^Name/ }).fill('wide_orders_v2');
+  await dialog.locator('#prop-logical-type').click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(info.getByRole('textbox', { name: /^Name/ })).toHaveValue('wide_orders_v2');
+
   await dialog.getByRole('tab', { name: 'Quality' }).click();
   const addCheck = dialog.getByRole('button', { name: 'Add Check' });
   await addCheck.click();
   const rule = page.getByRole('dialog', { name: 'Add Quality Rule' });
   await expect(rule).toBeVisible();
+  // Kit on kit: both forms are kit Dialogs
+  await expect(rule).toHaveClass(/mantine-Modal-content/);
   const name = rule.getByRole('textbox', { name: /Rule Name/ });
   expect(await onTop(name)).toBe(true);
   await name.click();

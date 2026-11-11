@@ -1,18 +1,17 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Select, TextInput, Textarea, type SelectProps } from '@mantine/core';
+import { Alert, Loader, Select, TextInput, Textarea, type SelectProps } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/mantine/page';
 import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
 import form from '@/components/common/dialog-form.module.css';
-import detail from '@/components/common/detail-page.module.css';
 import classes from './contract-form-dialogs.module.css';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 import { contractActionErrorText } from '@/lib/contract-action-error';
 import { needsStatusChangeRequest } from '@/lib/status-change-error';
 import { useNotificationsStore } from '@/stores/notifications-store';
-import { Loader2, AlertCircle, FileText, Eye, Database, ShieldCheck, Info, RefreshCw, Rocket } from 'lucide-react';
+import { AlertCircle, FileText, Eye, Database, ShieldCheck, Info, RefreshCw, Rocket } from 'lucide-react';
 import type { DeploymentPolicy } from '@/types/deployment-policy';
 import AccessRequestFields from '@/components/access/access-request-fields';
 import {
@@ -375,6 +374,10 @@ export default function RequestContractActionDialog({
           }
           
           const answer = response.data as Partial<DeploymentPolicy> | undefined;
+          // No policy at all is an error (shown as one), not a policy with no catalogs
+          if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
+            throw new Error(t('data-contracts:requests.errors.loadPolicyFailed', 'Failed to load deployment policy'));
+          }
           // Guard the lists the API sends: the form reads them as arrays
           const policy = {
             ...answer,
@@ -466,7 +469,7 @@ export default function RequestContractActionDialog({
             onClick={handleSubmit}
             disabled={submitting || !currentConfig.enabled}
           >
-            {submitting && <Loader2 className={detail.spin} aria-hidden />}
+            {submitting && <Loader size={12} color="currentColor" />}
             {submitting
               ? (requestType === 'status_change' && canDirectStatusChange ? t('data-contracts:requests.changingStatus', 'Changing Status...') : t('data-contracts:requests.sendingRequest', 'Sending Request...'))
               : (requestType === 'status_change' && canDirectStatusChange ? t('data-contracts:requests.statusChange.changeTitle', 'Change Status') : t('data-contracts:requests.sendRequest', 'Send Request'))}
@@ -600,7 +603,7 @@ export default function RequestContractActionDialog({
           <>
             {/* Loading Policy Indicator */}
             {loadingPolicy && (
-              <Alert color="gray" variant="light" icon={<Loader2 size={16} className={detail.spin} aria-hidden />}>
+              <Alert color="gray" variant="light" icon={<Loader size={14} />}>
                 {t('data-contracts:requests.deploy.loadingPolicy', 'Loading deployment policy...')}
               </Alert>
             )}

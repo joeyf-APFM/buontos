@@ -354,6 +354,37 @@ describe('request contract action dialog', () => {
   });
 });
 
+describe('request contract action dialog deployment policy', () => {
+  const render = () => renderWithMantine(
+    <RequestContractActionDialog isOpen onOpenChange={vi.fn()} contractId="c-1" contractName="Orders" contractStatus="active" />,
+  );
+  const policy = (data: unknown) => apiGet.mockImplementation(async (url: string) => (
+    url.includes('deployment-policy') ? { data } : { data: [] }
+  ));
+
+  it('request contract action dialog reads a policy without its lists as one with none', async () => {
+    policy({ require_approval: false });
+    render();
+    const dialog = await screen.findByRole('dialog', { name: 'Request Action' });
+    expect(await within(dialog).findByText(/no catalogs \(contact admin\)/)).toBeInTheDocument();
+    const catalog = selectField(dialog, 'Target Catalog (Optional)');
+    expect(catalog).toBeDisabled();
+    expect(catalog).toHaveAttribute('placeholder', 'No catalogs available');
+    expect(within(dialog).getByRole('textbox', { name: 'Target Schema (Optional)' })).toBeEnabled();
+  });
+
+  it('request contract action dialog shows a missing policy as an error, not as no catalogs', async () => {
+    for (const data of [undefined, []]) {
+      policy(data);
+      const { unmount } = render();
+      const dialog = await screen.findByRole('dialog', { name: 'Request Action' });
+      expect(await within(dialog).findByText('Failed to load deployment policy')).toBeInTheDocument();
+      expect(within(dialog).queryByText(/contact admin/)).toBeNull();
+      unmount();
+    }
+  });
+});
+
 describe('create contract inline dialog', () => {
   const render = () => {
     const onOpenChange = vi.fn();

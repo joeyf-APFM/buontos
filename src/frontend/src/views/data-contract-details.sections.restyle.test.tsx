@@ -412,4 +412,18 @@ describe('data contract details sections on the page kit', () => {
     expect(rows.map((r) => within(r).getAllByRole('cell')[0].textContent)).toEqual(['retention', 'owners']);
     expect(within(rows[0]).getByRole('button', { name: 'Edit retention' })).toBeEnabled();
   });
+
+  // Task 11 housekeeping: the Actions header shows only with its cells
+  it('data contract details sections: a reader\'s custom properties table has no Actions header', async () => {
+    asConsumer();
+    mockBackend({ ...FULL, status: 'active' });
+    renderPage();
+    await loaded();
+    const custom = within(pane(/^Custom Properties/)).getByRole('table');
+    expect(within(custom).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Property', 'Value']);
+    // Every row has as many cells as there are headers
+    for (const row of within(custom).getAllByRole('row').slice(1)) {
+      expect(within(row).getAllByRole('cell')).toHaveLength(2);
+    }
+  });
 });
