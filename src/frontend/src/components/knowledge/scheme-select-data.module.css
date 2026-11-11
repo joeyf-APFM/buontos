@@ -1,0 +1,13 @@
+/* A scheme option: its label, then its parent scheme in muted text */
+.option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.parent {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}

@@ -159,7 +159,10 @@
     "title": "Konzeptschemata",
     "glossary": "Glossar",
     "taxonomy": "Taxonomie",
-    "ontology": "Ontologie"
+    "ontology": "Ontologie",
+    "listPane": "Schemaliste",
+    "loadFailed": "Die Schemata konnten nicht geladen werden.",
+    "actionsFor": "Aktionen für {{name}}"
   },
   "actions": {
     "createConcept": "Konzept erstellen",
@@ -325,7 +328,9 @@
   },
   "collectionTree": {
     "readOnly": "Schreibgeschütztes Konzeptschema",
-    "noCollectionsYet": "Noch keine Konzeptschemata"
+    "noCollectionsYet": "Noch keine Konzeptschemata",
+    "expand": "{{name}} aufklappen",
+    "collapse": "{{name}} zuklappen"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -492,6 +497,7 @@
     "emptyCta": "Zu Define wechseln"
   },
   "define": {
-    "requiresWrite": "Schreibzugriff erforderlich"
+    "requiresWrite": "Schreibzugriff erforderlich",
+    "runsFailed": "Die laufenden Arbeiten konnten nicht geladen werden."
   }
 }

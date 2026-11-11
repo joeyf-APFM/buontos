@@ -87,6 +87,7 @@ const setReady = (ready: boolean) =>
   act(() => (permissionsStore as unknown as { __readyStore: { setState: (s: { ready: boolean }) => void } }).__readyStore.setState({ ready }));
 
 import DefineView from './define';
+import defineClasses from './define.module.css';
 
 const RUNS = {
   runs: [
@@ -190,8 +191,8 @@ describe('DefineView', () => {
     expect(seps).toHaveLength(2);
     for (const sep of seps) {
       expect(sep).toHaveTextContent('→');
-      // Hidden when the columns stack; never advanced-only (no dangling arrow in Simple mode).
-      expect(sep).toHaveClass('hidden', 'sm:inline');
+      // Hidden when the columns stack (define.module.css); never advanced-only (no dangling arrow in Simple mode).
+      expect(sep).toHaveClass(defineClasses.separator);
       expect(sep).not.toHaveClass('adv-only');
     }
     // Each rung's info icon no longer has an arrow as a sibling.

@@ -1,22 +1,6 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+import { ActionIcon, Menu, Tooltip, UnstyledButton } from '@mantine/core';
 import {
   FolderTree,
   Pencil,
@@ -24,20 +8,23 @@ import {
   Download,
   MoreHorizontal,
   Lock,
-  BookOpen,
-  GitBranch,
-  Layers,
   Building2,
   Users,
   Briefcase,
   Globe,
-  ChevronDown,
+  ArrowUpDown,
   ExternalLink,
+  X,
 } from 'lucide-react';
-import { ColumnDef, Column } from "@tanstack/react-table";
+import { Column, ColumnDef } from '@tanstack/react-table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
+import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status';
+import { DetailsGrid, Pane } from '@/mantine/page';
 import type { KnowledgeCollection, CollectionType, ScopeLevel } from '@/types/ontology';
+import classes from './collections-tab.module.css';
 
 interface CollectionsTabProps {
   collections: KnowledgeCollection[];
@@ -49,25 +36,20 @@ interface CollectionsTabProps {
   canEdit: boolean;
 }
 
-const typeIcons: Record<CollectionType, React.ReactNode> = {
-  glossary: <BookOpen className="h-4 w-4" />,
-  taxonomy: <GitBranch className="h-4 w-4" />,
-  ontology: <Layers className="h-4 w-4" />,
+// Each scheme type in a tone of its own (the Aura status palette)
+const typeTones: Record<CollectionType, StatusTone> = {
+  glossary: 'emerald',
+  taxonomy: 'gold',
+  ontology: 'accent',
 };
 
-const typeColors: Record<CollectionType, string> = {
-  glossary: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  taxonomy: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30',
-  ontology: 'bg-violet-500/20 text-violet-700 dark:text-violet-400 border-violet-500/30',
-};
-
-const scopeIcons: Record<ScopeLevel, React.ReactNode> = {
-  enterprise: <Building2 className="h-4 w-4" />,
-  domain: <Briefcase className="h-4 w-4" />,
-  department: <Users className="h-4 w-4" />,
-  team: <Users className="h-4 w-4" />,
-  project: <FolderTree className="h-4 w-4" />,
-  external: <Globe className="h-4 w-4" />,
+const scopeIcons: Record<ScopeLevel, ReactNode> = {
+  enterprise: <Building2 aria-hidden />,
+  domain: <Briefcase aria-hidden />,
+  department: <Users aria-hidden />,
+  team: <Users aria-hidden />,
+  project: <FolderTree aria-hidden />,
+  external: <Globe aria-hidden />,
 };
 
 const scopeDescriptions: Record<ScopeLevel, string> = {
@@ -79,6 +61,48 @@ const scopeDescriptions: Record<ScopeLevel, string> = {
   external: 'Imported or external vocabulary',
 };
 
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
+
+/** A header label that sorts its column, in the grid's header-label look. */
+function SortButton({ column, label }: { column: Column<KnowledgeCollection, unknown>; label: string }) {
+  return (
+    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+      {label}
+      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+    </UnstyledButton>
+  );
+}
+
+/** The scheme's type, as a badge in its tone. */
+function TypeBadge({ type, label }: { type: CollectionType; label: string }) {
+  const tone = typeTones[type];
+  return (
+    <Badge variant="outline" style={tone ? badgeToneStyle(tone) : undefined}>
+      {label}
+    </Badge>
+  );
+}
+
+/**
+ * The scope, with its icon and its meaning on hover; in the details pane
+ * also on focus (in the table, one tab stop per row would be too many).
+ */
+function ScopeLine({ scope, focusable = false }: { scope: ScopeLevel; focusable?: boolean }) {
+  return (
+    <Tooltip label={scopeDescriptions[scope]} events={TOOLTIP_EVENTS}>
+      <span className={classes.scope} tabIndex={focusable ? 0 : undefined}>
+        {scopeIcons[scope]}
+        <span>{scope}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
+/**
+ * Collections' list and the chosen scheme's details (wave 2 Task 12a): the
+ * shared DataTable in a flush kit pane, and beside it, once a row is chosen,
+ * a pane with the scheme's details. Both are panes of the page's content row.
+ */
 export const CollectionsTab: React.FC<CollectionsTabProps> = ({
   collections,
   selectedCollection,
@@ -90,28 +114,34 @@ export const CollectionsTab: React.FC<CollectionsTabProps> = ({
 }) => {
   const { t } = useTranslation(['semantic-models', 'common']);
 
+  // The handlers through a ref, so the columns stay memoised (and a focused
+  // cell keeps its focus) when the page re-renders with new handlers
+  const handlers = useRef({ onEditCollection, onDeleteCollection, onExportCollection });
+  useEffect(() => {
+    handlers.current = { onEditCollection, onDeleteCollection, onExportCollection };
+  });
+
+  const typeLabel = useCallback((type: string) => t(`semantic-models:collections.${type}`) || type, [t]);
+
   const columns: ColumnDef<KnowledgeCollection>[] = useMemo(() => [
     {
       accessorKey: 'label',
-      header: ({ column }: { column: Column<KnowledgeCollection, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('common:labels.name')}
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('common:labels.name')} />,
       cell: ({ row }) => {
         const collection = row.original;
-        
+        const name = collection.label || collection.iri;
         return (
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col">
-              <span className="font-medium">{collection.label || collection.iri}</span>
-              {collection.description && (
-                <span className="text-xs text-muted-foreground line-clamp-1">{collection.description}</span>
+          <div className={classes.nameCell}>
+            <span className={classes.nameLine}>
+              <span className={classes.name}>{name}</span>
+              {!collection.is_editable && (
+                <Lock role="img" aria-label={t('semantic-models:badges.readonly')} className={classes.lock} />
               )}
-            </div>
-            {!collection.is_editable && (
-              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            {collection.description && (
+              <span className={classes.description} title={collection.description}>
+                {collection.description}
+              </span>
             )}
           </div>
         );
@@ -119,287 +149,188 @@ export const CollectionsTab: React.FC<CollectionsTabProps> = ({
     },
     {
       accessorKey: 'collection_type',
-      header: ({ column }: { column: Column<KnowledgeCollection, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('common:labels.type')}
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
+      header: ({ column }) => <SortButton column={column} label={t('common:labels.type')} />,
+      cell: ({ row }) => (
+        <TypeBadge type={row.original.collection_type as CollectionType} label={typeLabel(row.original.collection_type)} />
       ),
-      cell: ({ row }) => {
-        const type = row.original.collection_type as CollectionType;
-        return (
-          <Badge variant="outline" className={typeColors[type] || ''}>
-            {t(`semantic-models:collections.${type}`) || type}
-          </Badge>
-        );
-      },
     },
     {
       accessorKey: 'scope_level',
-      header: ({ column }: { column: Column<KnowledgeCollection, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('semantic-models:fields.scope')}
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => {
-        const scope = row.original.scope_level as ScopeLevel;
-        const icon = scopeIcons[scope];
-        const description = scopeDescriptions[scope];
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 cursor-help">
-                  {icon}
-                  <span className="text-sm capitalize">{scope}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">{description}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('semantic-models:fields.scope')} />,
+      cell: ({ row }) => <ScopeLine scope={row.original.scope_level as ScopeLevel} />,
     },
     {
       accessorKey: 'concept_count',
-      header: ({ column }: { column: Column<KnowledgeCollection, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('semantic-models:fields.concepts')}
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <Badge variant="secondary">
-          {row.original.concept_count || 0}
-        </Badge>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('semantic-models:fields.concepts')} />,
+      cell: ({ row }) => <Badge variant="secondary">{row.original.concept_count || 0}</Badge>,
     },
     {
       accessorKey: 'source_type',
       header: t('semantic-models:fields.source'),
-      cell: ({ row }) => {
-        const sourceType = row.original.source_type;
-        if (sourceType === 'imported') {
-          return <Badge variant="outline">{t('semantic-models:badges.imported')}</Badge>;
-        }
-        return <Badge variant="outline">{t('semantic-models:badges.custom')}</Badge>;
-      },
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {row.original.source_type === 'imported' ? t('semantic-models:badges.imported') : t('semantic-models:badges.custom')}
+        </Badge>
+      ),
     },
     {
       id: 'actions',
       cell: ({ row }) => {
         const collection = row.original;
-        
+        const editable = canEdit && collection.is_editable;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{t('common:labels.actions')}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {canEdit && collection.is_editable && (
-                <>
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onEditCollection(collection);
-                  }}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t('common:actions.edit')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onExportCollection(collection, 'turtle');
-              }}>
-                <Download className="h-4 w-4 mr-2" />
-                {t('common:actions.exportTurtle')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onExportCollection(collection, 'rdfxml');
-              }}>
-                <Download className="h-4 w-4 mr-2" />
-                {t('common:actions.exportRdfXml')}
-              </DropdownMenuItem>
-              {canEdit && collection.is_editable && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteCollection(collection);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t('common:actions.delete')}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className={classes.actions}>
+            <Menu position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon
+                  variant="subtle"
+                  className={classes.action}
+                  aria-label={t('semantic-models:collections.actionsFor', {
+                    defaultValue: 'Actions for {{name}}',
+                    name: collection.label || collection.iri,
+                  })}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal aria-hidden />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+                <Menu.Label>{t('common:labels.actions')}</Menu.Label>
+                {editable && (
+                  <>
+                    <Menu.Item leftSection={<Pencil aria-hidden />} onClick={() => handlers.current.onEditCollection(collection)}>
+                      {t('common:actions.edit')}
+                    </Menu.Item>
+                    <Menu.Divider />
+                  </>
+                )}
+                <Menu.Item leftSection={<Download aria-hidden />} onClick={() => handlers.current.onExportCollection(collection, 'turtle')}>
+                  {t('common:actions.exportTurtle')}
+                </Menu.Item>
+                <Menu.Item leftSection={<Download aria-hidden />} onClick={() => handlers.current.onExportCollection(collection, 'rdfxml')}>
+                  {t('common:actions.exportRdfXml')}
+                </Menu.Item>
+                {editable && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Item
+                      color="red"
+                      leftSection={<Trash2 aria-hidden />}
+                      onClick={() => handlers.current.onDeleteCollection(collection)}
+                    >
+                      {t('common:actions.delete')}
+                    </Menu.Item>
+                  </>
+                )}
+              </Menu.Dropdown>
+            </Menu>
+          </div>
         );
       },
     },
-  ], [t, canEdit, onEditCollection, onExportCollection, onDeleteCollection]);
-  
+  ], [t, canEdit, typeLabel]);
+
+  const selected = selectedCollection;
+  const selectedName = selected ? selected.label || selected.iri : '';
+
   return (
-    <div className="h-full flex gap-4">
-      {/* Table Section */}
-      <div className={`flex-1 flex flex-col ${selectedCollection ? 'w-1/2' : 'w-full'}`}>
-        <DataTable
-          columns={columns}
-          data={collections}
-          searchColumn="label"
-          storageKey="knowledge-collections-sort"
-          onRowClick={(row) => onSelectCollection(
-            selectedCollection?.iri === row.original.iri ? null : row.original
-          )}
-        />
-      </div>
-
-      {/* Detail Panel */}
-      {selectedCollection && (
-        <div className="w-1/2 border rounded-lg bg-background flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${typeColors[selectedCollection.collection_type as CollectionType] || 'bg-muted'}`}>
-                  {typeIcons[selectedCollection.collection_type as CollectionType] || <Layers className="h-5 w-5" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">{selectedCollection.label}</h2>
-                  <p className="text-sm text-muted-foreground">{selectedCollection.iri}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {canEdit && selectedCollection.is_editable && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEditCollection(selectedCollection)}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t('common:actions.edit')}
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onSelectCollection(null)}
-                >
-                  ✕
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Content */}
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-6">
-              {/* Description */}
-              {selectedCollection.description && (
-                <div>
-                  <h3 className="text-sm font-medium mb-2">{t('common:labels.description')}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedCollection.description}</p>
-                </div>
-              )}
-
-              {/* Properties */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium mb-2">{t('common:labels.type')}</h3>
-                  <Badge variant="outline" className={typeColors[selectedCollection.collection_type as CollectionType] || ''}>
-                    {t(`semantic-models:collections.${selectedCollection.collection_type}`) || selectedCollection.collection_type}
-                  </Badge>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium mb-2">{t('semantic-models:fields.scope')}</h3>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 cursor-help">
-                          {scopeIcons[selectedCollection.scope_level as ScopeLevel]}
-                          <span className="text-sm capitalize">{selectedCollection.scope_level}</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-sm">{scopeDescriptions[selectedCollection.scope_level as ScopeLevel]}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium mb-2">{t('semantic-models:fields.concepts')}</h3>
-                  <Badge variant="secondary">{selectedCollection.concept_count || 0}</Badge>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium mb-2">{t('semantic-models:fields.source')}</h3>
-                  <Badge variant="outline">
-                    {selectedCollection.source_type === 'imported' 
-                      ? t('semantic-models:badges.imported') 
-                      : t('semantic-models:badges.custom')}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Source URL */}
-              {selectedCollection.source_url && (
-                <div>
-                  <h3 className="text-sm font-medium mb-2">{t('semantic-models:fields.sourceUrl')}</h3>
-                  <a
-                    href={selectedCollection.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex items-center gap-1"
-                  >
-                    {selectedCollection.source_url}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              )}
-
-              {/* Status */}
-              <div>
-                <h3 className="text-sm font-medium mb-2">{t('common:labels.status')}</h3>
-                <div className="flex items-center gap-2">
-                  <Badge variant={selectedCollection.status === 'active' ? 'default' : 'secondary'}>
-                    {selectedCollection.status || 'active'}
-                  </Badge>
-                  {!selectedCollection.is_editable && (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      <Lock className="h-3 w-3 mr-1" />
-                      {t('semantic-models:badges.readonly')}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Created Info */}
-              {selectedCollection.created_at && (
-                <div className="text-sm text-muted-foreground border-t pt-4">
-                  <p>Created: {new Date(selectedCollection.created_at).toLocaleDateString()}</p>
-                </div>
-              )}
-
-              {/* Metadata Panel */}
-              <EntityMetadataPanel 
-                entityType="collection" 
-                entityId={selectedCollection.iri} 
-              />
-            </div>
-          </ScrollArea>
+    <>
+      <Pane flush aria-label={t('semantic-models:collections.listPane', 'Scheme list')}>
+        <div className={classes.body}>
+          <DataTable
+            columns={columns}
+            data={collections}
+            searchColumn="label"
+            storageKey="knowledge-collections-sort"
+            onRowClick={(row) => onSelectCollection(selected?.iri === row.original.iri ? null : row.original)}
+          />
         </div>
+      </Pane>
+
+      {selected && (
+        <Pane
+          title={selectedName}
+          titleTooltip
+          actions={
+            <>
+              {canEdit && selected.is_editable && (
+                <Button variant="outline" size="sm" onClick={() => onEditCollection(selected)}>
+                  <Pencil aria-hidden />
+                  {t('common:actions.edit')}
+                </Button>
+              )}
+              <ActionIcon
+                variant="subtle"
+                className={classes.action}
+                aria-label={t('common:actions.close')}
+                onClick={() => onSelectCollection(null)}
+              >
+                <X aria-hidden />
+              </ActionIcon>
+            </>
+          }
+        >
+          <div className={classes.details}>
+            <p className={classes.iri} title={selected.iri}>{selected.iri}</p>
+
+            {selected.description && (
+              <section className={classes.section}>
+                <h3 className={classes.sectionTitle}>{t('common:labels.description')}</h3>
+                <p className={classes.prose}>{selected.description}</p>
+              </section>
+            )}
+
+            <DetailsGrid
+              rows={[
+                {
+                  label: t('common:labels.type'),
+                  value: <TypeBadge type={selected.collection_type as CollectionType} label={typeLabel(selected.collection_type)} />,
+                },
+                { label: t('semantic-models:fields.scope'), value: <ScopeLine scope={selected.scope_level as ScopeLevel} focusable /> },
+                { label: t('semantic-models:fields.concepts'), value: <Badge variant="secondary">{selected.concept_count || 0}</Badge> },
+                {
+                  label: t('semantic-models:fields.source'),
+                  value: (
+                    <Badge variant="outline">
+                      {selected.source_type === 'imported' ? t('semantic-models:badges.imported') : t('semantic-models:badges.custom')}
+                    </Badge>
+                  ),
+                },
+                {
+                  label: t('common:labels.status'),
+                  value: (
+                    <span className={classes.badges}>
+                      <Badge variant={selected.status === 'active' ? 'default' : 'secondary'}>{selected.status || 'active'}</Badge>
+                      {!selected.is_editable && (
+                        <Badge variant="outline">
+                          <Lock aria-hidden />
+                          {t('semantic-models:badges.readonly')}
+                        </Badge>
+                      )}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+
+            {selected.source_url && (
+              <section className={classes.section}>
+                <h3 className={classes.sectionTitle}>{t('semantic-models:fields.sourceUrl')}</h3>
+                <a href={selected.source_url} target="_blank" rel="noopener noreferrer" className={classes.link}>
+                  {selected.source_url}
+                  <ExternalLink aria-hidden />
+                </a>
+              </section>
+            )}
+
+            {selected.created_at && (
+              <p className={classes.created}>Created: {new Date(selected.created_at).toLocaleDateString()}</p>
+            )}
+
+            <EntityMetadataPanel entityType="collection" entityId={selected.iri} />
+          </div>
+        </Pane>
       )}
-    </div>
+    </>
   );
 };

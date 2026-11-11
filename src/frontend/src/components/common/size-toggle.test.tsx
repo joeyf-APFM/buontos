@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SizeToggle } from './size-toggle'
+import classes from './size-toggle.module.css'
 
 const twoOptions = [
   { value: 'small', label: 'S', title: 'Small View' },
@@ -24,14 +25,14 @@ describe('SizeToggle', () => {
       />
     )
     const group = screen.getByRole('group', { name: 'View size' })
-    expect(group).toHaveClass('inline-flex', 'h-8', 'border', 'rounded-md')
+    expect(group).toHaveClass(classes.group)
     const small = screen.getByRole('button', { name: 'Small View' })
     const large = screen.getByRole('button', { name: 'Large View' })
     expect(small).toHaveTextContent('S')
     expect(large).toHaveTextContent('L')
     expect(small).toHaveAttribute('title', 'Small View')
     for (const btn of [small, large]) {
-      expect(btn).toHaveClass('h-full', 'w-8', 'p-0', 'text-xs', 'rounded-none')
+      expect(btn).toHaveClass(classes.option)
     }
   })
 
@@ -39,8 +40,6 @@ describe('SizeToggle', () => {
     render(<SizeToggle options={[...twoOptions]} value="large" onChange={() => {}} />)
     expect(screen.getByRole('button', { name: 'Large View' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Small View' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Large View' })).toHaveAttribute('data-variant', 'filled')
-    expect(screen.getByRole('button', { name: 'Small View' })).toHaveAttribute('data-variant', 'subtle')
   })
 
   it('supports three options and calls onChange with the clicked value', () => {

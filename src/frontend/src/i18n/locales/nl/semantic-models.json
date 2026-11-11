@@ -180,7 +180,10 @@
     "title": "Conceptschema's",
     "glossary": "Glossary",
     "taxonomy": "Taxonomie",
-    "ontology": "Ontologie"
+    "ontology": "Ontologie",
+    "listPane": "Schemalijst",
+    "loadFailed": "De schema's konden niet worden geladen.",
+    "actionsFor": "Acties voor {{name}}"
   },
   "actions": {
     "createConcept": "Concept aanmaken",
@@ -387,7 +390,9 @@
   },
   "collectionTree": {
     "readOnly": "Alleen-lezen conceptschema",
-    "noCollectionsYet": "Nog geen conceptschema's"
+    "noCollectionsYet": "Nog geen conceptschema's",
+    "expand": "{{name}} uitklappen",
+    "collapse": "{{name}} inklappen"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -554,7 +559,8 @@
     "emptyCta": "Ga naar Definiëren"
   },
   "define": {
-    "requiresWrite": "Schrijftoegang vereist"
+    "requiresWrite": "Schrijftoegang vereist",
+    "runsFailed": "Het lopende aanmaakwerk kon niet worden geladen."
   },
   "lifecycle": {
     "changeStatus": "Status wijzigen",

@@ -180,7 +180,10 @@
     "title": "Esquemas de conceitos",
     "glossary": "Glossário",
     "taxonomy": "Taxonomia",
-    "ontology": "Ontologia"
+    "ontology": "Ontologia",
+    "listPane": "Lista de esquemas",
+    "loadFailed": "Não foi possível carregar os esquemas.",
+    "actionsFor": "Ações para {{name}}"
   },
   "actions": {
     "createConcept": "Criar conceito",
@@ -387,7 +390,9 @@
   },
   "collectionTree": {
     "readOnly": "Esquema de conceitos somente leitura",
-    "noCollectionsYet": "Ainda não há esquemas de conceitos"
+    "noCollectionsYet": "Ainda não há esquemas de conceitos",
+    "expand": "Expandir {{name}}",
+    "collapse": "Recolher {{name}}"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -554,7 +559,8 @@
     "emptyCta": "Ir para Definir"
   },
   "define": {
-    "requiresWrite": "Requer acesso de gravação"
+    "requiresWrite": "Requer acesso de gravação",
+    "runsFailed": "Não foi possível carregar o trabalho de criação em andamento."
   },
   "lifecycle": {
     "changeStatus": "Alterar status",

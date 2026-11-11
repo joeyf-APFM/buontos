@@ -180,7 +180,10 @@
     "title": "Schemes",
     "glossary": "Glossary",
     "taxonomy": "Taxonomy",
-    "ontology": "Ontology"
+    "ontology": "Ontology",
+    "listPane": "Scheme list",
+    "loadFailed": "Could not load the schemes.",
+    "actionsFor": "Actions for {{name}}"
   },
   "actions": {
     "createConcept": "Create Concept",
@@ -459,7 +462,9 @@
   },
   "collectionTree": {
     "readOnly": "Read-only scheme",
-    "noCollectionsYet": "No schemes yet"
+    "noCollectionsYet": "No schemes yet",
+    "expand": "Expand {{name}}",
+    "collapse": "Collapse {{name}}"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -626,6 +631,7 @@
     "emptyCta": "Go to Define"
   },
   "define": {
-    "requiresWrite": "Requires write access"
+    "requiresWrite": "Requires write access",
+    "runsFailed": "Could not load the creation work in progress."
   }
 }

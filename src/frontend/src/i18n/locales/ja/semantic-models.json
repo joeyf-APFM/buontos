@@ -159,7 +159,10 @@
     "title": "コンセプトスキーム",
     "glossary": "用語集",
     "taxonomy": "分類体系",
-    "ontology": "オントロジー"
+    "ontology": "オントロジー",
+    "listPane": "スキーム一覧",
+    "loadFailed": "スキームを読み込めませんでした。",
+    "actionsFor": "{{name}} の操作"
   },
   "actions": {
     "createConcept": "コンセプトを作成",
@@ -325,7 +328,9 @@
   },
   "collectionTree": {
     "readOnly": "読み取り専用コンセプトスキーム",
-    "noCollectionsYet": "コンセプトスキームはまだありません"
+    "noCollectionsYet": "コンセプトスキームはまだありません",
+    "expand": "{{name}} を展開",
+    "collapse": "{{name}} を折りたたむ"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -492,6 +497,7 @@
     "emptyCta": "Define に移動"
   },
   "define": {
-    "requiresWrite": "書き込み権限が必要です"
+    "requiresWrite": "書き込み権限が必要です",
+    "runsFailed": "進行中の作成作業を読み込めませんでした。"
   }
 }

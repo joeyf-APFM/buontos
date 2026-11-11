@@ -1,0 +1,30 @@
+/*
+ * The scheme editor (collection-editor-dialog.tsx) on the kit Dialog, wave 2
+ * Task 12a: the shared dialog form (components/common/dialog-form.module.css)
+ * with the Type label's info mark.
+ */
+.labelLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The info mark: a 14px ring, its tip on hover and on focus */
+.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--aura-text-secondary);
+  border: 1px solid var(--aura-border-strong);
+  border-radius: 50%;
+  cursor: help;
+}
+
+.info:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}

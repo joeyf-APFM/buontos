@@ -1,10 +1,10 @@
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { UnstyledButton } from '@mantine/core';
+import classes from './size-toggle.module.css';
 
 // ---------------------------------------------------------------------------
-// Compact segmented size toggle (S | M | L style), matching the view buttons
-// on the Data Contracts detail page. Purely presentational: the caller owns the
-// value and persistence. Works for any number of options (2 or 3 today).
+// Compact segmented size toggle (S | M | L style). Purely presentational: the
+// caller owns the value and persistence. Works for any number of options (2
+// or 3 today). On Mantine since wave 2 Task 12a (size-toggle.module.css).
 // ---------------------------------------------------------------------------
 
 export interface SizeToggleOption<T extends string> {
@@ -19,6 +19,7 @@ interface SizeToggleProps<T extends string> {
   options: SizeToggleOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** Added to the group's own class, such as a caller's margin. */
   className?: string;
   'aria-label'?: string;
 }
@@ -34,26 +35,22 @@ export function SizeToggle<T extends string>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className={cn(
-        'inline-flex items-stretch h-8 gap-px border rounded-md bg-background overflow-hidden flex-shrink-0',
-        className
-      )}
+      className={className ? `${classes.group} ${className}` : classes.group}
     >
       {options.map((option) => {
         const active = option.value === value;
         return (
-          <Button
+          <UnstyledButton
             key={option.value}
             type="button"
-            variant={active ? 'default' : 'ghost'}
+            className={classes.option}
             aria-pressed={active}
             onClick={() => onChange(option.value)}
-            className="h-full w-8 p-0 font-semibold text-xs rounded-none"
             title={option.title}
             aria-label={option.title}
           >
             {option.label}
-          </Button>
+          </UnstyledButton>
         );
       })}
     </div>

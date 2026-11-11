@@ -1,0 +1,159 @@
+/*
+ * The scheme tree (collection-tree.tsx), wave 2 Task 12a: the explorer's
+ * dense rows, the row's menu button showing on hover or focus.
+ */
+.tree {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.headTitle {
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding-right: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.row:hover,
+.row[data-selected] {
+  background: var(--aura-surface-strong);
+}
+
+.toggleSlot {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 18px;
+}
+
+/* `button.` outranks Mantine's UnstyledButton reset (R10) */
+button.toggle {
+  display: inline-flex;
+  padding: 1px;
+  border-radius: 3px;
+  color: var(--aura-text-secondary);
+}
+
+button.toggle:hover {
+  background: var(--aura-border-subtle);
+}
+
+.toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+.icon[data-type='glossary'] {
+  color: var(--aura-warning);
+}
+
+.icon[data-type='taxonomy'] {
+  color: var(--aura-good);
+}
+
+.icon[data-type='ontology'] {
+  color: var(--aura-info);
+}
+
+.labelLine {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* One line; its title has it in full */
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.lock {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.count {
+  margin-left: auto;
+}
+
+button.menuButton {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-text-secondary);
+}
+
+.menuButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The row's menu shows on hover, on focus and while open */
+.row button.menuButton {
+  opacity: 0;
+}
+
+.row:hover button.menuButton,
+.row button.menuButton:focus-visible,
+.row button.menuButton[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 0;
+  color: var(--aura-text-secondary);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.emptyIcon {
+  width: 28px;
+  height: 28px;
+  opacity: 0.5;
+}

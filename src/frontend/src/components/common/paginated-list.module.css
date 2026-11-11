@@ -1,0 +1,49 @@
+/*
+ * The shared Prev / "Page X of Y" / Next control (paginated-list.tsx), wave 2
+ * Task 12a: 26px icon buttons at the end of the row, the rows-per-page field
+ * at its start, in the 12px body text.
+ */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 6px;
+  font-size: 12px;
+}
+
+/* The size field keeps the row's start; the page buttons go to its end */
+.size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.sizeLabel,
+.pageOf {
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+}
+
+.pageOf {
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sizeSelect {
+  width: 64px;
+  height: 26px;
+  min-height: 26px;
+  font-size: 12px;
+}
+
+/* `button.` outranks Mantine's ActionIcon colour (R10) */
+button.pageButton {
+  color: var(--aura-text-secondary);
+}
+
+.pageButton svg {
+  width: 14px;
+  height: 14px;
+}
