@@ -21,6 +21,7 @@ import {
   Loader2
 } from 'lucide-react';
 import classes from './access-grants-panel.module.css';
+import common from '@/components/common/detail-page.module.css';
 
 interface AccessGrant {
   id: string;
@@ -70,6 +71,9 @@ const PERMISSION_BADGES: Record<string, { variant: 'default' | 'secondary' | 'ou
   WRITE: { variant: 'default', label: 'Write' },
   MANAGE: { variant: 'outline', label: 'Manage' },
 };
+
+// The tooltips open on keyboard focus too, as the Radix ones did
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
 
 const STATUS_BADGES: Record<string, { tone: StatusTone; label: string }> = {
   active: { tone: 'good', label: 'Active' },
@@ -208,9 +212,10 @@ export default function AccessGrantsPanel({
           {summary && summary.expiring_soon_count > 0 && (
             <Tooltip
               withinPortal
+              events={TOOLTIP_EVENTS}
               label={t('access-grants:panel.expiringSoonTooltip', { count: summary.expiring_soon_count })}
             >
-              <Badge variant="outline" className={classes.badge} style={badgeToneStyle('warning')}>
+              <Badge variant="outline" className={classes.badge} style={badgeToneStyle('warning')} tabIndex={0}>
                 <AlertTriangle className={classes.mark} aria-hidden />
                 {t('access-grants:panel.expiringBadge', {
                   count: summary.expiring_soon_count,
@@ -222,7 +227,7 @@ export default function AccessGrantsPanel({
           <Button
             variant="ghost"
             size="icon"
-            className={classes.iconButton}
+            className={common.iconButton}
             aria-label={t('access-grants:panel.refresh', 'Refresh')}
             onClick={() => fetchData()}
           >
@@ -231,7 +236,7 @@ export default function AccessGrantsPanel({
           <Button
             variant="ghost"
             size="icon"
-            className={classes.iconButton}
+            className={common.iconButton}
             aria-label={title}
             aria-expanded={expanded}
             aria-controls={bodyId}
@@ -248,7 +253,7 @@ export default function AccessGrantsPanel({
 
       <Collapse in={expanded} id={bodyId} transitionDuration={0}>
         {loading ? (
-          <PanelSkeleton rows={2} rowHeight="h-10" />
+          <PanelSkeleton rows={2} withHeaderIcon={false} withDescription={false} className={classes.skeleton} />
         ) : (
           <div className={classes.sections}>
             {/* Pending Requests Section */}
@@ -325,14 +330,20 @@ export default function AccessGrantsPanel({
                         <Table.Td>
                           <Tooltip
                             withinPortal
+                            events={TOOLTIP_EVENTS}
                             label={t('access-grants:panel.expiresTooltip', { date: new Date(grant.expires_at).toLocaleString() })}
                           >
-                            <Badge variant="outline" style={badgeToneStyle(expiryTone(grant.days_until_expiry))}>
+                            <Badge
+                              variant="outline"
+                              className={classes.focusable}
+                              style={badgeToneStyle(expiryTone(grant.days_until_expiry))}
+                              tabIndex={0}
+                            >
                               {formatDaysUntilExpiry(grant.days_until_expiry)}
                             </Badge>
                           </Tooltip>
                         </Table.Td>
-                        <Table.Td className={classes.muted}>{grant.granted_by || '-'}</Table.Td>
+                        <Table.Td className={common.muted}>{grant.granted_by || '-'}</Table.Td>
                         <Table.Td>
                           <Badge
                             variant="outline"
@@ -347,7 +358,7 @@ export default function AccessGrantsPanel({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`${classes.iconButton} ${classes.danger}`}
+                                className={`${common.iconButton} ${common.danger}`}
                                 aria-label={t('access-grants:panel.revoke', 'Revoke')}
                                 onClick={() => openRevokeDialog(grant)}
                               >
@@ -365,7 +376,7 @@ export default function AccessGrantsPanel({
               <div className={classes.empty}>
                 <Users className={classes.emptyIcon} aria-hidden />
                 <p>{t('access-grants:panel.noGrants', 'No access grants for this resource')}</p>
-                <p className={classes.muted}>
+                <p className={common.muted}>
                   {t('access-grants:panel.noGrantsHint', 'Users can request time-limited access using the "Request Access" button.')}
                 </p>
               </div>
@@ -394,7 +405,7 @@ export default function AccessGrantsPanel({
               {t('common:actions.cancel', 'Cancel')}
             </Button>
             <Button variant="destructive" onClick={handleRevoke} disabled={revoking}>
-              {revoking && <Loader2 className={classes.spin} />}
+              {revoking && <Loader2 className={common.spin} />}
               {t('access-grants:panel.revokeTitle', 'Revoke Access')}
             </Button>
           </>

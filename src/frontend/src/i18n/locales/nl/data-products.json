@@ -149,6 +149,7 @@
   "details": {
     "backToList": "Terug naar Lijst",
     "edit": "Bewerken",
+    "editDescription": "Beschrijving bewerken",
     "delete": "Verwijderen",
     "subscribe": "Abonneren",
     "unsubscribe": "Afmelden",
@@ -272,6 +273,7 @@
       "assetsLinkedTitle": "Assets gekoppeld",
       "assetsLinked": "{{count}} asset(s) gekoppeld aan {{portName}}",
       "assetUnlinked": "Asset ontkoppeld",
+      "unlinkAsset": "{{name}} ontkoppelen",
       "linkAssetsFailed": "Koppelen van assets mislukt",
       "unlinkAssetFailed": "Ontkoppelen van asset mislukt"
     },

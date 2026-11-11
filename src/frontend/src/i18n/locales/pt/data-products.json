@@ -149,6 +149,7 @@
   "details": {
     "backToList": "Voltar para a lista",
     "edit": "Editar",
+    "editDescription": "Editar descrição",
     "delete": "Excluir",
     "subscribe": "Assinar",
     "unsubscribe": "Cancelar assinatura",
@@ -272,6 +273,7 @@
       "assetsLinkedTitle": "Ativos vinculados",
       "assetsLinked": "{{count}} ativo(s) vinculado(s) a {{portName}}",
       "assetUnlinked": "Ativo desvinculado",
+      "unlinkAsset": "Desvincular {{name}}",
       "linkAssetsFailed": "Falha ao vincular ativos",
       "unlinkAssetFailed": "Falha ao desvincular ativo"
     },

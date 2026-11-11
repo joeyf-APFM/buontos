@@ -3,24 +3,10 @@
  * 7): "Maturity <level> ↻" on one line, and its levels and gates on hover.
  */
 
-.muted {
-  color: var(--aura-text-secondary);
-}
-
 .loading {
   width: 14px;
   height: 14px;
   color: var(--aura-text-secondary);
-}
-
-.spin {
-  animation: maturity-spin 1s linear infinite;
-}
-
-@keyframes maturity-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* Compact: the label, then the level and its re-evaluate button */

@@ -149,6 +149,7 @@
   "details": {
     "backToList": "Back to List",
     "edit": "Edit",
+    "editDescription": "Edit description",
     "delete": "Delete",
     "subscribe": "Subscribe",
     "unsubscribe": "Unsubscribe",
@@ -272,6 +273,7 @@
       "assetsLinkedTitle": "Assets linked",
       "assetsLinked": "{{count}} asset(s) linked to {{portName}}",
       "assetUnlinked": "Asset unlinked",
+      "unlinkAsset": "Unlink {{name}}",
       "linkAssetsFailed": "Failed to link assets",
       "unlinkAssetFailed": "Failed to unlink asset"
     },

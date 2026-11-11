@@ -17,7 +17,6 @@ import usePermissionsStore from '@/stores/permissions-store';
 import { useUserStore } from '@/stores/user-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import DataProductDetails from './data-product-details';
-import classes from './data-product-details.module.css';
 
 // Toasts go to Mantine's notifications, which these tests don't mount
 const { toast } = vi.hoisted(() => ({ toast: vi.fn() }));
@@ -97,8 +96,8 @@ const header = () => screen.getByRole('heading', { level: 1 }).parentElement as 
 // The accessible name: a label, else the text, else the title (icon buttons)
 const names = (els: HTMLElement[]) =>
   els.map((el) => el.getAttribute('aria-label') ?? (el.textContent?.trim() || el.getAttribute('title') || ''));
-// The header's actions (its badges hold the maturity buttons)
-const actions = () => header().querySelector(`.${classes.actions}`) as HTMLElement;
+// The header's actions, in the kit's end slot (its badges hold the maturity buttons)
+const actions = () => header().querySelector(`.${kit.headerEnd}`) as HTMLElement;
 const headerButtons = () => names(within(actions()).getAllByRole('button')).sort();
 
 describe('data product details on the page kit', () => {
@@ -146,12 +145,8 @@ describe('data product details on the page kit', () => {
     expect(screen.getByRole('region', { name: 'Contacts' })).toHaveClass(kit.pane);
     expect(screen.getByRole('region', { name: /Deliverables/ })).toHaveClass(kit.pane);
 
-    // No layout padding, shadcn Card or Alert, or Tailwind class in the page's own markup: the
-    // header and the page's own panes (consumed panels, such as the relationships tree, keep theirs)
-    const own = [header(), details, screen.getByRole('region', { name: 'Contacts' }), screen.getByRole('region', { name: /Deliverables/ })];
-    for (const el of own) {
-      expect(el.querySelector('.py-6, .space-y-6, .space-y-3, .space-y-4, .space-y-2, .text-2xl, .p-6')).toBeNull();
-    }
+    // No shadcn Card or old grid; the full Tailwind scan of the page's own markup is
+    // data-product-details.markup.test.tsx
     expect(container.querySelector('.bg-card, .rounded-lg.border, .border.rounded-lg, .border.rounded, .grid')).toBeNull();
     expect(container.querySelector('.min-w-\\[4rem\\], .inline-flex.items-stretch, .mr-2.h-4.w-4, .text-\\[10px\\]')).toBeNull();
   });
@@ -174,8 +169,9 @@ describe('data product details on the page kit', () => {
     // The maturity badge and its re-evaluate button
     expect(await screen.findByRole('button', { name: 'Not assessed Maturity' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Re-evaluate maturity' })).toBeInTheDocument();
-    // The sections' own actions
+    // The sections' own actions; the description's icon-only edit has a name
     expect(screen.getByRole('button', { name: 'Add Deliverable' })).toBeEnabled();
+    expect(within(screen.getByRole('region', { name: 'Description' })).getByRole('button', { name: 'Edit description' })).toBeEnabled();
     // Linked concepts' Add, in the details
     expect(within(screen.getByRole('region', { name: 'Details' })).getByRole('button', { name: 'Add' })).toBeEnabled();
   });
@@ -222,6 +218,25 @@ describe('data product details on the page kit', () => {
     const description = screen.getByText(purpose, { selector: 'p' });
     // Under the header, not in it
     expect(header().contains(description)).toBe(false);
+  });
+
+  it('data product details: the project and owner team are text with their ids, not links to missing routes', async () => {
+    const user = userEvent.setup();
+    mockBackend({ ...PRODUCT, project_id: 'pr-1', project_name: 'Revenue', owner_team_id: 't-1', owner_team_name: 'Sales Analytics' });
+    renderPage();
+    await loaded();
+    const details = screen.getByRole('region', { name: 'Details' });
+    const project = within(details).getByText('Revenue');
+    const team = within(details).getByText('Sales Analytics');
+    expect(project).toHaveAttribute('title', 'Project ID: pr-1');
+    expect(team).toHaveAttribute('title', 'Team ID: t-1');
+    for (const el of [project, team]) {
+      expect(el.closest('a, button, [role="link"], [role="button"]')).toBeNull();
+      await user.click(el);
+    }
+    // Still on the product (no /projects/:id or /teams/:id route exists)
+    expect(screen.getByRole('heading', { level: 1, name: 'Sales orders' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/data-products/p-1');
   });
 
   it('data product details: a failed delete shows no success toast', async () => {

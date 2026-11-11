@@ -149,6 +149,7 @@
   "details": {
     "backToList": "リストに戻る",
     "edit": "編集",
+    "editDescription": "説明を編集",
     "delete": "削除",
     "subscribe": "購読",
     "unsubscribe": "購読解除",
@@ -272,6 +273,7 @@
       "assetsLinkedTitle": "アセットをリンクしました",
       "assetsLinked": "{{count}} 件のアセットを {{portName}} にリンクしました",
       "assetUnlinked": "アセットのリンクを解除しました",
+      "unlinkAsset": "{{name}} のリンクを解除",
       "linkAssetsFailed": "アセットのリンクに失敗しました",
       "unlinkAssetFailed": "アセットのリンク解除に失敗しました"
     },

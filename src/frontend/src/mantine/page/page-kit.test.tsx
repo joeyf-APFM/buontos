@@ -15,6 +15,17 @@ import classes from './page.module.css';
 vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
 
 describe('page kit', () => {
+  it('page header shares its line with many actions only when asked (wrapActions)', () => {
+    const { rerender } = renderWithMantine(<PageHeader title="Orders" actions={<button type="button">New</button>} />);
+    const header = () => screen.getByRole('heading', { level: 1, name: 'Orders' }).parentElement!;
+    expect(header()).not.toHaveAttribute('data-wrap-actions');
+    rerender(<PageHeader title="Orders" wrapActions actions={<button type="button">New</button>} />);
+    expect(header()).toHaveAttribute('data-wrap-actions');
+    // The actions stay in the kit's end slot; the line split is measured in Chrome
+    // (tests/e2e/data-product-details.spec.ts)
+    expect(screen.getByRole('button', { name: 'New' }).parentElement).toHaveClass(classes.headerEnd);
+  });
+
   it('page layout renders a one-line header, filters and panes with shared borders', () => {
     renderWithMantine(
       <PageLayout

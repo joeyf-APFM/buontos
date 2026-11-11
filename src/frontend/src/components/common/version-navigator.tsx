@@ -59,6 +59,7 @@ export default function VersionNavigator({
     <div className={classes.nav}>
       <Tooltip
         withinPortal
+        events={{ hover: true, focus: true, touch: false }}
         label={
           newerVersion
             ? t('common:versionNavigator.newerTooltip', { version: newerVersion.version })
@@ -86,6 +87,7 @@ export default function VersionNavigator({
 
       <Tooltip
         withinPortal
+        events={{ hover: true, focus: true, touch: false }}
         label={
           olderVersion
             ? t('common:versionNavigator.olderTooltip', { version: olderVersion.version })

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type FocusEvent, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { HoverCard } from '@mantine/core';
+import { Popover } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -9,6 +9,7 @@ import {
 import { MaturityBadge } from '@/components/common/maturity-badge';
 import type { MaturityReport, LevelResult } from '@/types/maturity';
 import classes from './maturity-inline.module.css';
+import common from '@/components/common/detail-page.module.css';
 
 interface MaturityInlineProps {
   entityType: 'DataProduct' | 'DataContract';
@@ -28,12 +29,54 @@ const GATE_ICON: Record<string, typeof CheckCircle2> = {
   warn: AlertTriangle,
 };
 
+/**
+ * The level card's open state: it opens on hover (after a short delay, and
+ * stays open while the pointer is over the card) and on keyboard focus, and
+ * closes on blur, on leaving, and on Escape, as the Radix HoverCard did.
+ * Mantine's HoverCard opens on hover only.
+ */
+function useDetailCard(openDelay = 200, closeDelay = 150) {
+  const [opened, setOpened] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const clear = () => window.clearTimeout(timer.current);
+  const later = (next: boolean, delay: number) => {
+    clear();
+    timer.current = window.setTimeout(() => setOpened(next), delay);
+  };
+  useEffect(() => clear, []);
+  const close = () => { clear(); setOpened(false); };
+  return {
+    opened,
+    close,
+    target: {
+      onMouseEnter: () => later(true, openDelay),
+      onMouseLeave: () => later(false, closeDelay),
+      onFocus: () => { clear(); setOpened(true); },
+      onBlur: (e: FocusEvent<HTMLElement>) => {
+        // Moving to the re-evaluate button inside the badge keeps it open
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
+      },
+      onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+        if (e.key === 'Escape' && opened) {
+          e.stopPropagation();
+          close();
+        }
+      },
+    },
+    dropdown: {
+      onMouseEnter: clear,
+      onMouseLeave: () => later(false, closeDelay),
+    },
+  };
+}
+
 export function MaturityInline({ entityType, entityId, compact = false }: MaturityInlineProps) {
   const { t } = useTranslation('common');
   const [report, setReport] = useState<MaturityReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const { toast } = useToast();
+  const card = useDetailCard();
 
   const prefix = API_PREFIX[entityType] || API_PREFIX.DataProduct;
 
@@ -72,11 +115,11 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
   useEffect(() => { fetchReport(); }, [fetchReport]);
 
   if (isLoading) {
-    return <Loader2 className={`${classes.loading} ${classes.spin}`} />;
+    return <Loader2 className={`${classes.loading} ${common.spin}`} />;
   }
 
   if (!report) {
-    return <span className={classes.muted}>—</span>;
+    return <span className={common.muted}>—</span>;
   }
 
   const achievedLevel = report.levels.find(l => l.achieved && l.level_order === report.achieved_level_order);
@@ -88,9 +131,9 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
     // Beside a title: "Maturity <level> ↻", the label drawn first (its
     // place in the markup, after the level, keeps the badge's name)
     return (
-      <HoverCard openDelay={200} position="bottom-end" withinPortal shadow="md">
-        <HoverCard.Target>
-          <div className={classes.compact} role="button" tabIndex={0}>
+      <Popover opened={card.opened} onClose={card.close} position="bottom-end" withinPortal shadow="md" returnFocus={false}>
+        <Popover.Target>
+          <div className={classes.compact} role="button" tabIndex={0} aria-expanded={card.opened} {...card.target}>
             <span className={classes.level}>{levelName}</span>
             <button
               type="button"
@@ -98,23 +141,23 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); evaluate(); }}
               title={t('common:maturity.reEvaluate')}
             >
-              {isEvaluating ? <Loader2 className={classes.spin} /> : <RefreshCw />}
+              {isEvaluating ? <Loader2 className={common.spin} /> : <RefreshCw />}
             </button>
             <span className={classes.label}>{t('common:maturity.label')}</span>
           </div>
-        </HoverCard.Target>
-        <HoverCard.Dropdown className={classes.card}>
+        </Popover.Target>
+        <Popover.Dropdown className={classes.card} {...card.dropdown}>
           <HoverDetail report={report} levelName={levelName} passed={passed} total={total} />
-        </HoverCard.Dropdown>
-      </HoverCard>
+        </Popover.Dropdown>
+      </Popover>
     );
   }
 
   return (
     <div className={classes.inline}>
-      <HoverCard openDelay={200} position="bottom-start" withinPortal shadow="md">
-        <HoverCard.Target>
-          <button type="button" className={classes.badgeButton}>
+      <Popover opened={card.opened} onClose={card.close} position="bottom-start" withinPortal shadow="md" returnFocus={false}>
+        <Popover.Target>
+          <button type="button" className={classes.badgeButton} aria-expanded={card.opened} {...card.target}>
             <MaturityBadge
               levelName={report.achieved_level_name}
               levelIcon={achievedLevel?.level_icon}
@@ -123,11 +166,11 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
               totalLevels={report.total_levels}
             />
           </button>
-        </HoverCard.Target>
-        <HoverCard.Dropdown className={classes.card}>
+        </Popover.Target>
+        <Popover.Dropdown className={classes.card} {...card.dropdown}>
           <HoverDetail report={report} levelName={levelName} passed={passed} total={total} />
-        </HoverCard.Dropdown>
-      </HoverCard>
+        </Popover.Dropdown>
+      </Popover>
       <span className={classes.count}>
         {passed}/{total}
       </span>
@@ -138,7 +181,7 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
         disabled={isEvaluating}
         title={t('common:maturity.reEvaluate')}
       >
-        {isEvaluating ? <Loader2 className={classes.spin} /> : <RefreshCw />}
+        {isEvaluating ? <Loader2 className={common.spin} /> : <RefreshCw />}
       </Button>
     </div>
   );
@@ -152,7 +195,7 @@ function HoverDetail({ report, levelName, passed, total }: {
     <div className={classes.detail}>
       <div className={classes.detailHead}>
         <p className={classes.detailTitle}>{t('common:maturity.labelWithLevel', { level: levelName })}</p>
-        <span className={classes.muted}>
+        <span className={common.muted}>
           {t('common:maturity.gatesCount', { passed, total })}
         </span>
       </div>

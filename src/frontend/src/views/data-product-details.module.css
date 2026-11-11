@@ -6,30 +6,6 @@
  * What is left here is the page's own.
  */
 
-/* The actions at the end of the header: they wrap onto a second line before
-   the page scrolls sideways, and the name gives way first */
-.actions {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 6px;
-}
-
-/* With this many actions, the header shares its line out: the name keeps its
-   own width up to 45% (then truncates, with its title), and the actions take
-   the rest, wrapping onto more lines (the kit's header holds them in its end
-   slot, which these selectors reach) */
-h1:has(~ * > .actions) {
-  flex: 0 1 auto;
-  max-width: 45%;
-}
-
-*:has(> .actions) {
-  flex: 1 1 0;
-}
-
 /* Beside the name: the quality score */
 .metric {
   flex: none;
@@ -101,11 +77,6 @@ button.size {
   font-weight: 600;
 }
 
-/* Delete reads as destructive */
-.danger {
-  color: var(--aura-critical);
-}
-
 /* A section's lead line, under its head */
 .lead {
   margin: 0 0 8px;
@@ -160,10 +131,6 @@ button.size {
   color: var(--aura-text-body);
 }
 
-.muted {
-  color: var(--aura-text-secondary);
-}
-
 .italic {
   font-style: italic;
   color: var(--aura-text-secondary);
@@ -178,18 +145,6 @@ button.size {
   flex: none;
   display: flex;
   gap: 2px;
-}
-
-button.iconAction {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-}
-
-button.iconAction svg {
-  width: 14px;
-  height: 14px;
 }
 
 /* A small text button inside a row, such as Link Contract */
@@ -313,15 +268,4 @@ button.unlink:focus-visible {
 
 .stateBack {
   align-self: flex-start;
-}
-
-/* A button's spinner while it works */
-.spin {
-  animation: details-spin 1s linear infinite;
-}
-
-@keyframes details-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

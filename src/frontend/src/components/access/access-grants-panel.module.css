@@ -13,26 +13,23 @@
   gap: 4px;
 }
 
+/* Badges with a tooltip are focus stops, so the keyboard reaches the tooltip */
+.badge:focus-visible,
+.focusable:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* The loading rows, inside the pane (no frame of their own) */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+}
+
 .mark {
   width: 12px;
   height: 12px;
   color: var(--tone-mark, currentColor);
-}
-
-button.iconButton {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-}
-
-button.iconButton svg {
-  width: 14px;
-  height: 14px;
-}
-
-.danger {
-  color: var(--aura-critical);
 }
 
 .sections {
@@ -98,10 +95,6 @@ button.iconButton svg {
   overflow-wrap: anywhere;
 }
 
-.muted {
-  color: var(--aura-text-secondary);
-}
-
 .empty {
   display: flex;
   flex-direction: column;
@@ -121,14 +114,4 @@ button.iconButton svg {
   height: 24px;
   margin-bottom: 4px;
   opacity: 0.5;
-}
-
-.spin {
-  animation: grants-spin 1s linear infinite;
-}
-
-@keyframes grants-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

@@ -149,6 +149,7 @@
   "details": {
     "backToList": "Torna alla Lista",
     "edit": "Modifica",
+    "editDescription": "Modifica descrizione",
     "delete": "Elimina",
     "subscribe": "Iscriviti",
     "unsubscribe": "Annulla Iscrizione",
@@ -272,6 +273,7 @@
       "assetsLinkedTitle": "Asset collegati",
       "assetsLinked": "{{count}} asset collegati a {{portName}}",
       "assetUnlinked": "Asset scollegato",
+      "unlinkAsset": "Scollega {{name}}",
       "linkAssetsFailed": "Impossibile collegare gli asset",
       "unlinkAssetFailed": "Impossibile scollegare l'asset"
     },

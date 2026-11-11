@@ -258,6 +258,11 @@ export const DATA_FIXTURES: Record<string, unknown> = {
     support: [], customProperties: [], authoritativeDefinitions: [], description: { purpose: 'Orders for reporting' },
     created_at: CREATED, updated_at: UPDATED,
   },
+  // The large view's rating panel (the router's default [] has no average to show)
+  '/api/entities/data_product/e2e-product-1/ratings': {
+    entity_type: 'data_product', entity_id: 'e2e-product-1', average_rating: 0, total_ratings: 0,
+    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, user_current_rating: null,
+  },
   '/api/data-products/e2e-product-1/maturity': {
     entity_type: 'DataProduct', entity_id: 'e2e-product-1', entity_name: 'Sales orders', achieved_level_order: null,
     achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,

@@ -149,6 +149,7 @@
   "details": {
     "backToList": "Retour à la Liste",
     "edit": "Modifier",
+    "editDescription": "Modifier la description",
     "delete": "Supprimer",
     "subscribe": "S'abonner",
     "unsubscribe": "Se désabonner",
@@ -272,6 +273,7 @@
       "assetsLinkedTitle": "Actifs liés",
       "assetsLinked": "{{count}} actif(s) lié(s) à {{portName}}",
       "assetUnlinked": "Actif délié",
+      "unlinkAsset": "Dissocier {{name}}",
       "linkAssetsFailed": "Échec de la liaison des actifs",
       "unlinkAssetFailed": "Échec de la dissociation de l'actif"
     },

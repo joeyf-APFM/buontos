@@ -60,6 +60,7 @@ import { userHasApprovalPrivilege } from '@/lib/permissions';
 import { ApprovalEntity } from '@/types/settings';
 import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
 import classes from './data-product-details.module.css';
+import common from '@/components/common/detail-page.module.css';
 
 /**
  * ODPS v1.0.0 Data Product Details View
@@ -414,6 +415,8 @@ function PortLinkedAssets({ portId, portName, canEdit }: { portId: string; portN
                 <button
                   type="button"
                   className={classes.unlink}
+                  aria-label={t('data-products:details.deliverables.unlinkAsset', { name: rel.target_name || rel.target_id })}
+                  title={t('data-products:details.deliverables.unlinkAsset', { name: rel.target_name || rel.target_id })}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleUnlinkAsset(rel.id);
@@ -1372,7 +1375,7 @@ export default function DataProductDetails() {
     notAssignedLabel: t('common:states.notAssigned'),
   });
 
-  const none = <span className={classes.muted}>—</span>;
+  const none = <span className={common.muted}>—</span>;
   const domainId = product.domain ? getDomainIdByName(domainLabel) : undefined;
   const qualityTone = qualitySummary
     ? qualitySummary.overall_score_percent >= 80 ? 'good' : qualitySummary.overall_score_percent >= 50 ? 'warning' : 'critical'
@@ -1389,34 +1392,24 @@ export default function DataProductDetails() {
         <span className={classes.link} onClick={() => navigate(`/settings/data-domains/${domainId}`)}>
           {domainLabel}
         </span>
-      ) : product.domain ? <span className={classes.muted}>{domainLabel}</span> : none,
+      ) : product.domain ? <span className={common.muted}>{domainLabel}</span> : none,
     },
     {
       label: t('data-products:details.coreMetadata.project'),
       value: (product as any).project_id && product.project_name ? (
-        <span
-          className={classes.link}
-          onClick={() => navigate(`/projects/${(product as any).project_id}`)}
-          title={`Project ID: ${(product as any).project_id}`}
-        >
-          {product.project_name}
-        </span>
+        // No route shows one project, so the name is text, with the id in its title
+        <span title={`Project ID: ${(product as any).project_id}`}>{product.project_name}</span>
       ) : none,
     },
     {
       label: t('data-products:details.coreMetadata.tenant'),
-      value: product.tenant ? <span className={classes.muted}>{product.tenant}</span> : none,
+      value: product.tenant ? <span className={common.muted}>{product.tenant}</span> : none,
     },
     {
       label: t('data-products:details.coreMetadata.ownerTeam'),
       value: product.owner_team_id && product.owner_team_name ? (
-        <span
-          className={classes.link}
-          onClick={() => navigate(`/teams/${product.owner_team_id}`)}
-          title={`Team ID: ${product.owner_team_id}`}
-        >
-          {product.owner_team_name}
-        </span>
+        // No route shows one team, so the name is text, with the id in its title
+        <span title={`Team ID: ${product.owner_team_id}`}>{product.owner_team_name}</span>
       ) : none,
     },
     {
@@ -1425,11 +1418,11 @@ export default function DataProductDetails() {
     },
     {
       label: t('data-products:details.coreMetadata.created'),
-      value: product.created_at ? <span className={classes.muted}>{formatDate(product.created_at)}</span> : none,
+      value: product.created_at ? <span className={common.muted}>{formatDate(product.created_at)}</span> : none,
     },
     {
       label: t('data-products:details.coreMetadata.updated'),
-      value: product.updated_at ? <span className={classes.muted}>{formatDate(product.updated_at)}</span> : none,
+      value: product.updated_at ? <span className={common.muted}>{formatDate(product.updated_at)}</span> : none,
     },
     {
       label: t('data-products:details.coreMetadata.certification'),
@@ -1463,7 +1456,7 @@ export default function DataProductDetails() {
             <TagChip key={index} tag={tag} size="sm" />
           ))}
         </span>
-      ) : <span className={classes.muted}>{t('data-products:details.coreMetadata.noTags')}</span>,
+      ) : <span className={common.muted}>{t('data-products:details.coreMetadata.noTags')}</span>,
     },
     {
       label: t('data-products:details.coreMetadata.linkedConcepts'),
@@ -1495,7 +1488,7 @@ export default function DataProductDetails() {
       <span className={classes.initials} aria-hidden>{initials}</span>
       <div className={classes.contactText}>
         <span className={classes.contactName} title={name}>{name}</span>
-        <span className={classes.muted}>{role}</span>
+        <span className={common.muted}>{role}</span>
       </div>
     </div>
   );
@@ -1506,7 +1499,7 @@ export default function DataProductDetails() {
       <Button
         size="icon"
         variant="ghost"
-        className={classes.iconAction}
+        className={common.iconButton}
         onClick={onEdit}
         title={editTitle}
         aria-label={editTitle ? undefined : t('common:actions.edit')}
@@ -1516,7 +1509,7 @@ export default function DataProductDetails() {
       <Button
         size="icon"
         variant="ghost"
-        className={`${classes.iconAction} ${classes.danger}`}
+        className={`${common.iconButton} ${common.danger}`}
         onClick={onDelete}
         title={deleteTitle}
         aria-label={deleteTitle ? undefined : t('common:actions.delete')}
@@ -1547,8 +1540,9 @@ export default function DataProductDetails() {
                   {productId && <MaturityInline entityType="DataProduct" entityId={productId} compact />}
                 </>
               }
+              wrapActions
               actions={
-                <div className={classes.actions}>
+                <>
                   {backButton}
                   <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm">
                     <KeyRound /> {t('data-products:details.actions.requestAccess')}
@@ -1591,7 +1585,7 @@ export default function DataProductDetails() {
                   {/* Clone for Editing - shown when product is read-only */}
                   {isReadOnly && canWrite && (
                     <Button variant="outline" onClick={handleCloneForEditing} disabled={isCloning} size="sm">
-                      {isCloning ? <Loader2 className={classes.spin} /> : <CopyPlus />}
+                      {isCloning ? <Loader2 className={common.spin} /> : <CopyPlus />}
                       {t('data-products:details.actions.cloneForEditing')}
                     </Button>
                   )}
@@ -1604,7 +1598,7 @@ export default function DataProductDetails() {
                   {/* Discard Draft - shown when this is a personal draft */}
                   {isPersonalDraft && canWrite && (
                     <Button variant="outline" onClick={handleDiscardDraft} disabled={isDiscarding} size="sm">
-                      {isDiscarding ? <Loader2 className={classes.spin} /> : <Trash2 />}
+                      {isDiscarding ? <Loader2 className={common.spin} /> : <Trash2 />}
                       {t('data-products:details.actions.discardDraft')}
                     </Button>
                   )}
@@ -1621,12 +1615,12 @@ export default function DataProductDetails() {
                   {isSubscribable && (
                     subscriptionStatus?.subscribed ? (
                       <Button variant="outline" onClick={handleUnsubscribe} disabled={subscriptionLoading} size="sm">
-                        {subscriptionLoading ? <Loader2 className={classes.spin} /> : <BellOff />}
+                        {subscriptionLoading ? <Loader2 className={common.spin} /> : <BellOff />}
                         {t('data-products:details.unsubscribe')}
                       </Button>
                     ) : (
                       <Button variant="default" onClick={handleSubscribeClick} disabled={subscriptionLoading} size="sm">
-                        {subscriptionLoading ? <Loader2 className={classes.spin} /> : <Bell />}
+                        {subscriptionLoading ? <Loader2 className={common.spin} /> : <Bell />}
                         {t('data-products:details.subscribe')}
                       </Button>
                     )
@@ -1637,10 +1631,10 @@ export default function DataProductDetails() {
                       <Pencil /> {t('data-products:details.edit')}
                     </Button>
                   )}
-                  <Button variant="outline" className={classes.danger} onClick={handleDelete} disabled={!canAdmin} size="sm">
+                  <Button variant="outline" className={common.danger} onClick={handleDelete} disabled={!canAdmin} size="sm">
                     <Trash2 /> {t('data-products:details.delete')}
                   </Button>
-                </div>
+                </>
               }
             />
             <p className={classes.description}>
@@ -1741,7 +1735,7 @@ export default function DataProductDetails() {
                           {port.status && <Badge variant="outline">{port.status}</Badge>}
                           {port.containsPii && <Badge variant="destructive">PII</Badge>}
                         </div>
-                        {port.description && <span className={classes.muted}>{port.description}</span>}
+                        {port.description && <span className={common.muted}>{port.description}</span>}
                         {port.contractId ? (
                           <div className={classes.itemLine}>
                             {/* Only render as a navigable link when the backend resolved
@@ -1764,7 +1758,7 @@ export default function DataProductDetails() {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className={classes.iconAction}
+                                className={common.iconButton}
                                 onClick={() => handleUnlinkContract(idx)}
                                 title={t('common:tooltips.unlinkContract')}
                               >
@@ -1808,7 +1802,14 @@ export default function DataProductDetails() {
               <Pane
                 title={t('data-products:details.sections.description')}
                 actions={canModify && (
-                  <Button size="icon" variant="outline" className={classes.iconAction} onClick={handleEdit}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className={common.iconButton}
+                    onClick={handleEdit}
+                    aria-label={t('data-products:details.editDescription')}
+                    title={t('data-products:details.editDescription')}
+                  >
                     <Pencil />
                   </Button>
                 )}
@@ -1884,7 +1885,7 @@ export default function DataProductDetails() {
                               </span>
                             )
                           ) : (
-                            <span className={classes.muted}>{t('data-products:details.consumables.contractLabel', { contractId: port.contractId })}</span>
+                            <span className={common.muted}>{t('data-products:details.consumables.contractLabel', { contractId: port.contractId })}</span>
                           )}
                         </div>
                         {canModify && rowActions(
@@ -1921,7 +1922,7 @@ export default function DataProductDetails() {
                         <div className={classes.itemMain}>
                           <span className={classes.itemName}>{port.name}</span>
                           <span>{t('data-products:details.managementPorts.contentLabel')}: {port.content}</span>
-                          {port.url && <span className={classes.muted}>{t('data-products:details.managementPorts.urlLabel')}: {port.url}</span>}
+                          {port.url && <span className={common.muted}>{t('data-products:details.managementPorts.urlLabel')}: {port.url}</span>}
                         </div>
                         {canModify && rowActions(
                           () => {
@@ -1974,7 +1975,7 @@ export default function DataProductDetails() {
                             {t('data-products:details.managementPorts.urlLabel')}:{' '}
                             <a href={channel.url} target="_blank" rel="noopener noreferrer" className={classes.link}>{channel.url}</a>
                           </span>
-                          {channel.tool && <span className={classes.muted}>{t('data-products:details.supportChannels.toolLabel')}: {channel.tool}</span>}
+                          {channel.tool && <span className={common.muted}>{t('data-products:details.supportChannels.toolLabel')}: {channel.tool}</span>}
                         </div>
                         {canModify && rowActions(
                           () => {
@@ -2003,7 +2004,7 @@ export default function DataProductDetails() {
                       <div className={classes.itemMain}>
                         <span className={classes.itemLine}><Badge variant="outline">{def.type}</Badge></span>
                         <a href={def.url} target="_blank" rel="noopener noreferrer" className={classes.link}>{def.url}</a>
-                        {def.description && <span className={classes.muted}>{def.description}</span>}
+                        {def.description && <span className={common.muted}>{def.description}</span>}
                       </div>
                     </div>
                   ))}
@@ -2045,9 +2046,9 @@ export default function DataProductDetails() {
                       <div key={idx} className={classes.item}>
                         <div className={classes.itemMain}>
                           <span className={classes.itemName}>{subscriber.email}</span>
-                          {subscriber.reason && <span className={classes.muted}>{subscriber.reason}</span>}
+                          {subscriber.reason && <span className={common.muted}>{subscriber.reason}</span>}
                         </div>
-                        <span className={classes.muted}>{formatDate(subscriber.subscribed_at)}</span>
+                        <span className={common.muted}>{formatDate(subscriber.subscribed_at)}</span>
                       </div>
                     ))}
                   </div>

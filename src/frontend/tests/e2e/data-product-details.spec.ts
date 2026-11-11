@@ -26,13 +26,6 @@ const FULL = {
   support: many(3, (i) => ({ channel: `Channel ${i}`, url: `https://example.com/support/${i}`, tool: 'slack' })),
 };
 
-// The large view's rating panel needs a summary (the fixture router's [] has no average)
-const RATINGS = {
-  '/api/entities/data_product/e2e-product-1/ratings': {
-    average_rating: 0, total_ratings: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, user_current_rating: null,
-  },
-};
-
 const style = (loc: Locator, props: string[]) =>
   loc.evaluate((el, names) => {
     const cs = getComputedStyle(el);
@@ -48,7 +41,7 @@ async function open(page: Page, product: unknown, { persona = 'admin', route = '
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
   if (size) await page.addInitScript((s) => localStorage.setItem('data-product-view-mode', s), size);
-  await mockApi(page, PERSONAS[persona], { ...DATA_FIXTURES, ...RATINGS, [PATH]: product });
+  await mockApi(page, PERSONAS[persona], { ...DATA_FIXTURES, [PATH]: product });
   await page.goto(route);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 }
@@ -112,6 +105,18 @@ test('long port and team lists scroll inside their panes; the header stays in pl
   expect(await noPageScroll(page)).toBe(true);
 });
 
+test('with every action showing, a short name keeps its full width and the actions wrap from the end', async ({ page }) => {
+  await open(page, { ...BASE, status: 'active' }, { size: 'large' });
+  const title = page.getByRole('heading', { level: 1, name: 'Sales orders' });
+  expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  // The last action ends at the header's right edge (14px padding), and nothing scrolls sideways
+  const header = title.locator('..');
+  const h = (await header.boundingBox())!;
+  const d = (await page.getByRole('button', { name: 'Delete', exact: true }).boundingBox())!;
+  expect(Math.abs(h.x + h.width - 14 - (d.x + d.width))).toBeLessThanOrEqual(1);
+  expect(await noPageScroll(page)).toBe(true);
+});
+
 test('empty ports and support show their message and Add for an admin', async ({ page }) => {
   await open(page, BASE, { size: 'large' });
   for (const [name, empty, add] of [
@@ -144,4 +149,65 @@ test('the consumer sees no edit or certify control, and Delete is disabled', asy
   await expect(main.getByRole('button', { name: 'Certify' })).toHaveCount(0);
   await expect(main.getByRole('button', { name: 'Publish' })).toHaveCount(0);
   await expect(main.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled();
+});
+
+test('the maturity badge opens its details on keyboard focus and on hover; blur and Escape close them', async ({ page }) => {
+  await open(page, BASE);
+  const target = page.getByRole('button', { name: 'Not assessed Maturity' });
+  const card = page.getByText('Maturity: Not assessed', { exact: true });
+  await expect(target).toBeVisible();
+  await expect(card).toHaveCount(0);
+
+  // Keyboard: focus opens, Escape closes, focus stays on the badge
+  await target.focus();
+  await expect(card).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(card).toBeHidden();
+  await expect(target).toBeFocused();
+
+  // Focus again, then move on: blur closes
+  await target.blur();
+  await target.focus();
+  await expect(card).toBeVisible();
+  await page.getByRole('button', { name: 'Back to List' }).focus();
+  await expect(card).toBeHidden();
+
+  // Mouse: hover opens, leaving closes
+  await target.hover();
+  await expect(card).toBeVisible();
+  await page.mouse.move(5, 700);
+  await expect(card).toBeHidden();
+});
+
+test('the version and access-grant tooltips open on keyboard focus', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
+  await page.addInitScript(() => localStorage.setItem('data-product-view-mode', 'large'));
+  await mockApi(page, PERSONAS.admin, {
+    ...DATA_FIXTURES,
+    '/api/data-products/e2e-product-1/versions': [
+      { id: 'e2e-product-2', version: '2.0.0', status: 'draft' },
+      { id: 'e2e-product-1', version: '1.0.0', status: 'draft' },
+    ],
+    '/api/access-grants/entity/data_product/e2e-product-1': {
+      total: 1,
+      grants: [{ id: 'g-1', grantee_email: 'sam@example.com', permission_level: 'READ', granted_at: '2026-11-01T09:00:00Z',
+        expires_at: '2026-11-12T09:00:00Z', granted_by: 'rita@example.com', status: 'active', days_until_expiry: 3, is_active: true }],
+    },
+    '/api/access-grants/entity/data_product/e2e-product-1/summary':
+      { active_grants_count: 1, pending_requests_count: 0, expiring_soon_count: 1, total_grants_count: 1 },
+    '/api/access-grants/entity/data_product/e2e-product-1/requests': { total: 0, requests: [] },
+  });
+  await page.goto('/data-products/e2e-product-1');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Newer version' }).focus();
+  await expect(page.getByRole('tooltip', { name: 'Newer: v2.0.0' })).toBeVisible();
+
+  const grants = page.getByRole('region', { name: 'Access Grants' });
+  // The badges themselves are focus stops
+  await grants.locator('[tabindex="0"]', { hasText: '1 expiring' }).focus();
+  await expect(page.getByRole('tooltip', { name: '1 grant expiring soon' })).toBeVisible();
+  await grants.getByRole('cell').locator('[tabindex="0"]', { hasText: /day/ }).focus();
+  await expect(page.getByRole('tooltip', { name: /^Expires: / })).toBeVisible();
 });
