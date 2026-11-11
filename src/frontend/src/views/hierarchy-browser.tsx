@@ -1,29 +1,21 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createElement, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Alert, Select, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import {
   Network, AlertCircle, Search,
   Box, Table2, Eye, Columns2, LayoutDashboard, Globe, FileCode, Brain,
   Activity, Server, Shield, BookOpen, Database, FolderOpen, Shapes,
   ExternalLink, RefreshCw, ListTree, GitFork, Layers,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   HierarchyTreeSkeleton,
   HierarchyDetailSkeleton,
 } from '@/components/common/list-view-skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  Tooltip, TooltipContent, TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { LoadError } from '@/components/search/search-pane';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
 import { useApi } from '@/hooks/use-api';
 import { usePermissions } from '@/stores/permissions-store';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
@@ -31,8 +23,8 @@ import { FeatureAccessLevel } from '@/types/settings';
 import { HierarchyTreeNode } from '@/components/hierarchy/hierarchy-tree-node';
 import { HierarchyGraphView } from '@/components/hierarchy/hierarchy-graph-view';
 import type { InstanceHierarchyNode, HierarchyRootGroup } from '@/types/ontology-schema';
-import { cn } from '@/lib/utils';
 import { useFormatLabel } from '@/lib/format-label';
+import classes from './hierarchy-browser.module.css';
 
 type DetailViewMode = 'tree' | 'graph';
 
@@ -64,9 +56,17 @@ const TYPE_ROUTE_MAP: Record<string, string> = {
   DataDomain: '/data-domains',
 };
 
+// Tooltips open on keyboard focus too
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
+
 function getIconComponent(iconName?: string | null): React.ElementType {
   if (!iconName) return Box;
   return ICON_MAP[iconName] || Box;
+}
+
+/** An entity type's icon (a lookup, so no component is made during render). */
+function EntityIcon({ icon, className }: { icon?: string | null; className?: string }) {
+  return createElement(getIconComponent(icon), { 'aria-hidden': true, className });
 }
 
 function getEntityRoute(entityType: string, entityId: string): string {
@@ -75,10 +75,15 @@ function getEntityRoute(entityType: string, entityId: string): string {
   return `/assets/${entityId}`;
 }
 
+const childrenOf = (node: InstanceHierarchyNode): InstanceHierarchyNode[] =>
+  Array.isArray(node.children) ? node.children : [];
 
 interface DetailPanelProps {
+  paneLabel: string;
   node: InstanceHierarchyNode | null;
   loading: boolean;
+  error: string | null;
+  onRetry: () => void;
   detailNode: InstanceHierarchyNode | null;
   viewMode: DetailViewMode;
   onViewModeChange: (mode: DetailViewMode) => void;
@@ -92,7 +97,7 @@ function collectEntityTypes(node: InstanceHierarchyNode): Set<string> {
   const types = new Set<string>();
   function walk(n: InstanceHierarchyNode) {
     types.add(n.entity_type);
-    for (const child of n.children || []) walk(child);
+    for (const child of childrenOf(n)) walk(child);
   }
   walk(node);
   return types;
@@ -104,21 +109,23 @@ function filterNodeByTypes(
 ): InstanceHierarchyNode | null {
   if (!visibleTypes.has(node.entity_type)) return null;
   const filteredChildren: InstanceHierarchyNode[] = [];
-  for (const child of node.children || []) {
+  for (const child of childrenOf(node)) {
     const filtered = filterNodeByTypes(child, visibleTypes);
     if (filtered) filteredChildren.push(filtered);
   }
   return { ...node, children: filteredChildren, child_count: filteredChildren.length };
 }
 
+/** The detail pane: the chosen entity's head, its type filter, and its hierarchy as a tree or a graph. */
 function DetailPanel({
-  node, loading, detailNode, viewMode, onViewModeChange,
+  paneLabel, node, loading, error, onRetry, detailNode, viewMode, onViewModeChange,
   maxDepth, onMaxDepthChange, visibleTypes, onVisibleTypesChange,
 }: DetailPanelProps) {
   const navigate = useNavigate();
   const { t } = useTranslation(['data-catalog', 'common']);
 
-  const rawDisplayNode = detailNode || node;
+  // A failed load shows its error, not the tree row's shallow copy as if it had no children
+  const rawDisplayNode = error !== null ? null : detailNode || node;
 
   const allTypes = useMemo(
     () => rawDisplayNode ? collectEntityTypes(rawDisplayNode) : new Set<string>(),
@@ -140,180 +147,186 @@ function DetailPanel({
     onVisibleTypesChange(base);
   }, [visibleTypes, allTypes, onVisibleTypesChange]);
 
-  if (loading) return <HierarchyDetailSkeleton showControls treeRows={6} />;
+  const depthData = useMemo(
+    () => DEPTH_OPTIONS.map((opt) => ({
+      value: opt.value,
+      label: opt.all
+        ? t('data-catalog:hierarchy.allLevels')
+        : t('data-catalog:hierarchy.levelsOption', { count: Number(opt.value) }),
+    })),
+    [t],
+  );
 
-  if (!node || !displayNode) {
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-24 text-muted-foreground">
-        <Network className="h-16 w-16 mb-4 opacity-20" />
-        <p className="text-lg font-medium">{t('data-catalog:hierarchy.selectEntity')}</p>
-        <p className="text-sm mt-1">
-          {t('data-catalog:hierarchy.selectEntityHint')}
-        </p>
-      </div>
+      <Pane aria-label={paneLabel} className={classes.detailPane}>
+        <HierarchyDetailSkeleton showControls treeRows={6} />
+      </Pane>
     );
   }
 
-  const Icon = getIconComponent(node.icon);
-  const hasChildren = displayNode.children && displayNode.children.length > 0;
+  if (node && error !== null) {
+    return (
+      <Pane aria-label={paneLabel} className={classes.detailPane} title={node.name || undefined} titleTooltip>
+        <LoadError error={error} onRetry={onRetry} />
+      </Pane>
+    );
+  }
+
+  if (!node || !displayNode) {
+    return (
+      <Pane aria-label={paneLabel} className={classes.detailPane}>
+        <div className={classes.empty}>
+          <Network aria-hidden className={classes.emptyIcon} />
+          <p className={classes.emptyTitle}>{t('data-catalog:hierarchy.selectEntity')}</p>
+          <p className={classes.emptyBody}>{t('data-catalog:hierarchy.selectEntityHint')}</p>
+        </div>
+      </Pane>
+    );
+  }
+
+  const children = childrenOf(displayNode);
+  const hasChildren = children.length > 0;
+
+  const actions = (
+    <>
+      {hasChildren && (
+        <>
+          <Tooltip label={t('data-catalog:hierarchy.maxDepthTooltip')} events={TOOLTIP_EVENTS}>
+            <div>
+              <Select
+                aria-label={t('data-catalog:hierarchy.maxDepthTooltip')}
+                data={depthData}
+                value={maxDepth}
+                onChange={(value) => value && onMaxDepthChange(value)}
+                allowDeselect={false}
+                size="xs"
+                w={110}
+                leftSection={<Layers aria-hidden size={12} />}
+              />
+            </div>
+          </Tooltip>
+          <div className={classes.viewToggle}>
+            <ActionIcon
+              variant={viewMode === 'tree' ? 'light' : 'subtle'}
+              color="gray"
+              size={26}
+              aria-label={t('data-catalog:hierarchy.treeView')}
+              title={t('data-catalog:hierarchy.treeView')}
+              aria-pressed={viewMode === 'tree'}
+              onClick={() => onViewModeChange('tree')}
+            >
+              <ListTree aria-hidden size={14} />
+            </ActionIcon>
+            <ActionIcon
+              variant={viewMode === 'graph' ? 'light' : 'subtle'}
+              color="gray"
+              size={26}
+              aria-label={t('data-catalog:hierarchy.graphView')}
+              title={t('data-catalog:hierarchy.graphView')}
+              aria-pressed={viewMode === 'graph'}
+              onClick={() => onViewModeChange('graph')}
+            >
+              <GitFork aria-hidden size={14} />
+            </ActionIcon>
+          </div>
+        </>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate(getEntityRoute(displayNode.entity_type, displayNode.entity_id))}
+      >
+        <ExternalLink aria-hidden />
+        {t('data-catalog:hierarchy.viewDetail')}
+      </Button>
+    </>
+  );
 
   return (
-    <div className="p-6 space-y-4 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="h-5 w-5 text-primary" />
+    <Pane
+      aria-label={paneLabel}
+      className={classes.detailPane}
+      title={displayNode.name}
+      titleTooltip
+      actions={actions}
+      flush
+    >
+      <div className={classes.detail}>
+        <div className={classes.meta}>
+          <EntityIcon icon={node.icon} className={classes.metaIcon} />
+          <Badge variant="outline">{displayNode.entity_type}</Badge>
+          {displayNode.status && (
+            <Badge variant={STATUS_VARIANT[displayNode.status] ?? 'outline'}>{displayNode.status}</Badge>
+          )}
+          {displayNode.child_count > 0 && (
+            <span className={classes.muted}>
+              {t('data-catalog:hierarchy.childCount', { count: displayNode.child_count })}
+            </span>
+          )}
+        </div>
+
+        {displayNode.description && <p className={classes.description}>{displayNode.description}</p>}
+
+        {/* Entity type filter chips */}
+        {allTypes.size > 1 && (
+          <div className={classes.chips}>
+            <span className={classes.muted}>{t('data-catalog:hierarchy.show')}</span>
+            {Array.from(allTypes).map((type) => {
+              const active = visibleTypes.size === 0 || visibleTypes.has(type);
+              return (
+                <UnstyledButton
+                  key={type}
+                  className={classes.chip}
+                  data-active={active || undefined}
+                  aria-pressed={active}
+                  onClick={() => toggleType(type)}
+                >
+                  {type}
+                </UnstyledButton>
+              );
+            })}
+            {visibleTypes.size > 0 && visibleTypes.size < allTypes.size && (
+              <UnstyledButton className={classes.textButton} onClick={() => onVisibleTypesChange(new Set())}>
+                {t('data-catalog:hierarchy.showAll')}
+              </UnstyledButton>
+            )}
           </div>
-          <div>
-            <h2 className="text-xl font-semibold">{displayNode.name}</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <Badge variant="outline" className="text-xs">{displayNode.entity_type}</Badge>
-              {displayNode.status && (
-                <Badge variant={STATUS_VARIANT[displayNode.status] ?? 'outline'} className="text-xs">
-                  {displayNode.status}
-                </Badge>
-              )}
-              {displayNode.child_count > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {t('data-catalog:hierarchy.childCount', { count: displayNode.child_count })}
-                </span>
-              )}
+        )}
+
+        {/* Children visualization */}
+        {hasChildren ? (
+          viewMode === 'graph' ? (
+            <div className={classes.graph}>
+              <HierarchyGraphView rootNode={displayNode} />
             </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {hasChildren && (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <Select value={maxDepth} onValueChange={onMaxDepthChange}>
-                      <SelectTrigger className="h-8 w-[100px] text-xs">
-                        <Layers className="h-3 w-3 mr-1 flex-shrink-0" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPTH_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                            {opt.all
-                              ? t('data-catalog:hierarchy.allLevels')
-                              : t('data-catalog:hierarchy.levelsOption', { count: Number(opt.value) })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{t('data-catalog:hierarchy.maxDepthTooltip')}</TooltipContent>
-              </Tooltip>
-              <div className="flex border rounded-md overflow-hidden">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn('h-8 px-2.5 rounded-none', viewMode === 'tree' && 'bg-muted')}
-                  onClick={() => onViewModeChange('tree')}
-                  aria-label={t('data-catalog:hierarchy.treeView')}
-                >
-                  <ListTree className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn('h-8 px-2.5 rounded-none', viewMode === 'graph' && 'bg-muted')}
-                  onClick={() => onViewModeChange('graph')}
-                  aria-label={t('data-catalog:hierarchy.graphView')}
-                >
-                  <GitFork className="h-3.5 w-3.5" />
-                </Button>
+          ) : (
+            <div className={classes.children}>
+              <h3 className={classes.heading}>{t('data-catalog:hierarchy.heading')}</h3>
+              <div className={classes.treeBox} role="tree" aria-label={t('data-catalog:hierarchy.heading')}>
+                <div className={classes.rootRow}>
+                  <EntityIcon icon={node.icon} className={classes.rootIcon} />
+                  <span className={classes.rootName} title={displayNode.name}>{displayNode.name}</span>
+                </div>
+                {children.map((child) => (
+                  <HierarchyTreeNode
+                    key={`${child.entity_type}-${child.entity_id}`}
+                    node={child}
+                    depth={1}
+                    isLazy
+                  />
+                ))}
               </div>
-            </>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(getEntityRoute(displayNode.entity_type, displayNode.entity_id))}
-          >
-            <ExternalLink className="mr-1 h-3.5 w-3.5" />
-            {t('data-catalog:hierarchy.viewDetail')}
-          </Button>
-        </div>
-      </div>
-
-      {displayNode.description && (
-        <p className="text-sm text-muted-foreground flex-shrink-0">{displayNode.description}</p>
-      )}
-
-      {/* Entity type filter chips */}
-      {allTypes.size > 1 && (
-        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
-          <span className="text-xs text-muted-foreground mr-1">{t('data-catalog:hierarchy.show')}</span>
-          {Array.from(allTypes).map((type) => {
-            const isAllVisible = visibleTypes.size === 0;
-            const active = isAllVisible || visibleTypes.has(type);
-            return (
-              <Badge
-                key={type}
-                variant={active ? 'default' : 'outline'}
-                className={cn(
-                  'cursor-pointer text-[10px] h-5 px-1.5 transition-opacity',
-                  !active && 'opacity-50',
-                )}
-                onClick={() => toggleType(type)}
-              >
-                {type}
-              </Badge>
-            );
-          })}
-          {visibleTypes.size > 0 && visibleTypes.size < allTypes.size && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-[10px]"
-              onClick={() => onVisibleTypesChange(new Set())}
-            >
-              {t('data-catalog:hierarchy.showAll')}
-            </Button>
-          )}
-        </div>
-      )}
-
-      <Separator className="flex-shrink-0" />
-
-      {/* Children visualization */}
-      {hasChildren ? (
-        viewMode === 'graph' ? (
-          <div className="flex-1 min-h-0">
-            <HierarchyGraphView rootNode={displayNode} className="h-full" />
-          </div>
+            </div>
+          )
         ) : (
-          <div className="flex-1 overflow-auto">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              {t('data-catalog:hierarchy.heading')}
-            </h3>
-            <div className="border rounded-lg p-2">
-              <div className="flex items-center gap-2 px-2 py-1.5 bg-primary/5 rounded-md mb-1">
-                <Icon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">{displayNode.name}</span>
-              </div>
-              {displayNode.children.map((child) => (
-                <HierarchyTreeNode
-                  key={`${child.entity_type}-${child.entity_id}`}
-                  node={child}
-                  depth={1}
-                  isLazy
-                />
-              ))}
-            </div>
+          <div className={classes.note}>
+            <Box aria-hidden className={classes.noteIcon} />
+            <p>{t('data-catalog:hierarchy.noChildren')}</p>
           </div>
-        )
-      ) : (
-        <div className="text-center py-8 text-muted-foreground">
-          <Box className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">{t('data-catalog:hierarchy.noChildren')}</p>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Pane>
   );
 }
 
@@ -326,6 +339,7 @@ export default function HierarchyBrowserView() {
   const selectedRef = useRef<string | null>(null);
   const [detailNode, setDetailNode] = useState<InstanceHierarchyNode | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [detailViewMode, setDetailViewMode] = useState<DetailViewMode>('tree');
   const [maxDepth, setMaxDepth] = useState('4');
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(new Set());
@@ -334,6 +348,10 @@ export default function HierarchyBrowserView() {
   const [enabledRootTypes, setEnabledRootTypes] = useState<Set<string>>(
     () => new Set(ALL_ROOT_TYPES),
   );
+
+  // A newer request drops an older one's answer
+  const rootsSeq = useRef(0);
+  const detailSeq = useRef(0);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -354,39 +372,48 @@ export default function HierarchyBrowserView() {
   }, [setStaticSegments, setDynamicTitle, t]);
 
   const fetchRoots = useCallback(async () => {
+    const seq = ++rootsSeq.current;
     setRootsLoading(true);
     setRootsError(null);
     try {
       const response = await apiGet<HierarchyRootGroup[]>(
         '/api/entity-hierarchy/roots?types=System,DataDomain,DataProduct'
       );
+      if (seq !== rootsSeq.current) return;
       if (response.error) throw new Error(response.error);
       setRootGroups(Array.isArray(response.data) ? response.data : []);
-    } catch (err: any) {
-      setRootsError(err.message || t('data-catalog:hierarchy.rootsLoadFailed'));
+    } catch (err: unknown) {
+      if (seq !== rootsSeq.current) return;
+      setRootsError((err instanceof Error && err.message) || t('data-catalog:hierarchy.rootsLoadFailed'));
     } finally {
-      setRootsLoading(false);
+      if (seq === rootsSeq.current) setRootsLoading(false);
     }
   }, [apiGet, t]);
 
   useEffect(() => { fetchRoots(); }, [fetchRoots]);
 
   const fetchDetail = useCallback(async (entityType: string, entityId: string, depth: string) => {
+    const seq = ++detailSeq.current;
     setDetailLoading(true);
+    setDetailError(null);
     try {
       const response = await apiGet<InstanceHierarchyNode>(
         `/api/entity-hierarchy/${entityType}/${entityId}?max_depth=${depth}`
       );
+      if (seq !== detailSeq.current) return;
       if (!response.error && response.data) {
         setDetailNode(response.data);
         setVisibleTypes(new Set());
       } else {
         setDetailNode(null);
+        setDetailError(response.error || '');
       }
-    } catch {
+    } catch (err: unknown) {
+      if (seq !== detailSeq.current) return;
       setDetailNode(null);
+      setDetailError(err instanceof Error ? err.message : '');
     } finally {
-      setDetailLoading(false);
+      if (seq === detailSeq.current) setDetailLoading(false);
     }
   }, [apiGet]);
 
@@ -414,6 +441,10 @@ export default function HierarchyBrowserView() {
     }
   }, [selectedNode, fetchDetail]);
 
+  const retryDetail = useCallback(() => {
+    if (selectedNode) fetchDetail(selectedNode.entity_type, selectedNode.entity_id, maxDepth);
+  }, [selectedNode, fetchDetail, maxDepth]);
+
   const toggleRootType = useCallback((type: string) => {
     setEnabledRootTypes((prev) => {
       const next = new Set(prev);
@@ -427,151 +458,151 @@ export default function HierarchyBrowserView() {
   }, []);
 
   const filteredGroups = useMemo(() => {
-    let groups = rootGroups.filter((g) => enabledRootTypes.has(g.entity_type));
+    let groups = rootGroups
+      .filter((g) => enabledRootTypes.has(g.entity_type))
+      .map((g) => ({ ...g, roots: Array.isArray(g.roots) ? g.roots : [] }));
     if (treeFilter.trim()) {
       const q = treeFilter.toLowerCase();
       groups = groups.map((group) => ({
         ...group,
-        roots: group.roots.filter((root) => root.name.toLowerCase().includes(q)),
+        roots: group.roots.filter((root) => (root.name || '').toLowerCase().includes(q)),
       })).filter((group) => group.roots.length > 0);
     }
     return groups;
   }, [rootGroups, treeFilter, enabledRootTypes]);
 
+  const title = t('data-catalog:hierarchy.browserTitle');
+
   if (!canRead && !permissionsLoading) {
     return (
-      <div className="py-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('data-catalog:hierarchy.permissionDenied')}</AlertTitle>
-          <AlertDescription>{t('data-catalog:hierarchy.noAccess')}</AlertDescription>
-        </Alert>
-      </div>
+      <PageLayout header={<PageHeader title={title} />}>
+        <div className={classes.denied}>
+          <Alert color="red" variant="light" icon={<AlertCircle />} title={t('data-catalog:hierarchy.permissionDenied')}>
+            {t('data-catalog:hierarchy.noAccess')}
+          </Alert>
+        </div>
+      </PageLayout>
     );
   }
 
+  const browseLabel = t('data-catalog:hierarchy.browse');
+  const refreshLabel = t('common:actions.refresh');
+  const filterPlaceholder = t('data-catalog:hierarchy.filterPlaceholder');
+
   return (
-    <div className="py-6">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Network className="w-8 h-8" />
-          {t('data-catalog:hierarchy.browserTitle')}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {t('data-catalog:hierarchy.browserSubtitle')}
-        </p>
-      </div>
-
-      {rootsError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('common:states.error')}</AlertTitle>
-          <AlertDescription>{rootsError}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex gap-6 h-[calc(100vh-240px)]">
-        {/* Left panel: Tree browser */}
-        <div className="w-80 flex-shrink-0">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-3 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">{t('data-catalog:hierarchy.browse')}</CardTitle>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchRoots}>
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {/* Root type filter chips */}
-              <div className="flex items-center gap-1 mt-2 flex-wrap">
-                {ALL_ROOT_TYPES.map((type) => {
-                  const active = enabledRootTypes.has(type);
-                  const count = rootGroups.find((g) => g.entity_type === type)?.roots.length ?? 0;
-                  return (
-                    <Badge
-                      key={type}
-                      variant={active ? 'default' : 'outline'}
-                      className={cn(
-                        'cursor-pointer text-[10px] h-5 px-1.5 transition-opacity select-none',
-                        !active && 'opacity-40',
-                      )}
-                      onClick={() => toggleRootType(type)}
-                    >
-                      {type === 'DataDomain' ? t('data-catalog:hierarchy.rootType.domain') : type === 'DataProduct' ? t('data-catalog:hierarchy.rootType.product') : type}
-                      {count > 0 && <span className="ml-0.5 opacity-70">{count}</span>}
-                    </Badge>
-                  );
-                })}
-              </div>
-              <div className="relative mt-2">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder={t('data-catalog:hierarchy.filterPlaceholder')}
-                  value={treeFilter}
-                  onChange={(e) => setTreeFilter(e.target.value)}
-                  className="h-8 pl-8 text-sm"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="px-2 pb-2" role="tree">
-                  {rootsLoading ? (
-                    <HierarchyTreeSkeleton groups={3} itemsPerGroup={3} />
-                  ) : filteredGroups.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Network className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">
-                        {treeFilter ? t('data-catalog:hierarchy.noMatches') : t('data-catalog:hierarchy.noRoots')}
-                      </p>
-                    </div>
-                  ) : (
-                    filteredGroups.map((group) => {
-                      const GroupIcon = getIconComponent(group.icon);
-                      return (
-                        <div key={group.entity_type} className="mb-3">
-                          <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            <GroupIcon className="h-3.5 w-3.5" />
-                            {formatLabel(group.label)}
-                            <span className="ml-auto text-xs font-normal">{group.roots.length}</span>
-                          </div>
-                          {group.roots.map((root) => (
-                            <HierarchyTreeNode
-                              key={`${root.entity_type}-${root.entity_id}`}
-                              node={root}
-                              depth={0}
-                              selectedId={selectedNode?.entity_id}
-                              onSelect={handleSelectNode}
-                              isLazy
-                            />
-                          ))}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right panel: Detail / subtree view */}
-        <div className="flex-1 min-w-0">
-          <Card className="h-full overflow-hidden">
-            <DetailPanel
-              node={selectedNode}
-              loading={detailLoading}
-              detailNode={detailNode}
-              viewMode={detailViewMode}
-              onViewModeChange={setDetailViewMode}
-              maxDepth={maxDepth}
-              onMaxDepthChange={handleMaxDepthChange}
-              visibleTypes={visibleTypes}
-              onVisibleTypesChange={setVisibleTypes}
+    <PageLayout
+      stackBelow="lg"
+      header={
+        <>
+          <PageHeader title={title} />
+          <p className={classes.subtitle}>{t('data-catalog:hierarchy.browserSubtitle')}</p>
+        </>
+      }
+    >
+      {/* Left pane: the tree browser; its tools stay put while the tree scrolls */}
+      <Pane
+        title={browseLabel}
+        className={classes.browsePane}
+        flush
+        actions={
+          <Tooltip label={refreshLabel} events={TOOLTIP_EVENTS}>
+            <ActionIcon variant="subtle" color="gray" size={26} aria-label={refreshLabel} onClick={fetchRoots}>
+              <RefreshCw aria-hidden size={14} />
+            </ActionIcon>
+          </Tooltip>
+        }
+      >
+        <div className={classes.browse}>
+          <div className={classes.browseTools}>
+            {/* Root type filter chips */}
+            <div className={classes.chips}>
+              {ALL_ROOT_TYPES.map((type) => {
+                const active = enabledRootTypes.has(type);
+                const group = rootGroups.find((g) => g.entity_type === type);
+                const count = Array.isArray(group?.roots) ? group.roots.length : 0;
+                return (
+                  <UnstyledButton
+                    key={type}
+                    className={classes.chip}
+                    data-active={active || undefined}
+                    aria-pressed={active}
+                    onClick={() => toggleRootType(type)}
+                  >
+                    {type === 'DataDomain' ? t('data-catalog:hierarchy.rootType.domain') : type === 'DataProduct' ? t('data-catalog:hierarchy.rootType.product') : type}
+                    {count > 0 && <span className={classes.chipCount}> {count}</span>}
+                  </UnstyledButton>
+                );
+              })}
+            </div>
+            <TextInput
+              placeholder={filterPlaceholder}
+              // The field was named by its placeholder; it keeps that name
+              aria-label={filterPlaceholder}
+              value={treeFilter}
+              onChange={(e) => setTreeFilter(e.currentTarget.value)}
+              leftSection={<Search aria-hidden size={14} />}
             />
-          </Card>
+          </div>
+
+          <div className={classes.tree} role="tree" aria-label={browseLabel}>
+            {rootsLoading ? (
+              <HierarchyTreeSkeleton groups={3} itemsPerGroup={3} />
+            ) : rootsError !== null ? (
+              <div className={classes.state}>
+                <Alert color="red" variant="light" icon={<AlertCircle />} title={t('common:states.error')} className={classes.alert}>
+                  <span className={classes.alertMessage}>{rootsError}</span>
+                </Alert>
+                <Button variant="outline" onClick={fetchRoots}>{t('common:retry')}</Button>
+              </div>
+            ) : filteredGroups.length === 0 ? (
+              <div className={classes.note}>
+                <Network aria-hidden className={classes.noteIcon} />
+                <p>
+                  {treeFilter ? t('data-catalog:hierarchy.noMatches') : t('data-catalog:hierarchy.noRoots')}
+                </p>
+              </div>
+            ) : (
+              filteredGroups.map((group) => {
+                return (
+                  <div key={group.entity_type} className={classes.group}>
+                    <div className={classes.groupHead}>
+                      <EntityIcon icon={group.icon} className={classes.groupIcon} />
+                      <span className={classes.groupLabel}>{formatLabel(group.label)}</span>
+                      <span className={classes.groupCount}>{group.roots.length}</span>
+                    </div>
+                    {group.roots.map((root) => (
+                      <HierarchyTreeNode
+                        key={`${root.entity_type}-${root.entity_id}`}
+                        node={root}
+                        depth={0}
+                        selectedId={selectedNode?.entity_id}
+                        onSelect={handleSelectNode}
+                        isLazy
+                      />
+                    ))}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </Pane>
+
+      {/* Right pane: the detail / subtree view */}
+      <DetailPanel
+        paneLabel={t('data-catalog:hierarchy.detailPane')}
+        node={selectedNode}
+        loading={detailLoading}
+        error={detailError}
+        onRetry={retryDetail}
+        detailNode={detailNode}
+        viewMode={detailViewMode}
+        onViewModeChange={setDetailViewMode}
+        maxDepth={maxDepth}
+        onMaxDepthChange={handleMaxDepthChange}
+        visibleTypes={visibleTypes}
+        onVisibleTypesChange={setVisibleTypes}
+      />
+    </PageLayout>
   );
 }

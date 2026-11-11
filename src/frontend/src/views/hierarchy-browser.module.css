@@ -1,0 +1,331 @@
+/*
+ * The Hierarchy Browser (/concepts/hierarchy) on the page kit (wave 2 Task
+ * 13c), inside the Concepts layout, which keeps the shell's padding: the kit
+ * header and its description, then two panes side by side at a fixed height:
+ * Browse (the root chips, the filter, and the tree, which scrolls under them)
+ * and the chosen entity's hierarchy, as a tree that scrolls inside the pane
+ * or as the reactflow graph (components/hierarchy).
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.denied {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Both panes take the window's height under the header, so a deep tree
+   scrolls inside its pane and the heads stay in place */
+.browsePane,
+.detailPane {
+  height: calc(100vh - var(--shell-top-height, 44px) - var(--shell-crumb-height, 0px) - 150px);
+  min-height: 360px;
+}
+
+/* Doubled to outrank the kit's .pane { flex: 1 } */
+.browsePane.browsePane {
+  flex: none;
+  width: 320px;
+}
+
+@media (max-width: 1023.98px) {
+  .browsePane.browsePane {
+    width: auto;
+  }
+}
+
+/* ---- Browse ---- */
+
+.browse {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.browseTools {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 6px 8px;
+}
+
+.group + .group {
+  margin-top: 8px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+.groupIcon {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.groupLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupCount {
+  margin-left: auto;
+  font-weight: 400;
+}
+
+/* ---- Chips: the root types (Browse) and the entity types (detail) ---- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* `button.` outranks Mantine's UnstyledButton reset (R10) */
+button.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+button.chip[data-active] {
+  color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+  border-color: var(--aura-accent);
+}
+
+button.chip:hover {
+  border-color: var(--aura-border-strong);
+}
+
+button.chip:focus-visible,
+button.textButton:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.chipCount {
+  margin-left: 3px;
+  opacity: 0.7;
+}
+
+button.textButton {
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  color: var(--aura-accent);
+  border-radius: 4px;
+}
+
+button.textButton:hover {
+  text-decoration: underline;
+}
+
+/* ---- States ---- */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 4px;
+}
+
+.alert {
+  composes: alert from '../components/common/list-page.module.css';
+  align-self: stretch;
+}
+
+.alertMessage {
+  composes: alertMessage from '../components/common/list-page.module.css';
+}
+
+/* No roots, no match, or no children: a quiet centred note */
+.note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 12px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.note p {
+  margin: 0;
+}
+
+.noteIcon {
+  width: 28px;
+  height: 28px;
+  opacity: 0.35;
+}
+
+/* Nothing chosen yet */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.emptyIcon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  opacity: 0.2;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.emptyBody {
+  margin: 0;
+}
+
+/* ---- The detail pane ---- */
+
+.viewToggle {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* The body: the entity's facts, its type chips, then the hierarchy filling the rest */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  padding: 10px 12px 12px;
+}
+
+.meta {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.metaIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--aura-accent);
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.description {
+  flex: none;
+  margin: 0;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.detail > .chips {
+  flex: none;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+/* The tree scrolls inside the pane */
+.children {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.heading {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+.treeBox {
+  padding: 4px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.rootRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 8px;
+  margin-bottom: 2px;
+  background: var(--aura-accent-subtle);
+  border-radius: 4px;
+}
+
+.rootIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-accent);
+}
+
+/* One line; its title has it in full */
+.rootName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+/* The graph fills the rest of the pane */
+.graph {
+  flex: 1;
+  min-height: 0;
+}

@@ -1,17 +1,16 @@
-import { useState, useCallback, type KeyboardEvent } from 'react';
+import { createElement, useState, useCallback, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Loader, Tooltip, UnstyledButton } from '@mantine/core';
 import {
-  ChevronRight, ChevronDown, Loader2, ExternalLink,
+  ChevronRight, ChevronDown, ExternalLink,
   Box, Table2, Eye, Columns2, LayoutDashboard, Globe, FileCode, Brain,
   Activity, Server, Shield, BookOpen, Database, FolderOpen, Shapes, Network,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useApi } from '@/hooks/use-api';
-import { cn } from '@/lib/utils';
 import type { InstanceHierarchyNode } from '@/types/ontology-schema';
+import classes from './hierarchy-tree-node.module.css';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Table2, Eye, Columns2, LayoutDashboard, Globe, FileCode, Brain, Activity,
@@ -30,6 +29,9 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'dest
   deprecated: 'secondary',
   archived: 'destructive',
 };
+
+// Tooltips open on keyboard focus too
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
 
 function getIconComponent(iconName?: string | null): React.ElementType {
   if (!iconName) return Box;
@@ -50,6 +52,12 @@ interface HierarchyTreeNodeProps {
   isLazy?: boolean;
 }
 
+/**
+ * One row of the Hierarchy Browser's trees (wave 2 Task 13c): the toggle,
+ * the type icon, the name (one line, its title in full), the status, the
+ * child count and the entity's page; its children load the first time it
+ * opens. A failed load shows an error with Retry in place of the children.
+ */
 export function HierarchyTreeNode({
   node,
   depth,
@@ -57,37 +65,48 @@ export function HierarchyTreeNode({
   onSelect,
   isLazy = false,
 }: HierarchyTreeNodeProps) {
-  const { t } = useTranslation(['data-catalog', 'common']);
+  const { t } = useTranslation(['data-catalog', 'semantic-models', 'common']);
   const [expanded, setExpanded] = useState(depth < 1);
-  const [children, setChildren] = useState<InstanceHierarchyNode[]>(node.children || []);
+  const [children, setChildren] = useState<InstanceHierarchyNode[]>(
+    Array.isArray(node.children) ? node.children : [],
+  );
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(!isLazy || (node.children && node.children.length > 0));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loaded, setLoaded] = useState(!isLazy || (Array.isArray(node.children) && node.children.length > 0));
 
   const navigate = useNavigate();
   const { get: apiGet } = useApi();
 
-  const Icon = getIconComponent(node.icon);
   const hasChildren = node.child_count > 0 || children.length > 0;
   const isSelected = selectedId === node.entity_id;
   const paddingLeft = depth * 16 + 8;
 
-  const loadChildren = useCallback(async () => {
-    if (loaded || loading) return;
+  const fetchChildren = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
+    let failed = false;
     try {
       const response = await apiGet<InstanceHierarchyNode>(
         `/api/entity-hierarchy/${node.entity_type}/${node.entity_id}?max_depth=2`
       );
       if (!response.error && response.data) {
-        setChildren(response.data.children || []);
+        setChildren(Array.isArray(response.data.children) ? response.data.children : []);
+      } else {
+        failed = true;
       }
     } catch {
-      // silently fail
+      failed = true;
     } finally {
       setLoading(false);
       setLoaded(true);
+      setLoadFailed(failed);
     }
-  }, [apiGet, node.entity_type, node.entity_id, loaded, loading]);
+  }, [apiGet, node.entity_type, node.entity_id]);
+
+  const loadChildren = useCallback(() => {
+    if (loaded || loading) return;
+    fetchChildren();
+  }, [fetchChildren, loaded, loading]);
 
   const handleToggle = useCallback(() => {
     if (!expanded && isLazy && !loaded) {
@@ -113,80 +132,63 @@ export function HierarchyTreeNode({
     }
   }, [handleClick, handleToggle, expanded]);
 
+  const toggleLabel = expanded
+    ? t('semantic-models:collectionTree.collapse', { name: node.name })
+    : t('semantic-models:collectionTree.expand', { name: node.name });
+  const viewDetails = t('data-catalog:hierarchy.viewDetails');
+
   return (
-    <div role="treeitem" aria-expanded={expanded}>
-      <div
-        className={cn(
-          'group flex items-center gap-1.5 py-1 pr-2 rounded-md transition-colors cursor-pointer',
-          isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted',
-        )}
-        style={{ paddingLeft }}
-      >
+    <div role="treeitem" aria-expanded={expanded} aria-selected={onSelect ? isSelected : undefined}>
+      <div className={classes.row} data-selected={isSelected || undefined} style={{ paddingLeft }}>
         {/* Expand/collapse toggle */}
-        <button
+        <UnstyledButton
           onClick={handleToggle}
           onKeyDown={handleKeyDown}
-          className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-muted-foreground/10"
-          tabIndex={0}
-          aria-label={expanded ? t('data-catalog:hierarchy.collapse') : t('data-catalog:hierarchy.expand')}
+          className={classes.toggle}
+          aria-label={toggleLabel}
         >
           {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            <Loader size={12} color="gray" aria-hidden />
           ) : hasChildren ? (
-            expanded ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            )
+            expanded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />
           ) : (
-            <span className="w-3.5" />
+            <span className={classes.toggleSpacer} />
           )}
-        </button>
+        </UnstyledButton>
 
         {/* Entity icon */}
-        <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        {createElement(getIconComponent(node.icon), { 'aria-hidden': true, className: classes.icon })}
 
-        {/* Name - clickable for selection */}
-        <button
-          onClick={handleClick}
-          className="flex-1 text-left text-sm truncate min-w-0"
-        >
+        {/* Name: one line, in full in its title; clickable for selection */}
+        <UnstyledButton onClick={handleClick} className={classes.name} title={node.name}>
           {node.name}
-        </button>
+        </UnstyledButton>
 
         {/* Status badge */}
         {node.status && (
-          <Badge
-            variant={STATUS_VARIANT[node.status] ?? 'outline'}
-            className="text-[10px] flex-shrink-0 h-4 px-1"
-          >
-            {node.status}
-          </Badge>
-        )}
-
-        {/* Child count */}
-        {node.child_count > 0 && (
-          <span className="text-[10px] text-muted-foreground flex-shrink-0">
-            {node.child_count}
+          <span className={classes.status}>
+            <Badge variant={STATUS_VARIANT[node.status] ?? 'outline'}>{node.status}</Badge>
           </span>
         )}
 
+        {/* Child count */}
+        {node.child_count > 0 && <span className={classes.count}>{node.child_count}</span>}
+
         {/* Navigate to detail */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(getEntityRoute(node.entity_type, node.entity_id));
-              }}
-            >
-              <ExternalLink className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">{t('data-catalog:hierarchy.viewDetails')}</TooltipContent>
+        <Tooltip label={viewDetails} position="right" events={TOOLTIP_EVENTS}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size={20}
+            className={classes.open}
+            aria-label={viewDetails}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(getEntityRoute(node.entity_type, node.entity_id));
+            }}
+          >
+            <ExternalLink aria-hidden size={12} />
+          </ActionIcon>
         </Tooltip>
       </div>
 
@@ -204,13 +206,21 @@ export function HierarchyTreeNode({
             />
           ))}
           {loading && (
-            <div className="flex items-center gap-2 py-2" style={{ paddingLeft: paddingLeft + 16 }}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{t('common:states.loading')}</span>
+            <div className={classes.note} style={{ paddingLeft: paddingLeft + 16 }}>
+              <Loader size={12} color="gray" aria-hidden />
+              <span>{t('common:states.loading')}</span>
             </div>
           )}
-          {!loading && loaded && children.length === 0 && hasChildren && (
-            <div className="py-1 text-xs text-muted-foreground italic" style={{ paddingLeft: paddingLeft + 24 }}>
+          {!loading && loadFailed && (
+            <div className={classes.failed} style={{ paddingLeft: paddingLeft + 24 }} role="alert">
+              <span>{t('data-catalog:hierarchy.childrenLoadFailed')}</span>
+              <UnstyledButton className={classes.retry} onClick={fetchChildren}>
+                {t('common:retry')}
+              </UnstyledButton>
+            </div>
+          )}
+          {!loading && !loadFailed && loaded && children.length === 0 && hasChildren && (
+            <div className={classes.empty} style={{ paddingLeft: paddingLeft + 24 }}>
               {t('data-catalog:hierarchy.noChildrenFound')}
             </div>
           )}

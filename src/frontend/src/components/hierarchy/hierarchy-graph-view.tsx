@@ -24,6 +24,7 @@ import {
 import * as dagre from 'dagre';
 import type { InstanceHierarchyNode } from '@/types/ontology-schema';
 import { useFormatLabel } from '@/lib/format-label';
+import classes from './hierarchy-graph-view.module.css';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Table2, Eye, Columns2, LayoutDashboard, Globe, FileCode, Brain, Activity,
@@ -251,7 +252,9 @@ export function HierarchyGraphView({ rootNode, className }: HierarchyGraphViewPr
   }, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
 
   return (
-    <div className={`w-full border rounded-lg ${className || 'h-full'}`} data-testid="hierarchy-graph-view">
+    // The chrome around the canvas is the page kit's (wave 2 Task 13c); the
+    // canvas, its nodes, controls and minimap keep reactflow's own look
+    <div className={className ? `${classes.frame} ${className}` : classes.frame} data-testid="hierarchy-graph-view">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -261,7 +264,7 @@ export function HierarchyGraphView({ rootNode, className }: HierarchyGraphViewPr
         fitView
         fitViewOptions={{ padding: 0.2 }}
         attributionPosition="bottom-right"
-        className="bg-background"
+        className={classes.canvas}
         minZoom={0.1}
         maxZoom={2}
         nodesDraggable

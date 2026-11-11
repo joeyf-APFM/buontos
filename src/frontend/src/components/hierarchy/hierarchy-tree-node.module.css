@@ -1,0 +1,127 @@
+/*
+ * A row of the Hierarchy Browser's trees (hierarchy-tree-node.tsx), wave 2
+ * Task 13c: the explorer's dense 28px rows; the name keeps to one line, and
+ * the entity's page button shows on hover or keyboard focus.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding-right: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--aura-surface-strong);
+}
+
+.row[data-selected] {
+  color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+/* `button.` outranks Mantine's UnstyledButton reset (R10) */
+button.toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  color: var(--aura-text-secondary);
+}
+
+button.toggle:hover {
+  background: var(--aura-border-subtle);
+}
+
+.toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.toggleSpacer {
+  width: 14px;
+}
+
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+/* One line; its title has it in full */
+button.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 12px;
+  color: inherit;
+}
+
+button.toggle:focus-visible,
+button.name:focus-visible,
+button.retry:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.status {
+  flex: none;
+  display: inline-flex;
+}
+
+.count {
+  flex: none;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The entity's page: on hover or keyboard focus */
+.open {
+  flex: none;
+  opacity: 0;
+}
+
+.row:hover .open,
+.open:focus-visible {
+  opacity: 1;
+}
+
+.note,
+.failed,
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  font-style: italic;
+}
+
+.failed {
+  color: var(--aura-critical);
+}
+
+button.retry {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-accent);
+  border-radius: 3px;
+}
+
+button.retry:hover {
+  text-decoration: underline;
+}
