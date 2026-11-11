@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { GitCommit, AlertCircle, CheckCircle2, Info, AlertTriangle } from 'lucide-react'
 import { Alert, Loader, Radio, TextInput, Textarea } from '@mantine/core'
@@ -8,6 +8,7 @@ import { Dialog, Tabs } from '@/mantine/page'
 import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form'
 import form from '@/components/common/dialog-form.module.css'
 import changeCss from '@/components/common/change-analysis.module.css'
+import { ChangeList } from '@/components/common/change-list'
 import classes from './commit-draft-dialog.module.css'
 import { useToast } from '@/hooks/use-toast'
 import type { DiffFromParentResponse } from '@/types/data-contract'
@@ -168,18 +169,6 @@ export default function CommitDraftDialog({
     }
   }
 
-  /** A tab's list of changes, under its heading, each item marked in the tab's tone. */
-  const changeList = (tone: 'critical' | 'info' | 'muted', heading: ReactNode, items: string[]) => (
-    <section className={changeCss.card}>
-      <h3 className={changeCss.cardTitle}>{heading}</h3>
-      <ul className={changeCss.list} data-tone={tone}>
-        {items.map((item, idx) => (
-          <li key={idx}>{item}</li>
-        ))}
-      </ul>
-    </section>
-  )
-
   /** A version bump choice: its radio, label and description in a bordered row. */
   const bumpChoice = (value: 'major' | 'minor' | 'patch', label: string, description: string) => (
     <Radio
@@ -292,34 +281,46 @@ export default function CommitDraftDialog({
 
               {hasBreakingChanges && (
                 <Tabs.Panel value="breaking">
-                  {changeList('critical', (
-                    <>
-                      <AlertCircle size={14} className={changeCss.critical} aria-hidden />
-                      {t('data-contracts:commit.breakingChanges', 'Breaking Changes')}
-                    </>
-                  ), analysis.breaking_changes)}
+                  <ChangeList
+                    tone="critical"
+                    heading={(
+                      <>
+                        <AlertCircle size={14} className={changeCss.critical} aria-hidden />
+                        {t('data-contracts:commit.breakingChanges', 'Breaking Changes')}
+                      </>
+                    )}
+                    items={analysis.breaking_changes}
+                  />
                 </Tabs.Panel>
               )}
 
               {hasNewFeatures && (
                 <Tabs.Panel value="features">
-                  {changeList('info', (
-                    <>
-                      <CheckCircle2 size={14} className={changeCss.info} aria-hidden />
-                      {t('data-contracts:commit.newFeatures', 'New Features')}
-                    </>
-                  ), analysis.new_features)}
+                  <ChangeList
+                    tone="info"
+                    heading={(
+                      <>
+                        <CheckCircle2 size={14} className={changeCss.info} aria-hidden />
+                        {t('data-contracts:commit.newFeatures', 'New Features')}
+                      </>
+                    )}
+                    items={analysis.new_features}
+                  />
                 </Tabs.Panel>
               )}
 
               {hasFixes && (
                 <Tabs.Panel value="fixes">
-                  {changeList('muted', (
-                    <>
-                      <Info size={14} className={changeCss.mutedIcon} aria-hidden />
-                      {t('data-contracts:commit.improvementsFixes', 'Improvements & Fixes')}
-                    </>
-                  ), analysis.fixes)}
+                  <ChangeList
+                    tone="muted"
+                    heading={(
+                      <>
+                        <Info size={14} className={changeCss.mutedIcon} aria-hidden />
+                        {t('data-contracts:commit.improvementsFixes', 'Improvements & Fixes')}
+                      </>
+                    )}
+                    items={analysis.fixes}
+                  />
                 </Tabs.Panel>
               )}
             </Tabs>

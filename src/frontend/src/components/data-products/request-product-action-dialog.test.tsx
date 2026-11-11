@@ -6,7 +6,7 @@
  * static text rendered by the dialog header — which is driven directly by the
  * initial request-type state.
  */
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import i18n from '@/i18n/config';
 import { renderWithProviders } from '@/test/utils';
@@ -80,6 +80,9 @@ vi.mock('@/stores/notifications-store', () => ({
     selector({ refreshNotifications: vi.fn() })
 }));
 
+/** Lets the dialog's open-time lookups and Mantine's mount effects finish inside act. */
+const settle = () => act(() => new Promise((r) => setTimeout(r, 0)));
+
 describe('RequestProductActionDialog default request type', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,7 +91,7 @@ describe('RequestProductActionDialog default request type', () => {
     mockLookupWorkflowId.mockResolvedValue(null);
   });
 
-  it("defaults to 'access' when defaultRequestType is not provided", () => {
+  it("defaults to 'access' when defaultRequestType is not provided", async () => {
     renderWithProviders(
       <RequestProductActionDialog
         isOpen={true}
@@ -98,6 +101,7 @@ describe('RequestProductActionDialog default request type', () => {
         productStatus="draft"
       />
     );
+    await settle();
 
     // Header title is driven by the active request type. 'access' renders
     // 'Request Access to Product'; 'status_change' would render
@@ -107,7 +111,7 @@ describe('RequestProductActionDialog default request type', () => {
     ).toBeInTheDocument();
   });
 
-  it("uses 'status_change' when defaultRequestType='status_change' is passed", () => {
+  it("uses 'status_change' when defaultRequestType='status_change' is passed", async () => {
     renderWithProviders(
       <RequestProductActionDialog
         isOpen={true}
@@ -118,6 +122,7 @@ describe('RequestProductActionDialog default request type', () => {
         defaultRequestType="status_change"
       />
     );
+    await settle();
 
     // The dialog title (h2) reflects the active request type. Scope the
     // assertion to the heading role so we don't match identical text in the
@@ -127,7 +132,7 @@ describe('RequestProductActionDialog default request type', () => {
     ).toBeInTheDocument();
   });
 
-  it("uses 'status_change' direct-change title when canDirectStatusChange is true", () => {
+  it("uses 'status_change' direct-change title when canDirectStatusChange is true", async () => {
     renderWithProviders(
       <RequestProductActionDialog
         isOpen={true}
@@ -139,6 +144,7 @@ describe('RequestProductActionDialog default request type', () => {
         canDirectStatusChange={true}
       />
     );
+    await settle();
 
     // With direct-change permission the title flips to 'Change Status'.
     expect(
@@ -338,7 +344,7 @@ describe('RequestProductActionDialog approval-wizard launch (Path B)', () => {
 
     // Direct status change must NOT trigger the wizard lookup at open time
     // (admin path bypasses the wizard regardless of config).
-    await new Promise((r) => setTimeout(r, 0));
+    await settle();
     expect(mockLookupWorkflowId).not.toHaveBeenCalled();
     // No wizard-configured notice.
     expect(screen.queryByText(/multi-step wizard is configured/i)).toBeNull();
@@ -367,7 +373,7 @@ describe('RequestProductActionDialog approval-wizard launch (Path B)', () => {
     // direct-status-change). Submit doesn't have to succeed for that.
     fireEvent.click(screen.getByRole('button', { name: /Change Status/ }));
     // Give microtasks a tick.
-    await new Promise((r) => setTimeout(r, 0));
+    await settle();
     expect(mockLookupWorkflowId).not.toHaveBeenCalled();
   });
 });
@@ -529,7 +535,9 @@ describe('RequestProductActionDialog when the request workflow fails', () => {
           + '"Data Product Access Request" não pôde ser iniciado. Contate um administrador.',
       );
     } finally {
-      await i18n.changeLanguage('en');
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
     }
   });
 
@@ -581,7 +589,9 @@ describe('RequestProductActionDialog when the request workflow fails', () => {
       );
       expect(toast.description).not.toContain('Ninguém foi acionado');
     } finally {
-      await i18n.changeLanguage('en');
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
     }
   });
 });

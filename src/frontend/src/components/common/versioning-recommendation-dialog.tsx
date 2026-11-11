@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Alert } from '@mantine/core'
@@ -7,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, Tabs } from '@/mantine/page'
 import form from '@/components/common/dialog-form.module.css'
 import changeCss from './change-analysis.module.css'
+import { ChangeList } from './change-list'
 import classes from './versioning-recommendation-dialog.module.css'
 
 interface ChangeAnalysis {
@@ -87,18 +87,6 @@ export default function VersioningRecommendationDialog({
     }
   }
 
-  /** A tab's list of changes, under its heading, each item marked in the tab's tone. */
-  const changeList = (tone: 'critical' | 'info' | 'muted', heading: ReactNode, items: string[]) => (
-    <section className={changeCss.card}>
-      <h3 className={changeCss.cardTitle}>{heading}</h3>
-      <ul className={changeCss.list} data-tone={tone}>
-        {items.map((item, idx) => (
-          <li key={idx}>{item}</li>
-        ))}
-      </ul>
-    </section>
-  )
-
   return (
     <Dialog
       opened={isOpen}
@@ -172,34 +160,46 @@ export default function VersioningRecommendationDialog({
 
         {hasBreakingChanges && (
           <Tabs.Panel value="breaking">
-            {changeList('critical', (
-              <>
-                <AlertCircle size={14} className={changeCss.critical} aria-hidden />
-                {t('common:versioning.breakingChangesHeading')}
-              </>
-            ), analysis.breaking_changes)}
+            <ChangeList
+              tone="critical"
+              heading={(
+                <>
+                  <AlertCircle size={14} className={changeCss.critical} aria-hidden />
+                  {t('common:versioning.breakingChangesHeading')}
+                </>
+              )}
+              items={analysis.breaking_changes}
+            />
           </Tabs.Panel>
         )}
 
         {hasNewFeatures && (
           <Tabs.Panel value="features">
-            {changeList('info', (
-              <>
-                <CheckCircle2 size={14} className={changeCss.info} aria-hidden />
-                {t('common:versioning.newFeatures')}
-              </>
-            ), analysis.new_features)}
+            <ChangeList
+              tone="info"
+              heading={(
+                <>
+                  <CheckCircle2 size={14} className={changeCss.info} aria-hidden />
+                  {t('common:versioning.newFeatures')}
+                </>
+              )}
+              items={analysis.new_features}
+            />
           </Tabs.Panel>
         )}
 
         {hasFixes && (
           <Tabs.Panel value="fixes">
-            {changeList('muted', (
-              <>
-                <Info size={14} className={changeCss.mutedIcon} aria-hidden />
-                {t('common:versioning.improvementsFixes')}
-              </>
-            ), analysis.fixes)}
+            <ChangeList
+              tone="muted"
+              heading={(
+                <>
+                  <Info size={14} className={changeCss.mutedIcon} aria-hidden />
+                  {t('common:versioning.improvementsFixes')}
+                </>
+              )}
+              items={analysis.fixes}
+            />
           </Tabs.Panel>
         )}
       </Tabs>
