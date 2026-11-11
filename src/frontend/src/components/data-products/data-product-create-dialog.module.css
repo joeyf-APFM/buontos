@@ -2,72 +2,45 @@
  * The data product create/edit form's fields (wave 2 Task 4), in the kit
  * Dialog (mantine/page/dialog.tsx, which has the dialog look): 28px fields
  * 12px apart, pairs side by side, and the description, tags and consumer
- * groups each ruled off above.
+ * groups each ruled off above. The shared form rules live in
+ * components/common/dialog-form.module.css (Task 8a); only the code hint is
+ * this form's own.
  */
 .form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
+  composes: form from '../common/dialog-form.module.css';
 }
 
 /* Two fields side by side; a narrow window stacks them */
 .row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 560px) {
-  .row {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  composes: row from '../common/dialog-form.module.css';
 }
 
 .section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--aura-border);
+  composes: section from '../common/dialog-form.module.css';
 }
 
 .sectionTitle {
-  margin: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--aura-text-navy);
+  composes: sectionTitle from '../common/dialog-form.module.css';
 }
 
 /* Field labels: 12px in the body colour, as the ui Label (components/ui/label.tsx) */
 .label {
-  margin-bottom: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--aura-text-body);
+  composes: label from '../common/dialog-form.module.css';
 }
 
 /* A field's hint, in text-secondary */
 .hint {
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--aura-text-secondary);
+  composes: hint from '../common/dialog-form.module.css';
 }
 
 /* The validation message, in the critical colour (5.0:1 on white) */
 .error {
-  margin-top: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--aura-critical);
+  composes: error from '../common/dialog-form.module.css';
 }
 
 /* A long option wraps instead of running out of the list */
 .option {
-  white-space: normal;
-  overflow-wrap: anywhere;
+  composes: option from '../common/dialog-form.module.css';
 }
 
 /* The principal shapes in the consumer groups hint are code */

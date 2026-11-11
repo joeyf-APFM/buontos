@@ -29,6 +29,8 @@ beforeEach(() => {
         { id: 'c-1', name: 'Orders', version: '1.0.0', status: 'active' },
         { id: 'c-2', name: 'Drafty', version: '0.1.0', status: 'draft' },
         { id: 'c-3', name: 'Billing', version: '2.0.0', status: 'Approved' },
+        // The same contract twice must not break the field
+        { id: 'c-1', name: 'Orders', version: '1.0.0', status: 'active' },
       ]);
     }
     return json([]);
@@ -137,5 +139,27 @@ describe('output port form dialog', () => {
     await waitFor(() => expect(selectField(dialog, 'Select Existing Contract')).toHaveValue('Orders'));
     expect(within(dialog).getByRole('switch', { name: 'Auto Approve' })).toBeChecked();
     expect(within(dialog).getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+
+    // The chosen options keep their badge in the field, as the Radix SelectValue did
+    const fieldBadge = (name: string) =>
+      selectField(dialog, name).closest('.mantine-Select-root, .mantine-InputWrapper-root')!.querySelector('.mantine-Badge-root');
+    expect(fieldBadge('Delivery Method')).toHaveTextContent('table');
+    expect(fieldBadge('Select Existing Contract')).toHaveTextContent('v1.0.0');
+  });
+
+  it('output port form dialog shows no field badge before a choice, and says when no contract is available', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) =>
+      String(input) === '/api/data-contracts' ? json([{ id: 'c-2', name: 'Drafty', version: '0.1.0', status: 'draft' }]) : json([]));
+    render();
+    const dialog = await screen.findByRole('dialog', { name: 'Add Deliverable' });
+    const method = await waitFor(() => selectField(dialog, 'Delivery Method'));
+    expect(method.closest('.mantine-InputWrapper-root')!.querySelector('.mantine-Badge-root')).toBeNull();
+    await user.click(within(dialog).getByRole('radio', { name: 'Select Existing Contract' }));
+    const contract = await waitFor(() => selectField(dialog, 'Select Existing Contract'));
+    await user.click(contract);
+    const list = document.getElementById(contract.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(within(list).getByText('No active/approved contracts available')).toBeInTheDocument();
+    expect(within(list).queryAllByRole('option', { hidden: true })).toHaveLength(0);
   });
 });

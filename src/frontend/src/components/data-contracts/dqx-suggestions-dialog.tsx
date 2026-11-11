@@ -1,16 +1,16 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Alert, Loader } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable } from '@/components/ui/data-table'
+import { Dialog, Tabs } from '@/mantine/page'
 import { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle2, XCircle, Loader2, Sparkles } from 'lucide-react'
+import { CheckCircle2, XCircle, Sparkles } from 'lucide-react'
 import type { SuggestedQualityCheck, DataContract } from '@/types/data-contract'
 import CreateVersionDialog from '@/components/data-products/create-version-dialog'
+import classes from './dqx-suggestions-dialog.module.css'
 
 interface DqxSuggestionsDialogProps {
   isOpen: boolean
@@ -168,21 +168,22 @@ export default function DqxSuggestionsDialog({
     setPendingAction(null)
   }
 
-  const createColumns = (): ColumnDef<SuggestedQualityCheck>[] => [
+  // Memoised, so the table keeps its cells (and their focus) across renders
+  const columns = useMemo<ColumnDef<SuggestedQualityCheck>[]>(() => [
     {
       accessorKey: 'property_name',
       header: t('data-contracts:dqx.columns.column', 'Column'),
       cell: ({ row }) => (
-        <span className="font-mono text-sm">
-          {row.original.property_name || <span className="text-muted-foreground italic">{t('data-contracts:dqx.tableLevel', 'Table-level')}</span>}
-        </span>
+        row.original.property_name
+          ? <span className={classes.code}>{row.original.property_name}</span>
+          : <span className={classes.tableLevel}>{t('data-contracts:dqx.tableLevel', 'Table-level')}</span>
       )
     },
     {
       accessorKey: 'name',
       header: t('data-contracts:dqx.columns.ruleType', 'Rule Type'),
       cell: ({ row }) => (
-        <span className="text-sm">{row.original.name || t('common:states.notAvailable')}</span>
+        <span>{row.original.name || t('common:states.notAvailable')}</span>
       )
     },
     {
@@ -190,7 +191,7 @@ export default function DqxSuggestionsDialog({
       header: t('data-contracts:dqx.columns.dimension', 'Dimension'),
       cell: ({ row }) => (
         row.original.dimension ? (
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline">
             {row.original.dimension}
           </Badge>
         ) : null
@@ -203,7 +204,7 @@ export default function DqxSuggestionsDialog({
         const severity = row.original.severity
         const variant = severity === 'error' ? 'destructive' : severity === 'warning' ? 'default' : 'secondary'
         return severity ? (
-          <Badge variant={variant} className="text-xs">
+          <Badge variant={variant}>
             {severity}
           </Badge>
         ) : null
@@ -212,121 +213,114 @@ export default function DqxSuggestionsDialog({
     {
       accessorKey: 'rule',
       header: t('data-contracts:dqx.columns.rule', 'Rule'),
-      cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground font-mono max-w-xs truncate block">
-          {row.original.rule || row.original.description || '-'}
-        </span>
-      )
+      cell: ({ row }) => {
+        const rule = row.original.rule || row.original.description || '-'
+        // Truncated, with the whole rule in its title
+        return <span className={classes.rule} title={rule}>{rule}</span>
+      }
     }
-  ]
+  ], [t])
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              {t('data-contracts:dqx.reviewTitle', 'Review Quality Check Suggestions')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('data-contracts:dqx.reviewDescription', 'Review and accept DQX-generated quality check suggestions for your contract')}
-            </DialogDescription>
-          </DialogHeader>
-
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : pendingCount === 0 ? (
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>
-                {t('data-contracts:dqx.noPending', 'No pending suggestions. All suggestions have been reviewed.')}
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium">
-                    {t('data-contracts:dqx.pendingCount', { count: pendingCount, defaultValue: '{{count}} pending suggestions' })}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {t('data-contracts:dqx.selectedCount', { count: selectedIds.size, defaultValue: '{{count}} selected' })}
-                  </span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => handleSelectAll()}>
-                  {selectedIds.size === pendingCount ? t('data-contracts:dqx.deselectAll', 'Deselect All') : t('data-contracts:dqx.selectAll', 'Select All')}
-                </Button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {schemaNames.length === 1 ? (
-                  // Single schema - simple view
-                  <div className="space-y-3">
-                    <div className="font-medium text-sm pb-2">
-                      {schemaNames[0]}
-                    </div>
-                    <DataTable
-                      columns={createColumns()}
-                      data={suggestionsBySchema[schemaNames[0]]}
-                      rowSelection={rowSelection}
-                      onRowSelectionChange={setRowSelection}
-                    />
-                  </div>
-                ) : (
-                  // Multiple schemas - use tabs
-                  <Tabs defaultValue={schemaNames[0]} className="w-full">
-                    <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-                      {schemaNames.map(schemaName => (
-                        <TabsTrigger key={schemaName} value={schemaName} className="flex-shrink-0">
-                          {schemaName}
-                          <Badge variant="secondary" className="ml-2 text-xs">
-                            {suggestionsBySchema[schemaName].length}
-                          </Badge>
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    {schemaNames.map(schemaName => (
-                      <TabsContent key={schemaName} value={schemaName} className="mt-4">
-                        <DataTable
-                          columns={createColumns()}
-                          data={suggestionsBySchema[schemaName]}
-                          rowSelection={rowSelection}
-                          onRowSelectionChange={setRowSelection}
-                        />
-                      </TabsContent>
-                    ))}
-                  </Tabs>
-                )}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="flex items-center justify-between border-t pt-4">
+      <Dialog
+        opened={isOpen}
+        onClose={() => onOpenChange(false)}
+        size="xl"
+        title={
+          <span className={classes.title}>
+            <Sparkles size={16} className={classes.sparkles} aria-hidden />
+            {t('data-contracts:dqx.reviewTitle', 'Review Quality Check Suggestions')}
+          </span>
+        }
+        description={t('data-contracts:dqx.reviewDescription', 'Review and accept DQX-generated quality check suggestions for your contract')}
+        footer={
+          <div className={classes.footer}>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {t('common:actions.close')}
             </Button>
-            <div className="flex gap-2">
+            <div className={classes.footerActions}>
               <Button
                 variant="destructive"
                 onClick={handleReject}
                 disabled={selectedIds.size === 0 || loading}
               >
-                <XCircle className="h-4 w-4 mr-2" />
+                <XCircle aria-hidden />
                 {t('data-contracts:dqx.rejectSelected', 'Reject Selected')}
               </Button>
               <Button
                 onClick={handleAccept}
                 disabled={selectedIds.size === 0 || loading}
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+                <CheckCircle2 aria-hidden />
                 {t('data-contracts:dqx.acceptSelected', 'Accept Selected')}
               </Button>
             </div>
-          </DialogFooter>
-        </DialogContent>
+          </div>
+        }
+      >
+        {loading ? (
+          <div className={classes.loading}>
+            <Loader size={28} />
+          </div>
+        ) : pendingCount === 0 ? (
+          <Alert color="gray" variant="light" icon={<CheckCircle2 size={16} />}>
+            {t('data-contracts:dqx.noPending', 'No pending suggestions. All suggestions have been reviewed.')}
+          </Alert>
+        ) : (
+          <>
+            <div className={classes.bar}>
+              <div className={classes.counts}>
+                <span className={classes.strong}>
+                  {t('data-contracts:dqx.pendingCount', { count: pendingCount, defaultValue: '{{count}} pending suggestions' })}
+                </span>
+                <span className={classes.muted}>
+                  {t('data-contracts:dqx.selectedCount', { count: selectedIds.size, defaultValue: '{{count}} selected' })}
+                </span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => handleSelectAll()}>
+                {selectedIds.size === pendingCount ? t('data-contracts:dqx.deselectAll', 'Deselect All') : t('data-contracts:dqx.selectAll', 'Select All')}
+              </Button>
+            </div>
+
+            {schemaNames.length === 1 ? (
+              // Single schema - simple view
+              <section className={classes.schema}>
+                <h3 className={classes.schemaName}>{schemaNames[0]}</h3>
+                <DataTable
+                  columns={columns}
+                  data={suggestionsBySchema[schemaNames[0]]}
+                  rowSelection={rowSelection}
+                  onRowSelectionChange={setRowSelection}
+                />
+              </section>
+            ) : (
+              // Multiple schemas - use tabs
+              <Tabs defaultValue={schemaNames[0]} classNames={{ list: classes.tabList, tab: classes.tab }}>
+                <Tabs.List>
+                  {schemaNames.map(schemaName => (
+                    <Tabs.Tab key={schemaName} value={schemaName}>
+                      {schemaName}
+                      <Badge variant="secondary">
+                        {suggestionsBySchema[schemaName].length}
+                      </Badge>
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+                {schemaNames.map(schemaName => (
+                  <Tabs.Panel key={schemaName} value={schemaName}>
+                    <DataTable
+                      columns={columns}
+                      data={suggestionsBySchema[schemaName]}
+                      rowSelection={rowSelection}
+                      onRowSelectionChange={setRowSelection}
+                    />
+                  </Tabs.Panel>
+                ))}
+              </Tabs>
+            )}
+          </>
+        )}
       </Dialog>
 
       {contract && (

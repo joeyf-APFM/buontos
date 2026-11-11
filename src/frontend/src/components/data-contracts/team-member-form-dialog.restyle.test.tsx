@@ -1,5 +1,5 @@
 /**
- * Wave 2 Task 8a: the team member form (Data Product and contract pages) on
+ * Wave 2 Task 8a: the contract team member form (contract page) on
  * the kit Dialog, with Mantine fields around the shared PrincipalPicker. The
  * checks, the member it builds and the failed save are the Radix dialog's.
  */

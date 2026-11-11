@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Input, Loader, Radio, Select, Switch, TextInput, Textarea, type SelectProps } from '@mantine/core';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Combobox, Input, Loader, Radio, Select, Switch, TextInput, Textarea, type SelectProps } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/mantine/page';
@@ -202,6 +202,21 @@ export default function OutputPortFormDialog({ isOpen, onOpenChange, onSubmit, i
     </span>
   );
 
+  // The chosen option's badge stays in the field, before the chevron, as the
+  // Radix SelectValue repeated the item's badge
+  const chosenMethod = deliveryMethodOptions.find((o) => o.value === deliveryMethodId);
+  const chosenContract = contractOptions.find((o) => o.value === contractId);
+  const withBadge = (badge: ReactNode) => ({
+    rightSection: (
+      <span className={form.fieldBadge}>
+        {badge}
+        <Combobox.Chevron />
+      </span>
+    ),
+    rightSectionWidth: 'auto' as const,
+    rightSectionPointerEvents: 'none' as const,
+  });
+
   // A switch's row: its label and hint, the switch at the end; the hint describes the switch
   const toggle = (id: string, label: string, hint: string, checked: boolean, onChange: (v: boolean) => void) => (
     <div className={form.toggle}>
@@ -285,6 +300,7 @@ export default function OutputPortFormDialog({ isOpen, onOpenChange, onSubmit, i
               onChange={(value) => value && setDeliveryMethodId(value)}
               allowDeselect={false}
               renderOption={renderDeliveryMethod}
+              {...(chosenMethod?.category ? withBadge(<Badge variant="outline">{chosenMethod.category}</Badge>) : {})}
               description={DELIVERY_METHOD_HINT}
               inputWrapperOrder={HINT_BELOW}
               classNames={SELECT_CLASSES}
@@ -356,6 +372,7 @@ export default function OutputPortFormDialog({ isOpen, onOpenChange, onSubmit, i
                   onChange={(value) => value && setContractId(value)}
                   allowDeselect={false}
                   renderOption={renderContract}
+                  {...(chosenContract ? withBadge(<Badge variant="secondary">{`v${chosenContract.version}`}</Badge>) : {})}
                   nothingFoundMessage="No active/approved contracts available"
                   description="Only showing active/approved/certified contracts"
                   inputWrapperOrder={HINT_BELOW}

@@ -81,6 +81,14 @@
   min-width: 0;
 }
 
+/* A Select's chosen badge and its chevron, at the field's end */
+.fieldBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+}
+
 /* A switch's row: its label and hint, the switch at the end */
 .toggle {
   display: flex;
