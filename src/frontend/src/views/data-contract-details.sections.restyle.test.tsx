@@ -55,6 +55,11 @@ const EXTRA: Record<string, unknown> = {
   '/api/data-contracts/c-1/schemas/orders/properties': {
     total: 1, items: [{ name: 'order_id', logicalType: 'string', required: true, unique: true, description: 'The order' }],
   },
+  '/api/semantic-links/entity/data_contract_schema/c-1%23orders': [{ id: 'l-1', iri: 'https://example.com/onto#Order', label: 'Order' }],
+  '/api/semantic-links/entity-prefix/data_contract_property/c-1%23orders%23': [
+    { id: 'l-2', entity_id: 'c-1#orders#order_id', iri: 'https://example.com/onto#OrderId', label: 'urn:x:OrderId' },
+  ],
+  '/api/data-products/by-contract/c-1': [{ id: 'p-9', name: 'Orders mart', version: '1.0.0', status: 'active', outputPorts: [] }],
   '/api/data-contracts/c-1/schemas/customers/properties': {
     total: 1, items: [{ name: 'customer_id', logicalType: 'string', required: true, unique: false }],
   },
@@ -341,5 +346,70 @@ describe('data contract details sections on the page kit', () => {
     await loaded();
     const quality = (await screen.findAllByRole('region', { name: 'Data Quality' }))[0];
     expect(await within(quality).findByRole('button', { name: 'Refresh' })).toBeEnabled();
+  });
+
+  it('data contract details sections: the concept links open the catalog in a new tab', async () => {
+    mockBackend(FULL);
+    renderPage();
+    await loaded();
+    const schemas = pane(/^Schemas/);
+    // The schema's concept, by its label; the column's, by its IRI's last part (the label is a URN)
+    for (const [name, iri, concept] of [
+      ['Order', 'https://example.com/onto#Order', 'Order'],
+      ['OrderId', 'https://example.com/onto#OrderId', 'OrderId'],
+    ]) {
+      const link = await within(schemas).findByRole('link', { name });
+      expect(link).toHaveAttribute('href', `/data-catalog?concept=${encodeURIComponent(concept)}`);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(link).toHaveAttribute('title', iri);
+    }
+  });
+
+  it('data contract details sections: a linked product opens once, from its name or its row', async () => {
+    const user = userEvent.setup();
+    mockBackend(FULL);
+    renderPage();
+    await loaded();
+    const products = pane(/^Linked Data Products/);
+    const name = await within(products).findByRole('link', { name: 'Orders mart' });
+    expect(name).toHaveAttribute('href', '/data-products/p-9');
+    const before = window.history.length;
+    await user.click(name);
+    expect(await screen.findByText('product page')).toBeInTheDocument();
+    // One history entry: the link's own, not the row's as well
+    expect(window.history.length).toBe(before + 1);
+    cleanup();
+
+    mockBackend(FULL);
+    renderPage();
+    await loaded();
+    const row = (await within(pane(/^Linked Data Products/)).findByText('active')).closest('[role="listitem"]') as HTMLElement;
+    const start = window.history.length;
+    await user.click(row);
+    expect(await screen.findByText('product page')).toBeInTheDocument();
+    expect(window.history.length).toBe(start + 1);
+  });
+
+  it('data contract details sections: the rows are lists, and custom properties keep their column headers', async () => {
+    mockBackend(FULL);
+    renderPage();
+    await loaded();
+    await screen.findByText('Ada Lovelace');
+    for (const [name, count] of [[/^Quality Rules/, 1], ['ODCS Team Metadata', 1], [/^Linked Data Products/, 1]] as const) {
+      const list = await within(pane(name)).findByRole('list');
+      expect(within(list).getAllByRole('listitem')).toHaveLength(count);
+    }
+    const sla = pane('SLA & Infrastructure');
+    expect(within(within(sla).getByRole('list')).getAllByRole('listitem')).toHaveLength(1);
+    const defs = pane('Authoritative Definitions');
+    expect(within(await within(defs).findByRole('list')).getAllByRole('listitem')).toHaveLength(1);
+
+    // Custom properties: a table again, with its Property, Value and Actions headers
+    const custom = within(pane(/^Custom Properties/)).getByRole('table');
+    expect(within(custom).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Property', 'Value', 'Actions']);
+    const rows = within(custom).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getAllByRole('cell')[0].textContent)).toEqual(['retention', 'owners']);
+    expect(within(rows[0]).getByRole('button', { name: 'Edit retention' })).toBeEnabled();
   });
 });

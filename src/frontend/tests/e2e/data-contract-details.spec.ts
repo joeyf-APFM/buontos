@@ -199,10 +199,26 @@ test('contract schemas: a 60-column schema scrolls inside its pane', async ({ pa
   const title = page.getByRole('heading', { level: 1, name: 'Wide contract' });
   const before = (await title.boundingBox())!;
   const paneBefore = (await schemas.boundingBox())!;
+  // Only the rows scroll: the table's toolbar (its filter), its header row and its pager stay put
+  const filter = schemas.getByRole('textbox');
+  const headerRow = table.locator('thead th').nth(1);
+  const pager = schemas.getByText('Rows per page');
+  const filterBefore = (await filter.boundingBox())!;
+  const headerBefore = (await headerRow.boundingBox())!;
+  const pagerBefore = (await pager.boundingBox())!;
+  const scrollerBox = (await scroller.evaluate((el) => (el as HTMLElement).getBoundingClientRect().toJSON())) as DOMRect;
+  // Before scrolling, the filter sits above the box and the pager below it
+  expect(filterBefore.y + filterBefore.height).toBeLessThanOrEqual(scrollerBox.y);
+  expect(pagerBefore.y).toBeGreaterThanOrEqual(scrollerBox.y + scrollerBox.height);
   await scroller.evaluate((el) => { (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight; });
   await expect(table.getByText('column_50', { exact: true })).toBeInViewport();
   expect(await title.boundingBox()).toEqual(before);
   expect((await schemas.boundingBox())!.y).toBe(paneBefore.y);
+  expect(await filter.boundingBox()).toEqual(filterBefore);
+  expect(await pager.boundingBox()).toEqual(pagerBefore);
+  // The header row is pinned to the top of the box
+  expect((await headerRow.boundingBox())!.y).toBeCloseTo(headerBefore.y, 0);
+  await expect(headerRow).toBeInViewport();
 
   // Nothing scrolls sideways: not the page, at 1280 or at 900
   expect(await noPageScroll(page)).toBe(true);
@@ -240,29 +256,62 @@ test('contract sections: long column names, descriptions and rule names wrap ins
   expect(await noPageScroll(page)).toBe(true);
 });
 
-test('contract schemas: the DQX hint opens on focus, and its notify action takes a click', async ({ page }) => {
-  const schemas = await openWide(page, {
-    '/api/jobs/capabilities': { workflows: { dqx_profile_datasets: { installed: false } }, enablement_requests_allowed: true },
-  });
+const NO_DQX = {
+  '/api/jobs/capabilities': { workflows: { dqx_profile_datasets: { installed: false } }, enablement_requests_allowed: true },
+};
+const ENABLEMENT = '/api/jobs/workflows/dqx_profile_datasets/request-enablement';
+
+test('contract schemas: the DQX hint opens on focus, and its notify action takes a slow click', async ({ page }) => {
+  const schemas = await openWide(page, NO_DQX);
   const profile = schemas.getByRole('button', { name: 'Profile with DQX' });
   await expect(profile).toBeDisabled();
+  const wrapper = profile.locator('xpath=..');
   // Keyboard: the wrapper takes the focus the disabled button can't, and opens the hint
-  await profile.locator('xpath=..').focus();
-  const hint = page.getByRole('tooltip');
-  await expect(hint).toContainText('Ask your admin to enable the background job.');
+  await wrapper.focus();
+  const hint = page.getByText('Ask your admin to enable the background job.');
+  await expect(hint).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(hint).toHaveCount(0);
 
-  // Pointer: the hint opens on hover and stays open on the way to its action
-  await profile.locator('xpath=..').hover();
-  await expect(hint).toBeVisible();
-  const notify = hint.getByRole('button', { name: 'Notify admin' });
-  await notify.hover();
-  await page.waitForTimeout(300);
+  // With the wrapper focused, a slow press on the action (focus moves on mousedown) still sends it
+  await wrapper.focus();
+  await wrapper.hover();
+  const notify = page.getByRole('button', { name: 'Notify admin' });
   await expect(notify).toBeVisible();
-  const hit = await notify.evaluate((el) => {
-    const r = el.getBoundingClientRect();
-    return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
-  });
-  expect(hit).toBe(true);
+  const request = page.waitForRequest((r) => new URL(r.url()).pathname === ENABLEMENT && r.method() === 'POST');
+  await notify.click({ delay: 300 });
+  await request;
+});
+
+test('contract schemas: the keyboard reaches the DQX hint\'s notify action', async ({ page }) => {
+  const schemas = await openWide(page, NO_DQX);
+  const wrapper = schemas.getByRole('button', { name: 'Profile with DQX' }).locator('xpath=..');
+  const notify = page.getByRole('button', { name: 'Notify admin' });
+  // Tab from the wrapper goes into the hint
+  await wrapper.focus();
+  const hint = page.getByText('Ask your admin to enable the background job.');
+  await expect(hint).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(notify).toBeFocused();
+  // Escape from the hint closes it and hands focus back
+  await page.keyboard.press('Escape');
+  await expect(notify).toHaveCount(0);
+  await expect(wrapper).toBeFocused();
+  // ArrowDown opens it again and moves in
+  await page.keyboard.press('ArrowDown');
+  await expect(notify).toBeFocused();
+  // The hint describes the wrapper, and isn't a tooltip around a button
+  await expect(wrapper).toHaveAttribute('aria-describedby', (await hint.getAttribute('id')) ?? 'the hint\'s id');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  // Enter sends the request
+  const request = page.waitForRequest((r) => new URL(r.url()).pathname === ENABLEMENT && r.method() === 'POST');
+  await page.keyboard.press('Enter');
+  await request;
+});
+
+test('contract support: the channel names are capitalised, as their badges were', async ({ page }) => {
+  await open(page, { ...BASE, support: { slack: 'https://slack.example.com/orders' } }, { size: 'large' });
+  const label = page.getByRole('region', { name: 'Support' }).locator('dt').first();
+  await expect(label).toHaveText('slack');
+  expect(await style(label, ['text-transform'])).toEqual({ 'text-transform': 'capitalize' });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef, useId, type KeyboardEvent } from 'react'
+import { useEffect, useState, useCallback, useMemo, useId } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -15,6 +15,7 @@ import EntityQualityPanel from '@/components/quality/entity-quality-panel'
 import { OwnershipPanel } from '@/components/common/ownership-panel'
 import { EntityTreePanel } from '@/components/common/entity-tree-panel'
 import { MaturityInline } from '@/components/common/maturity-inline'
+import { useHoverFocusCard } from '@/components/common/use-hover-focus-card'
 import { CommentSidebar } from '@/components/comments'
 import ConceptSelectDialog from '@/components/semantic/concept-select-dialog'
 import LinkedConceptChips from '@/components/semantic/linked-concept-chips'
@@ -120,45 +121,6 @@ function ConceptLinks({ links, icon: Icon }: { links: EntitySemanticLink[] | und
       })}
     </span>
   )
-}
-
-/**
- * A hint card's open state: it opens on hover (staying open while the pointer
- * is over the card, so an action inside it can be clicked) and on keyboard
- * focus, and closes on leaving, on blur and on Escape. Mantine's Tooltip
- * can't hold an action (it takes no pointer events), and its HoverCard opens
- * on hover only, so a Popover draws it.
- */
-function useHintCard(openDelay = 200, closeDelay = 150) {
-  const [opened, setOpened] = useState(false)
-  const timer = useRef<number | undefined>(undefined)
-  const clear = () => window.clearTimeout(timer.current)
-  const later = (next: boolean, delay: number) => {
-    clear()
-    timer.current = window.setTimeout(() => setOpened(next), delay)
-  }
-  useEffect(() => clear, [])
-  const close = () => { clear(); setOpened(false) }
-  return {
-    opened,
-    close,
-    target: {
-      onMouseEnter: () => later(true, openDelay),
-      onMouseLeave: () => later(false, closeDelay),
-      onFocus: () => { clear(); setOpened(true) },
-      onBlur: close,
-      onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
-        if (e.key === 'Escape' && opened) {
-          e.stopPropagation()
-          close()
-        }
-      },
-    },
-    dropdown: {
-      onMouseEnter: clear,
-      onMouseLeave: () => later(false, closeDelay),
-    },
-  }
 }
 
 // Define this as a function to access component state
@@ -1707,7 +1669,7 @@ export default function DataContractDetails() {
     [contract, selectedSchemaIndex, propertyLinks, t],
   )
   // The DQX hint, beside a Profile button that is disabled until the job is installed
-  const dqxHint = useHintCard()
+  const dqxHint = useHoverFocusCard()
   const dqxHintId = useId()
 
   const backButton = (
@@ -1755,14 +1717,13 @@ export default function DataContractDetails() {
     if (props.length === 0 && totalProps === 0) return null
     return (
       <div className={classes.properties}>
-        {/* A long schema scrolls here, inside its pane: the page and its header stay put */}
-        <div className={classes.propertiesScroll}>
-          <DataTable
-            columns={schemaPropertyColumns}
-            data={props}
-            searchColumn="name"
-          />
-        </div>
+        {/* A long schema's rows scroll inside the table's own box (.properties in
+            the module), so the page, its header and the table's toolbar and pager stay put */}
+        <DataTable
+          columns={schemaPropertyColumns}
+          data={props}
+          searchColumn="name"
+        />
         {totalPages > 1 && (
           <div className={classes.pagination}>
             <span className={common.muted}>{t('data-contracts:detailsView.schemas.pagination', 'Showing {{from}}–{{to}} of {{total}} columns', { from: currentPage * PROPS_PAGE_SIZE + 1, to: Math.min((currentPage + 1) * PROPS_PAGE_SIZE, totalProps), total: totalProps })}</span>
@@ -1858,9 +1819,9 @@ export default function DataContractDetails() {
             {defs.length === 0 ? (
               <p className={classes.empty}>{t('data-contracts:detailsView.authDefs.noneForSchema', 'No authoritative definitions for this schema.')}</p>
             ) : (
-              <div className={classes.list}>
+              <div className={classes.list} role="list">
                 {defs.map((def, idx) => (
-                  <div key={def.id} className={classes.item}>
+                  <div key={def.id} className={classes.item} role="listitem">
                     <div className={classes.itemMain}>
                       <span><Badge variant="secondary">{def.type}</Badge></span>
                       <a href={def.url} target="_blank" rel="noreferrer" className={classes.url}>{def.url}</a>
@@ -2205,14 +2166,16 @@ export default function DataContractDetails() {
                     // Wrapper span: a disabled button emits no pointer events of its own
                     <span tabIndex={-1}>{profileButton}</span>
                   ) : (
-                    <Popover opened={dqxHint.opened} onClose={dqxHint.close} position="bottom-end" withinPortal shadow="md" returnFocus={false} withRoles={false}>
+                    // A plain popover, not a tooltip: it can hold an action. It isn't
+                    // portalled, so Tab from the wrapper goes on into it.
+                    <Popover opened={dqxHint.opened} onClose={dqxHint.close} position="bottom-end" withinPortal={false} shadow="md" returnFocus={false} withRoles={false}>
                       <Popover.Target>
                         <span tabIndex={0} aria-describedby={dqxHint.opened ? dqxHintId : undefined} {...dqxHint.target}>
                           {profileButton}
                         </span>
                       </Popover.Target>
-                      <Popover.Dropdown id={dqxHintId} role="tooltip" className={classes.hint} {...dqxHint.dropdown}>
-                        <p className={classes.hintText}>{t('data-contracts:detailsView.schemas.dqxAdminHint', 'Ask your admin to enable the background job.')}</p>
+                      <Popover.Dropdown className={classes.hint} {...dqxHint.dropdown}>
+                        <p id={dqxHintId} className={classes.hintText}>{t('data-contracts:detailsView.schemas.dqxAdminHint', 'Ask your admin to enable the background job.')}</p>
                         {canRequestJobEnablement && (
                           <button
                             type="button"
@@ -2379,13 +2342,14 @@ export default function DataContractDetails() {
                     )}
                   </div>
                 ) : (
-                  <div className={classes.list}>
+                  <div className={classes.list} role="list">
                     {linkedProducts.map((product) => {
                       // Find output ports that use this contract
                       const linkedPorts = product.outputPorts?.filter(port => port.contractId === contractId) || [];
                       return (
                         <div
                           key={product.id}
+                          role="listitem"
                           className={`${classes.item} ${classes.clickableRow}`}
                           onClick={() => navigate(`${productBasePath}/${product.id}`)}
                         >
@@ -2428,9 +2392,9 @@ export default function DataContractDetails() {
               >
                 <p className={classes.lead}>{t('data-contracts:detailsView.qualityRules.subtitle', 'Data quality checks and validations')}</p>
                 {contract.qualityRules && contract.qualityRules.length > 0 ? (
-                  <div className={classes.list}>
+                  <div className={classes.list} role="list">
                     {contract.qualityRules.map((rule, idx) => (
-                      <div key={idx} className={classes.item}>
+                      <div key={idx} className={classes.item} role="listitem">
                         <div className={classes.itemMain}>
                           <span className={classes.itemName}>{rule.name}</span>
                           <div className={classes.itemLine}>
@@ -2473,9 +2437,9 @@ export default function DataContractDetails() {
 
                 {/* Team members list (read-only) */}
                 {contract.team && contract.team.length > 0 ? (
-                  <div className={classes.list}>
+                  <div className={classes.list} role="list">
                     {contract.team.map((member, idx) => (
-                      <div key={idx} className={classes.item}>
+                      <div key={idx} className={classes.item} role="listitem">
                         <div className={classes.itemMain}>
                           <div className={classes.itemLine}>
                             <Badge variant="outline">{member.role}</Badge>
@@ -2532,9 +2496,9 @@ export default function DataContractDetails() {
                     )}
                   </div>
                   {serversList.length > 0 ? (
-                    <div className={classes.list}>
+                    <div className={classes.list} role="list">
                       {serversList.map((server, idx) => (
-                        <div key={idx} className={classes.item}>
+                        <div key={idx} className={classes.item} role="listitem">
                           <div className={classes.itemMain}>
                             <span className={classes.itemName}>{server.server}</span>
                             <div className={classes.itemLine}>
@@ -2595,43 +2559,59 @@ export default function DataContractDetails() {
                 {customProperties.length === 0 ? (
                   <p className={classes.empty}>{t('data-contracts:detailsView.customProperties.empty', 'No custom properties defined. Click "Add Property" to create one.')}</p>
                 ) : (
-                  <div className={classes.list}>
-                    {customProperties.map(([key, value]) => {
-                      const valueStr = String(value)
-                      const isJson = valueStr.startsWith('[') || valueStr.startsWith('{')
-                      return (
-                        <div key={key} className={classes.item}>
-                          <div className={classes.itemMain}>
-                            <code className={classes.propertyKey}>{key}</code>
-                            {isJson ? (
-                              <pre className={classes.json}>
-                                {(() => {
-                                  try {
-                                    return JSON.stringify(JSON.parse(valueStr), null, 2)
-                                  } catch {
-                                    return valueStr
-                                  }
-                                })()}
-                              </pre>
-                            ) : (
-                              <span className={`${common.muted} ${classes.prose}`}>{valueStr}</span>
-                            )}
-                          </div>
-                          {canEditInPlace && (
-                            <div className={classes.itemActions}>
-                              {rowActions(
-                                key,
-                                () => {
-                                  setEditingCustomPropertyKey(key)
-                                  setIsCustomPropertyFormOpen(true)
-                                },
-                                () => handleDeleteCustomProperty(key),
+                  // A table, as before: the key, its value and the row's actions under their headers
+                  <div className={classes.tableBox}>
+                    <table className={classes.propsTable}>
+                      <thead>
+                        <tr>
+                          <th className={classes.keyColumn}>{t('data-contracts:detailsView.customProperties.property', 'Property')}</th>
+                          <th>{t('data-contracts:detailsView.customProperties.value', 'Value')}</th>
+                          <th className={classes.actionsColumn}>{t('common:labels.actions', 'Actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customProperties.map(([key, value]) => {
+                          const valueStr = String(value)
+                          const isJson = valueStr.startsWith('[') || valueStr.startsWith('{')
+                          return (
+                            <tr key={key}>
+                              <td>
+                                <code className={classes.propertyKey}>{key}</code>
+                              </td>
+                              <td>
+                                {isJson ? (
+                                  <pre className={classes.json}>
+                                    {(() => {
+                                      try {
+                                        return JSON.stringify(JSON.parse(valueStr), null, 2)
+                                      } catch {
+                                        return valueStr
+                                      }
+                                    })()}
+                                  </pre>
+                                ) : (
+                                  <span className={`${common.muted} ${classes.prose}`}>{valueStr}</span>
+                                )}
+                              </td>
+                              {canEditInPlace && (
+                                <td>
+                                  <div className={classes.cellActions}>
+                                    {rowActions(
+                                      key,
+                                      () => {
+                                        setEditingCustomPropertyKey(key)
+                                        setIsCustomPropertyFormOpen(true)
+                                      },
+                                      () => handleDeleteCustomProperty(key),
+                                    )}
+                                  </div>
+                                </td>
                               )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </Pane>
@@ -2640,16 +2620,19 @@ export default function DataContractDetails() {
             {/* Support Channels (read-only for now) */}
             {shouldShowSection('support') && contract.support && Object.keys(contract.support).length > 0 && (
               <Pane title={t('data-contracts:detailsView.support.title', 'Support')}>
-                <DetailsGrid
-                  rows={Object.entries(contract.support).map(([channel, url]) => ({
-                    label: channel,
-                    value: url ? (
-                      <a href={url} target="_blank" rel="noreferrer" className={classes.url}>{url}</a>
-                    ) : (
-                      <span className={common.muted}>{t('common:states.notAvailable', 'N/A')}</span>
-                    ),
-                  }))}
-                />
+                {/* The channels' names, capitalised as their badges were */}
+                <div className={classes.support}>
+                  <DetailsGrid
+                    rows={Object.entries(contract.support).map(([channel, url]) => ({
+                      label: channel,
+                      value: url ? (
+                        <a href={url} target="_blank" rel="noreferrer" className={classes.url}>{url}</a>
+                      ) : (
+                        <span className={common.muted}>{t('common:states.notAvailable', 'N/A')}</span>
+                      ),
+                    }))}
+                  />
+                </div>
               </Pane>
             )}
 
@@ -2674,9 +2657,9 @@ export default function DataContractDetails() {
                 {contractAuthDefs.length === 0 ? (
                   <p className={classes.empty}>{t('data-contracts:detailsView.authDefs.noneYet', 'No authoritative definitions defined yet.')}</p>
                 ) : (
-                  <div className={classes.list}>
+                  <div className={classes.list} role="list">
                     {contractAuthDefs.map((def, idx) => (
-                      <div key={def.id} className={classes.item}>
+                      <div key={def.id} className={classes.item} role="listitem">
                         <div className={classes.itemMain}>
                           <span><Badge variant="secondary">{def.type}</Badge></span>
                           <a href={def.url} target="_blank" rel="noreferrer" className={classes.url}>{def.url}</a>

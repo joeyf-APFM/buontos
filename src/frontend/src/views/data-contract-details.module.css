@@ -17,8 +17,11 @@
   overflow-wrap: anywhere;
 }
 
-/* Under the header: the banners, the view controls, then the stack */
+/* Under the header: the banners, the view controls, then the stack. One
+   height caps every long list and the schema's rows, which scroll inside
+   their pane past it. */
 .body {
+  --section-scroll-cap: 480px;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -202,7 +205,7 @@ button.notify:disabled {
 .list {
   display: flex;
   flex-direction: column;
-  max-height: 420px;
+  max-height: var(--section-scroll-cap);
   overflow-y: auto;
   margin: -4px 0;
 }
@@ -304,7 +307,67 @@ a.itemName:hover {
   text-decoration: underline;
 }
 
-/* Custom properties: the key, then the value (JSON pretty-printed) */
+/* Custom properties: a table of the key, the value (JSON pretty-printed) and
+   the row's actions, in the DataTable's look */
+.tableBox {
+  max-height: var(--section-scroll-cap);
+  overflow: auto;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.propsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.propsTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 28px;
+  padding: 0 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+  background: var(--aura-surface-strong);
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.propsTable td {
+  padding: 6px 10px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.propsTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.propsTable th.keyColumn {
+  width: 12rem;
+}
+
+.propsTable th.actionsColumn {
+  width: 4.5rem;
+  text-align: right;
+}
+
+.cellActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+/* Support: the channels' names, capitalised */
+.support dt {
+  text-transform: capitalize;
+}
+
 .propertyKey {
   align-self: flex-start;
   padding: 1px 5px;
@@ -447,10 +510,17 @@ a.concept svg {
   min-width: 0;
 }
 
-.propertiesScroll {
-  max-height: 480px;
-  overflow-y: auto;
-  min-width: 0;
+/* The table's own scroll box (DataTable's Table wrapper, the div that holds
+   the <table>): capped, so only the rows scroll, under a pinned header row */
+.properties div:has(> table) {
+  max-height: var(--section-scroll-cap);
+}
+
+.properties thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--aura-surface-strong);
 }
 
 /* The column cells: names and descriptions wrap, however long */

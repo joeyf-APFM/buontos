@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type FocusEvent, type KeyboardEvent } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Popover } from '@mantine/core';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
 } from 'lucide-react';
 import { MaturityBadge } from '@/components/common/maturity-badge';
+import { useHoverFocusCard } from '@/components/common/use-hover-focus-card';
 import type { MaturityReport, LevelResult } from '@/types/maturity';
 import classes from './maturity-inline.module.css';
 import common from '@/components/common/detail-page.module.css';
@@ -29,56 +30,17 @@ const GATE_ICON: Record<string, typeof CheckCircle2> = {
   warn: AlertTriangle,
 };
 
-/**
- * The level card's open state: it opens on hover (after a short delay, and
- * stays open while the pointer is over the card) and on keyboard focus, and
- * closes on blur, on leaving, and on Escape, as the Radix HoverCard did.
- * Mantine's HoverCard opens on hover only. The Popovers drawing it pass
- * withRoles={false}: a hover card isn't a dialog, so neither the badge nor
- * the card announces one.
- */
-function useDetailCard(openDelay = 200, closeDelay = 150) {
-  const [opened, setOpened] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-  const clear = () => window.clearTimeout(timer.current);
-  const later = (next: boolean, delay: number) => {
-    clear();
-    timer.current = window.setTimeout(() => setOpened(next), delay);
-  };
-  useEffect(() => clear, []);
-  const close = () => { clear(); setOpened(false); };
-  return {
-    opened,
-    close,
-    target: {
-      onMouseEnter: () => later(true, openDelay),
-      onMouseLeave: () => later(false, closeDelay),
-      onFocus: () => { clear(); setOpened(true); },
-      onBlur: (e: FocusEvent<HTMLElement>) => {
-        // Moving to the re-evaluate button inside the badge keeps it open
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
-      },
-      onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
-        if (e.key === 'Escape' && opened) {
-          e.stopPropagation();
-          close();
-        }
-      },
-    },
-    dropdown: {
-      onMouseEnter: clear,
-      onMouseLeave: () => later(false, closeDelay),
-    },
-  };
-}
-
 export function MaturityInline({ entityType, entityId, compact = false }: MaturityInlineProps) {
   const { t } = useTranslation('common');
   const [report, setReport] = useState<MaturityReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const { toast } = useToast();
-  const card = useDetailCard();
+  // The level card opens on hover and on keyboard focus, and closes on blur,
+  // on leaving and on Escape, as the Radix HoverCard did. The Popovers drawing
+  // it pass withRoles={false}: a hover card isn't a dialog, so neither the
+  // badge nor the card announces one.
+  const card = useHoverFocusCard();
 
   const prefix = API_PREFIX[entityType] || API_PREFIX.DataProduct;
 
