@@ -444,6 +444,7 @@
       "otherGroupOrSp": "その他のグループまたはサービスプリンシパル",
       "groupOption": "グループ（表示名）",
       "servicePrincipalOption": "サービスプリンシパル（表示名または applicationId）",
+      "principalType": "プリンシパルの種類",
       "groupPlaceholder": "例: sales_consumers",
       "spPlaceholder": "例: 11111111-2222-3333-4444-555555555555",
       "validationNote": "リクエストが記録される前に、ワークスペースディレクトリに対して検証されます。",

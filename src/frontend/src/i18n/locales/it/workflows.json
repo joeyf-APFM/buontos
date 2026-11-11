@@ -444,6 +444,7 @@
       "otherGroupOrSp": "Altro gruppo o service principal",
       "groupOption": "Gruppo (nome visualizzato)",
       "servicePrincipalOption": "Service principal (nome visualizzato o applicationId)",
+      "principalType": "Tipo di principal",
       "groupPlaceholder": "es. sales_consumers",
       "spPlaceholder": "es. 11111111-2222-3333-4444-555555555555",
       "validationNote": "Convalidato rispetto alla directory del workspace prima che la richiesta venga registrata.",

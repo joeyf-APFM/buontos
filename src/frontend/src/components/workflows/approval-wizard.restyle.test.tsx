@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { expectKitDialog, selectField } from '@/test/kit-dialog';
 import ApprovalWizardDialog from './approval-wizard-dialog';
 import classes from './approval-wizard.module.css';
 
@@ -103,7 +104,7 @@ describe('ApprovalWizardDialog restyle', () => {
       />,
     );
     const dialog = await screen.findByRole('dialog', { name: /Approval wizard/ });
-    expect(dialog).toHaveClass(classes.content);
+    expectKitDialog(dialog);
     const reason = await screen.findByRole('textbox', { name: /Business reason/ });
 
     // Header: progress and the entity
@@ -113,7 +114,7 @@ describe('ApprovalWizardDialog restyle', () => {
     // user_action: the three fields, the reference link, the hint, Cancel and Next
     expect(screen.getByText('Tell us why')).toHaveClass(classes.stepTitle);
     expect(screen.getByRole('textbox', { name: 'Ticket number' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Target workspace' })).toBeInTheDocument();
+    expect(selectField(dialog, 'Target workspace')).toBeInTheDocument();
     const refs = screen.getByRole('region', { name: 'Reference documents' });
     expect(refs).toHaveClass(classes.refs);
     expect(within(refs).getByRole('link', { name: 'Access policy' })).toHaveAttribute('href', 'https://example.com/policy');
@@ -169,10 +170,10 @@ describe('ApprovalWizardDialog restyle', () => {
     const self = await screen.findByRole('radio', { name: 'For myself' });
     expect(self).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: "For a group I'm part of" }));
-    expect(await screen.findByRole('combobox')).toBeInTheDocument();
+    expect(await waitFor(() => selectField(dialog, 'Select one of your groups'))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('radio', { name: 'Other group or service principal' }));
     expect(await screen.findByPlaceholderText('e.g., sales_consumers')).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(selectField(dialog, 'Principal type')).toBeInTheDocument();
     const complete = screen.getByRole('button', { name: 'Complete' });
     fireEvent.change(screen.getByPlaceholderText('e.g., sales_consumers'), { target: { value: 'finance' } });
     expect(complete).toBeDisabled();
