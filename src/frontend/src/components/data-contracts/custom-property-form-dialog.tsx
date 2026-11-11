@@ -1,17 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog } from '@/mantine/page'
+import { useOpenerRef } from '@/components/common/use-opener-ref'
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
+import classes from './contract-form-dialogs.module.css'
 
 interface CustomPropertyFormDialogProps {
   isOpen: boolean
@@ -35,6 +30,8 @@ export default function CustomPropertyFormDialog({
   const [value, setValue] = useState('')
   const [valueType, setValueType] = useState<ValueType>('string')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
+  const opener = useOpenerRef(isOpen)
   const [error, setError] = useState<string | null>(null)
 
   const isEditing = !!initial
@@ -112,91 +109,97 @@ export default function CustomPropertyFormDialog({
     }
   }
 
+  const valueTypeOptions = [
+    { value: 'string', label: t('data-contracts:customProperty.valueTypes.string', 'String') },
+    { value: 'number', label: t('data-contracts:customProperty.valueTypes.number', 'Number') },
+    { value: 'boolean', label: t('data-contracts:customProperty.valueTypes.boolean', 'Boolean') },
+    { value: 'json', label: t('data-contracts:customProperty.valueTypes.json', 'JSON (Array/Object)') },
+  ]
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? t('data-contracts:customProperty.editTitle', 'Edit Custom Property') : t('data-contracts:customProperty.addTitle', 'Add Custom Property')}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="property">{t('data-contracts:customProperty.fields.propertyName', 'Property Name')}</Label>
-            <Input
-              id="property"
-              value={property}
-              onChange={(e) => setProperty(e.target.value)}
-              placeholder={t('data-contracts:customProperty.fields.propertyNamePlaceholder', 'e.g., mdmEntityType')}
-              disabled={isEditing}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="valueType">{t('data-contracts:customProperty.fields.valueType', 'Value Type')}</Label>
-            <Select value={valueType} onValueChange={(v) => setValueType(v as ValueType)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="string">{t('data-contracts:customProperty.valueTypes.string', 'String')}</SelectItem>
-                <SelectItem value="number">{t('data-contracts:customProperty.valueTypes.number', 'Number')}</SelectItem>
-                <SelectItem value="boolean">{t('data-contracts:customProperty.valueTypes.boolean', 'Boolean')}</SelectItem>
-                <SelectItem value="json">{t('data-contracts:customProperty.valueTypes.json', 'JSON (Array/Object)')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="value">{t('data-contracts:customProperty.fields.value', 'Value')}</Label>
-              {valueType === 'json' && (
-                <Button type="button" variant="ghost" size="sm" onClick={formatJson}>
-                  {t('data-contracts:customProperty.formatJson', 'Format JSON')}
-                </Button>
-              )}
-            </div>
-            {valueType === 'boolean' ? (
-              <Select value={value} onValueChange={setValue}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('data-contracts:customProperty.fields.selectValuePlaceholder', 'Select value')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">true</SelectItem>
-                  <SelectItem value="false">false</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : valueType === 'json' ? (
-              <Textarea
-                id="value"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={t('data-contracts:customProperty.fields.jsonPlaceholder', '[{"name": "rule1", "type": "exact"}]')}
-                className="font-mono text-sm min-h-[150px]"
-              />
-            ) : (
-              <Input
-                id="value"
-                type={valueType === 'number' ? 'number' : 'text'}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={valueType === 'number' ? '0.8' : t('data-contracts:customProperty.fields.valuePlaceholder', 'Enter value')}
-              />
-            )}
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-        </div>
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      returnFocusTo={opener}
+      size="md"
+      title={isEditing ? t('data-contracts:customProperty.editTitle', 'Edit Custom Property') : t('data-contracts:customProperty.addTitle', 'Add Custom Property')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('common:actions.cancel', 'Cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? t('common:actions.saving', 'Saving...') : isEditing ? t('common:actions.update', 'Update') : t('common:actions.add', 'Add')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          id="property"
+          label={t('data-contracts:customProperty.fields.propertyName', 'Property Name')}
+          value={property}
+          onChange={(e) => setProperty(e.currentTarget.value)}
+          placeholder={t('data-contracts:customProperty.fields.propertyNamePlaceholder', 'e.g., mdmEntityType')}
+          disabled={isEditing}
+          classNames={FIELD_CLASSES}
+        />
+
+        <Select
+          id="valueType"
+          label={t('data-contracts:customProperty.fields.valueType', 'Value Type')}
+          data={valueTypeOptions}
+          value={valueType}
+          onChange={(v) => v && setValueType(v as ValueType)}
+          allowDeselect={false}
+          classNames={SELECT_CLASSES}
+        />
+
+        <div>
+          <div className={classes.labelRow}>
+            <label htmlFor="value" className={form.label}>{t('data-contracts:customProperty.fields.value', 'Value')}</label>
+            {valueType === 'json' && (
+              <Button type="button" variant="ghost" size="sm" onClick={formatJson}>
+                {t('data-contracts:customProperty.formatJson', 'Format JSON')}
+              </Button>
+            )}
+          </div>
+          {valueType === 'boolean' ? (
+            <Select
+              id="value"
+              data={['true', 'false']}
+              value={value || null}
+              onChange={(v) => v && setValue(v)}
+              allowDeselect={false}
+              placeholder={t('data-contracts:customProperty.fields.selectValuePlaceholder', 'Select value')}
+              classNames={SELECT_CLASSES}
+            />
+          ) : valueType === 'json' ? (
+            <Textarea
+              id="value"
+              value={value}
+              onChange={(e) => setValue(e.currentTarget.value)}
+              placeholder={t('data-contracts:customProperty.fields.jsonPlaceholder', '[{"name": "rule1", "type": "exact"}]')}
+              autosize
+              minRows={7}
+              maxRows={16}
+              classNames={{ input: classes.code }}
+            />
+          ) : (
+            <TextInput
+              id="value"
+              type={valueType === 'number' ? 'number' : 'text'}
+              value={value}
+              onChange={(e) => setValue(e.currentTarget.value)}
+              placeholder={valueType === 'number' ? '0.8' : t('data-contracts:customProperty.fields.valuePlaceholder', 'Enter value')}
+            />
+          )}
+        </div>
+
+        {error && (
+          <p className={form.error}>{error}</p>
+        )}
+      </div>
     </Dialog>
   )
 }
-

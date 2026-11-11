@@ -911,7 +911,8 @@
       "fromPlaceholder": "e.g., customer_id",
       "to": "To (target reference)",
       "toPlaceholder": "e.g., schema.table.column",
-      "add": "Add Relationship"
+      "add": "Add Relationship",
+      "remove": "Remove relationship {{from}} → {{to}}"
     },
     "toast": {
       "validationError": "Validation Error",
@@ -1536,7 +1537,9 @@
     "valuePlaceholder": "Value",
     "newPropertyPlaceholder": "New property key",
     "addProperty": "Add Property",
-    "addButton": "Add Server"
+    "addButton": "Add Server",
+    "propertyValue": "Value of {{key}}",
+    "removeProperty": "Remove {{key}}"
   },
   "tag": {
     "validationError": "Validation Error",

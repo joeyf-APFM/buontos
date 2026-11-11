@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Dialog } from '@/mantine/page'
+import { useOpenerRef } from '@/components/common/use-opener-ref'
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
+import classes from './contract-form-dialogs.module.css'
 import { Plus, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from 'react-i18next'
@@ -21,12 +22,21 @@ type SchemaFormProps = {
 }
 
 const PHYSICAL_TYPES = ['table', 'view', 'materialized_view', 'external_table', 'managed_table', 'streaming_table']
+const RELATIONSHIP_TYPES = ['foreignKey', 'reference']
+
+/** A relationship's end, as text */
+const endText = (end: unknown) => (typeof end === 'string' ? end : JSON.stringify(end))
 
 export default function SchemaFormDialog({ isOpen, onOpenChange, onSubmit, initial }: SchemaFormProps) {
   const { toast } = useToast()
   const { t } = useTranslation(['data-contracts', 'common'])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
+  const opener = useOpenerRef(isOpen)
   const propertyEditorRef = useRef<SchemaPropertyEditorHandle | null>(null)
+  const conceptsLabelId = useId()
+  const infoLabelId = useId()
+  const relationshipsLabelId = useId()
 
   // Schema-level fields
   const [name, setName] = useState('')
@@ -135,266 +145,236 @@ export default function SchemaFormDialog({ isOpen, onOpenChange, onSubmit, initi
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-contracts:schema.editTitle', 'Edit Schema') : t('data-contracts:schema.addTitle', 'Add New Schema')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:schema.description', 'Define a schema object (table/view) and its properties (columns).')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Schema-level fields */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold">{t('data-contracts:schema.sections.information', 'Schema Information')}</h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  {t('common:labels.name', 'Name')} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t('data-contracts:schema.fields.namePlaceholder', 'e.g., customers')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="physicalName">{t('data-contracts:schema.fields.physicalName', 'Physical Name')}</Label>
-                <Input
-                  id="physicalName"
-                  value={physicalName}
-                  onChange={(e) => setPhysicalName(e.target.value)}
-                  placeholder={t('data-contracts:schema.fields.physicalNamePlaceholder', 'e.g., catalog.schema.customers')}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="businessName">{t('data-contracts:schema.fields.businessName', 'Business Name')}</Label>
-                <Input
-                  id="businessName"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder={t('data-contracts:schema.fields.businessNamePlaceholder', 'Human-readable name')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="physicalType">{t('data-contracts:schema.fields.physicalType', 'Physical Type')}</Label>
-                <Select value={physicalType} onValueChange={setPhysicalType}>
-                  <SelectTrigger id="physicalType">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PHYSICAL_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">{t('common:labels.description', 'Description')}</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('data-contracts:schema.fields.descriptionPlaceholder', 'Describe this schema')}
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dataGranularityDescription">{t('data-contracts:schema.fields.dataGranularity', 'Data Granularity')}</Label>
-              <Input
-                id="dataGranularityDescription"
-                value={dataGranularityDescription}
-                onChange={(e) => setDataGranularityDescription(e.target.value)}
-                placeholder={t('data-contracts:schema.fields.dataGranularityPlaceholder', 'e.g., One row per customer')}
-              />
-            </div>
-          </div>
-
-          {/* Schema-level Business Concepts */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">{t('data-contracts:schema.sections.businessConcepts', 'Business Concepts')}</Label>
-            <BusinessConceptsDisplay
-              concepts={schemaSemanticConcepts}
-              onConceptsChange={setSchemaSemanticConcepts}
-              entityType="data_contract_schema"
-              entityId={name || 'schema'}
-              conceptType="class"
-              entityName={name || undefined}
-            />
-          </div>
-
-          {/* Unity Catalog Metadata (read-only, shown when present) */}
-          {initial && (initial.tableType || initial.owner || initial.createdAt || initial.updatedAt || initial.tableProperties) && (
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">{t('data-contracts:schema.sections.ucMetadata', 'Unity Catalog Metadata (Read-Only)')}</h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                {initial.tableType && (
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">{t('data-contracts:schema.fields.tableType', 'Table Type')}</Label>
-                    <Input value={initial.tableType} disabled className="bg-muted" />
-                  </div>
-                )}
-                {initial.owner && (
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">{t('common:labels.owner', 'Owner')}</Label>
-                    <Input value={initial.owner} disabled className="bg-muted" />
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {initial.createdAt && (
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">{t('common:labels.createdAt', 'Created At')}</Label>
-                    <Input value={initial.createdAt} disabled className="bg-muted" />
-                  </div>
-                )}
-                {initial.updatedAt && (
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">{t('common:labels.updatedAt', 'Updated At')}</Label>
-                    <Input value={initial.updatedAt} disabled className="bg-muted" />
-                  </div>
-                )}
-              </div>
-
-              {initial.tableProperties && Object.keys(initial.tableProperties).length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">{t('data-contracts:schema.fields.tableProperties', 'Table Properties')}</Label>
-                  <div className="rounded-md border bg-muted p-3 text-sm">
-                    {Object.entries(initial.tableProperties).map(([key, value]) => (
-                      <div key={key} className="flex justify-between py-1">
-                        <span className="font-medium">{key}:</span>
-                        <span className="text-muted-foreground">{String(value)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Properties section */}
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="text-sm font-semibold">
-              {t('data-contracts:schema.sections.properties', 'Properties (Columns)')} <span className="text-destructive">*</span>
-            </h3>
-
-            <SchemaPropertyEditor
-              ref={propertyEditorRef}
-              properties={properties}
-              onChange={setProperties}
-            />
-          </div>
-
-          {/* Schema-level Relationships (ODCS v3.1.0) */}
-          <div className="space-y-4 border-t pt-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                {t('data-contracts:schema.sections.relationships', 'Relationships (Foreign Keys)')}
-                {schemaRelationships.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">{schemaRelationships.length}</Badge>
-                )}
-              </h3>
-            </div>
-
-            {schemaRelationships.length > 0 && (
-              <div className="space-y-2">
-                {schemaRelationships.map((rel, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-2 flex-1 text-sm">
-                      <Badge variant="outline" className="text-xs">{rel.type}</Badge>
-                      <span className="font-mono">{typeof rel.from === 'string' ? rel.from : JSON.stringify(rel.from)}</span>
-                      <span className="text-muted-foreground">→</span>
-                      <span className="font-mono">{typeof rel.to === 'string' ? rel.to : JSON.stringify(rel.to)}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setSchemaRelationships(schemaRelationships.filter((_, i) => i !== idx))}
-                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="border rounded-lg p-3 bg-background space-y-2">
-              <div className="grid grid-cols-7 gap-2">
-                <div className="col-span-3 space-y-1">
-                  <Label className="text-xs">{t('data-contracts:schema.relationships.from', 'From (local column)')}</Label>
-                  <Input
-                    value={newRelFrom}
-                    onChange={(e) => setNewRelFrom(e.target.value)}
-                    placeholder={t('data-contracts:schema.relationships.fromPlaceholder', 'e.g., customer_id')}
-                    className="h-9 font-mono text-xs"
-                  />
-                </div>
-                <div className="col-span-3 space-y-1">
-                  <Label className="text-xs">{t('data-contracts:schema.relationships.to', 'To (target reference)')}</Label>
-                  <Input
-                    value={newRelTo}
-                    onChange={(e) => setNewRelTo(e.target.value)}
-                    placeholder={t('data-contracts:schema.relationships.toPlaceholder', 'e.g., schema.table.column')}
-                    className="h-9 font-mono text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">{t('common:labels.type', 'Type')}</Label>
-                  <Select value={newRelType} onValueChange={setNewRelType}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="foreignKey">foreignKey</SelectItem>
-                      <SelectItem value="reference">reference</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!newRelFrom.trim() || !newRelTo.trim()}
-                onClick={() => {
-                  setSchemaRelationships([...schemaRelationships, { type: newRelType, from: newRelFrom.trim(), to: newRelTo.trim() }])
-                  setNewRelFrom('')
-                  setNewRelTo('')
-                  setNewRelType('foreignKey')
-                }}
-                className="h-7"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                {t('data-contracts:schema.relationships.add', 'Add Relationship')}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      returnFocusTo={opener}
+      size="xl"
+      title={initial ? t('data-contracts:schema.editTitle', 'Edit Schema') : t('data-contracts:schema.addTitle', 'Add New Schema')}
+      description={t('data-contracts:schema.description', 'Define a schema object (table/view) and its properties (columns).')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('data-contracts:schemaEditor.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? t('common:actions.saving') : initial ? t('common:actions.saveChanges') : t('data-contracts:schemaEditor.addSchema')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        {/* Schema-level fields */}
+        <section aria-labelledby={infoLabelId} className={form.form}>
+          <h3 id={infoLabelId} className={form.sectionTitle}>{t('data-contracts:schema.sections.information', 'Schema Information')}</h3>
+
+          <div className={form.row}>
+            <TextInput
+              id="name"
+              label={t('common:labels.name', 'Name')}
+              required
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              placeholder={t('data-contracts:schema.fields.namePlaceholder', 'e.g., customers')}
+              classNames={FIELD_CLASSES}
+            />
+            <TextInput
+              id="physicalName"
+              label={t('data-contracts:schema.fields.physicalName', 'Physical Name')}
+              value={physicalName}
+              onChange={(e) => setPhysicalName(e.currentTarget.value)}
+              placeholder={t('data-contracts:schema.fields.physicalNamePlaceholder', 'e.g., catalog.schema.customers')}
+              classNames={FIELD_CLASSES}
+            />
+          </div>
+
+          <div className={form.row}>
+            <TextInput
+              id="businessName"
+              label={t('data-contracts:schema.fields.businessName', 'Business Name')}
+              value={businessName}
+              onChange={(e) => setBusinessName(e.currentTarget.value)}
+              placeholder={t('data-contracts:schema.fields.businessNamePlaceholder', 'Human-readable name')}
+              classNames={FIELD_CLASSES}
+            />
+            <Select
+              id="physicalType"
+              label={t('data-contracts:schema.fields.physicalType', 'Physical Type')}
+              data={PHYSICAL_TYPES}
+              value={physicalType}
+              onChange={(value) => value && setPhysicalType(value)}
+              allowDeselect={false}
+              classNames={SELECT_CLASSES}
+            />
+          </div>
+
+          <Textarea
+            id="description"
+            label={t('common:labels.description', 'Description')}
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            placeholder={t('data-contracts:schema.fields.descriptionPlaceholder', 'Describe this schema')}
+            autosize
+            minRows={2}
+            maxRows={8}
+            classNames={FIELD_CLASSES}
+          />
+
+          <TextInput
+            id="dataGranularityDescription"
+            label={t('data-contracts:schema.fields.dataGranularity', 'Data Granularity')}
+            value={dataGranularityDescription}
+            onChange={(e) => setDataGranularityDescription(e.currentTarget.value)}
+            placeholder={t('data-contracts:schema.fields.dataGranularityPlaceholder', 'e.g., One row per customer')}
+            classNames={FIELD_CLASSES}
+          />
+        </section>
+
+        {/* Schema-level Business Concepts */}
+        <div role="group" aria-labelledby={conceptsLabelId} className={form.form}>
+          <h3 id={conceptsLabelId} className={form.sectionTitle}>{t('data-contracts:schema.sections.businessConcepts', 'Business Concepts')}</h3>
+          <BusinessConceptsDisplay
+            concepts={schemaSemanticConcepts}
+            onConceptsChange={setSchemaSemanticConcepts}
+            entityType="data_contract_schema"
+            entityId={name || 'schema'}
+            conceptType="class"
+            entityName={name || undefined}
+          />
+        </div>
+
+        {/* Unity Catalog Metadata (read-only, shown when present) */}
+        {initial && (initial.tableType || initial.owner || initial.createdAt || initial.updatedAt || initial.tableProperties) && (
+          <section className={form.section}>
+            <h3 className={form.sectionTitle}>{t('data-contracts:schema.sections.ucMetadata', 'Unity Catalog Metadata (Read-Only)')}</h3>
+
+            {(initial.tableType || initial.owner) && (
+              <div className={form.row}>
+                {initial.tableType && (
+                  <TextInput label={t('data-contracts:schema.fields.tableType', 'Table Type')} value={initial.tableType} disabled classNames={FIELD_CLASSES} />
+                )}
+                {initial.owner && (
+                  <TextInput label={t('common:labels.owner', 'Owner')} value={initial.owner} disabled classNames={FIELD_CLASSES} />
+                )}
+              </div>
+            )}
+
+            {(initial.createdAt || initial.updatedAt) && (
+              <div className={form.row}>
+                {initial.createdAt && (
+                  <TextInput label={t('common:labels.createdAt', 'Created At')} value={initial.createdAt} disabled classNames={FIELD_CLASSES} />
+                )}
+                {initial.updatedAt && (
+                  <TextInput label={t('common:labels.updatedAt', 'Updated At')} value={initial.updatedAt} disabled classNames={FIELD_CLASSES} />
+                )}
+              </div>
+            )}
+
+            {initial.tableProperties && Object.keys(initial.tableProperties).length > 0 && (
+              <div>
+                <div className={form.label}>{t('data-contracts:schema.fields.tableProperties', 'Table Properties')}</div>
+                <dl className={classes.properties}>
+                  {Object.entries(initial.tableProperties).map(([key, value]) => (
+                    <div key={key} className={classes.propertyLine}>
+                      <dt>{key}:</dt>
+                      <dd>{String(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Properties section */}
+        <section className={form.section}>
+          <h3 className={form.sectionTitle}>
+            {t('data-contracts:schema.sections.properties', 'Properties (Columns)')} <span className={form.error}>*</span>
+          </h3>
+
+          <SchemaPropertyEditor
+            ref={propertyEditorRef}
+            properties={properties}
+            onChange={setProperties}
+          />
+        </section>
+
+        {/* Schema-level Relationships (ODCS v3.1.0) */}
+        <section aria-labelledby={relationshipsLabelId} className={form.section}>
+          <div className={classes.sectionHead}>
+            <h3 id={relationshipsLabelId} className={form.sectionTitle}>{t('data-contracts:schema.sections.relationships', 'Relationships (Foreign Keys)')}</h3>
+            {schemaRelationships.length > 0 && (
+              <Badge variant="secondary">{schemaRelationships.length}</Badge>
+            )}
+          </div>
+
+          {schemaRelationships.length > 0 && (
+            <ul className={classes.list}>
+              {schemaRelationships.map((rel, idx) => (
+                <li key={idx} className={classes.listRow}>
+                  <span className={classes.relationship}>
+                    <Badge variant="outline">{rel.type}</Badge>
+                    <span className={classes.mono}>{endText(rel.from)}</span>
+                    <span className={classes.arrow} aria-hidden>→</span>
+                    <span className={classes.mono}>{endText(rel.to)}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSchemaRelationships(schemaRelationships.filter((_, i) => i !== idx))}
+                    aria-label={t('data-contracts:schema.relationships.remove', 'Remove relationship {{from}} → {{to}}', { from: endText(rel.from), to: endText(rel.to) })}
+                  >
+                    <Trash2 size={14} aria-hidden />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className={classes.addBox}>
+            <div className={classes.addFields}>
+              <TextInput
+                label={t('data-contracts:schema.relationships.from', 'From (local column)')}
+                value={newRelFrom}
+                onChange={(e) => setNewRelFrom(e.currentTarget.value)}
+                placeholder={t('data-contracts:schema.relationships.fromPlaceholder', 'e.g., customer_id')}
+                classNames={{ ...FIELD_CLASSES, input: classes.monoInput }}
+              />
+              <TextInput
+                label={t('data-contracts:schema.relationships.to', 'To (target reference)')}
+                value={newRelTo}
+                onChange={(e) => setNewRelTo(e.currentTarget.value)}
+                placeholder={t('data-contracts:schema.relationships.toPlaceholder', 'e.g., schema.table.column')}
+                classNames={{ ...FIELD_CLASSES, input: classes.monoInput }}
+              />
+              <Select
+                label={t('common:labels.type', 'Type')}
+                data={RELATIONSHIP_TYPES}
+                value={newRelType}
+                onChange={(value) => value && setNewRelType(value)}
+                allowDeselect={false}
+                classNames={SELECT_CLASSES}
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!newRelFrom.trim() || !newRelTo.trim()}
+              onClick={() => {
+                setSchemaRelationships([...schemaRelationships, { type: newRelType, from: newRelFrom.trim(), to: newRelTo.trim() }])
+                setNewRelFrom('')
+                setNewRelTo('')
+                setNewRelType('foreignKey')
+              }}
+            >
+              <Plus size={12} aria-hidden />
+              {t('data-contracts:schema.relationships.add', 'Add Relationship')}
+            </Button>
+          </div>
+        </section>
+      </div>
     </Dialog>
   )
 }

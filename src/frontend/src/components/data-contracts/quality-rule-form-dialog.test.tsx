@@ -62,7 +62,7 @@ describe('QualityRuleFormDialog', () => {
       const nameLabel = screen.getByText(/Rule Name/);
       expect(nameLabel).toBeInTheDocument();
       // Check for required asterisk
-      expect(nameLabel.querySelector('.text-destructive')).toBeInTheDocument();
+      expect(nameLabel).toHaveTextContent('*');
     });
 
     it('validates required name field', async () => {
@@ -293,11 +293,11 @@ describe('QualityRuleFormDialog', () => {
         />
       );
 
-      expect(screen.getByLabelText(/Level/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Dimension/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Type/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Severity/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Business Impact/i)).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Level/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Dimension/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Type/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Severity/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Business Impact/i })).toBeInTheDocument();
     });
   });
 

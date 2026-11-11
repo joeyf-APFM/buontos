@@ -1,0 +1,155 @@
+/*
+ * The Data Contract form dialogs' own layout (wave 2 Task 11), beside the
+ * shared form parts in components/common/dialog-form.module.css: the schema
+ * form's relationships and table properties, the server form's host and
+ * port, and the key/value rows of the server's custom properties.
+ */
+
+/* A wide field and a narrow one side by side (host and port); a narrow window stacks them */
+.wideNarrow {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .wideNarrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A section's title with its count badge */
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The schema's relationships, one bordered row each */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+.relationship {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Column and table references are identifiers */
+.mono {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.arrow {
+  color: var(--aura-text-secondary);
+}
+
+/* The new relationship's fields: from and to wide, the type narrow */
+.addBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.addFields {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 1.4fr);
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .addFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* An identifier typed in a field */
+.monoInput {
+  font-family: var(--aura-font-mono);
+}
+
+/* The table's properties, a key and its value on each line */
+.properties {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+.propertyLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.propertyLine dt {
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.propertyLine dd {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+/* A key/value row with its remove button, or the new key with its add button */
+.keyValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keyValue > :not(button) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* A label with an action at its end (the custom property's Format JSON) */
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.labelRow > label {
+  margin-bottom: 0;
+}
+
+/* Code: the custom property's JSON value, the quality rule's SQL */
+.code {
+  font-family: var(--aura-font-mono);
+  font-size: 12px;
+}

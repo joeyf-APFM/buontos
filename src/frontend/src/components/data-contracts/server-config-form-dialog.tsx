@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { Dialog } from '@/mantine/page'
+import { useOpenerRef } from '@/components/common/use-opener-ref'
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
+import classes from './contract-form-dialogs.module.css'
 import type { ServerConfig } from '@/types/data-contract'
 
 type ServerConfigFormProps = {
@@ -25,10 +26,22 @@ const SERVER_TYPES = [
 
 const ENVIRONMENTS = ['production', 'staging', 'development', 'test']
 
+/** Adds the typed key as a property with no value, unless it's empty or already there; then clears the field. */
+const addKey = (input: HTMLInputElement | null, properties: Record<string, string>, setProperties: (next: Record<string, string>) => void) => {
+  const key = input?.value.trim()
+  if (input && key && !properties[key]) {
+    setProperties({ ...properties, [key]: '' })
+    input.value = ''
+  }
+}
+
 export default function ServerConfigFormDialog({ isOpen, onOpenChange, onSubmit, initial }: ServerConfigFormProps) {
   const { t } = useTranslation(['data-contracts', 'common'])
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
+  const opener = useOpenerRef(isOpen)
+  const propertiesLabelId = useId()
 
   const [server, setServer] = useState('')
   const [type, setType] = useState('databricks')
@@ -104,205 +117,173 @@ export default function ServerConfigFormDialog({ isOpen, onOpenChange, onSubmit,
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-contracts:serverConfig.editTitle', 'Edit Server Configuration') : t('data-contracts:serverConfig.addTitle', 'Add Server Configuration')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:serverConfig.description', 'Define server/connection details for this data contract.')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="server">
-              {t('data-contracts:serverConfig.nameLabel', 'Server Name')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="server"
-              value={server}
-              onChange={(e) => setServer(e.target.value)}
-              placeholder={t('data-contracts:serverConfig.namePlaceholder', 'e.g., prod-databricks')}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="type">{t('common:labels.type')}</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger id="type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SERVER_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="environment">{t('data-contracts:serverConfig.environmentLabel', 'Environment')}</Label>
-              <Select value={environment} onValueChange={setEnvironment}>
-                <SelectTrigger id="environment">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ENVIRONMENTS.map((env) => (
-                    <SelectItem key={env} value={env}>
-                      {env}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('common:labels.description')}</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('data-contracts:serverConfig.descriptionPlaceholder', 'Describe this server configuration')}
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2 col-span-2">
-              <Label htmlFor="host">{t('data-contracts:serverConfig.hostLabel', 'Host')}</Label>
-              <Input
-                id="host"
-                value={host}
-                onChange={(e) => setHost(e.target.value)}
-                placeholder={t('data-contracts:serverConfig.hostPlaceholder', 'e.g., hostname.cloud.databricks.com')}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="port">{t('data-contracts:serverConfig.portLabel', 'Port')}</Label>
-              <Input
-                id="port"
-                type="number"
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-                placeholder={t('data-contracts:serverConfig.portPlaceholder', 'e.g., 443')}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="database">{t('data-contracts:serverConfig.databaseLabel', 'Database/Catalog')}</Label>
-              <Input
-                id="database"
-                value={database}
-                onChange={(e) => setDatabase(e.target.value)}
-                placeholder={t('data-contracts:serverConfig.databasePlaceholder', 'e.g., main')}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="schema">{t('common:labels.schema')}</Label>
-              <Input
-                id="schema"
-                value={schema}
-                onChange={(e) => setSchema(e.target.value)}
-                placeholder={t('data-contracts:serverConfig.schemaPlaceholder', 'e.g., default')}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="location">{t('data-contracts:serverConfig.locationLabel', 'Location / URI')}</Label>
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder={t('data-contracts:serverConfig.locationPlaceholder', 'e.g., s3://bucket/path, abfss://container@storage/path')}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('data-contracts:serverConfig.customProperties', 'Custom Properties')}</Label>
-            <div className="space-y-2">
-              {Object.entries(properties).map(([key, value]) => (
-                <div key={key} className="flex gap-2">
-                  <Input
-                    value={key}
-                    disabled
-                    className="flex-1"
-                    placeholder={t('data-contracts:serverConfig.keyPlaceholder', 'Key')}
-                  />
-                  <Input
-                    value={value}
-                    onChange={(e) => {
-                      const newProps = { ...properties }
-                      newProps[key] = e.target.value
-                      setProperties(newProps)
-                    }}
-                    className="flex-1"
-                    placeholder={t('data-contracts:serverConfig.valuePlaceholder', 'Value')}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      const newProps = { ...properties }
-                      delete newProps[key]
-                      setProperties(newProps)
-                    }}
-                  >
-                    ×
-                  </Button>
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <Input
-                  id="new-prop-key"
-                  placeholder={t('data-contracts:serverConfig.newPropertyPlaceholder', 'New property key')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      const input = e.currentTarget
-                      const key = input.value.trim()
-                      if (key && !properties[key]) {
-                        setProperties({ ...properties, [key]: '' })
-                        input.value = ''
-                      }
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const input = document.getElementById('new-prop-key') as HTMLInputElement
-                    const key = input?.value.trim()
-                    if (key && !properties[key]) {
-                      setProperties({ ...properties, [key]: '' })
-                      input.value = ''
-                    }
-                  }}
-                >
-                  {t('data-contracts:serverConfig.addProperty', 'Add Property')}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      returnFocusTo={opener}
+      size="lg"
+      title={initial ? t('data-contracts:serverConfig.editTitle', 'Edit Server Configuration') : t('data-contracts:serverConfig.addTitle', 'Add Server Configuration')}
+      description={t('data-contracts:serverConfig.description', 'Define server/connection details for this data contract.')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? t('common:actions.saving') : initial ? t('common:actions.saveChanges') : t('data-contracts:serverConfig.addButton', 'Add Server')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          id="server"
+          label={t('data-contracts:serverConfig.nameLabel', 'Server Name')}
+          required
+          value={server}
+          onChange={(e) => setServer(e.currentTarget.value)}
+          placeholder={t('data-contracts:serverConfig.namePlaceholder', 'e.g., prod-databricks')}
+          classNames={FIELD_CLASSES}
+        />
+
+        <div className={form.row}>
+          <Select
+            id="type"
+            label={t('common:labels.type')}
+            data={SERVER_TYPES}
+            value={type}
+            onChange={(value) => value && setType(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+          <Select
+            id="environment"
+            label={t('data-contracts:serverConfig.environmentLabel', 'Environment')}
+            data={ENVIRONMENTS}
+            value={environment}
+            onChange={(value) => value && setEnvironment(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+        </div>
+
+        <Textarea
+          id="description"
+          label={t('common:labels.description')}
+          value={description}
+          onChange={(e) => setDescription(e.currentTarget.value)}
+          placeholder={t('data-contracts:serverConfig.descriptionPlaceholder', 'Describe this server configuration')}
+          autosize
+          minRows={2}
+          maxRows={8}
+          classNames={FIELD_CLASSES}
+        />
+
+        <div className={classes.wideNarrow}>
+          <TextInput
+            id="host"
+            label={t('data-contracts:serverConfig.hostLabel', 'Host')}
+            value={host}
+            onChange={(e) => setHost(e.currentTarget.value)}
+            placeholder={t('data-contracts:serverConfig.hostPlaceholder', 'e.g., hostname.cloud.databricks.com')}
+            classNames={FIELD_CLASSES}
+          />
+          <TextInput
+            id="port"
+            type="number"
+            label={t('data-contracts:serverConfig.portLabel', 'Port')}
+            value={port}
+            onChange={(e) => setPort(e.currentTarget.value)}
+            placeholder={t('data-contracts:serverConfig.portPlaceholder', 'e.g., 443')}
+            classNames={FIELD_CLASSES}
+          />
+        </div>
+
+        <div className={form.row}>
+          <TextInput
+            id="database"
+            label={t('data-contracts:serverConfig.databaseLabel', 'Database/Catalog')}
+            value={database}
+            onChange={(e) => setDatabase(e.currentTarget.value)}
+            placeholder={t('data-contracts:serverConfig.databasePlaceholder', 'e.g., main')}
+            classNames={FIELD_CLASSES}
+          />
+          <TextInput
+            id="schema"
+            label={t('common:labels.schema')}
+            value={schema}
+            onChange={(e) => setSchema(e.currentTarget.value)}
+            placeholder={t('data-contracts:serverConfig.schemaPlaceholder', 'e.g., default')}
+            classNames={FIELD_CLASSES}
+          />
+        </div>
+
+        <TextInput
+          id="location"
+          label={t('data-contracts:serverConfig.locationLabel', 'Location / URI')}
+          value={location}
+          onChange={(e) => setLocation(e.currentTarget.value)}
+          placeholder={t('data-contracts:serverConfig.locationPlaceholder', 'e.g., s3://bucket/path, abfss://container@storage/path')}
+          classNames={FIELD_CLASSES}
+        />
+
+        <div role="group" aria-labelledby={propertiesLabelId}>
+          <div id={propertiesLabelId} className={form.label}>{t('data-contracts:serverConfig.customProperties', 'Custom Properties')}</div>
+          <div className={form.form}>
+            {Object.entries(properties).map(([key, value]) => (
+              <div key={key} className={classes.keyValue}>
+                <TextInput
+                  value={key}
+                  disabled
+                  aria-label={t('data-contracts:serverConfig.keyPlaceholder', 'Key')}
+                  placeholder={t('data-contracts:serverConfig.keyPlaceholder', 'Key')}
+                />
+                <TextInput
+                  value={value}
+                  onChange={(e) => {
+                    const newProps = { ...properties }
+                    newProps[key] = e.currentTarget.value
+                    setProperties(newProps)
+                  }}
+                  aria-label={t('data-contracts:serverConfig.propertyValue', 'Value of {{key}}', { key })}
+                  placeholder={t('data-contracts:serverConfig.valuePlaceholder', 'Value')}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t('data-contracts:serverConfig.removeProperty', 'Remove {{key}}', { key })}
+                  onClick={() => {
+                    const newProps = { ...properties }
+                    delete newProps[key]
+                    setProperties(newProps)
+                  }}
+                >
+                  <span aria-hidden>×</span>
+                </Button>
+              </div>
+            ))}
+            <div className={classes.keyValue}>
+              <TextInput
+                id="new-prop-key"
+                aria-label={t('data-contracts:serverConfig.newPropertyPlaceholder', 'New property key')}
+                placeholder={t('data-contracts:serverConfig.newPropertyPlaceholder', 'New property key')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addKey(e.currentTarget, properties, setProperties)
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                onClick={() => addKey(document.getElementById('new-prop-key') as HTMLInputElement | null, properties, setProperties)}
+              >
+                {t('data-contracts:serverConfig.addProperty', 'Add Property')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </Dialog>
   )
 }

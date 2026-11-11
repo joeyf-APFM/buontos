@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { Dialog } from '@/mantine/page'
+import { useOpenerRef } from '@/components/common/use-opener-ref'
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
+import classes from './contract-form-dialogs.module.css'
 import type { QualityRule } from '@/types/data-contract'
 
 type QualityRuleFormProps = {
@@ -26,6 +27,8 @@ export default function QualityRuleFormDialog({ isOpen, onOpenChange, onSubmit, 
   const { t } = useTranslation(['data-contracts', 'common'])
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
+  const opener = useOpenerRef(isOpen)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -94,159 +97,98 @@ export default function QualityRuleFormDialog({ isOpen, onOpenChange, onSubmit, 
     }
   }
 
+  /**
+   * A Select of plain values, which are their own labels. The fields have
+   * Mantine's own ids: this form also opens over the schema form (from its
+   * column editor), whose fields would share fixed ones such as "name".
+   */
+  const valueSelect = (label: string, data: string[], value: string, onChange: (value: string) => void) => (
+    <Select
+      label={label}
+      data={data}
+      value={value}
+      onChange={(next) => next && onChange(next)}
+      allowDeselect={false}
+      classNames={SELECT_CLASSES}
+    />
+  )
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-contracts:quality.editTitle', 'Edit Quality Rule') : t('data-contracts:quality.addTitle', 'Add Quality Rule')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:quality.description', 'Define a data quality check for this contract.')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">
-              {t('data-contracts:quality.nameLabel', 'Rule Name')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('data-contracts:quality.namePlaceholder', 'e.g., Check for null values')}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('common:labels.description')}</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('data-contracts:quality.descriptionPlaceholder', 'Describe what this rule checks')}
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="level">{t('data-contracts:quality.levelLabel', 'Level')}</Label>
-              <Select value={level} onValueChange={setLevel}>
-                <SelectTrigger id="level">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {QUALITY_LEVELS.map((lvl) => (
-                    <SelectItem key={lvl} value={lvl}>
-                      {lvl}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dimension">{t('data-contracts:quality.dimensionLabel', 'Dimension')}</Label>
-              <Select value={dimension} onValueChange={setDimension}>
-                <SelectTrigger id="dimension">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {QUALITY_DIMENSIONS.map((dim) => (
-                    <SelectItem key={dim} value={dim}>
-                      {dim}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="severity">{t('data-contracts:quality.severityLabel', 'Severity')}</Label>
-              <Select value={severity} onValueChange={setSeverity}>
-                <SelectTrigger id="severity">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {QUALITY_SEVERITIES.map((sev) => (
-                    <SelectItem key={sev} value={sev}>
-                      {sev}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="businessImpact">{t('data-contracts:quality.businessImpactLabel', 'Business Impact')}</Label>
-              <Select value={businessImpact} onValueChange={setBusinessImpact}>
-                <SelectTrigger id="businessImpact">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BUSINESS_IMPACTS.map((impact) => (
-                    <SelectItem key={impact} value={impact}>
-                      {impact}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="type">{t('data-contracts:quality.typeLabel', 'Type')}</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger id="type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {QUALITY_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {type === 'sql' && (
-            <div className="space-y-2">
-              <Label htmlFor="query">{t('data-contracts:quality.sqlQueryLabel', 'SQL Query')}</Label>
-              <Textarea
-                id="query"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('data-contracts:quality.sqlQueryPlaceholder', 'SELECT COUNT(*) FROM table WHERE...')}
-                rows={4}
-                className="font-mono text-sm"
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="rule">{t('data-contracts:quality.ruleExpressionLabel', 'Rule Expression')}</Label>
-            <Textarea
-              id="rule"
-              value={rule}
-              onChange={(e) => setRule(e.target.value)}
-              placeholder={t('data-contracts:quality.ruleExpressionPlaceholder', 'e.g., col_name is not null')}
-              rows={2}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      returnFocusTo={opener}
+      size="lg"
+      title={initial ? t('data-contracts:quality.editTitle', 'Edit Quality Rule') : t('data-contracts:quality.addTitle', 'Add Quality Rule')}
+      description={t('data-contracts:quality.description', 'Define a data quality check for this contract.')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? t('common:actions.saving') : initial ? t('common:actions.saveChanges') : t('data-contracts:quality.addButton', 'Add Rule')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          label={t('data-contracts:quality.nameLabel', 'Rule Name')}
+          required
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder={t('data-contracts:quality.namePlaceholder', 'e.g., Check for null values')}
+          classNames={FIELD_CLASSES}
+        />
+
+        <Textarea
+          label={t('common:labels.description')}
+          value={description}
+          onChange={(e) => setDescription(e.currentTarget.value)}
+          placeholder={t('data-contracts:quality.descriptionPlaceholder', 'Describe what this rule checks')}
+          autosize
+          minRows={2}
+          maxRows={8}
+          classNames={FIELD_CLASSES}
+        />
+
+        <div className={form.row}>
+          {valueSelect(t('data-contracts:quality.levelLabel', 'Level'), QUALITY_LEVELS, level, setLevel)}
+          {valueSelect(t('data-contracts:quality.dimensionLabel', 'Dimension'), QUALITY_DIMENSIONS, dimension, setDimension)}
+        </div>
+
+        <div className={form.row}>
+          {valueSelect(t('data-contracts:quality.severityLabel', 'Severity'), QUALITY_SEVERITIES, severity, setSeverity)}
+          {valueSelect(t('data-contracts:quality.businessImpactLabel', 'Business Impact'), BUSINESS_IMPACTS, businessImpact, setBusinessImpact)}
+        </div>
+
+        {valueSelect(t('data-contracts:quality.typeLabel', 'Type'), QUALITY_TYPES, type, setType)}
+
+        {type === 'sql' && (
+          <Textarea
+            label={t('data-contracts:quality.sqlQueryLabel', 'SQL Query')}
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+            placeholder={t('data-contracts:quality.sqlQueryPlaceholder', 'SELECT COUNT(*) FROM table WHERE...')}
+            autosize
+            minRows={4}
+            maxRows={12}
+            classNames={{ ...FIELD_CLASSES, input: classes.code }}
+          />
+        )}
+
+        <Textarea
+          label={t('data-contracts:quality.ruleExpressionLabel', 'Rule Expression')}
+          value={rule}
+          onChange={(e) => setRule(e.currentTarget.value)}
+          placeholder={t('data-contracts:quality.ruleExpressionPlaceholder', 'e.g., col_name is not null')}
+          autosize
+          minRows={2}
+          maxRows={8}
+          classNames={FIELD_CLASSES}
+        />
+      </div>
     </Dialog>
   )
 }

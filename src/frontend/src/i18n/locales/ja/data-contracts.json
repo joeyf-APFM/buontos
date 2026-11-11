@@ -911,7 +911,8 @@
       "fromPlaceholder": "例: customer_id",
       "to": "To（ターゲット参照）",
       "toPlaceholder": "例: schema.table.column",
-      "add": "関係を追加"
+      "add": "関係を追加",
+      "remove": "リレーションシップ {{from}} → {{to}} を削除"
     },
     "toast": {
       "validationError": "検証エラー",
@@ -1536,7 +1537,9 @@
     "valuePlaceholder": "値",
     "newPropertyPlaceholder": "新しいプロパティキー",
     "addProperty": "プロパティを追加",
-    "addButton": "サーバーを追加"
+    "addButton": "サーバーを追加",
+    "propertyValue": "{{key}} の値",
+    "removeProperty": "{{key}} を削除"
   },
   "tag": {
     "validationError": "検証エラー",

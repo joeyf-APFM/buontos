@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -62,6 +62,12 @@ interface Props {
   /** Overrides for the default title and search placeholder. */
   title?: string;
   searchPlaceholder?: string;
+  /**
+   * Where focus goes once the picker has closed. With no DialogTrigger,
+   * Radix puts it nowhere (the body); inside a Radix dialog its focus scope
+   * caught that, inside a kit Dialog nothing does (wave 2 Task 11).
+   */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
 // Scoped or widened lists drop excluded entries client-side, so ask for more.
@@ -82,6 +88,7 @@ export default function ConceptSelectDialog({
   excludeIris,
   title,
   searchPlaceholder,
+  returnFocusTo,
 }: Props) {
   const { t } = useTranslation();
   const { get, post } = useApi();
@@ -209,7 +216,15 @@ export default function ConceptSelectDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[90vw]">
+      <DialogContent
+        className="max-w-4xl w-[90vw]"
+        onCloseAutoFocus={(event) => {
+          const target = returnFocusTo?.current;
+          if (!target?.isConnected) return;
+          event.preventDefault();
+          target.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title ?? `Select Business ${entityType === 'property' ? 'Property' : 'Concept'}`}</DialogTitle>
         </DialogHeader>

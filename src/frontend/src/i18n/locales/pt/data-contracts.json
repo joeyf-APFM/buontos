@@ -911,7 +911,8 @@
       "fromPlaceholder": "ex.: cliente_id",
       "to": "Para (referência de destino)",
       "toPlaceholder": "ex.: esquema.tabela.coluna",
-      "add": "Adicionar Relacionamento"
+      "add": "Adicionar Relacionamento",
+      "remove": "Remover a relação {{from}} → {{to}}"
     },
     "toast": {
       "validationError": "Erro de Validação",
@@ -1536,7 +1537,9 @@
     "valuePlaceholder": "Valor",
     "newPropertyPlaceholder": "Nova chave de propriedade",
     "addProperty": "Adicionar Propriedade",
-    "addButton": "Adicionar Servidor"
+    "addButton": "Adicionar Servidor",
+    "propertyValue": "Valor de {{key}}",
+    "removeProperty": "Remover {{key}}"
   },
   "tag": {
     "validationError": "Erro de Validação",
