@@ -611,116 +611,116 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
 
         {/* Note Edit Dialog */}
         <Dialog opened={!!editingNote} onClose={() => setEditingNote(null)} size="lg" title={t('notes.editTitle')}>
-            {editingNote && (
-              <div className={classes.form}>
+          {editingNote && (
+            <div className={classes.form}>
+              <div>
+                <Label htmlFor="edit-note-title">{t('notes.form.title')}</Label>
+                <Input id="edit-note-title" value={editNoteTitle} onChange={(e) => setEditNoteTitle(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-note-desc">{t('notes.form.shortDescription')}</Label>
+                <Input id="edit-note-desc" value={editNoteDesc} onChange={(e) => setEditNoteDesc(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-note-content">{t('notes.form.content')}</Label>
+                <Textarea id="edit-note-content" rows={8} value={editNoteContent} onChange={(e) => setEditNoteContent(e.target.value)} />
+              </div>
+              <div className={classes.formRow} style={{ '--cols': 2 } as React.CSSProperties}>
                 <div>
-                  <Label htmlFor="edit-note-title">{t('notes.form.title')}</Label>
-                  <Input id="edit-note-title" value={editNoteTitle} onChange={(e) => setEditNoteTitle(e.target.value)} />
+                  <Label htmlFor="edit-note-level">{t('notes.form.level') || 'Level'}</Label>
+                  <Input id="edit-note-level" type="number" min={0} max={999} value={editNoteLevel} onChange={(e) => setEditNoteLevel(Number(e.target.value))} />
                 </div>
-                <div>
-                  <Label htmlFor="edit-note-desc">{t('notes.form.shortDescription')}</Label>
-                  <Input id="edit-note-desc" value={editNoteDesc} onChange={(e) => setEditNoteDesc(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="edit-note-content">{t('notes.form.content')}</Label>
-                  <Textarea id="edit-note-content" rows={8} value={editNoteContent} onChange={(e) => setEditNoteContent(e.target.value)} />
-                </div>
-                <div className={classes.formRow} style={{ '--cols': 2 } as React.CSSProperties}>
-                  <div>
-                    <Label htmlFor="edit-note-level">{t('notes.form.level') || 'Level'}</Label>
-                    <Input id="edit-note-level" type="number" min={0} max={999} value={editNoteLevel} onChange={(e) => setEditNoteLevel(Number(e.target.value))} />
-                  </div>
-                  <div className={classes.check}>
-                    <Checkbox id="edit-note-inheritable" checked={editNoteInheritable} onCheckedChange={(v) => setEditNoteInheritable(!!v)} />
-                    <Label htmlFor="edit-note-inheritable">{t('notes.form.inheritable') || 'Inheritable'}</Label>
-                  </div>
-                </div>
-                <div className={classes.buttonsEnd}>
-                  <Button variant="outline" onClick={() => setEditingNote(null)}>{t('notes.form.cancel')}</Button>
-                  <Button
-                    onClick={async () => {
-                      try {
-                        const payload = {
-                          title: editNoteTitle || undefined,
-                          short_description: editNoteDesc || undefined,
-                          content_markdown: editNoteContent || undefined,
-                          level: editNoteLevel,
-                          inheritable: editNoteInheritable,
-                        };
-                        const resp = await fetch(`/api/rich-texts/${editingNote.id}`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload),
-                        });
-                        if (!resp.ok) throw new Error(await resp.text());
-                        setEditingNote(null);
-                        fetchMetadata();
-                      } catch (e: any) {
-                        toast({ title: t('notes.messages.updateFailed'), description: e.message, variant: 'destructive' });
-                      }
-                    }}
-                    disabled={!editNoteTitle}
-                  >{t('notes.form.save')}</Button>
+                <div className={classes.check}>
+                  <Checkbox id="edit-note-inheritable" checked={editNoteInheritable} onCheckedChange={(v) => setEditNoteInheritable(!!v)} />
+                  <Label htmlFor="edit-note-inheritable">{t('notes.form.inheritable') || 'Inheritable'}</Label>
                 </div>
               </div>
-            )}
+              <div className={classes.buttonsEnd}>
+                <Button variant="outline" onClick={() => setEditingNote(null)}>{t('notes.form.cancel')}</Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const payload = {
+                        title: editNoteTitle || undefined,
+                        short_description: editNoteDesc || undefined,
+                        content_markdown: editNoteContent || undefined,
+                        level: editNoteLevel,
+                        inheritable: editNoteInheritable,
+                      };
+                      const resp = await fetch(`/api/rich-texts/${editingNote.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                      });
+                      if (!resp.ok) throw new Error(await resp.text());
+                      setEditingNote(null);
+                      fetchMetadata();
+                    } catch (e: any) {
+                      toast({ title: t('notes.messages.updateFailed'), description: e.message, variant: 'destructive' });
+                    }
+                  }}
+                  disabled={!editNoteTitle}
+                >{t('notes.form.save')}</Button>
+              </div>
+            </div>
+          )}
         </Dialog>
 
         {/* Link Edit Dialog */}
         <Dialog opened={!!editingLink} onClose={() => setEditingLink(null)} title={t('links.editTitle')}>
-            {editingLink && (
-              <div className={classes.form}>
+          {editingLink && (
+            <div className={classes.form}>
+              <div>
+                <Label htmlFor="edit-link-title">{t('links.form.title')}</Label>
+                <Input id="edit-link-title" value={editLinkTitle} onChange={(e) => setEditLinkTitle(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-link-url">{t('links.form.url')}</Label>
+                <Input id="edit-link-url" value={editLinkUrl} onChange={(e) => setEditLinkUrl(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-link-desc">{t('links.form.shortDescription')}</Label>
+                <Input id="edit-link-desc" value={editLinkDesc} onChange={(e) => setEditLinkDesc(e.target.value)} />
+              </div>
+              <div className={classes.formRow} style={{ '--cols': 2 } as React.CSSProperties}>
                 <div>
-                  <Label htmlFor="edit-link-title">{t('links.form.title')}</Label>
-                  <Input id="edit-link-title" value={editLinkTitle} onChange={(e) => setEditLinkTitle(e.target.value)} />
+                  <Label htmlFor="edit-link-level">{t('links.form.level') || 'Level'}</Label>
+                  <Input id="edit-link-level" type="number" min={0} max={999} value={editLinkLevel} onChange={(e) => setEditLinkLevel(Number(e.target.value))} />
                 </div>
-                <div>
-                  <Label htmlFor="edit-link-url">{t('links.form.url')}</Label>
-                  <Input id="edit-link-url" value={editLinkUrl} onChange={(e) => setEditLinkUrl(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="edit-link-desc">{t('links.form.shortDescription')}</Label>
-                  <Input id="edit-link-desc" value={editLinkDesc} onChange={(e) => setEditLinkDesc(e.target.value)} />
-                </div>
-                <div className={classes.formRow} style={{ '--cols': 2 } as React.CSSProperties}>
-                  <div>
-                    <Label htmlFor="edit-link-level">{t('links.form.level') || 'Level'}</Label>
-                    <Input id="edit-link-level" type="number" min={0} max={999} value={editLinkLevel} onChange={(e) => setEditLinkLevel(Number(e.target.value))} />
-                  </div>
-                  <div className={classes.check}>
-                    <Checkbox id="edit-link-inheritable" checked={editLinkInheritable} onCheckedChange={(v) => setEditLinkInheritable(!!v)} />
-                    <Label htmlFor="edit-link-inheritable">{t('links.form.inheritable') || 'Inheritable'}</Label>
-                  </div>
-                </div>
-                <div className={classes.buttonsEnd}>
-                  <Button variant="outline" onClick={() => setEditingLink(null)}>{t('links.form.cancel')}</Button>
-                  <Button
-                    onClick={async () => {
-                      try {
-                        const payload = {
-                          title: editLinkTitle || undefined,
-                          url: editLinkUrl || undefined,
-                          short_description: editLinkDesc || undefined,
-                          level: editLinkLevel,
-                          inheritable: editLinkInheritable,
-                        };
-                        const resp = await fetch(`/api/links/${editingLink.id}`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload),
-                        });
-                        if (!resp.ok) throw new Error(await resp.text());
-                        setEditingLink(null);
-                        fetchMetadata();
-                      } catch (e: any) {
-                        toast({ title: t('links.messages.updateFailed'), description: e.message, variant: 'destructive' });
-                      }
-                    }}
-                    disabled={!editLinkTitle || !editLinkUrl}
-                  >{t('links.form.save')}</Button>
+                <div className={classes.check}>
+                  <Checkbox id="edit-link-inheritable" checked={editLinkInheritable} onCheckedChange={(v) => setEditLinkInheritable(!!v)} />
+                  <Label htmlFor="edit-link-inheritable">{t('links.form.inheritable') || 'Inheritable'}</Label>
                 </div>
               </div>
-            )}
+              <div className={classes.buttonsEnd}>
+                <Button variant="outline" onClick={() => setEditingLink(null)}>{t('links.form.cancel')}</Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const payload = {
+                        title: editLinkTitle || undefined,
+                        url: editLinkUrl || undefined,
+                        short_description: editLinkDesc || undefined,
+                        level: editLinkLevel,
+                        inheritable: editLinkInheritable,
+                      };
+                      const resp = await fetch(`/api/links/${editingLink.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                      });
+                      if (!resp.ok) throw new Error(await resp.text());
+                      setEditingLink(null);
+                      fetchMetadata();
+                    } catch (e: any) {
+                      toast({ title: t('links.messages.updateFailed'), description: e.message, variant: 'destructive' });
+                    }
+                  }}
+                  disabled={!editLinkTitle || !editLinkUrl}
+                >{t('links.form.save')}</Button>
+              </div>
+            </div>
+          )}
         </Dialog>
 
         {/* Shared Asset Picker Dialog */}
@@ -737,74 +737,74 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
           }
           description={t('sharedAssets.selectDescription') || 'Select a shared asset to attach to this entity'}
         >
-            <div className={classes.pickerScroll}>
-              {sharedAssets.loading ? (
-                <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('sharedAssets.loading')}</div>
-              ) : (
-                <>
-                  {showSharedPicker === 'rich_text' && (
-                    sharedAssets.richTexts.length === 0 ? (
-                      <div className={classes.empty}>{t('sharedAssets.noSharedNotes') || 'No shared notes available'}</div>
-                    ) : (
-                      <div className={classes.stack}>
-                        {sharedAssets.richTexts.map(rt => (
-                          <div key={rt.id} className={cn(classes.row, classes.pickRow)}>
-                            <div>
-                              <div className={classes.strong}>{rt.title}</div>
-                              <div className={classes.meta}>{truncate(rt.short_description, 60)}</div>
-                              <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: rt.level ?? 50 })} • {rt.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
-                            </div>
-                            <Button size="sm" onClick={() => handleAttachSharedAsset('rich_text', rt.id)}>
-                              <Plus /> {t('sharedAssets.attach')}
-                            </Button>
+          <div className={classes.pickerScroll}>
+            {sharedAssets.loading ? (
+              <div className={classes.inlineLoading}><Loader2 className={classes.spin} /> {t('sharedAssets.loading')}</div>
+            ) : (
+              <>
+                {showSharedPicker === 'rich_text' && (
+                  sharedAssets.richTexts.length === 0 ? (
+                    <div className={classes.empty}>{t('sharedAssets.noSharedNotes') || 'No shared notes available'}</div>
+                  ) : (
+                    <div className={classes.stack}>
+                      {sharedAssets.richTexts.map(rt => (
+                        <div key={rt.id} className={cn(classes.row, classes.pickRow)}>
+                          <div>
+                            <div className={classes.strong}>{rt.title}</div>
+                            <div className={classes.meta}>{truncate(rt.short_description, 60)}</div>
+                            <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: rt.level ?? 50 })} • {rt.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
                           </div>
-                        ))}
-                      </div>
-                    )
-                  )}
-                  {showSharedPicker === 'link' && (
-                    sharedAssets.links.length === 0 ? (
-                      <div className={classes.empty}>{t('sharedAssets.noSharedLinks') || 'No shared links available'}</div>
-                    ) : (
-                      <div className={classes.stack}>
-                        {sharedAssets.links.map(link => (
-                          <div key={link.id} className={cn(classes.row, classes.pickRow)}>
-                            <div>
-                              <div className={classes.strong}>{link.title}</div>
-                              <div className={classes.metaLink}>{link.url}</div>
-                              <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: link.level ?? 50 })} • {link.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
-                            </div>
-                            <Button size="sm" onClick={() => handleAttachSharedAsset('link', link.id)}>
-                              <Plus /> {t('sharedAssets.attach')}
-                            </Button>
+                          <Button size="sm" onClick={() => handleAttachSharedAsset('rich_text', rt.id)}>
+                            <Plus /> {t('sharedAssets.attach')}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+                {showSharedPicker === 'link' && (
+                  sharedAssets.links.length === 0 ? (
+                    <div className={classes.empty}>{t('sharedAssets.noSharedLinks') || 'No shared links available'}</div>
+                  ) : (
+                    <div className={classes.stack}>
+                      {sharedAssets.links.map(link => (
+                        <div key={link.id} className={cn(classes.row, classes.pickRow)}>
+                          <div>
+                            <div className={classes.strong}>{link.title}</div>
+                            <div className={classes.metaLink}>{link.url}</div>
+                            <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: link.level ?? 50 })} • {link.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
                           </div>
-                        ))}
-                      </div>
-                    )
-                  )}
-                  {showSharedPicker === 'document' && (
-                    sharedAssets.documents.length === 0 ? (
-                      <div className={classes.empty}>{t('sharedAssets.noSharedDocuments') || 'No shared documents available'}</div>
-                    ) : (
-                      <div className={classes.stack}>
-                        {sharedAssets.documents.map(doc => (
-                          <div key={doc.id} className={cn(classes.row, classes.pickRow)}>
-                            <div>
-                              <div className={classes.strong}>{doc.title}</div>
-                              <div className={classes.meta}>{doc.original_filename}</div>
-                              <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: doc.level ?? 50 })} • {doc.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
-                            </div>
-                            <Button size="sm" onClick={() => handleAttachSharedAsset('document', doc.id)}>
-                              <Plus /> {t('sharedAssets.attach')}
-                            </Button>
+                          <Button size="sm" onClick={() => handleAttachSharedAsset('link', link.id)}>
+                            <Plus /> {t('sharedAssets.attach')}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+                {showSharedPicker === 'document' && (
+                  sharedAssets.documents.length === 0 ? (
+                    <div className={classes.empty}>{t('sharedAssets.noSharedDocuments') || 'No shared documents available'}</div>
+                  ) : (
+                    <div className={classes.stack}>
+                      {sharedAssets.documents.map(doc => (
+                        <div key={doc.id} className={cn(classes.row, classes.pickRow)}>
+                          <div>
+                            <div className={classes.strong}>{doc.title}</div>
+                            <div className={classes.meta}>{doc.original_filename}</div>
+                            <div className={classes.meta}>{t('sharedAssets.levelInfo', { level: doc.level ?? 50 })} • {doc.inheritable ? t('sharedAssets.inheritable') : t('sharedAssets.notInheritable')}</div>
                           </div>
-                        ))}
-                      </div>
-                    )
-                  )}
-                </>
-              )}
-            </div>
+                          <Button size="sm" onClick={() => handleAttachSharedAsset('document', doc.id)}>
+                            <Plus /> {t('sharedAssets.attach')}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+              </>
+            )}
+          </div>
         </Dialog>
       </div>
     </section>

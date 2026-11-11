@@ -12,7 +12,7 @@
  *     importedContactsLabel="Imported Contacts"
  *   />
  */
-import { Fragment, useState, useEffect, useCallback, useId } from 'react';
+import { Fragment, useState, useEffect, useCallback, useId, useRef } from 'react';
 import { ActionIcon, Collapse } from '@mantine/core';
 import { Users2, History, UserPlus, Loader2, Trash2, ChevronDown, ChevronRight, Import, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -99,6 +99,8 @@ export function OwnershipPanel({
   const { t } = useTranslation(['business-owners', 'common']);
   const titleId = useId();
   const importedId = useId();
+  // Copy from Team gives focus back here, unless the Assign dialog it opened has it
+  const copyButtonRef = useRef<HTMLButtonElement>(null);
   const { get: apiGet, post: apiPost } = useApi();
   const { toast } = useToast();
 
@@ -184,6 +186,7 @@ export function OwnershipPanel({
             )}
             {canAssign && ownerTeamId && (
               <Button
+                ref={copyButtonRef}
                 variant="outline"
                 size="sm"
                 onClick={() => setCopyFromTeamOpen(true)}
@@ -285,7 +288,8 @@ export function OwnershipPanel({
                   </Button>
                 )}
               </div>
-              <Collapse in={importedOpen} id={importedId}>
+              {/* No animation: it opened at once on Radix's Collapsible */}
+              <Collapse in={importedOpen} id={importedId} transitionDuration={0}>
                 <dl className={classes.kv}>
                   {importedContacts!.map((contact, idx) => (
                     <Fragment key={idx}>
@@ -350,6 +354,7 @@ export function OwnershipPanel({
       <Dialog
         opened={copyFromTeamOpen}
         onClose={() => setCopyFromTeamOpen(false)}
+        returnFocusTo={copyButtonRef}
         title={`${t('common:ownership.copyFromTeam')}${ownerTeamName ? `: ${ownerTeamName}` : ''}`}
         description={t('common:ownership.copyFromTeamDescription')}
         footer={

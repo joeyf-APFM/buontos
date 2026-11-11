@@ -6,16 +6,34 @@
  */
 .content {
   position: relative;
+  /* The title and footer stay in view; the body scrolls (below). Doubled for
+     specificity over Mantine's own max-height and overflow */
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--aura-border);
   border-radius: 8px;
   font-size: 12px;
   color: var(--aura-text-body);
 }
 
+.content.content {
+  max-height: calc(100dvh - 4rem);
+  overflow: hidden;
+}
+
+.header,
+.description,
+.footer {
+  flex: none;
+}
+
 /* Not sticky (Mantine's is, over the content): it scrolls with the content,
    as Radix's did, so it never covers the corner close that follows the body */
 .header {
   position: static;
+  /* A flex item honours Mantine's z-index even when static: drop it, so the
+     corner close stays on top */
+  z-index: auto;
   align-items: flex-start;
   padding: 16px 16px 0;
   min-height: 0;
@@ -42,6 +60,9 @@
 }
 
 .body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;

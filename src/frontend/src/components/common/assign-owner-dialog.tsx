@@ -2,7 +2,7 @@
  * Dialog for assigning a business owner to an object.
  * Used internally by OwnershipPanel.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/mantine/page';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,13 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
 
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
-  const [defaultRoleId, setDefaultRoleId] = useState<string | null>(null);
+  // Prefer a role named "Business Owner", else the first active role. Derived
+  // from the loaded roles, so a reopened dialog has it again without a refetch
+  const defaultRoleId = useMemo(() => {
+    if (roles.length === 0) return null;
+    const boRole = roles.find((r) => r.name.toLowerCase() === 'business owner');
+    return boRole ? boRole.id : roles[0].id;
+  }, [roles]);
 
   useEffect(() => {
     if (open && roles.length === 0) {
@@ -47,14 +53,7 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
           if (res.data && Array.isArray(res.data)) {
             const active = res.data.filter((r) => r.status === 'active');
             setRoles(active);
-            if (active.length === 0) {
-              setNoRolesError(true);
-            } else {
-              // Prefer a role named "Business Owner", else use the first active role
-              const boRole = active.find((r) => r.name.toLowerCase() === 'business owner');
-              setDefaultRoleId(boRole ? boRole.id : active[0].id);
-              setNoRolesError(false);
-            }
+            setNoRolesError(active.length === 0);
           }
         });
     }
@@ -67,7 +66,6 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
     } else {
       setUserEmail('');
       setUserName('');
-      setDefaultRoleId(null);
       setNoRolesError(false);
     }
   }, [open, initialEmail, initialName]);

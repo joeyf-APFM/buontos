@@ -10,7 +10,7 @@
  * shell stays), with a Mantine Select and a Radix Popover in it.
  */
 /* eslint-disable react-refresh/only-export-components -- a test fixture, never hot-reloaded */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Menu, Popover as MantinePopover, Select } from '@mantine/core';
 import { AppMantineProvider } from '@/mantine/provider';
@@ -91,11 +91,24 @@ export interface DialogSceneOptions {
   size?: DialogProps['size'];
   /** Also open the floating assistant window, as if the user had it open. */
   assistant?: boolean;
+  /** Put 60 paragraphs in the body, taller than the window. */
+  long?: boolean;
+  /** Put them there 400ms after opening instead, as content that loads. */
+  late?: boolean;
+  height?: DialogProps['height'];
 }
 
-function DialogScene({ size, assistant }: DialogSceneOptions) {
+const PARAGRAPHS = Array.from({ length: 60 }, (_, i) => `Paragraph ${i + 1} of the product's notes.`);
+
+function DialogScene({ size, assistant, long, late, height }: DialogSceneOptions) {
   const [opened, setOpened] = useState(true);
   const [nested, setNested] = useState(false);
+  const [loaded, setLoaded] = useState(!late);
+  useEffect(() => {
+    if (!late) return;
+    const timer = setTimeout(() => setLoaded(true), 400);
+    return () => clearTimeout(timer);
+  }, [late]);
   return (
     <>
       {assistant && (
@@ -120,6 +133,7 @@ function DialogScene({ size, assistant }: DialogSceneOptions) {
           setOpened(false);
         }}
         size={size}
+        height={height}
         title="Rename data product"
         description="The new name shows everywhere the product is listed."
         footer={
@@ -130,6 +144,7 @@ function DialogScene({ size, assistant }: DialogSceneOptions) {
         }
       >
         <input aria-label="Name" defaultValue="Customer 360" />
+        {(long || late) && loaded && PARAGRAPHS.map((text) => <p key={text}>{text}</p>)}
         <Select aria-label="Status" data={['Active', 'Deprecated']} defaultValue="Active" />
         <Popover>
           <PopoverTrigger>More</PopoverTrigger>

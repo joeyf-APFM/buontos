@@ -272,6 +272,46 @@ test.describe('kit Dialog', () => {
     expect([await closes(page), await nestedCloses()]).toEqual([1, 1]);
   });
 
+  test('Dialog: long content scrolls in the body; the title and footer stay in view', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ long: true }), harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await expect(dialog.getByText('Paragraph 60', { exact: false })).toBeAttached();
+    // At most the window less 2rem above and below
+    const b = (await dialog.boundingBox())!;
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.height).toBeLessThanOrEqual(600 - 64 + 1);
+    // The title and the footer's actions are on screen, on top, without scrolling
+    const onTop = async (loc: Locator) => {
+      const r = (await loc.boundingBox())!;
+      expect(r.y).toBeGreaterThanOrEqual(b.y);
+      expect(r.y + r.height).toBeLessThanOrEqual(b.y + b.height);
+      return page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [r.x + r.width / 2, r.y + r.height / 2]);
+    };
+    expect(await onTop(dialog.getByRole('button', { name: 'Save' }))).toBe('Save');
+    expect(await onTop(dialog.getByRole('heading', { name: 'Rename data product' }))).toBe('Rename data product');
+    // The body scrolls; the dialog itself doesn't
+    const body = dialog.getByRole('textbox', { name: 'Name' }).locator('..');
+    const scroll = (loc: Locator) => loc.evaluate((el) => ({
+      overflowY: getComputedStyle(el).overflowY, scrolls: el.scrollHeight > el.clientHeight,
+    }));
+    expect(await scroll(body)).toEqual({ overflowY: 'auto', scrolls: true });
+    expect((await scroll(dialog)).scrolls).toBe(false);
+  });
+
+  test('Dialog: a fixed height holds while the content loads', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ late: true, height: '80vh' }), harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await expect(dialog).toBeVisible();
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished'));
+    const before = (await dialog.boundingBox())!.height;
+    await expect(dialog.getByText('Paragraph 60', { exact: false })).toBeAttached();
+    const after = (await dialog.boundingBox())!.height;
+    expect([before, after]).toEqual([720, 720]);
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeInViewport();
+  });
+
   test('Dialog sizes: sm 420, lg 720, xl 960', async ({ page }) => {
     // Wide enough for xl beside Mantine's gutter
     await page.setViewportSize({ width: 1280, height: 900 });

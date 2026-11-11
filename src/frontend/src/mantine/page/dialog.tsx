@@ -17,6 +17,12 @@ export interface DialogProps {
   description?: ReactNode;
   /** 420 / 560 / 720 / 960 px. @default 'md' */
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /**
+   * A fixed height, such as '80vh', for content that loads after opening, so
+   * the dialog doesn't grow and re-centre. Still capped at the window less
+   * 2rem above and below. @default the content's height
+   */
+  height?: string;
   /** `alertdialog` for confirms: no corner close, a response is needed. @default 'dialog' */
   role?: 'dialog' | 'alertdialog';
   /** Focus goes here once the dialog has closed, if `focusIsFree` says it may. */
@@ -50,6 +56,8 @@ export interface DialogProps {
  *   Select's list, a Radix popover or dialog): `useLayeredEscape`.
  * - The corner close comes last, as Radix's did, so focus starts in the
  *   content (or on its `data-autofocus` element).
+ * - The title and the footer stay in view: content taller than the window
+ *   scrolls inside the body.
  */
 export function Dialog({
   opened,
@@ -57,6 +65,7 @@ export function Dialog({
   title,
   description,
   size = 'md',
+  height,
   role = 'dialog',
   returnFocusTo,
   footer,
@@ -103,7 +112,7 @@ export function Dialog({
       classNames={{ content: classes.content }}
     >
       <Modal.Overlay />
-      <Modal.Content ref={contentRef}>
+      <Modal.Content ref={contentRef} style={height ? { height } : undefined}>
         <Modal.Header className={classes.header} data-with-close={role === 'dialog' ? '' : undefined}>
           <Modal.Title className={classes.title}>{title}</Modal.Title>
         </Modal.Header>
