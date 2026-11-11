@@ -2,12 +2,14 @@
  * A page's summary counts (components/common/summary-stats.tsx): one strip of
  * cells sharing 1px borders, as panes side by side do, under the page header
  * and inside the kit's 14px margin. No shadow: it is not floating. The rules
- * between cells are the grid's 1px gap over the border colour, so they stay
- * right when the strip wraps onto more rows.
+ * between cells are the strip's 1px gap over the border colour, so they stay
+ * right when it wraps. It is a wrapping flex row, not a grid: each cell grows
+ * to fill its row, so a row is never left with an empty, border-coloured slot
+ * (a grid of fixed tracks leaves one whenever the last row is short).
  */
 .stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   margin: 0 14px 12px;
   overflow: hidden;
@@ -21,6 +23,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 1 1 180px;
   padding: 8px 12px;
   background: var(--aura-surface);
 }
@@ -83,10 +86,4 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--aura-text-body);
-}
-
-/* On a wrapped strip the last cell fills its row, so no empty gap-coloured
-   slot shows beside it */
-.stat:last-child {
-  grid-column-end: -1;
 }

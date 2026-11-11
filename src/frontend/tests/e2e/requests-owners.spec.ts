@@ -211,23 +211,60 @@ test.describe('owner consumers', () => {
     await expectNoSidewaysScroll(page);
   });
 
-  test('the summary strip wraps with a rule between every cell, and none at its edge', async ({ page }) => {
+  test('the summary strip tiles its cells at every width: 1px rules, no border-coloured empty area', async ({ page }) => {
     await setUpConsumers(page);
-    await page.setViewportSize({ width: 560, height: 800 });
     const strip = page.getByRole('group', { name: 'Summary' });
     const cells = strip.locator(':scope > div');
     await expect(cells).toHaveCount(3);
-    // The strip wraps onto a second row
-    const tops = await cells.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
-    expect(new Set(tops).size).toBeGreaterThan(1);
-    // The 1px gap draws the rules, in both directions; no cell has its own
+    // The rules are the strip's 1px gap over the border colour; no cell has its own
     expect(await style(strip, ['row-gap', 'column-gap'])).toEqual({ 'row-gap': '1px', 'column-gap': '1px' });
     for (const cell of await cells.all()) {
       expect(await style(cell, ['border-left-width', 'border-top-width'])).toEqual({ 'border-left-width': '0px', 'border-top-width': '0px' });
     }
-    // The last cell fills its row, so no empty slot shows beside it
-    const stripBox = await box(strip);
-    const last = await box(cells.last());
-    expect(Math.round(last.x + last.width)).toBe(Math.round(stripBox.x + stripBox.width - 1));
+
+    const rowCounts = new Set<number>();
+    for (const width of [1280, 1024, 800, 640, 560, 480, 400, 360]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.waitForTimeout(50);
+      // Computed geometry (R10): the strip's inside, and each cell's box
+      const g = await strip.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const bl = parseFloat(cs.borderLeftWidth); const bt = parseFloat(cs.borderTopWidth);
+        const inner = { left: r.left + bl, top: r.top + bt, right: r.left + bl + el.clientWidth, bottom: r.top + bt + el.clientHeight };
+        const boxes = [...el.children].map((c) => {
+          const b = c.getBoundingClientRect();
+          return { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+        });
+        return { inner, boxes };
+      });
+      const near = (a: number, b: number) => Math.abs(a - b) <= 0.5;
+      const at = `at ${width}px`;
+      // Rows, top to bottom; each row's cells, left to right
+      const rows: (typeof g.boxes)[] = [];
+      for (const b of [...g.boxes].sort((x, y) => x.top - y.top || x.left - y.left)) {
+        const row = rows.find((r) => near(r[0].top, b.top));
+        if (row) row.push(b); else rows.push([b]);
+      }
+      rowCounts.add(rows.length);
+      // The rows fill the strip from top to bottom, 1px apart
+      expect(near(rows[0][0].top, g.inner.top), `first row top ${at}`).toBe(true);
+      expect(near(rows[rows.length - 1][0].bottom, g.inner.bottom), `last row bottom ${at}`).toBe(true);
+      rows.forEach((row, i) => {
+        // Each row runs from the strip's left edge to its right edge: the
+        // last cell's left and right edges both close the row, so no empty
+        // area (which would show the border colour) is left in any column
+        expect(near(row[0].left, g.inner.left), `row ${i} left edge ${at}`).toBe(true);
+        expect(near(row[row.length - 1].right, g.inner.right), `row ${i} right edge ${at}`).toBe(true);
+        for (let j = 1; j < row.length; j++) {
+          expect(near(row[j].left - row[j - 1].right, 1), `rule between cells ${j - 1} and ${j} of row ${i} ${at}`).toBe(true);
+        }
+        for (const b of row) expect(near(b.bottom, row[0].bottom), `row ${i} cell heights ${at}`).toBe(true);
+        if (i > 0) expect(near(row[0].top - rows[i - 1][0].bottom, 1), `rule above row ${i} ${at}`).toBe(true);
+      });
+    }
+    // The widths cover one row, and a wrapped strip of two or three rows
+    expect(rowCounts.has(1)).toBe(true);
+    expect([...rowCounts].some((n) => n > 1)).toBe(true);
   });
 });
