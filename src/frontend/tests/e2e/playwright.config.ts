@@ -9,6 +9,8 @@ const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: '.',
+  // Playwright specs only: *.test.ts files here are vitest unit tests (browser-pin.test.ts)
+  testMatch: /.*\.spec\.ts$/,
   timeout: 60_000,
   expect: { timeout: 10_000 },
   workers: 1,
