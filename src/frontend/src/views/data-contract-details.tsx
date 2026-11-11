@@ -2566,7 +2566,9 @@ export default function DataContractDetails() {
                         <tr>
                           <th className={classes.keyColumn}>{t('data-contracts:detailsView.customProperties.property', 'Property')}</th>
                           <th>{t('data-contracts:detailsView.customProperties.value', 'Value')}</th>
-                          <th className={classes.actionsColumn}>{t('common:labels.actions', 'Actions')}</th>
+                          {canEditInPlace && (
+                            <th className={classes.actionsColumn}>{t('common:labels.actions', 'Actions')}</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>

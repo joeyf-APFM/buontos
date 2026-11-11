@@ -85,7 +85,7 @@ describe('RequestProductActionDialog on the kit Dialog', () => {
     expect(within(dialog).getByText('Request permission to view and use this data product.')).toBeInTheDocument();
     // Access: the shared access fields (AccessRequestFields, also on the contract page)
     expect(within(dialog).getByRole('textbox', { name: /Reason for Access/ })).toBeInTheDocument();
-    expect(within(dialog).getByRole('combobox', { name: 'Access Duration' })).toBeInTheDocument();
+    expect(selectField(dialog, 'Access Duration')).toBeInTheDocument();
 
     // Status change: the target status, from the allowed transitions, and the justification
     await pick(user, type, 'Request Status Change');

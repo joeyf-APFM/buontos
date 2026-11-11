@@ -1,8 +1,9 @@
 /*
- * The Data Contract form dialogs' own layout (wave 2 Task 11), beside the
- * shared form parts in components/common/dialog-form.module.css: the schema
- * form's relationships and table properties, the server form's host and
- * port, and the key/value rows of the server's custom properties.
+ * The Data Contract dialogs' own layout (wave 2 Task 11), beside the shared
+ * form parts in components/common/dialog-form.module.css: the schema form's
+ * relationships and table properties, the server form's host and port, the
+ * key/value rows of the server's custom properties, the catalog inference's
+ * connection line and tree, and the DQX schema list.
  */
 
 /* A wide field and a narrow one side by side (host and port); a narrow window stacks them */
@@ -152,4 +153,157 @@
 .code {
   font-family: var(--aura-font-mono);
   font-size: 12px;
+}
+
+/* The catalog inference's connection line: its label, the Select, the count */
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: none;
+}
+
+.toolbarLabel {
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--aura-text-body);
+}
+
+.connection {
+  width: 300px;
+  max-width: 100%;
+}
+
+/* The catalog tree fills the rest of the dialog, and scrolls on its own */
+.browser {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+/* The DQX schema list: the heading and its select-all, ruled off below */
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+/* A schema to profile: the whole row toggles its checkbox */
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.choice:hover {
+  background: var(--aura-surface-strong);
+}
+
+.choice[data-selected] {
+  border-color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.choiceName {
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.choiceMeta {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The DQX dialog's title icon, in the accent colour */
+.titleIcon {
+  color: var(--aura-accent);
+}
+
+/* The request dialog: the contract's current status, its icon (an emoji) before its name */
+.statusLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statusIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* A hint with its info icon, under a deployment target */
+.iconHint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.iconHint > svg {
+  flex: none;
+}
+
+/* The ODCS lifecycle, the contract's own status picked out */
+.lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.lifecycleTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+/* The statuses are identifiers */
+.lifecycleFlow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+.current {
+  font-weight: 700;
+  color: var(--aura-accent);
+}
+
+.lifecycleNote {
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The contract's status in the request dialog's summary, as before */
+.upper {
+  text-transform: uppercase;
 }

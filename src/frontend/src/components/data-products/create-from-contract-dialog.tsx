@@ -1,25 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Alert, Loader, Select, TextInput } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2, FileText } from 'lucide-react';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
+import { AlertCircle, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 
@@ -137,106 +123,19 @@ const CreateFromContractDialog: React.FC<CreateFromContractDialogProps> = ({
   }, [isOpen]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            {t('data-products:createFromContract.title')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('data-products:createFromContract.description')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Contract Information */}
-          <div className="p-3 bg-muted/50 rounded-lg border">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-medium">{t('data-products:createFromContract.contractLabel')}</span>
-              <span className="font-mono">{contractId}</span>
-            </div>
-            <div className="text-sm font-medium mt-1">{contractName}</div>
-          </div>
-
-          {/* Product Name */}
-          <div className="space-y-2">
-            <Label htmlFor="product-name" className="text-sm font-medium">
-              {t('data-products:createFromContract.productNameLabel')}
-            </Label>
-            <Input
-              id="product-name"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder={t('data-products:createFromContract.productNamePlaceholder')}
-              disabled={submitting}
-            />
-          </div>
-
-          {/* Product Type */}
-          <div className="space-y-2">
-            <Label htmlFor="product-type" className="text-sm font-medium">
-              {t('data-products:createFromContract.productTypeLabel')}
-            </Label>
-            <Select
-              value={productType}
-              onValueChange={setProductType}
-              disabled={submitting}
-            >
-              <SelectTrigger id="product-type">
-                <SelectValue placeholder={t('data-products:createFromContract.productTypePlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {PRODUCT_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Version */}
-          <div className="space-y-2">
-            <Label htmlFor="version" className="text-sm font-medium">
-              {t('data-products:createFromContract.versionLabel')}
-            </Label>
-            <Input
-              id="version"
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder={t('data-products:createFromContract.versionPlaceholder')}
-              disabled={submitting}
-            />
-          </div>
-
-          {/* Output Port Name (Optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="output-port-name" className="text-sm font-medium">
-              {t('data-products:createFromContract.deliverableNameLabel')}
-            </Label>
-            <Input
-              id="output-port-name"
-              value={outputPortName}
-              onChange={(e) => setOutputPortName(e.target.value)}
-              placeholder={t('data-products:createFromContract.deliverableNamePlaceholder', { contractName })}
-              disabled={submitting}
-            />
-            <div className="text-xs text-muted-foreground">
-              {t('data-products:createFromContract.deliverableNameHint')}
-            </div>
-          </div>
-
-          {/* Error Alert */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-0">
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="md"
+      title={
+        <span className={form.titleLine}>
+          <FileText size={18} aria-hidden />
+          {t('data-products:createFromContract.title')}
+        </span>
+      }
+      description={t('data-products:createFromContract.description')}
+      footer={
+        <>
           <Button variant="outline" onClick={handleClose} disabled={submitting}>
             {t('common:actions.cancel')}
           </Button>
@@ -244,11 +143,77 @@ const CreateFromContractDialog: React.FC<CreateFromContractDialogProps> = ({
             onClick={handleSubmit}
             disabled={submitting || !productName.trim() || !version.trim()}
           >
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitting && <Loader size={12} color="currentColor" />}
             {submitting ? t('data-products:createFromContract.creating') : t('data-products:createFromContract.createButton')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        {/* Contract Information */}
+        <div className={form.box}>
+          <div className={form.inline}>
+            <span className={form.muted}>{t('data-products:createFromContract.contractLabel')}</span>
+            <span className={form.code}>{contractId}</span>
+          </div>
+          <div className={form.strong}>{contractName}</div>
+        </div>
+
+        {/* Product Name */}
+        <TextInput
+          id="product-name"
+          label={t('data-products:createFromContract.productNameLabel')}
+          value={productName}
+          onChange={(e) => setProductName(e.currentTarget.value)}
+          placeholder={t('data-products:createFromContract.productNamePlaceholder')}
+          disabled={submitting}
+          classNames={FIELD_CLASSES}
+        />
+
+        {/* Product Type */}
+        <Select
+          id="product-type"
+          label={t('data-products:createFromContract.productTypeLabel')}
+          placeholder={t('data-products:createFromContract.productTypePlaceholder')}
+          data={PRODUCT_TYPES}
+          value={productType}
+          onChange={(value) => value && setProductType(value)}
+          allowDeselect={false}
+          disabled={submitting}
+          classNames={SELECT_CLASSES}
+        />
+
+        {/* Version */}
+        <TextInput
+          id="version"
+          label={t('data-products:createFromContract.versionLabel')}
+          value={version}
+          onChange={(e) => setVersion(e.currentTarget.value)}
+          placeholder={t('data-products:createFromContract.versionPlaceholder')}
+          disabled={submitting}
+          classNames={FIELD_CLASSES}
+        />
+
+        {/* Output Port Name (Optional) */}
+        <TextInput
+          id="output-port-name"
+          label={t('data-products:createFromContract.deliverableNameLabel')}
+          value={outputPortName}
+          onChange={(e) => setOutputPortName(e.currentTarget.value)}
+          placeholder={t('data-products:createFromContract.deliverableNamePlaceholder', { contractName })}
+          disabled={submitting}
+          description={t('data-products:createFromContract.deliverableNameHint')}
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        />
+
+        {/* Error Alert */}
+        {error && (
+          <Alert color="red" variant="light" icon={<AlertCircle size={16} />} role="alert">
+            {error}
+          </Alert>
+        )}
+      </div>
     </Dialog>
   );
 };

@@ -2,13 +2,16 @@
  * The request dialog shows the API's coded errors in the UI language (#1078),
  * e.g. a review requested for a draft without a schema.
  */
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import i18n from '@/i18n/config';
 import { renderWithProviders } from '@/test/utils';
 import RequestContractActionDialog from './request-contract-action-dialog';
 
 const mockGet = vi.fn();
+
+/** Lets the dialog's open-time lookups and Mantine's mount effects finish inside act. */
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 const mockPost = vi.fn();
 const mockToast = vi.fn();
 
@@ -35,6 +38,7 @@ async function submit() {
       contractStatus="draft"
     />,
   );
+  await settle();
   fireEvent.click(await screen.findByRole('button', { name: i18n.t('data-contracts:requests.sendRequest') }));
   await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1));
   return mockToast.mock.calls[0][0];
@@ -52,6 +56,8 @@ describe('RequestContractActionDialog coded errors', () => {
   });
 
   afterEach(async () => {
+    // Unmount first: a language change would update the open dialog outside act
+    cleanup();
     await i18n.changeLanguage('en');
   });
 

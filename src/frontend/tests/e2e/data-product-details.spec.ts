@@ -294,8 +294,8 @@ test('the request dialog is a kit Dialog: Escape in its Selects closes only the 
   await expect(dialog).toBeVisible();
   await expect(reason).toHaveValue('Quarterly revenue reporting');
 
-  // The shared access fields' duration list (a Radix Select, also on the contract page)
-  await dialog.getByRole('combobox', { name: 'Access Duration' }).click();
+  // The shared access fields' duration list (a Mantine Select since Task 11, also on the contract page)
+  await dialog.getByRole('textbox', { name: 'Access Duration' }).click();
   await expect(page.getByRole('listbox')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);

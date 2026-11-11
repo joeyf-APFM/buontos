@@ -13,9 +13,11 @@ const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), select:
  * - it opens on keyboard focus, and stays open while focus is in the target or
  *   the card (a press on a button in the card moves focus there first, so the
  *   click still lands); focus leaving both closes it;
- * - ArrowDown on the target opens the card if it is closed and moves focus to
- *   its first control, if it has one; Escape closes it (from inside the card,
- *   handing focus back to the target, where the card stays closed).
+ * - ArrowDown on the target moves focus to the card's first control, opening
+ *   the card first if it is closed. A card with no control (it had none when
+ *   it last showed) leaves the key to the page, so it still scrolls. Escape
+ *   closes it (from inside the card, handing focus back to the target, where
+ *   the card stays closed).
  *
  * Spread `target` on the Popover.Target's child and `dropdown` on the
  * Popover.Dropdown (it carries the dropdown's ref). Wave 2: Task 7's
@@ -35,18 +37,28 @@ export function useHoverFocusCard({ openDelay = 200, closeDelay = 150 }: { openD
   };
   useEffect(() => clear, []);
   const firstControl = () => dropdownRef.current?.querySelector<HTMLElement>(FOCUSABLE) ?? null;
+  // Whether the card had a control to move to when it last showed: ArrowDown
+  // on the closed card acts only then, and is otherwise left to the page
+  const hadControl = useRef(false);
   useEffect(() => {
-    if (!opened || !enterOnOpen.current) return;
-    enterOnOpen.current = false;
+    if (!opened) return;
     // The Popover mounts its dropdown a frame or two after it opens
     let frame = 0;
     let tries = 0;
-    const enter = () => {
+    const look = () => {
       const first = firstControl();
-      if (first) first.focus();
-      else if (++tries < 10) frame = window.requestAnimationFrame(enter);
+      if (first) {
+        hadControl.current = true;
+        if (enterOnOpen.current) first.focus();
+        enterOnOpen.current = false;
+      } else if (++tries < 10) {
+        frame = window.requestAnimationFrame(look);
+      } else {
+        hadControl.current = false;
+        enterOnOpen.current = false;
+      }
     };
-    enter();
+    look();
     return () => window.cancelAnimationFrame(frame);
   }, [opened]);
   const close = () => { clear(); setOpened(false); };
@@ -74,7 +86,7 @@ export function useHoverFocusCard({ openDelay = 200, closeDelay = 150 }: { openD
           if (first) {
             e.preventDefault();
             first.focus();
-          } else if (!opened) {
+          } else if (!opened && hadControl.current) {
             e.preventDefault();
             clear();
             enterOnOpen.current = true;

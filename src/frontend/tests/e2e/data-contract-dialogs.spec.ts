@@ -215,3 +215,80 @@ test('the column editor\'s quality check form opens kit on kit over the schema f
   await expect(dialog).toBeVisible();
   await expect(addCheck).toBeFocused();
 });
+
+// Part 2: the request dialog, with the shared access fields, and the inline contract create
+test('the contract request dialog is a kit Dialog: Escape in its Selects closes only the list, and the typed reason survives', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockApi(page, PERSONAS.admin, DATA_FIXTURES);
+  await page.goto('/data-contracts/e2e-contract-1');
+  const opener = page.getByRole('button', { name: 'Request...' });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'Request Action' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveClass(/mantine-Modal-content/);
+  expect(Math.round((await dialog.boundingBox())!.width)).toBe(560);
+
+  const type = dialog.getByRole('textbox', { name: 'Request Type *' });
+  expect(Math.round((await type.boundingBox())!.height)).toBe(28);
+  await type.click();
+  await page.getByRole('option', { name: 'Request Access to Contract' }).click();
+  const reason = dialog.getByRole('textbox', { name: /Reason for Access/ });
+  await reason.fill('Quarterly revenue reporting');
+
+  // The request type list
+  await type.click();
+  await expect(page.getByRole('option', { name: 'Request Deploy to Unity Catalog' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(reason).toHaveValue('Quarterly revenue reporting');
+
+  // The shared access fields' duration list
+  await dialog.getByRole('textbox', { name: 'Access Duration' }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(reason).toHaveValue('Quarterly revenue reporting');
+
+  // The next Escape is the dialog's, and focus goes back to its opener
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test('the inline contract create opens kit on kit over a deliverable\'s form: on top, clickable, Escape closes only it', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(() => localStorage.setItem('data-product-view-mode', 'large'));
+  await mockApi(page, PERSONAS.admin, DATA_FIXTURES);
+  await page.goto('/data-products/e2e-product-1');
+  await page.getByRole('region', { name: /^Deliverables/ }).getByRole('button', { name: 'Add Deliverable' }).click();
+  const port = page.getByRole('dialog', { name: 'Add Deliverable' });
+  await expect(port).toBeVisible();
+  await port.getByRole('radio', { name: 'Create New Contract' }).check();
+  const opener = port.getByRole('button', { name: 'Create New Contract' });
+  await opener.click();
+
+  const create = page.getByRole('dialog', { name: 'Create New Contract' });
+  await expect(create).toBeVisible();
+  await expect(create).toHaveClass(/mantine-Modal-content/);
+  const name = create.getByRole('textbox', { name: /Contract Name/ });
+  await expect(name).toBeFocused();
+  expect(await onTop(name)).toBe(true);
+  await name.click();
+  await name.pressSequentially('Orders');
+  await expect(name).toHaveValue('Orders');
+
+  // Escape in its Status list closes only the list
+  await create.getByRole('textbox', { name: 'Status' }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(name).toHaveValue('Orders');
+
+  // The next Escape closes only the create dialog; the deliverable's form stays, and focus goes back to the opener
+  await page.keyboard.press('Escape');
+  await expect(create).toHaveCount(0);
+  await expect(port).toBeVisible();
+  await expect(opener).toBeFocused();
+});
