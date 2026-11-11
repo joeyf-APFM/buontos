@@ -220,6 +220,18 @@ test.describe('kit Dialog', () => {
     expect(await closes(page)).toBe(1);
   });
 
+  test('Dialog: Escape closes it past an open Mantine Tooltip on its opener', async ({ page }) => {
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ openerTooltip: true }), harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await expect(dialog).toBeVisible();
+    // The tooltip stays open under the dialog, as under a pointer left on its button
+    await expect(page.getByRole('tooltip', { name: 'Upload a file' })).toBeVisible();
+    await dialog.getByRole('textbox', { name: 'Name' }).focus();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
   test('Dialog: Escape in an open Mantine Popover closes only the popover', async ({ page }) => {
     const dialog = page.getByRole('dialog', { name: 'Rename data product' });
     await dialog.getByRole('button', { name: 'Filters' }).click();

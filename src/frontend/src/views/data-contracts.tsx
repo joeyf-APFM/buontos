@@ -29,14 +29,15 @@ import { usePermissions, usePermissionsReady } from '@/stores/permissions-store'
 import { FeatureAccessLevel } from '@/types/settings';
 import { internalErrorText } from '@/lib/server-error-text';
 import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import list from '@/components/common/list-page.module.css';
 import classes from './data-contracts.module.css';
 
 /** A header label that sorts its column, in the grid's header-label look. */
 function SortButton({ column, label }: { column: Column<DataContractListItem, unknown>; label: string }) {
   return (
-    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+    <UnstyledButton className={list.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
       {label}
-      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+      <ArrowUpDown aria-hidden className={list.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
     </UnstyledButton>
   );
 }
@@ -465,8 +466,8 @@ export default function DataContracts() {
           ?? (contract.domainId ? [contract.domainId] : (contract.domain_id ? [contract.domain_id] : []));
         const primaryId = contract.primaryDomainId || contract.domainId || contract.domain_id || domainIds[0] || null;
         return (
-          <div className={classes.titleCell}>
-            <span className={classes.title}>{row.getValue("name")}</span>
+          <div className={list.titleCell}>
+            <span className={list.title}>{row.getValue("name")}</span>
             <DomainBadgeList
               domainIds={domainIds}
               primaryDomainId={primaryId}
@@ -481,7 +482,7 @@ export default function DataContracts() {
       header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => {
         const teamName = row.original.owner_team_name;
-        return <span className={classes.person}>{teamName || t('common:states.notAvailable')}</span>;
+        return <span className={list.person}>{teamName || t('common:states.notAvailable')}</span>;
       },
     },
     {
@@ -490,7 +491,7 @@ export default function DataContracts() {
       cell: ({ row }) => {
         const id = row.original.id
         return (
-          <div className={classes.badges}>
+          <div className={list.badges}>
             <Badge variant="secondary">{row.getValue("version")}</Badge>
             {/* Family badge — only renders for families with > 1 visible version.
                 Click expands the version family for this row by routing into
@@ -509,7 +510,7 @@ export default function DataContracts() {
       cell: ({ row }) => {
         const contract = row.original;
         return (
-          <div className={classes.badges}>
+          <div className={list.badges}>
             {contract.draftOwnerId && (
               <Badge variant="outline" style={badgeToneStyle('warning')}>
                 {t('data-contracts:list.personal', 'Personal')}
@@ -541,7 +542,7 @@ export default function DataContracts() {
       cell: ({ row }) => {
         const tags = row.original.tags || [];
         return (
-          <div className={classes.badges}>
+          <div className={list.badges}>
             {tags.map((tag, index) => (
               <TagChip key={index} tag={tag} size="sm" />
             ))}
@@ -566,11 +567,11 @@ export default function DataContracts() {
       cell: ({ row }) => {
         const contract = row.original;
         return (
-          <div className={classes.actions}>
+          <div className={list.actions}>
             <ActionIcon
               variant="subtle"
               color="gray"
-              className={classes.action}
+              className={list.action}
               onClick={(e) => { e.stopPropagation(); setPreviewContractId(contract.id ?? null); setPreviewContractTitle(contract.name ?? ''); }}
               title={t('data-contracts:table.previewMetadata', 'Preview Metadata')}
             >
@@ -579,7 +580,7 @@ export default function DataContracts() {
             <ActionIcon
               variant="subtle"
               color="gray"
-              className={classes.action}
+              className={list.action}
               onClick={(e) => { e.stopPropagation(); if (contract.id) navigate(`${pathname}/${contract.id}`); }}
               title={t('common:tooltips.edit')}
             >
@@ -589,7 +590,7 @@ export default function DataContracts() {
               <ActionIcon
                 variant="subtle"
                 color="gray"
-                className={`${classes.action} ${classes.delete}`}
+                className={`${list.action} ${list.delete}`}
                 onClick={(e) => { e.stopPropagation(); rowActions.current.remove(contract.id as string) }}
                 title={t('common:tooltips.delete')}
               >
@@ -606,7 +607,7 @@ export default function DataContracts() {
     <>
       <PageLayout fullBleed header={<PageHeader title={t('title')} />}>
         <Pane flush aria-label={t('listPane')}>
-          <div className={classes.body}>
+          <div className={list.body}>
             {loading ? (
               <ListViewSkeleton columns={8} rows={5} toolbarButtons={3} />
             ) : (
@@ -618,8 +619,8 @@ export default function DataContracts() {
                       color="red"
                       variant="light"
                       icon={<AlertCircle />}
-                      className={classes.alert}
-                      classNames={{ message: classes.alertMessage }}
+                      className={`${list.alert} ${classes.stateAlert}`}
+                      classNames={{ message: list.alertMessage }}
                     >
                       {loadError}
                     </Alert>
@@ -632,8 +633,8 @@ export default function DataContracts() {
                     color="red"
                     variant="light"
                     icon={<AlertCircle />}
-                    className={classes.alert}
-                    classNames={{ message: classes.alertMessage }}
+                    className={list.alert}
+                    classNames={{ message: list.alertMessage }}
                     withCloseButton
                     closeButtonLabel={t('common:tooltips.dismiss', 'Dismiss')}
                     onClose={() => setError(null)}
@@ -655,8 +656,8 @@ export default function DataContracts() {
                         id="contracts-include-history"
                         size="xs"
                         // Ruled off from the create and upload buttons, when they're there
-                        className={canWrite ? classes.history : classes.historyAlone}
-                        classNames={{ label: classes.historyLabel }}
+                        className={canWrite ? list.history : classes.historyAlone}
+                        classNames={{ label: list.historyLabel }}
                         checked={includeHistory}
                         onChange={(e) => setIncludeHistory(e.currentTarget.checked)}
                         label={t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
@@ -676,12 +677,9 @@ export default function DataContracts() {
                           w={280}
                           position="bottom"
                           withinPortal
-                          // Shut while the upload dialog is open: an open tooltip
-                          // takes the Escape that should close the dialog
-                          opened={openUploadDialog ? false : undefined}
                           label={
-                            <div className={classes.tip}>
-                              <p className={classes.tipTitle}>{t('data-contracts:import.uploadTooltipTitle', 'Upload Data Contract (ODCS format)')}</p>
+                            <div className={list.tip}>
+                              <p className={list.tipTitle}>{t('data-contracts:import.uploadTooltipTitle', 'Upload Data Contract (ODCS format)')}</p>
                               <p>{t('data-contracts:import.uploadTooltipFormats', 'Accepts JSON or YAML files following the ODCS (Open Data Contract Standard) schema.')}</p>
                               <p>{t('data-contracts:import.uploadTooltipOdps', 'For Data Products (ODPS), use the Data Products page instead.')}</p>
                             </div>
@@ -690,7 +688,7 @@ export default function DataContracts() {
                           <Button onClick={() => setOpenUploadDialog(true)} variant="outline">
                             <Upload />
                             {t('uploadFile')}
-                            <HelpCircle aria-hidden className={classes.help} />
+                            <HelpCircle aria-hidden className={list.help} />
                           </Button>
                         </Tooltip>
                       )}
@@ -769,7 +767,7 @@ export default function DataContracts() {
             color="red"
             variant="light"
             icon={<AlertCircle />}
-            classNames={{ message: classes.alertMessage }}
+            classNames={{ message: list.alertMessage }}
             withCloseButton
             closeButtonLabel={t('common:tooltips.dismiss', 'Dismiss')}
             onClose={() => { setUploadError(null); setShowErrorDetail(false); }}

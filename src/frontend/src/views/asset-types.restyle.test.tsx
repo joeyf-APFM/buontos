@@ -18,6 +18,7 @@ import i18n from '@/i18n/config';
 import SettingsPageWrapper from '@/components/settings/settings-page-wrapper';
 import AssetTypesView from './asset-types';
 import classes from './asset-types.module.css';
+import list from '@/components/common/list-page.module.css';
 
 // Toasts go to Mantine's notifications, which these tests don't mount
 const { toast } = vi.hoisted(() => ({ toast: vi.fn() }));
@@ -132,8 +133,8 @@ describe('asset types on the page kit', () => {
     expect(screen.getByRole('button', { name: 'Columns' })).toBeInTheDocument();
     const add = screen.getByRole('button', { name: 'Add Asset Type' });
     expect(add).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Name' })).toHaveClass(classes.sort);
-    expect(screen.getByRole('button', { name: 'Last Updated' })).toHaveClass(classes.sort);
+    expect(screen.getByRole('button', { name: 'Name' })).toHaveClass(list.sort);
+    expect(screen.getByRole('button', { name: 'Last Updated' })).toHaveClass(list.sort);
     expect(screen.getAllByRole('button', { name: 'Open menu' })).toHaveLength(2);
     expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
     expect(screen.getAllByRole('checkbox', { name: 'Select row' })).toHaveLength(2);

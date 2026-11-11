@@ -36,6 +36,7 @@ import PublicationBadge from '@/components/common/publication-badge';
 import VersionCountBadge from '@/components/common/version-count-badge';
 import type { CertificationLevel } from '@/types/lifecycle';
 import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import list from '@/components/common/list-page.module.css';
 import classes from './data-products.module.css';
 
 // --- Helper Function Type Definition --- 
@@ -64,9 +65,9 @@ const checkApiResponse: CheckApiResponseFn = (response, name) => {
 /** A header label that sorts its column, in the grid's header-label look. */
 function SortButton({ column, label }: { column: Column<DataProduct, unknown>; label: string }) {
   return (
-    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+    <UnstyledButton className={list.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
       {label}
-      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+      <ArrowUpDown aria-hidden className={list.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
     </UnstyledButton>
   );
 }
@@ -652,8 +653,8 @@ export default function DataProducts() {
         const domainIds = product.domain_ids ?? [];
         const primaryId = product.primary_domain_id || getDomainIdByName(product.domain) || domainIds[0] || null;
         return (
-          <div className={classes.titleCell}>
-            <span className={classes.title}>{product.name || t('table.unnamedProduct')}</span>
+          <div className={list.titleCell}>
+            <span className={list.title}>{product.name || t('table.unnamedProduct')}</span>
             <DomainBadgeList
               domains={product.domains}
               domainIds={domainIds}
@@ -669,7 +670,7 @@ export default function DataProducts() {
       header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => {
         const owner = row.original.team?.members?.find(m => m.role === 'owner');
-        return <span className={classes.person}>{owner?.name || owner?.username || t('common:states.notAvailable')}</span>;
+        return <span className={list.person}>{owner?.name || owner?.username || t('common:states.notAvailable')}</span>;
       },
     },
     {
@@ -678,7 +679,7 @@ export default function DataProducts() {
       cell: ({ row }) => {
         const id = row.original.id
         return (
-          <div className={classes.badges}>
+          <div className={list.badges}>
             <Badge variant="secondary">{row.original.version}</Badge>
             {/* Family badge — same UX as on contracts. Click routes into
                 the detail view where VersionNavigator handles version
@@ -706,7 +707,7 @@ export default function DataProducts() {
       header: ({ column }) => <SortButton column={column} label={t('table.status')} />,
       cell: ({ row }) => (
         row.original.status ? (
-          <div className={classes.badges}>
+          <div className={list.badges}>
             <Badge variant={getStatusColor(row.original.status)}>{row.original.status}</Badge>
             {row.original.draftOwnerId && (
               <Badge variant="info">{t('data-products:status.personalDraft')}</Badge>
@@ -734,7 +735,7 @@ export default function DataProducts() {
       cell: ({ row }) => {
         const tags = row.original.tags || [];
         return (
-          <div className={classes.badges}>
+          <div className={list.badges}>
             {tags.map((tag, index) => (
               <TagChip key={index} tag={tag} size="sm" />
             ))}
@@ -759,11 +760,11 @@ export default function DataProducts() {
       cell: ({ row }) => {
         const product = row.original;
         return (
-          <div className={classes.actions}>
+          <div className={list.actions}>
             <ActionIcon
                 variant="subtle"
                 color="gray"
-                className={classes.action}
+                className={list.action}
                 onClick={(e) => { e.stopPropagation(); setPreviewProductId(product.id ?? null); setPreviewProductTitle(product.name ?? ''); }}
                 title={t('data-products:table.previewMetadata')}
             >
@@ -772,7 +773,7 @@ export default function DataProducts() {
             <ActionIcon
                 variant="subtle"
                 color="gray"
-                className={classes.action}
+                className={list.action}
                 onClick={() => rowActions.current.edit(product)}
                 disabled={!canWrite || permissionsLoading}
                 title={canWrite ? t('common:actions.edit') : t('table.editDenied')}
@@ -783,7 +784,7 @@ export default function DataProducts() {
               <ActionIcon
                 variant="subtle"
                 color="gray"
-                className={`${classes.action} ${classes.delete}`}
+                className={`${list.action} ${list.delete}`}
                 onClick={(e) => {
                     e.stopPropagation();
                     rowActions.current.remove(product);
@@ -822,13 +823,13 @@ export default function DataProducts() {
         }
       >
         <Pane flush aria-label={t('listPane')}>
-          <div className={classes.body} data-view={showList ? viewMode : undefined}>
+          <div className={`${list.body} ${classes.view}`} data-view={showList ? viewMode : undefined}>
             {/* 1. Check Permissions Loading */}
             {permissionsLoading ? (
               <ListViewSkeleton columns={9} rows={5} toolbarButtons={3} />
             ) : !canRead ? (
               // 2. Check Read Permission (if permissions loaded)
-              <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.alert}>
+              <Alert color="red" variant="light" icon={<AlertCircle />} className={list.alert}>
                 {t('permissions.noView')}
               </Alert>
             ) : loading ? (
@@ -843,8 +844,8 @@ export default function DataProducts() {
                     color="red"
                     variant="light"
                     icon={<AlertCircle />}
-                    className={classes.alert}
-                    classNames={{ message: classes.alertMessage }}
+                    className={list.alert}
+                    classNames={{ message: list.alertMessage }}
                     withCloseButton
                     closeButtonLabel={t('common:actions.dismiss')}
                     onClose={() => setError(null)}
@@ -866,8 +867,8 @@ export default function DataProducts() {
                         <Switch
                           id="products-include-history"
                           size="xs"
-                          className={classes.history}
-                          classNames={{ label: classes.historyLabel }}
+                          className={list.history}
+                          classNames={{ label: list.historyLabel }}
                           checked={includeHistory}
                           onChange={(e) => setIncludeHistory(e.currentTarget.checked)}
                           label={t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
@@ -896,12 +897,9 @@ export default function DataProducts() {
                           w={280}
                           position="bottom"
                           withinPortal
-                          // Shut while the upload dialog is open: an open tooltip
-                          // takes the Escape that should close the dialog
-                          opened={uploadDialogOpen ? false : undefined}
                           label={
-                            <div className={classes.tip}>
-                              <p className={classes.tipTitle}>{t('upload.tooltipTitle')}</p>
+                            <div className={list.tip}>
+                              <p className={list.tipTitle}>{t('upload.tooltipTitle')}</p>
                               <p>{t('upload.tooltipDescription')}</p>
                               <p>{t('upload.tooltipHint')}</p>
                             </div>
@@ -914,7 +912,7 @@ export default function DataProducts() {
                           >
                             <Upload />
                             {isUploading ? (<><Loader size={12} color="currentColor" /> {t('upload.uploading')}</>) : t('toolbar.uploadFile')}
-                            <HelpCircle aria-hidden className={classes.help} />
+                            <HelpCircle aria-hidden className={list.help} />
                           </Button>
                         </Tooltip>
                         {/* Upload dialog (shared with Data Contracts via ImportEntityDialog) */}

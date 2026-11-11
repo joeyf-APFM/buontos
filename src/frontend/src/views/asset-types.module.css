@@ -3,7 +3,9 @@
  * full bleed in the Settings layout, the kit's breadcrumb and header, then one
  * flush pane holding the shared DataTable (components/ui/data-table.tsx),
  * with its toolbar, bordered grid and pager, 14px in from the page's edges.
- * What is left here is the page's own.
+ * The pane body and the sort headers are the list pages' shared look
+ * (components/common/list-page.module.css); what is left here is the page's
+ * own.
  */
 
 /* Under the title, in text-secondary */
@@ -11,45 +13,6 @@
   margin: -4px 0 0;
   padding: 0 14px 8px;
   color: var(--aura-text-secondary);
-}
-
-/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
-   pane scrolls a long list */
-.body {
-  padding: 4px 14px 14px;
-}
-
-/* Sortable headers: the grid's header label (11px, 600, text-secondary,
-   inherited from the cell) with a sort mark; `button.` outranks Mantine's
-   UnstyledButton reset (R10) */
-button.sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  user-select: none;
-  border-radius: 3px;
-}
-
-button.sort:hover {
-  color: var(--aura-text-body);
-}
-
-button.sort:focus-visible {
-  outline: 2px solid var(--aura-accent);
-  outline-offset: 1px;
-}
-
-.sortIcon {
-  width: 12px;
-  height: 12px;
-  opacity: 0.4;
-}
-
-.sortIcon[data-active] {
-  opacity: 1;
 }
 
 /* The name and its System badge; a long name wraps */

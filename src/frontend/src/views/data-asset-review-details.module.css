@@ -154,11 +154,11 @@ button.copy {
 }
 
 .sort {
-  composes: sort from './asset-types.module.css';
+  composes: sort from '../components/common/list-page.module.css';
 }
 
 .sortIcon {
-  composes: sortIcon from './asset-types.module.css';
+  composes: sortIcon from '../components/common/list-page.module.css';
 }
 
 .fqn {

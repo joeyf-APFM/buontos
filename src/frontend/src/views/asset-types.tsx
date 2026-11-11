@@ -17,14 +17,15 @@ import { useTranslation } from 'react-i18next';
 import { AssetTypeFormDialog } from '@/components/asset-types/asset-type-form-dialog';
 import { Dialog, PageHeader, PageLayout, Pane } from '@/mantine/page';
 import { focusIsFree } from '@/mantine/focus-free';
+import list from '@/components/common/list-page.module.css';
 import classes from './asset-types.module.css';
 
 /** A header label that sorts its column, in the grid's header-label look. */
 function SortButton({ column, label }: { column: Column<AssetTypeRead, unknown>; label: string }) {
   return (
-    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+    <UnstyledButton className={list.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
       {label}
-      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+      <ArrowUpDown aria-hidden className={list.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
     </UnstyledButton>
   );
 }
@@ -361,7 +362,7 @@ export default function AssetTypesView() {
         }
       >
         <Pane flush aria-label={t('listPane')}>
-          <div ref={tableArea} className={classes.body}>{content}</div>
+          <div ref={tableArea} className={list.body}>{content}</div>
         </Pane>
       </PageLayout>
 

@@ -3,7 +3,7 @@
  * editing (a status change goes through Change Status), and only lifecycle
  * statuses are offered.
  */
-import { screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders } from '@/test/utils';
 import DataContractBasicFormDialog from './data-contract-basic-form-dialog';
@@ -12,14 +12,23 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
+// Stable, as the real store's: the dialog loads the projects when it changes
+const { fetchUserProjects } = vi.hoisted(() => ({ fetchUserProjects: () => {} }));
 vi.mock('@/stores/project-store', () => ({
   useProjectContext: () => ({
     currentProject: null,
     availableProjects: [],
     isLoading: false,
-    fetchUserProjects: vi.fn(),
+    fetchUserProjects,
   }),
 }));
+
+/** The dialog, once its teams (and the pickers' lists) have loaded. */
+async function settled() {
+  const status = await screen.findByRole('textbox', { name: /Status/ });
+  await waitFor(() => expect(screen.getByRole('textbox', { name: /Owner Team/ })).toBeEnabled());
+  return status;
+}
 
 describe('DataContractBasicFormDialog — status', () => {
   beforeEach(() => {
@@ -28,7 +37,7 @@ describe('DataContractBasicFormDialog — status', () => {
     ) as any;
   });
 
-  it('keeps the status read-only when editing, pointing to Change Status', () => {
+  it('keeps the status read-only when editing, pointing to Change Status', async () => {
     renderWithProviders(
       <DataContractBasicFormDialog
         isOpen={true}
@@ -39,16 +48,16 @@ describe('DataContractBasicFormDialog — status', () => {
     );
 
     // A Mantine Select: jsdom gives its field the textbox role
-    expect(screen.getByRole('textbox', { name: /Status/ })).toBeDisabled();
+    expect(await settled()).toBeDisabled();
     expect(screen.getByText(/The status changes with Change Status on the page/)).toBeInTheDocument();
   });
 
-  it('offers the lifecycle statuses when creating, without certified or archived', () => {
+  it('offers the lifecycle statuses when creating, without certified or archived', async () => {
     renderWithProviders(
       <DataContractBasicFormDialog isOpen={true} onOpenChange={vi.fn()} onSubmit={vi.fn()} />,
     );
 
-    const select = screen.getByRole('textbox', { name: /Status/ });
+    const select = await settled();
     expect(select).not.toBeDisabled();
     fireEvent.click(select);
     // Its own list (jsdom leaves a Mantine list display: none: hence hidden)

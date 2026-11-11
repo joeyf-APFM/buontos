@@ -58,6 +58,7 @@ async function setUp(page: Page, list: unknown[] = CONTRACTS) {
     ...DATA_FIXTURES,
     '/api/data-contracts': list,
     '/api/teams/summary': [{ id: 'e2e-team-1', name: 'Sales Analytics' }],
+    '/api/user/projects': { projects: [{ id: 'e2e-project-1', name: 'Revenue', team_count: 2 }], current_project_id: null },
   });
   await page.goto('/data-contracts');
   await expect(page.getByRole('heading', { level: 1, name: 'Data Contracts' })).toBeVisible();
@@ -155,12 +156,35 @@ test.describe('data contracts', () => {
     await expect(dialog).toBeVisible();
     await expect(name).toHaveValue('Orders v2');
 
+    // And in the Project Select
+    await dialog.getByRole('textbox', { name: 'Project' }).click();
+    await expect(page.getByRole('option', { name: 'Revenue (2 teams)' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    await expect(name).toHaveValue('Orders v2');
+
     // The next Escape is the dialog's: with a typed name, it asks first
     await page.keyboard.press('Escape');
     await expect(page.getByRole('alertdialog', { name: 'Discard unsaved changes?' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue Editing' }).click();
     await expect(page.getByRole('alertdialog')).toHaveCount(0);
     await expect(name).toHaveValue('Orders v2');
+  });
+
+  test('a click outside the create dialog leaves it open, as the Radix dialog did', async ({ page }) => {
+    await setUp(page);
+    const dialog = await openCreate(page);
+    // Untouched: a click on the overlay would close it
+    await page.mouse.click(20, 780);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    // Typed in: it would ask to discard
+    await dialog.getByRole('textbox', { name: /Name/ }).fill('Orders v2');
+    await page.mouse.click(20, 780);
+    await page.waitForTimeout(400);
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(dialog.getByRole('textbox', { name: /Name/ })).toHaveValue('Orders v2');
   });
 
   test('the create dialog keeps its title and buttons in view, with 28px fields', async ({ page }) => {

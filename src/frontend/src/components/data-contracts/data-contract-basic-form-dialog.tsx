@@ -263,8 +263,6 @@ export default function DataContractBasicFormDialog({ isOpen, onOpenChange, onSu
       <Dialog
         opened={isOpen}
         onClose={handleCloseAttempt}
-        // A click outside asks first too, as the Radix dialog's did
-        closeOnClickOutside
         size="lg"
         title={initial ? t('data-contracts:basicForm.editTitle', 'Edit Contract Metadata') : t('data-contracts:basicForm.createTitle', 'Create New Data Contract')}
         description={initial

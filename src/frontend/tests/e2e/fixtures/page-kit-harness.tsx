@@ -12,7 +12,7 @@
 /* eslint-disable react-refresh/only-export-components -- a test fixture, never hot-reloaded */
 import { useEffect, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { Menu, Popover as MantinePopover, Select } from '@mantine/core';
+import { Menu, Popover as MantinePopover, Select, Tooltip as MantineTooltip } from '@mantine/core';
 import { AppMantineProvider } from '@/mantine/provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs as RadixTabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -96,11 +96,17 @@ export interface DialogSceneOptions {
   /** Put them there 400ms after opening instead, as content that loads. */
   late?: boolean;
   height?: DialogProps['height'];
+  /**
+   * The dialog's opener under an uncontrolled Mantine Tooltip held open, as
+   * after a click on a tooltip-wrapped button: its floating-ui dismiss
+   * listener on the document stops the Escape it sees.
+   */
+  openerTooltip?: boolean;
 }
 
 const PARAGRAPHS = Array.from({ length: 60 }, (_, i) => `Paragraph ${i + 1} of the product's notes.`);
 
-function DialogScene({ size, assistant, long, late, height }: DialogSceneOptions) {
+function DialogScene({ size, assistant, long, late, height, openerTooltip }: DialogSceneOptions) {
   const [opened, setOpened] = useState(true);
   const [nested, setNested] = useState(false);
   const [loaded, setLoaded] = useState(!late);
@@ -125,6 +131,11 @@ function DialogScene({ size, assistant, long, late, height }: DialogSceneOptions
         >
           <p>Assistant body</p>
         </AssistantWindow>
+      )}
+      {openerTooltip && (
+        <MantineTooltip label="Upload a file" defaultOpened withinPortal>
+          <button type="button">Upload</button>
+        </MantineTooltip>
       )}
       <Dialog
         opened={opened}

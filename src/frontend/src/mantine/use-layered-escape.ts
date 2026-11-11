@@ -27,6 +27,11 @@ const openLayers: object[] = [];
  *
  * - Radix's layers listen on the document in the capture phase and prevent
  *   the default when they close: the bubble listener sees `defaultPrevented`.
+ * - The bubble listener is on the document, beside floating-ui's dismiss
+ *   listener (a Mantine Tooltip or HoverCard), which stops the Escape it
+ *   sees: stopPropagation keeps a key from the window, not from other
+ *   listeners on the same node. So an open tooltip, such as one left open on
+ *   the dialog's opener, can't keep the dialog open.
  * - Mantine's comboboxes mark their input with data-mantine-stop-propagation
  *   while their list is open, but in a browser the mark is gone before the
  *   key bubbles to the window (React commits the list's close in a microtask
@@ -65,11 +70,14 @@ export function useLayeredEscape(opened: boolean, onClose: () => void): void {
       close.current();
     };
     window.addEventListener('keydown', onCapture, true);
-    window.addEventListener('keydown', onBubble);
+    // On the document, not the window: a Mantine Tooltip or HoverCard
+    // (floating-ui's useDismiss) listens on the document too, and stops the
+    // Escape there, so a window listener would never see it
+    document.addEventListener('keydown', onBubble);
     return () => {
       openLayers.splice(openLayers.indexOf(layer), 1);
       window.removeEventListener('keydown', onCapture, true);
-      window.removeEventListener('keydown', onBubble);
+      document.removeEventListener('keydown', onBubble);
     };
   }, [opened]);
 }

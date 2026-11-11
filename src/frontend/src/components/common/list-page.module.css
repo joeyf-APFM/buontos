@@ -1,0 +1,163 @@
+/*
+ * The look the list pages share (Data Products, Data Contracts, Settings →
+ * Asset Types, and the lists that borrow their sort headers): one flush kit
+ * pane holding the shared DataTable (components/ui/data-table.tsx), 14px in
+ * from the page's edges, its sortable headers, and the cells and toolbar
+ * pieces Data Products and Data Contracts both use. Each page keeps only its
+ * own rules in its own module.
+ */
+
+/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
+   pane scrolls a long list */
+.body {
+  padding: 4px 14px 14px;
+}
+
+.alert {
+  margin: 4px 0 8px;
+}
+
+/* An error lists its issues line by line */
+.alertMessage {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Sortable headers: the grid's header label (11px, 600, text-secondary,
+   inherited from the cell) with a sort mark; `button.` outranks Mantine's
+   UnstyledButton reset (R10) */
+button.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 3px;
+}
+
+button.sort:hover {
+  color: var(--aura-text-body);
+}
+
+button.sort:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.sortIcon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.4;
+}
+
+.sortIcon[data-active] {
+  opacity: 1;
+}
+
+/* The name over its domains */
+.titleCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+/* A long name wraps, so it reads in full; table cells ignore max-width, so
+   the text's own box sets the measure */
+.title {
+  display: block;
+  min-width: 160px;
+  max-width: 420px;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.person {
+  overflow-wrap: anywhere;
+}
+
+/* Version, status and tag badges, wrapping in their cell */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+/* The row's icon buttons: 24px, so the row stays 28px; `button.` outranks
+   Mantine's ActionIcon colour (R10) */
+button.action {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-text-secondary);
+}
+
+.action svg {
+  width: 14px;
+  height: 14px;
+}
+
+button.delete {
+  color: var(--aura-critical);
+}
+
+button.delete:hover:not(:disabled) {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+button.action:disabled {
+  background: transparent;
+  opacity: 0.5;
+}
+
+/* Show all versions, ruled off from the toolbar's buttons */
+.history {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding-right: 8px;
+  border-right: 1px solid var(--aura-border);
+}
+
+.historyLabel {
+  padding-left: 6px;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+/* The upload button's help mark */
+svg.help {
+  width: 12px;
+  height: 12px;
+  opacity: 0.5;
+}
+
+/* The upload tooltip: a title, then two muted lines */
+.tip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.tip p {
+  margin: 0;
+}
+
+.tipTitle {
+  font-weight: 600;
+}
