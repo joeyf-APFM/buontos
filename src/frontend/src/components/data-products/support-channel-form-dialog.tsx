@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog } from '@/mantine/page';
 import { useToast } from '@/hooks/use-toast';
 import type { Support } from '@/types/data-product';
+import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 
 type SupportChannelFormProps = {
   isOpen: boolean;
@@ -106,115 +105,96 @@ export default function SupportChannelFormDialog({ isOpen, onOpenChange, onSubmi
     }
   };
 
+  const toolOptions = SUPPORT_TOOLS.map((tool) => ({ value: tool, label: tool.charAt(0).toUpperCase() + tool.slice(1) }));
+  const scopeOptions = SUPPORT_SCOPES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }));
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? 'Edit Support Channel' : 'Add Support Channel'}</DialogTitle>
-          <DialogDescription>
-            Define a support channel for users of this data product (ODPS v1.0.0).
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="channel">
-              Channel Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="channel"
-              value={channel}
-              onChange={(e) => setChannel(e.target.value)}
-              placeholder={t('data-products:supportChannelForm.channelNamePlaceholder')}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="url">
-              Access URL <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('data-products:supportChannelForm.accessUrlPlaceholder')}
-            />
-            <p className="text-xs text-muted-foreground">
-              URL to access this support channel
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="tool">{t('data-products:supportChannelForm.tool')}</Label>
-              <Select value={tool} onValueChange={setTool}>
-                <SelectTrigger id="tool">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORT_TOOLS.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="scope">{t('data-products:supportChannelForm.scope')}</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger id="scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORT_SCOPES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="invitationUrl">{t('data-products:supportChannelForm.invitationUrl')}</Label>
-            <Input
-              id="invitationUrl"
-              type="url"
-              value={invitationUrl}
-              onChange={(e) => setInvitationUrl(e.target.value)}
-              placeholder={t('data-products:supportChannelForm.invitationUrlPlaceholder')}
-            />
-            <p className="text-xs text-muted-foreground">
-              Optional invitation link for new members
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('common:labels.description')}</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('data-products:supportChannelForm.descriptionPlaceholder')}
-              rows={3}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="md"
+      title={initial ? 'Edit Support Channel' : 'Add Support Channel'}
+      description="Define a support channel for users of this data product (ODPS v1.0.0)."
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Saving...' : initial ? 'Save Changes' : 'Add Channel'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          id="channel"
+          label="Channel Name"
+          withAsterisk
+          value={channel}
+          onChange={(e) => setChannel(e.currentTarget.value)}
+          placeholder={t('data-products:supportChannelForm.channelNamePlaceholder')}
+          classNames={FIELD_CLASSES}
+          data-autofocus
+        />
+
+        <TextInput
+          id="url"
+          type="url"
+          label="Access URL"
+          withAsterisk
+          value={url}
+          onChange={(e) => setUrl(e.currentTarget.value)}
+          placeholder={t('data-products:supportChannelForm.accessUrlPlaceholder')}
+          description="URL to access this support channel"
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        />
+
+        <div className={form.row}>
+          <Select
+            id="tool"
+            label={t('data-products:supportChannelForm.tool')}
+            data={toolOptions}
+            value={tool || null}
+            onChange={(value) => value && setTool(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+
+          <Select
+            id="scope"
+            label={t('data-products:supportChannelForm.scope')}
+            data={scopeOptions}
+            value={scope || null}
+            onChange={(value) => value && setScope(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+        </div>
+
+        <TextInput
+          id="invitationUrl"
+          type="url"
+          label={t('data-products:supportChannelForm.invitationUrl')}
+          value={invitationUrl}
+          onChange={(e) => setInvitationUrl(e.currentTarget.value)}
+          placeholder={t('data-products:supportChannelForm.invitationUrlPlaceholder')}
+          description="Optional invitation link for new members"
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        />
+
+        <Textarea
+          id="description"
+          label={t('common:labels.description')}
+          value={description}
+          onChange={(e) => setDescription(e.currentTarget.value)}
+          placeholder={t('data-products:supportChannelForm.descriptionPlaceholder')}
+          rows={3}
+          classNames={FIELD_CLASSES}
+        />
+      </div>
     </Dialog>
   );
 }

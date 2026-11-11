@@ -161,6 +161,9 @@ test('the maturity badge opens its details on keyboard focus and on hover; blur 
   // Keyboard: focus opens, Escape closes, focus stays on the badge
   await target.focus();
   await expect(card).toBeVisible();
+  // A hover card, not a dialog (Task 8a)
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(target).not.toHaveAttribute('aria-haspopup', 'dialog');
   await page.keyboard.press('Escape');
   await expect(card).toBeHidden();
   await expect(target).toBeFocused();
@@ -210,4 +213,60 @@ test('the version and access-grant tooltips open on keyboard focus', async ({ pa
   await expect(page.getByRole('tooltip', { name: '1 grant expiring soon' })).toBeVisible();
   await grants.getByRole('cell').locator('[tabindex="0"]', { hasText: /day/ }).focus();
   await expect(page.getByRole('tooltip', { name: /^Expires: / })).toBeVisible();
+});
+
+// Wave 2 Task 8a: the detail page's dialogs on the kit Dialog
+test('the support channel dialog is a kit Dialog: Escape in its Select closes only the list, and the typed name survives', async ({ page }) => {
+  await open(page, BASE, { size: 'large' });
+  const opener = page.getByRole('region', { name: /^Support Channels \(0\)$/ }).getByRole('button', { name: 'Add Channel' });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'Add Support Channel' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveClass(/mantine-Modal-content/);
+  expect(await style(dialog, ['border-radius', 'border-top-width'])).toEqual({ 'border-radius': '8px', 'border-top-width': '1px' });
+  expect(Math.round((await dialog.boundingBox())!.width)).toBe(560);
+  // The Tool and Scope fields side by side, 28px high
+  const tool = dialog.getByRole('textbox', { name: 'Tool' });
+  const scope = dialog.getByRole('textbox', { name: 'Scope' });
+  const [t, s] = [(await tool.boundingBox())!, (await scope.boundingBox())!];
+  expect(Math.round(t.y)).toBe(Math.round(s.y));
+  expect(Math.round(t.height)).toBe(28);
+
+  const name = dialog.getByRole('textbox', { name: /Channel Name/ });
+  await expect(name).toBeFocused();
+  await name.fill('orders-help');
+
+  for (const [field, option] of [[tool, 'Discord'], [scope, 'Announcements']] as const) {
+    await field.click();
+    await expect(page.getByRole('option', { name: option })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    await expect(name).toHaveValue('orders-help');
+  }
+
+  // The next Escape is the dialog's, and focus goes back to its opener
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test('the ODPS import/export dialog is a kit Dialog, its two tabs sharing the width', async ({ page }) => {
+  await open(page, BASE);
+  await page.getByRole('button', { name: 'Export ODPS' }).click();
+  const dialog = page.getByRole('dialog', { name: 'ODPS v1.0.0 Import/Export' });
+  await expect(dialog).toHaveClass(/mantine-Modal-content/);
+  expect(Math.round((await dialog.boundingBox())!.width)).toBe(960);
+  const [imp, exp] = [dialog.getByRole('tab', { name: 'Import' }), dialog.getByRole('tab', { name: 'Export' })];
+  const [a, b] = [(await imp.boundingBox())!, (await exp.boundingBox())!];
+  expect(Math.abs(a.width - b.width)).toBeLessThan(2);
+  expect(a.width).toBeGreaterThan(400);
+  // The pasted JSON is code; the hint isn't
+  const box = dialog.getByRole('textbox', { name: 'Paste ODPS v1.0.0 JSON' });
+  expect((await style(box, ['font-family']))['font-family']).toMatch(/mono|Menlo|Consolas|monospace/i);
+  await exp.click();
+  await expect(dialog.getByRole('button', { name: 'Export as JSON' })).toBeVisible();
+  expect((await style(dialog.getByText(/will download this product/), ['font-family']))['font-family']).toMatch(/Optima/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
 });

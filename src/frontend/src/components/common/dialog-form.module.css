@@ -1,0 +1,206 @@
+/*
+ * The shared form parts of the dialogs on the kit Dialog
+ * (mantine/page/dialog.tsx, which has the dialog look), from wave 2 Task 8a:
+ * the Data Product port, team, support, version, import/export, contract
+ * link, versioning and lifecycle dialogs, several of them also on the
+ * contract page. 28px fields 12px apart, pairs side by side, sections each
+ * ruled off above. The same look as the product and contract metadata forms
+ * (Tasks 4 and 6).
+ */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Two fields side by side; a narrow window stacks them */
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+/* Field labels: 12px in the body colour, as the ui Label (components/ui/label.tsx) */
+.label {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--aura-text-body);
+}
+
+/* A field's hint, in text-secondary */
+.hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+/* The validation message, in the critical colour (5.0:1 on white) */
+.error {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--aura-critical);
+}
+
+/* A long option wraps instead of running out of the list */
+.option {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* An option's name and its badge (a category, a version) */
+.optionLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* A switch's row: its label and hint, the switch at the end */
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.toggleLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+/* Radio choices, stacked */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* What a choice opens, indented under the choices */
+.indent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 24px;
+}
+
+/* A quiet note or a summary box: subtle surface, 4px corners */
+.note {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.note > svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.note p {
+  margin: 0;
+}
+
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  overflow-wrap: anywhere;
+}
+
+/* A line of text with inline badges */
+.inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.strong {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.muted {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+/* A loading line: the spinner and its text */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--aura-text-secondary);
+}
+
+/* "OR" between two ways to the same end, ruled either side */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--aura-text-secondary);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--aura-border);
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* An identifier, such as a contract ID */
+.code {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+/* A row of actions inside the body, left-aligned */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

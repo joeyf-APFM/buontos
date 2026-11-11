@@ -1,20 +1,19 @@
-import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useEffect, useMemo, useState } from 'react';
+import { Input, Loader, Radio, Select, Switch, TextInput, Textarea, type SelectProps } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog } from '@/mantine/page';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Info } from 'lucide-react';
+import { Plus, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { OutputPort, DataProduct } from '@/types/data-product';
 import type { DataContractListItem } from '@/types/data-contract';
 import type { DeliveryMethodRead } from '@/types/delivery-method';
 import CreateContractInlineDialog from '@/components/data-contracts/create-contract-inline-dialog';
+import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
+
+const DELIVERY_METHOD_HINT = 'How this deliverable serves data to consumers (e.g., Table Access, Serving Endpoint)';
 
 type OutputPortFormProps = {
   isOpen: boolean;
@@ -177,252 +176,230 @@ export default function OutputPortFormDialog({ isOpen, onOpenChange, onSubmit, i
     }
   };
 
+  const deliveryMethodOptions = useMemo(
+    () => uniqueOptions((Array.isArray(deliveryMethods) ? deliveryMethods : []).map((dm) => ({ value: dm.id, label: dm.name, category: dm.category }))),
+    [deliveryMethods],
+  );
+  const contractOptions = useMemo(
+    () => uniqueOptions((Array.isArray(contracts) ? contracts : []).map((c) => ({ value: c.id, label: c.name, version: c.version }))),
+    [contracts],
+  );
+
+  // An option's name and its badge: the delivery method's category, the contract's version
+  const renderDeliveryMethod: SelectProps['renderOption'] = ({ option }) => {
+    const { category } = option as typeof deliveryMethodOptions[number];
+    return (
+      <span className={form.optionLine}>
+        <span>{option.label}</span>
+        {category && <Badge variant="outline">{category}</Badge>}
+      </span>
+    );
+  };
+  const renderContract: SelectProps['renderOption'] = ({ option }) => (
+    <span className={form.optionLine}>
+      <span>{option.label}</span>
+      <Badge variant="secondary">v{(option as typeof contractOptions[number]).version}</Badge>
+    </span>
+  );
+
+  // A switch's row: its label and hint, the switch at the end; the hint describes the switch
+  const toggle = (id: string, label: string, hint: string, checked: boolean, onChange: (v: boolean) => void) => (
+    <div className={form.toggle}>
+      <div>
+        <label htmlFor={id} className={form.toggleLabel}>{label}</label>
+        <p id={`${id}-hint`} className={form.hint}>{hint}</p>
+      </div>
+      <Switch
+        id={id}
+        aria-describedby={`${id}-hint`}
+        checked={checked}
+        onChange={(e) => onChange(e.currentTarget.checked)}
+      />
+    </div>
+  );
+
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-products:outputPortForm.editTitle') : t('data-products:outputPortForm.addTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('data-products:outputPortForm.description')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          {/* Required Fields */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">
-                {t('common:labels.name')} <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('data-products:outputPortForm.placeholders.name')}
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="version">
-                Version <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="version"
-                value={version}
-                onChange={(e) => setVersion(e.target.value)}
-                placeholder="1.0.0"
-              />
-            </div>
-          </div>
-
-          {/* Delivery Method */}
-          <div className="border-t pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="deliveryMethod">{t('data-products:outputPortForm.labels.deliveryMethod')}</Label>
-              {isLoadingDeliveryMethods ? (
-                <div className="flex items-center gap-2 p-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Loading...</span>
-                </div>
-              ) : (
-                <Select value={deliveryMethodId} onValueChange={setDeliveryMethodId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('data-products:outputPortForm.placeholders.deliveryMethod')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {deliveryMethods.map((dm) => (
-                      <SelectItem key={dm.id} value={dm.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{dm.name}</span>
-                          {dm.category && (
-                            <Badge variant="outline" className="text-xs">{dm.category}</Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <p className="text-xs text-muted-foreground">
-                How this deliverable serves data to consumers (e.g., Table Access, Serving Endpoint)
-              </p>
-            </div>
-          </div>
-
-          {/* Optional Fields */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">{t('common:labels.details')}</h4>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="description">{t('common:labels.description')}</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder={t('data-products:outputPortForm.placeholders.description')}
-                  rows={2}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">{t('common:labels.type')}</Label>
-                <Input
-                  id="type"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  placeholder={t('data-products:outputPortForm.placeholders.type')}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">{t('common:labels.status')}</Label>
-                <Input
-                  id="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  placeholder={t('data-products:outputPortForm.placeholders.status')}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>{t('data-products:outputPortForm.labels.contractAssignment')}</Label>
-                <RadioGroup value={contractSelectionMode} onValueChange={(value: 'none' | 'existing' | 'create') => {
-                  setContractSelectionMode(value);
-                  if (value === 'none') setContractId('');
-                }}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="none" id="no-contract" />
-                    <Label htmlFor="no-contract">{t('data-products:outputPortForm.contractOptions.noContract')}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="existing" id="existing-contract" />
-                    <Label htmlFor="existing-contract">{t('data-products:outputPortForm.contractOptions.selectExisting')}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="create" id="create-contract" />
-                    <Label htmlFor="create-contract">{t('data-products:outputPortForm.contractOptions.createNew')}</Label>
-                  </div>
-                </RadioGroup>
-
-                {contractSelectionMode === 'existing' && (
-                  <div className="ml-6 space-y-2">
-                    {isLoadingContracts ? (
-                      <div className="flex items-center justify-center p-4">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      <>
-                        <Select value={contractId} onValueChange={setContractId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('data-products:outputPortForm.placeholders.chooseContract')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contracts.length === 0 ? (
-                              <div className="p-2 text-sm text-muted-foreground text-center">
-                                No active/approved contracts available
-                              </div>
-                            ) : (
-                              contracts.map((contract) => (
-                                <SelectItem key={contract.id} value={contract.id}>
-                                  <div className="flex items-center gap-2">
-                                    <span>{contract.name}</span>
-                                    <Badge variant="secondary" className="text-xs">v{contract.version}</Badge>
-                                  </div>
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Only showing active/approved/certified contracts
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {contractSelectionMode === 'create' && (
-                  <div className="ml-6">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateContractOpen(true)}
-                      className="w-full"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create New Contract
-                    </Button>
-                    {contractId && (
-                      <div className="mt-2 p-2 bg-muted rounded text-sm">
-                        Contract created: <span className="font-mono text-xs">{contractId}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Flags */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">{t('data-products:outputPortForm.labels.accessAndPrivacy')}</h4>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="containsPii" className="text-base">
-                    Contains PII
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Does this deliverable contain personally identifiable information?
-                  </p>
-                </div>
-                <Switch
-                  id="containsPii"
-                  checked={containsPii}
-                  onCheckedChange={setContainsPii}
-                />
-              </div>
-
-              <div className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="autoApprove" className="text-base">
-                    Auto Approve
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically approve access requests for this deliverable?
-                  </p>
-                </div>
-                <Switch
-                  id="autoApprove"
-                  checked={autoApprove}
-                  onCheckedChange={setAutoApprove}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Info note */}
-          <div className="rounded-lg bg-muted/50 p-4 flex gap-2">
-            <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              After creating this deliverable, you can link assets (tables, views, datasets, etc.) to it from the detail page.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="lg"
+      title={initial ? t('data-products:outputPortForm.editTitle') : t('data-products:outputPortForm.addTitle')}
+      description={t('data-products:outputPortForm.description')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Saving...' : initial ? 'Save Changes' : 'Add Deliverable'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        {/* Required Fields */}
+        <TextInput
+          id="name"
+          label={t('common:labels.name')}
+          withAsterisk
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder={t('data-products:outputPortForm.placeholders.name')}
+          classNames={FIELD_CLASSES}
+          data-autofocus
+        />
+
+        <TextInput
+          id="version"
+          label="Version"
+          withAsterisk
+          value={version}
+          onChange={(e) => setVersion(e.currentTarget.value)}
+          placeholder="1.0.0"
+          classNames={FIELD_CLASSES}
+        />
+
+        {/* Delivery Method */}
+        <section className={form.section}>
+          {isLoadingDeliveryMethods ? (
+            <Input.Wrapper
+              label={t('data-products:outputPortForm.labels.deliveryMethod')}
+              labelElement="div"
+              description={DELIVERY_METHOD_HINT}
+              inputWrapperOrder={HINT_BELOW}
+              classNames={FIELD_CLASSES}
+            >
+              <div className={form.loading}>
+                <Loader size={14} />
+                <span>Loading...</span>
+              </div>
+            </Input.Wrapper>
+          ) : (
+            <Select
+              id="deliveryMethod"
+              label={t('data-products:outputPortForm.labels.deliveryMethod')}
+              placeholder={t('data-products:outputPortForm.placeholders.deliveryMethod')}
+              data={deliveryMethodOptions}
+              value={deliveryMethodId || null}
+              onChange={(value) => value && setDeliveryMethodId(value)}
+              allowDeselect={false}
+              renderOption={renderDeliveryMethod}
+              description={DELIVERY_METHOD_HINT}
+              inputWrapperOrder={HINT_BELOW}
+              classNames={SELECT_CLASSES}
+            />
+          )}
+        </section>
+
+        {/* Optional Fields */}
+        <section className={form.section}>
+          <h4 className={form.sectionTitle}>{t('common:labels.details')}</h4>
+
+          <Textarea
+            id="description"
+            label={t('common:labels.description')}
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            placeholder={t('data-products:outputPortForm.placeholders.description')}
+            rows={2}
+            classNames={FIELD_CLASSES}
+          />
+
+          <TextInput
+            id="type"
+            label={t('common:labels.type')}
+            value={type}
+            onChange={(e) => setType(e.currentTarget.value)}
+            placeholder={t('data-products:outputPortForm.placeholders.type')}
+            classNames={FIELD_CLASSES}
+          />
+
+          <TextInput
+            id="status"
+            label={t('common:labels.status')}
+            value={status}
+            onChange={(e) => setStatus(e.currentTarget.value)}
+            placeholder={t('data-products:outputPortForm.placeholders.status')}
+            classNames={FIELD_CLASSES}
+          />
+
+          <Radio.Group
+            label={t('data-products:outputPortForm.labels.contractAssignment')}
+            value={contractSelectionMode}
+            onChange={(value) => {
+              const mode = value as 'none' | 'existing' | 'create';
+              setContractSelectionMode(mode);
+              if (mode === 'none') setContractId('');
+            }}
+            classNames={FIELD_CLASSES}
+          >
+            <div className={form.choices}>
+              <Radio value="none" id="no-contract" label={t('data-products:outputPortForm.contractOptions.noContract')} />
+              <Radio value="existing" id="existing-contract" label={t('data-products:outputPortForm.contractOptions.selectExisting')} />
+              <Radio value="create" id="create-contract" label={t('data-products:outputPortForm.contractOptions.createNew')} />
+            </div>
+          </Radio.Group>
+
+          {contractSelectionMode === 'existing' && (
+            <div className={form.indent}>
+              {isLoadingContracts ? (
+                <div className={form.loading}>
+                  <Loader size={14} />
+                </div>
+              ) : (
+                <Select
+                  aria-label={t('data-products:outputPortForm.contractOptions.selectExisting')}
+                  placeholder={t('data-products:outputPortForm.placeholders.chooseContract')}
+                  data={contractOptions}
+                  value={contractId || null}
+                  onChange={(value) => value && setContractId(value)}
+                  allowDeselect={false}
+                  renderOption={renderContract}
+                  nothingFoundMessage="No active/approved contracts available"
+                  description="Only showing active/approved/certified contracts"
+                  inputWrapperOrder={HINT_BELOW}
+                  classNames={SELECT_CLASSES}
+                />
+              )}
+            </div>
+          )}
+
+          {contractSelectionMode === 'create' && (
+            <div className={form.indent}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreateContractOpen(true)}
+                className={form.fullWidth}
+              >
+                <Plus aria-hidden />
+                Create New Contract
+              </Button>
+              {contractId && (
+                <div className={form.box}>
+                  <span>Contract created: <span className={form.code}>{contractId}</span></span>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Flags */}
+        <section className={form.section}>
+          <h4 className={form.sectionTitle}>{t('data-products:outputPortForm.labels.accessAndPrivacy')}</h4>
+          {toggle('containsPii', 'Contains PII', 'Does this deliverable contain personally identifiable information?', containsPii, setContainsPii)}
+          {toggle('autoApprove', 'Auto Approve', 'Automatically approve access requests for this deliverable?', autoApprove, setAutoApprove)}
+        </section>
+
+        {/* Info note */}
+        <div className={form.note}>
+          <Info size={14} aria-hidden />
+          <p>
+            After creating this deliverable, you can link assets (tables, views, datasets, etc.) to it from the detail page.
+          </p>
+        </div>
+      </div>
     </Dialog>
 
     <CreateContractInlineDialog

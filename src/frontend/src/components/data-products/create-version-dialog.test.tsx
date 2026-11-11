@@ -2,15 +2,15 @@
  * The new-version dialog: a contract version must be X.Y.Z (the contract page
  * clones the contract, which requires it); a product version stays free text.
  */
-import { screen, fireEvent } from '@testing-library/react';
+import { cleanup, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import i18n from '@/i18n/config';
-import { renderWithProviders } from '@/test/utils';
+import { renderWithMantine } from '@/test/utils';
 import CreateVersionDialog from './create-version-dialog';
 
 const renderDialog = (requireSemver: boolean) => {
   const onSubmit = vi.fn();
-  renderWithProviders(
+  renderWithMantine(
     <CreateVersionDialog
       isOpen
       onOpenChange={() => {}}
@@ -30,6 +30,8 @@ const submit = (version: string) => {
 
 describe('CreateVersionDialog', () => {
   afterEach(async () => {
+    // Unmounted first: a language change under a mounted dialog updates it outside act
+    cleanup();
     await i18n.changeLanguage('en');
   });
 

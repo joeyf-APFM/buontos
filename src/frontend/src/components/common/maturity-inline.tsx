@@ -33,7 +33,9 @@ const GATE_ICON: Record<string, typeof CheckCircle2> = {
  * The level card's open state: it opens on hover (after a short delay, and
  * stays open while the pointer is over the card) and on keyboard focus, and
  * closes on blur, on leaving, and on Escape, as the Radix HoverCard did.
- * Mantine's HoverCard opens on hover only.
+ * Mantine's HoverCard opens on hover only. The Popovers drawing it pass
+ * withRoles={false}: a hover card isn't a dialog, so neither the badge nor
+ * the card announces one.
  */
 function useDetailCard(openDelay = 200, closeDelay = 150) {
   const [opened, setOpened] = useState(false);
@@ -131,7 +133,7 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
     // Beside a title: "Maturity <level> ↻", the label drawn first (its
     // place in the markup, after the level, keeps the badge's name)
     return (
-      <Popover opened={card.opened} onClose={card.close} position="bottom-end" withinPortal shadow="md" returnFocus={false}>
+      <Popover opened={card.opened} onClose={card.close} position="bottom-end" withinPortal shadow="md" returnFocus={false} withRoles={false}>
         <Popover.Target>
           <div className={classes.compact} role="button" tabIndex={0} aria-expanded={card.opened} {...card.target}>
             <span className={classes.level}>{levelName}</span>
@@ -155,7 +157,7 @@ export function MaturityInline({ entityType, entityId, compact = false }: Maturi
 
   return (
     <div className={classes.inline}>
-      <Popover opened={card.opened} onClose={card.close} position="bottom-start" withinPortal shadow="md" returnFocus={false}>
+      <Popover opened={card.opened} onClose={card.close} position="bottom-start" withinPortal shadow="md" returnFocus={false} withRoles={false}>
         <Popover.Target>
           <button type="button" className={classes.badgeButton} aria-expanded={card.opened} {...card.target}>
             <MaturityBadge

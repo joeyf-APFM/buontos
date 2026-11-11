@@ -273,7 +273,7 @@
       "assetsLinkedTitle": "Assets verknüpft",
       "assetsLinked": "{{count}} Asset(s) mit {{portName}} verknüpft",
       "assetUnlinked": "Asset-Verknüpfung gelöst",
-      "unlinkAsset": "{{name}} trennen",
+      "unlinkAsset": "Verknüpfung mit {{name}} aufheben",
       "linkAssetsFailed": "Assets konnten nicht verknüpft werden",
       "unlinkAssetFailed": "Asset-Verknüpfung konnte nicht gelöst werden"
     },
