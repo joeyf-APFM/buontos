@@ -122,7 +122,9 @@
       "assignError": "Selecteer alstublieft zowel een entity type als specifieke entity.",
       "assignFailed": "Kon concept niet toewijzen aan object.",
       "navigationError": "Kan niet navigeren naar {{entityType}}"
-    }
+    },
+    "searchPane": "Concepten zoeken",
+    "relationsPane": "Conceptrelaties"
   },
   "properties": {
     "searchAndSelect": "Zoek en selecteer een eigenschap:",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "Selecteer een contract, schema en eigenschap.",
       "linkedSuccess": "Eigenschap succesvol gekoppeld.",
       "assignFailed": "Kon eigenschap niet toewijzen aan object."
-    }
+    },
+    "searchPane": "Eigenschappen zoeken",
+    "relationsPane": "Eigenschapkoppelingen"
   },
   "llm": {
     "title": "Vraag {{shortName}}",
@@ -237,5 +241,9 @@
     "chat_timeout": "Het verzoek duurde te lang. Probeer een eenvoudigere vraag of probeer het later opnieuw (fout-id {{errorId}}).",
     "chat_connection_failed": "Ik kon geen verbinding maken met een benodigde dienst. Probeer het zo meteen opnieuw (fout-id {{errorId}}).",
     "chat_failed": "Er is een fout opgetreden bij het verwerken van je verzoek. Probeer je vraag anders te formuleren of probeer het opnieuw. De details staan in het serverlogboek (fout-id {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "Het zoeken is mislukt.",
+    "loadFailed": "De details konden niet worden geladen."
   }
 }

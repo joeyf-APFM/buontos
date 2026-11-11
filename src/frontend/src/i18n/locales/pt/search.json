@@ -122,7 +122,9 @@
       "assignError": "Selecione um tipo de entidade e uma entidade específica.",
       "assignFailed": "Falha ao atribuir conceito ao objeto.",
       "navigationError": "Não é possível navegar para {{entityType}}"
-    }
+    },
+    "searchPane": "Pesquisa de conceitos",
+    "relationsPane": "Relações do conceito"
   },
   "properties": {
     "searchAndSelect": "Pesquise e selecione uma propriedade:",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "Selecione um contrato, um esquema e uma propriedade.",
       "linkedSuccess": "Propriedade vinculada com sucesso.",
       "assignFailed": "Falha ao atribuir propriedade ao objeto."
-    }
+    },
+    "searchPane": "Pesquisa de propriedades",
+    "relationsPane": "Vínculos da propriedade"
   },
   "llm": {
     "title": "Pergunte ao {{shortName}}",
@@ -237,5 +241,9 @@
     "chat_timeout": "A solicitação excedeu o tempo limite. Tente uma pergunta mais simples ou tente novamente mais tarde (id do erro {{errorId}}).",
     "chat_connection_failed": "Tive problemas para me conectar a um serviço necessário. Tente novamente em instantes (id do erro {{errorId}}).",
     "chat_failed": "Ocorreu um erro ao processar sua solicitação. Tente reformular a pergunta ou tente novamente. Os detalhes estão no log do servidor (id do erro {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "A pesquisa falhou.",
+    "loadFailed": "Não foi possível carregar os detalhes."
   }
 }

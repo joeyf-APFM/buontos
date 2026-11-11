@@ -1,19 +1,17 @@
 import { buildKgSearchParams, DEFAULT_KG_SPARQL } from '@/lib/kg-search-url';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea'
+import { Alert, Menu, Popover, Select, Switch, Textarea, TextInput, UnstyledButton } from '@mantine/core';
+import { AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Pane } from '@/mantine/page';
+import { useHoverFocusCard } from '@/components/common/use-hover-focus-card';
 import { useApi } from '@/hooks/use-api';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { LoadError } from './search-pane';
+import { asList } from './search-utils';
+import classes from './search.module.css';
 
 type KGItem = { value: string; type: 'resource' | 'property' };
 type Neighbor = {
@@ -60,12 +58,16 @@ interface KGSearchProps {
   initialShowConceptsOnly?: boolean;
 }
 
-// Helper component for app entity hover
-const AppEntityHover: React.FC<{ iri: string; children: React.ReactNode }> = ({ iri, children }) => {
+/**
+ * An app entity (urn:ontos:…) with a card of its details, on hover and on
+ * keyboard focus (useHoverFocusCard), and Open in it.
+ */
+function AppEntityHover({ iri, children }: { iri: string; children: ReactNode }) {
   const { t } = useTranslation(['search', 'common']);
   const info = parseAppEntity(iri);
   const [details, setDetails] = useState<any>(null);
-  const [open, setOpen] = useState(false);
+  const card = useHoverFocusCard();
+  const open = card.opened;
 
   useEffect(() => {
     if (!open || !info) return;
@@ -85,38 +87,44 @@ const AppEntityHover: React.FC<{ iri: string; children: React.ReactNode }> = ({ 
 
   if (!info) return <>{children}</>;
   return (
-    <HoverCard openDelay={200} onOpenChange={setOpen}>
-      <HoverCardTrigger asChild>{children as any}</HoverCardTrigger>
-      <HoverCardContent className="w-96 text-xs">
+    <Popover opened={card.opened} onClose={card.close} position="bottom-start" withinPortal shadow="md" returnFocus={false} withRoles={false}>
+      <Popover.Target>
+        <span className={classes.entity} role="button" tabIndex={0} aria-expanded={card.opened} {...card.target}>
+          {children}
+        </span>
+      </Popover.Target>
+      <Popover.Dropdown {...card.dropdown}>
         {!details ? (
-          <div className="text-muted-foreground">{t('common:states.loading')}</div>
+          <div className={classes.cardMuted}>{t('common:states.loading')}</div>
         ) : (
-          <div className="space-y-1">
-            <div className="font-medium text-sm">{details.info?.title || details.name || info.entityId}</div>
-            <div className="text-muted-foreground">{t('search:kg.hover.type', { type: info.entityType.replace('_', ' ') })}</div>
-            <div className="text-muted-foreground">
-              <div className="truncate">{t('search:kg.hover.id', { id: info.entityId })}</div>
-              {details.info?.owner && <div className="truncate">{t('search:kg.hover.owner', { owner: details.info.owner })}</div>}
-              {details.info?.status && <div className="truncate">{t('search:kg.hover.status', { status: details.info.status })}</div>}
+          <div className={classes.card}>
+            <div className={classes.cardTitle}>{details.info?.title || details.name || info.entityId}</div>
+            <div className={classes.cardMuted}>{t('search:kg.hover.type', { type: info.entityType.replace('_', ' ') })}</div>
+            <div className={classes.cardMuted}>
+              <div>{t('search:kg.hover.id', { id: info.entityId })}</div>
+              {details.info?.owner && <div>{t('search:kg.hover.owner', { owner: details.info.owner })}</div>}
+              {details.info?.status && <div>{t('search:kg.hover.status', { status: details.info.status })}</div>}
             </div>
             {details.info?.description && (
-              <div className="text-muted-foreground break-words max-h-24 overflow-auto">{details.info.description}</div>
+              <div className={classes.cardDescription}>{details.info.description}</div>
             )}
-            <Button size="sm" variant="outline" className="h-7 px-2 mt-1"
-              onClick={() => {
-                const path = info.entityType === 'data_product'
-                  ? `/data-products/${info.entityId}`
-                  : info.entityType === 'data_domain'
-                    ? `/settings/data-domains/${info.entityId}`
-                    : `/data-contracts/${info.entityId}`;
-                window.location.href = path;
-              }}>{t('common:actions.open')}</Button>
+            <div>
+              <Button size="sm" variant="outline"
+                onClick={() => {
+                  const path = info.entityType === 'data_product'
+                    ? `/data-products/${info.entityId}`
+                    : info.entityType === 'data_domain'
+                      ? `/settings/data-domains/${info.entityId}`
+                      : `/data-contracts/${info.entityId}`;
+                  window.location.href = path;
+                }}>{t('common:actions.open')}</Button>
+            </div>
           </div>
         )}
-      </HoverCardContent>
-    </HoverCard>
+      </Popover.Dropdown>
+    </Popover>
   );
-};
+}
 
 // Helper function to parse app entities
 const parseAppEntity = (iri: string): { entityType: 'data_product' | 'data_domain' | 'data_contract'; entityId: string } | null => {
@@ -125,6 +133,21 @@ const parseAppEntity = (iri: string): { entityType: 'data_product' | 'data_domai
   return { entityType: m[1] as any, entityId: m[2] };
 };
 
+/** A failed request's text, for an Alert's message. */
+function SparqlError({ error }: { error: string }) {
+  const { t } = useTranslation(['search', 'common']);
+  return (
+    <Alert color="red" variant="light" icon={<AlertCircle />} title={t('common:states.error')} className={classes.alert}>
+      {error && <span className={classes.alertMessage}>{error}</span>}
+    </Alert>
+  );
+}
+
+/**
+ * The knowledge-graph search (wave 2 Task 13b): Prefix Search and Path
+ * Explorer side by side, SPARQL under both, as kit panes sharing their
+ * borders. On Search's Knowledge Graph tab and in Explore's SPARQL pane.
+ */
 export default function KGSearch({
   initialPrefix = '',
   initialPath = [],
@@ -143,15 +166,17 @@ export default function KGSearch({
   const [neighbors, setNeighbors] = useState<Neighbor[]>([]);
   const [sparql, setSparql] = useState(initialSparql);
   const [sparqlRows, setSparqlRows] = useState<any[]>([]);
-  const sparqlTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const resizeSparqlTextarea = () => {
-    const el = sparqlTextareaRef.current;
-    if (!el) return;
-    el.style.height = '0';
-    el.style.height = `${el.scrollHeight}px`;
-  };
   const [resourceDescription, setResourceDescription] = useState<ResourceDescription | null>(null);
+
+  // Failed loads: their errors, and retry nonces; a newer request wins over
+  // an answer still on its way
+  const [prefixError, setPrefixError] = useState<string | null>(null);
+  const [prefixNonce, setPrefixNonce] = useState(0);
+  const [neighborsError, setNeighborsError] = useState<string | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [pathNonce, setPathNonce] = useState(0);
+  const [sparqlError, setSparqlError] = useState<string | null>(null);
+  const sparqlSeq = useRef(0);
 
   // New filter states
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>(initialDirectionFilter);
@@ -218,34 +243,39 @@ export default function KGSearch({
     if (urlConceptsOnly !== initialShowConceptsOnly) setShowConceptsOnly(urlConceptsOnly);
   }, [location.search]);
 
-  useEffect(() => {
-    resizeSparqlTextarea();
-  }, [sparql]);
-
   // Load neighbors when path changes
   useEffect(() => {
+    let current = true;
     const loadNeighbors = async () => {
       if (path.length > 0) {
         const currentIri = path[path.length - 1];
         try {
           const res = await get<Neighbor[]>(`/api/semantic-models/neighbors?iri=${encodeURIComponent(currentIri)}&limit=200`);
-          setNeighbors(res.data || []);
+          if (!current) return;
+          setNeighbors(asList<Neighbor>(res.data));
+          setNeighborsError(res.error ? res.error : null);
         } catch (e) {
+          if (!current) return;
           console.error('Failed to load neighbors:', e);
           setNeighbors([]);
+          setNeighborsError(e instanceof Error ? e.message : '');
         }
       } else {
         setNeighbors([]);
+        setNeighborsError(null);
       }
     };
     loadNeighbors();
-  }, [path]);
+    return () => { current = false; };
+  }, [path, pathNonce]);
 
   // Load full resource description (with expanded blank nodes) when path changes
   useEffect(() => {
+    let current = true;
     const loadDescription = async () => {
       if (path.length === 0) {
         setResourceDescription(null);
+        setDescriptionError(null);
         return;
       }
       const currentIri = path[path.length - 1];
@@ -253,30 +283,43 @@ export default function KGSearch({
         const res = await get<ResourceDescription>(
           `/api/semantic-models/resources/${encodeURIComponent(currentIri)}/description`
         );
-        setResourceDescription(res.data || null);
+        if (!current) return;
+        const description = res.error ? null : res.data || null;
+        setResourceDescription(description ? { ...description, triples: asList(description.triples) } : null);
+        setDescriptionError(res.error ? res.error : null);
       } catch (e) {
+        if (!current) return;
         console.error('Failed to load resource description:', e);
         setResourceDescription(null);
+        setDescriptionError(e instanceof Error ? e.message : '');
       }
     };
     loadDescription();
-  }, [path]);
+    return () => { current = false; };
+  }, [path, pathNonce]);
 
   // Prefix search
   useEffect(() => {
+    let current = true;
     const run = async () => {
       if (!prefix.trim()) {
         setPrefixResults([]);
+        setPrefixError(null);
         updateUrl({ prefix: '' });
         return;
       }
       const res = await get<KGItem[]>(`/api/semantic-models/prefix?q=${encodeURIComponent(prefix)}&limit=25`);
-      setPrefixResults(res.data || []);
+      if (!current) return;
+      setPrefixResults(asList<KGItem>(res.data));
+      setPrefixError(res.error ? res.error : null);
       updateUrl({ prefix });
     };
     const t = setTimeout(run, 250);
-    return () => clearTimeout(t);
-  }, [prefix]);
+    return () => {
+      current = false;
+      clearTimeout(t);
+    };
+  }, [prefix, prefixNonce]);
 
   const selectStart = async (iri: string) => {
     const newPath = [iri];
@@ -297,8 +340,11 @@ export default function KGSearch({
   };
 
   const runSparql = async () => {
+    const seq = ++sparqlSeq.current;
     const res = await post<any[]>(`/api/semantic-models/query`, { sparql });
-    setSparqlRows(res.data || []);
+    if (seq !== sparqlSeq.current) return;
+    setSparqlRows(asList(res.data));
+    setSparqlError(res.error ? res.error : null);
     updateUrl({ sparql });
   };
 
@@ -333,193 +379,202 @@ export default function KGSearch({
     updateUrl({ showConceptsOnly: checked });
   };
 
+  const pathError = neighborsError ?? descriptionError;
+
+  const EXAMPLES: { key: string; query: string }[] = [
+    { key: 'search:kg.resourcesInNamespace', query: 'SELECT ?resource WHERE { ?resource ?p ?o . FILTER(REGEX(STR(?resource), "^urn:ontos")) }' },
+    { key: 'search:kg.resourcesWithLabel', query: 'SELECT ?s ?label WHERE { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label } LIMIT 50' },
+    { key: 'search:kg.subjectsAndTypes', query: 'SELECT ?s ?type WHERE { ?s a ?type } LIMIT 100' },
+    { key: 'search:kg.topPredicates', query: 'SELECT ?p (COUNT(*) AS ?count) WHERE { ?s ?p ?o } GROUP BY ?p ORDER BY DESC(?count) LIMIT 25' },
+    { key: 'search:kg.mostLinkedSeeAlso', query: 'SELECT ?o (COUNT(*) AS ?count) WHERE { ?s <http://www.w3.org/2000/01/rdf-schema#seeAlso> ?o } GROUP BY ?o ORDER BY DESC(?count) LIMIT 25' },
+  ];
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('search:kg.prefixSearch')}</CardTitle>
-          <CardDescription className="text-xs">{t('search:kg.prefixSearchDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <Input
-            value={prefix}
-            placeholder={t('search:kg.prefixPlaceholder')}
-            onChange={(e) => setPrefix(e.target.value)}
-          />
-          <div className="space-y-2">
+    <div className={classes.grid}>
+      <Pane title={t('search:kg.prefixSearch')}>
+        <p className={classes.paneIntro}>{t('search:kg.prefixSearchDesc')}</p>
+        <TextInput
+          value={prefix}
+          placeholder={t('search:kg.prefixPlaceholder')}
+          aria-label={t('search:kg.prefixSearch')}
+          onChange={(e) => setPrefix(e.currentTarget.value)}
+          mb={8}
+        />
+        {prefixError !== null ? (
+          <div className={classes.state}>
+            <Alert color="red" variant="light" icon={<AlertCircle />} title={t('search:states.searchFailed', 'The search failed.')} className={classes.alert}>
+              {prefixError && <span className={classes.alertMessage}>{prefixError}</span>}
+            </Alert>
+            <Button variant="outline" onClick={() => setPrefixNonce((n) => n + 1)}>{t('common:retry')}</Button>
+          </div>
+        ) : (
+          <div className={classes.list}>
             {prefixResults.map((r) => (
-              <div key={r.value} className="flex items-center justify-between">
-                <div className="truncate mr-2">
-                  <Badge variant="secondary">{r.type}</Badge>{' '}
+              <div key={r.value} className={classes.row}>
+                <div className={`${classes.rowLine} ${classes.rowMain}`}>
+                  <Badge variant="secondary">{r.type}</Badge>
                   <AppEntityHover iri={r.value}>
-                    <span className="hover:underline cursor-pointer" title={r.value}>{r.value}</span>
+                    <span className={classes.ellipsis} title={r.value}>{r.value}</span>
                   </AppEntityHover>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => selectStart(r.value)}>{t('search:kg.startPath')}</Button>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </Pane>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('search:kg.pathExplorer')}</CardTitle>
-          <CardDescription className="text-xs">{t('search:kg.pathExplorerDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2 text-sm">
+      <Pane title={t('search:kg.pathExplorer')}>
+        <p className={classes.paneIntro}>{t('search:kg.pathExplorerDesc')}</p>
+        {path.length > 0 && (
+          <div className={classes.path}>
             {path.map((iri, idx) => (
-              <Button key={idx} variant="outline" size="sm" onClick={() => jumpTo(idx)} title={iri}>
-                {iri}
-              </Button>
+              <UnstyledButton key={idx} className={classes.step} onClick={() => jumpTo(idx)} title={iri}>
+                <span className={classes.ellipsis}>{iri}</span>
+              </UnstyledButton>
             ))}
           </div>
+        )}
 
-          {/* Filter Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border">
-            <div className="flex flex-col space-y-2">
-              <Label htmlFor="direction-filter" className="text-sm font-medium">{t('search:kg.directionFilter')}</Label>
-              <Select value={directionFilter} onValueChange={handleDirectionFilterChange}>
-                <SelectTrigger className="w-full h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('search:kg.everything')}</SelectItem>
-                  <SelectItem value="incoming">{t('search:kg.incomingOnly')}</SelectItem>
-                  <SelectItem value="outgoing">{t('search:kg.outgoingOnly')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col space-y-2">
-              <Label className="text-sm font-medium">{t('search:kg.contentFilter')}</Label>
-              <div className="flex items-center space-x-3 h-9">
-                <Switch
-                  id="concepts-only"
-                  checked={showConceptsOnly}
-                  onCheckedChange={handleConceptsOnlyToggle}
-                />
-                <Label htmlFor="concepts-only" className="text-sm cursor-pointer">
-                  {t('search:kg.showConceptsOnly')}
-                </Label>
-              </div>
+        {/* Filter Controls */}
+        <div className={classes.filters}>
+          <Select
+            label={t('search:kg.directionFilter')}
+            data={[
+              { value: 'all', label: t('search:kg.everything') },
+              { value: 'incoming', label: t('search:kg.incomingOnly') },
+              { value: 'outgoing', label: t('search:kg.outgoingOnly') },
+            ]}
+            value={directionFilter}
+            onChange={(value) => value && handleDirectionFilterChange(value as DirectionFilter)}
+            allowDeselect={false}
+            classNames={{ label: classes.filterLabel }}
+          />
+          <div>
+            <div className={classes.filterLabel}>{t('search:kg.contentFilter')}</div>
+            <div className={classes.switchRow}>
+              <Switch
+                checked={showConceptsOnly}
+                onChange={(e) => handleConceptsOnlyToggle(e.currentTarget.checked)}
+                label={t('search:kg.showConceptsOnly')}
+              />
             </div>
           </div>
+        </div>
 
-          <Separator />
-
-          <div className="space-y-2 text-sm">
-            {filteredNeighbors.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                {neighbors.length === 0
-                  ? t('search:kg.noOutgoingLinks')
-                  : t('search:kg.noLinksMatch')}
-              </div>
-            ) : filteredNeighbors.map((n, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="truncate mr-2">
-                  <div className="text-[10px] text-muted-foreground uppercase">{n.direction}</div>
-                  <div className="text-xs text-muted-foreground">{shortPredicate(n.predicate)}</div>
-                  <div className="truncate">
-                    {parseAppEntity(n.display) ? (
-                      <AppEntityHover iri={n.display}>
-                        <span className="hover:underline cursor-pointer">{n.display}</span>
-                      </AppEntityHover>
-                    ) : (
-                      <span title={n.display}>{n.display}</span>
-                    )}
-                    <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground uppercase">
-                      {n.displayType}
-                    </span>
+        {pathError !== null ? (
+          <LoadError error={pathError} onRetry={() => setPathNonce((n) => n + 1)} />
+        ) : (
+          <>
+            <div className={classes.list}>
+              {filteredNeighbors.length === 0 ? (
+                <p className={classes.note}>
+                  {neighbors.length === 0
+                    ? t('search:kg.noOutgoingLinks')
+                    : t('search:kg.noLinksMatch')}
+                </p>
+              ) : filteredNeighbors.map((n, i) => (
+                <div key={i} className={classes.row}>
+                  <div className={classes.rowText}>
+                    <span className={classes.direction}>{n.direction}</span>
+                    <span className={classes.predicate}>{shortPredicate(n.predicate)}</span>
+                    <div className={classes.rowLine}>
+                      {parseAppEntity(n.display) ? (
+                        <AppEntityHover iri={n.display}>{n.display}</AppEntityHover>
+                      ) : (
+                        <span className={classes.ellipsis} title={n.display}>{n.display}</span>
+                      )}
+                      <span className={classes.kind}>{n.displayType}</span>
+                    </div>
                   </div>
+                  {n.stepIsResource && n.stepIri ? (
+                    <Button variant="ghost" size="sm" onClick={() => stepTo(n.stepIri!)}>{t('search:kg.step')}</Button>
+                  ) : null}
                 </div>
-                {n.stepIsResource && n.stepIri ? (
-                  <Button variant="ghost" size="sm" onClick={() => stepTo(n.stepIri!)}>{t('search:kg.step')}</Button>
-                ) : null}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Resource detail: full description with expanded blank nodes */}
-          {path.length >= 1 && (
-            <div className="mt-4 pt-4 border-t space-y-2">
-              <h4 className="text-sm font-medium">{t('search:kg.resourceDetail', 'Resource detail')}</h4>
-              {resourceDescription == null ? (
-                <div className="text-sm text-muted-foreground">{t('search:kg.resourceLoading')}</div>
-              ) : resourceDescription.triples.length === 0 ? (
-                <div className="text-sm text-muted-foreground">{t('search:kg.noTriples')}</div>
-              ) : (
-                <div className="space-y-2 text-xs">
-                  {resourceDescription.triples.map((trip, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
-                        <span className="font-medium text-muted-foreground">{shortPredicate(trip.predicate)}</span>
-                        {trip.objectType === 'bnode' && trip.expanded && trip.expanded.length > 0 ? (
-                          <span className="text-muted-foreground">{t('search:kg.blankNodeExpanded')}</span>
-                        ) : (
-                          <span title={trip.object} className="truncate max-w-[280px]">{trip.object}</span>
+            {/* Resource detail: full description with expanded blank nodes */}
+            {path.length >= 1 && (
+              <div className={classes.detail}>
+                <h3 className={classes.columnTitle}>{t('search:kg.resourceDetail', 'Resource detail')}</h3>
+                {resourceDescription == null ? (
+                  <p className={classes.note}>{t('search:kg.resourceLoading')}</p>
+                ) : resourceDescription.triples.length === 0 ? (
+                  <p className={classes.note}>{t('search:kg.noTriples')}</p>
+                ) : (
+                  <div className={classes.triples}>
+                    {resourceDescription.triples.map((trip, idx) => (
+                      <div key={idx}>
+                        <div className={classes.triple}>
+                          <span className={classes.triplePredicate}>{shortPredicate(trip.predicate)}</span>
+                          {trip.objectType === 'bnode' && trip.expanded && trip.expanded.length > 0 ? (
+                            <span className={classes.cardMuted}>{t('search:kg.blankNodeExpanded')}</span>
+                          ) : (
+                            <span title={trip.object} className={classes.tripleObject}>{trip.object}</span>
+                          )}
+                        </div>
+                        {trip.objectType === 'bnode' && trip.expanded && trip.expanded.length > 0 && (
+                          <div className={classes.expanded}>
+                            {trip.expanded.map((sub, j) => (
+                              <div key={j} className={classes.triple}>
+                                <span className={classes.triplePredicate}>{shortPredicate(sub.predicate)}</span>
+                                <span title={sub.object} className={classes.tripleObject}>{sub.object}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      {trip.objectType === 'bnode' && trip.expanded && trip.expanded.length > 0 && (
-                        <div className="ml-4 pl-3 border-l-2 border-muted space-y-1 py-1">
-                          {trip.expanded.map((sub, j) => (
-                            <div key={j} className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
-                              <span className="font-medium text-muted-foreground">{shortPredicate(sub.predicate)}</span>
-                              <span title={sub.object} className="truncate max-w-[240px]">{sub.object}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </Pane>
 
       {/* SPARQL Query Section - Full Width */}
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <CardTitle>{t('search:kg.sparql')}</CardTitle>
-              <CardDescription>{t('search:kg.sparqlDesc')}</CardDescription>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">{t('search:kg.examples')}</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[420px] max-w-[80vw]">
-                <DropdownMenuItem onClick={() => setSparql('SELECT ?resource WHERE { ?resource ?p ?o . FILTER(REGEX(STR(?resource), "^urn:ontos")) }')}>{t('search:kg.resourcesInNamespace')}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSparql('SELECT ?s ?label WHERE { ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label } LIMIT 50')}>{t('search:kg.resourcesWithLabel')}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSparql('SELECT ?s ?type WHERE { ?s a ?type } LIMIT 100')}>{t('search:kg.subjectsAndTypes')}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSparql('SELECT ?p (COUNT(*) AS ?count) WHERE { ?s ?p ?o } GROUP BY ?p ORDER BY DESC(?count) LIMIT 25')}>{t('search:kg.topPredicates')}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSparql('SELECT ?o (COUNT(*) AS ?count) WHERE { ?s <http://www.w3.org/2000/01/rdf-schema#seeAlso> ?o } GROUP BY ?o ORDER BY DESC(?count) LIMIT 25')}>{t('search:kg.mostLinkedSeeAlso')}</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <Pane
+        title={t('search:kg.sparql')}
+        actions={
+          <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+              <Button variant="outline" size="sm">
+                {t('search:kg.examples')}
+                <ChevronDown aria-hidden />
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown className={classes.examples}>
+              {EXAMPLES.map((example) => (
+                <Menu.Item key={example.key} onClick={() => setSparql(example.query)}>{t(example.key)}</Menu.Item>
+              ))}
+            </Menu.Dropdown>
+          </Menu>
+        }
+      >
+        <div className={classes.sparqlBody}>
+          <p className={classes.paneIntro}>{t('search:kg.sparqlDesc')}</p>
           <Textarea
-            ref={sparqlTextareaRef}
             value={sparql}
-            onChange={(e) => {
-              setSparql(e.target.value);
-              resizeSparqlTextarea();
-            }}
-            className="min-h-[4rem] max-h-[50vh] overflow-y-auto resize-none"
+            onChange={(e) => setSparql(e.currentTarget.value)}
+            aria-label={t('search:kg.sparql')}
+            autosize
+            minRows={3}
+            maxRows={16}
+            className={classes.query}
           />
           <Button onClick={runSparql}>{t('search:kg.runSparql')}</Button>
-          <div className="space-y-1 text-sm">
-            {sparqlRows.map((row, idx) => (
-              <pre key={idx} className="bg-muted p-2 rounded-md overflow-auto whitespace-pre-wrap">{JSON.stringify(row, null, 2)}</pre>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          {sparqlError !== null && <SparqlError error={sparqlError} />}
+          {sparqlRows.length > 0 && (
+            <div className={classes.rows}>
+              {sparqlRows.map((row, idx) => (
+                <pre key={idx} className={classes.json}>{JSON.stringify(row, null, 2)}</pre>
+              ))}
+            </div>
+          )}
+        </div>
+      </Pane>
     </div>
   );
 }

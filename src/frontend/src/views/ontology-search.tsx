@@ -1,12 +1,12 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useId } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Brain } from 'lucide-react';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader, PageLayout, Tabs } from '@/mantine/page';
 import KGSearch from '@/components/search/kg-search';
 import ConceptsSearch from '@/components/search/concepts-search';
 import PropertiesSearch from '@/components/search/properties-search';
+import classes from './ontology-search.module.css';
 
 type SearchMode = 'concepts' | 'properties' | 'kg';
 
@@ -21,10 +21,17 @@ function getTabFromParams(search: string): SearchMode {
   return 'concepts';
 }
 
+/**
+ * Search (/concepts/search) on the page kit (wave 2 Task 13b): the kit header
+ * and its description, then kit Tabs (Concepts / Properties / Knowledge
+ * Graph, in ?tab=) over one panel for the active tab, whose search draws its
+ * own panes.
+ */
 export default function OntologySearchView() {
   const { t } = useTranslation(['search', 'semantic-models', 'common']);
   const location = useLocation();
   const navigate = useNavigate();
+  const tabsId = useId();
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
   const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
 
@@ -65,54 +72,61 @@ export default function OntologySearchView() {
   const kgConceptsOnly = params.get('concepts_only') === 'true';
 
   return (
-    <div className="py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Brain className="w-8 h-8" />
-          {pageTitle}
-        </h1>
-        <p className="text-muted-foreground mt-1">{pageSubtitle}</p>
-      </div>
+    <PageLayout
+      header={
+        <>
+          <PageHeader title={pageTitle} />
+          <p className={classes.subtitle}>{pageSubtitle}</p>
+        </>
+      }
+    >
+      <div className={classes.body}>
+        <Tabs id={tabsId} value={searchMode} onChange={(value) => value && handleTabChange(value)}>
+          <Tabs.List aria-label={pageTitle} className={classes.tabs}>
+            <Tabs.Tab value="concepts">{t('search:tabs.concepts', { defaultValue: 'Concepts' })}</Tabs.Tab>
+            <Tabs.Tab value="properties">{t('search:tabs.properties', { defaultValue: 'Properties' })}</Tabs.Tab>
+            <Tabs.Tab value="kg">{t('search:tabs.knowledgeGraph', { defaultValue: 'Knowledge Graph' })}</Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
 
-      <Tabs value={searchMode} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="concepts">{t('search:tabs.concepts', { defaultValue: 'Concepts' })}</TabsTrigger>
-          <TabsTrigger value="properties">{t('search:tabs.properties', { defaultValue: 'Properties' })}</TabsTrigger>
-          <TabsTrigger value="kg">{t('search:tabs.knowledgeGraph', { defaultValue: 'Knowledge Graph' })}</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      <div className="mt-4">
-        {searchMode === 'concepts' && (
-          <ConceptsSearch
-            initialQuery={query}
-            initialSelectedConcept={iri ? {
-              value: iri,
-              label: iri.split('/').pop() || iri.split('#').pop() || iri,
-              type: 'class' as const,
-            } : null}
-          />
-        )}
-        {searchMode === 'properties' && (
-          <PropertiesSearch
-            initialQuery={query}
-            initialSelectedProperty={iri ? {
-              value: iri,
-              label: iri.split('/').pop() || iri.split('#').pop() || iri,
-              type: 'property' as const,
-            } : null}
-          />
-        )}
-        {searchMode === 'kg' && (
-          <KGSearch
-            initialPrefix={kgPrefix}
-            initialPath={kgPath}
-            initialSparql={kgSparql}
-            initialDirectionFilter={kgDirection}
-            initialShowConceptsOnly={kgConceptsOnly}
-          />
-        )}
+        {/* One panel for the active tab; each search remounts on a tab change, as before */}
+        <div
+          role="tabpanel"
+          id={`${tabsId}-panel-${searchMode}`}
+          aria-labelledby={`${tabsId}-tab-${searchMode}`}
+          className={classes.panel}
+        >
+          {searchMode === 'concepts' && (
+            <ConceptsSearch
+              initialQuery={query}
+              initialSelectedConcept={iri ? {
+                value: iri,
+                label: iri.split('/').pop() || iri.split('#').pop() || iri,
+                type: 'class' as const,
+              } : null}
+            />
+          )}
+          {searchMode === 'properties' && (
+            <PropertiesSearch
+              initialQuery={query}
+              initialSelectedProperty={iri ? {
+                value: iri,
+                label: iri.split('/').pop() || iri.split('#').pop() || iri,
+                type: 'property' as const,
+              } : null}
+            />
+          )}
+          {searchMode === 'kg' && (
+            <KGSearch
+              initialPrefix={kgPrefix}
+              initialPath={kgPath}
+              initialSparql={kgSparql}
+              initialDirectionFilter={kgDirection}
+              initialShowConceptsOnly={kgConceptsOnly}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }

@@ -1,17 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Select } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DetailsGrid, Dialog, Pane, PaneStack } from '@/mantine/page';
+import { SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import { Columns2, FileText, Shapes, X, Link2, Box } from 'lucide-react';
+import { usePermissions } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/feature-access-levels';
+import { Columns2, FileText, Shapes, Link2, Box } from 'lucide-react';
 import UCAssetLookupDialog from '@/components/data-contracts/uc-asset-lookup-dialog';
 import { UCAssetInfo, UCAssetType } from '@/types/uc-asset';
+import { LoadError, SearchPane } from './search-pane';
+import { asList } from './search-utils';
+import classes from './search.module.css';
 
 type PropertyItem = { value: string; label: string; type: 'property' };
 type Neighbor = {
@@ -39,6 +43,13 @@ interface PropertiesSearchProps {
   initialSelectedProperty?: PropertyItem | null;
 }
 
+/**
+ * The Properties tab of Search (/concepts/search), on the page kit (wave 2
+ * Task 13b): the search pane, then the selected property (its IRI and
+ * attributes, with Assign to Property) and its links (domain and range, and
+ * the linked catalog objects). The Assign dialog and the UC asset lookup it
+ * opens are kit Dialogs.
+ */
 export default function PropertiesSearch({
   initialQuery = '',
   initialSelectedProperty = null
@@ -48,15 +59,28 @@ export default function PropertiesSearch({
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation(['search', 'common']);
+  const { hasPermission } = usePermissions();
+  // Linking a property to an object writes: POST /api/semantic-links/ needs
+  // semantic-models READ_WRITE (semantic_links_routes.py)
+  const canLink = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
 
   const [propertySearchQuery, setPropertySearchQuery] = useState(initialQuery);
   const [propertySearchResults, setPropertySearchResults] = useState<PropertyItem[]>([]);
   const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<PropertyItem | null>(initialSelectedProperty);
   const [propertyIri, setPropertyIri] = useState('');
-  const [_propertyLabel, setPropertyLabel] = useState('');
+  const [propertyLabel, setPropertyLabel] = useState('');
   const [propertyNeighbors, setPropertyNeighbors] = useState<Neighbor[]>([]);
   const [semanticLinks, setSemanticLinks] = useState<EnrichedSemanticLink[]>([]);
+
+  // The search's state (as on the Concepts tab)
+  const [answeredQuery, setAnsweredQuery] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchNonce, setSearchNonce] = useState(0);
+  const [selectionText, setSelectionText] = useState<string | null>(null);
+  const searchSeq = useRef(0);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const selectSeq = useRef(0);
 
   // Assign dialog: target type and selection
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -97,7 +121,7 @@ export default function PropertiesSearch({
       const loadPropertyFromIri = async () => {
         try {
           const res = await get<PropertyItem[]>(`/api/semantic-models/properties?q=${encodeURIComponent(urlIri)}&limit=10`);
-          const match = (res.data || []).find((p: PropertyItem) => p.value === urlIri);
+          const match = asList<PropertyItem>(res.data).find((p: PropertyItem) => p.value === urlIri);
           if (match) {
             await selectProperty(match);
           } else {
@@ -117,29 +141,39 @@ export default function PropertiesSearch({
   }, [location.search]);
 
   useEffect(() => {
+    // A newer query (or Retry) wins over an answer still on its way
+    const seq = ++searchSeq.current;
     const searchProperties = async () => {
       if (!propertySearchQuery.trim()) {
         setPropertySearchResults([]);
         setIsPropertyDropdownOpen(false);
+        setSearchError(null);
+        setAnsweredQuery(null);
         updateUrl({ query: '' });
         return;
       }
 
       try {
         const res = await get<PropertyItem[]>(`/api/semantic-models/properties?q=${encodeURIComponent(propertySearchQuery)}&limit=50`);
-        setPropertySearchResults(res.data || []);
-        setIsPropertyDropdownOpen((res.data || []).length > 0);
+        if (seq !== searchSeq.current) return;
+        const results = asList<PropertyItem>(res.data);
+        setPropertySearchResults(results);
+        setIsPropertyDropdownOpen(results.length > 0);
+        setSearchError(res.error ? res.error : null);
+        setAnsweredQuery(propertySearchQuery);
         updateUrl({ query: propertySearchQuery });
       } catch (error) {
+        if (seq !== searchSeq.current) return;
         console.error('Error searching properties:', error);
         setPropertySearchResults([]);
         setIsPropertyDropdownOpen(false);
+        setSearchError(error instanceof Error ? error.message : '');
       }
     };
 
     const timer = setTimeout(searchProperties, 250);
     return () => clearTimeout(timer);
-  }, [propertySearchQuery]);
+  }, [propertySearchQuery, searchNonce]);
 
   const clearSearch = () => {
     setPropertySearchQuery('');
@@ -149,12 +183,17 @@ export default function PropertiesSearch({
     setPropertyNeighbors([]);
     setSemanticLinks([]);
     setIsPropertyDropdownOpen(false);
+    setSelectionText(null);
+    setDetailError(null);
+    selectSeq.current++;
     updateUrl({ query: '', iri: '' });
   };
 
   const selectProperty = async (property: PropertyItem) => {
+    const seq = ++selectSeq.current;
     setSelectedProperty(property);
     setPropertyIri(property.value);
+    setDetailError(null);
 
     let displayLabel = property.label;
     if (!displayLabel || displayLabel.trim() === property.value) {
@@ -163,27 +202,40 @@ export default function PropertiesSearch({
 
     setPropertyLabel(displayLabel);
     setPropertySearchQuery(`${displayLabel} - ${property.value}`);
+    setSelectionText(`${displayLabel} - ${property.value}`);
     setIsPropertyDropdownOpen(false);
     updateUrl({ iri: property.value });
 
+    let failure: string | null = null;
+
     try {
       const res = await get<Neighbor[]>(`/api/semantic-models/neighbors?iri=${encodeURIComponent(property.value)}&limit=200`);
-      setPropertyNeighbors(res.data || []);
+      if (seq !== selectSeq.current) return;
+      if (res.error) failure = res.error;
+      setPropertyNeighbors(asList<Neighbor>(res.data));
     } catch (error) {
+      if (seq !== selectSeq.current) return;
       console.error('Error loading neighbors:', error);
+      failure = error instanceof Error ? error.message : '';
       setPropertyNeighbors([]);
     }
 
     try {
       // Query-param form: proxy-safe for IRIs containing ``//`` (see by-iri route).
       const res = await get<SemanticLink[]>(`/api/semantic-links/by-iri?iri=${encodeURIComponent(property.value)}`);
-      const links = res.data || [];
+      if (res.error) failure = failure ?? res.error;
+      const links = asList<SemanticLink>(res.data);
       const enriched = await enrichSemanticLinksWithNames(links);
+      if (seq !== selectSeq.current) return;
       setSemanticLinks(enriched);
     } catch (error) {
+      if (seq !== selectSeq.current) return;
       console.error('Error loading semantic links:', error);
+      failure = failure ?? (error instanceof Error ? error.message : '');
       setSemanticLinks([]);
     }
+
+    if (seq === selectSeq.current) setDetailError(failure);
   };
 
   const enrichSemanticLinksWithNames = async (links: SemanticLink[]): Promise<EnrichedSemanticLink[]> => {
@@ -235,13 +287,13 @@ export default function PropertiesSearch({
   useEffect(() => {
     if (assignTargetType === 'data_contract_property') {
       get<any[]>('/api/data-contracts')
-        .then((res) => setContracts(res.data || []))
+        .then((res) => setContracts(asList(res.data)))
         .catch(() => setContracts([]));
     } else if (assignTargetType === 'asset') {
       // Restrict to column-like asset types — rdf:Property only makes sense for these.
       const typeFilter = encodeURIComponent('Column,Logical Attribute');
       get<{ items: any[]; total: number }>(`/api/assets?asset_type_names=${typeFilter}&limit=200`)
-        .then((res) => setColumnAssets(res.data?.items || []))
+        .then((res) => setColumnAssets(asList(res.data?.items)))
         .catch(() => setColumnAssets([]));
     }
   }, [assignTargetType]);
@@ -253,15 +305,19 @@ export default function PropertiesSearch({
       setSelectedContractDetail(null);
       return;
     }
+    // A newer contract wins over an answer still on its way
+    let current = true;
     get<any>(`/api/data-contracts/${selectedContractId}`)
-      .then((res) => setSelectedContractDetail(res.data))
-      .catch(() => setSelectedContractDetail(null));
+      .then((res) => { if (current) setSelectedContractDetail(res.data); })
+      .catch(() => { if (current) setSelectedContractDetail(null); });
+    return () => { current = false; };
   }, [selectedContractId]);
 
-  const schemaObjects = selectedContractDetail?.schema_objects || [];
-  const schemas = schemaObjects.map((s: any) => ({ name: s.name || s.physical_name }));
-  const selectedSchema = schemaObjects.find((s: any) => (s.name || s.physical_name) === selectedSchemaName);
-  const properties = selectedSchema?.properties || [];
+  type SchemaObject = { name?: string; physical_name?: string; properties?: unknown };
+  const schemaObjects = asList<SchemaObject>(selectedContractDetail?.schema_objects);
+  const schemas = schemaObjects.map((s) => ({ name: s.name || s.physical_name }));
+  const selectedSchema = schemaObjects.find((s) => (s.name || s.physical_name) === selectedSchemaName);
+  const properties = asList<{ name: string }>(selectedSchema?.properties);
 
   const handleAssignTargetTypeChange = (v: string) => {
     setAssignTargetType(v as 'data_contract_property' | 'uc_column' | 'asset');
@@ -275,7 +331,7 @@ export default function PropertiesSearch({
     if (!selectedProperty || !assignTargetType) return;
 
     let entityId = '';
-    let entityType: 'data_contract_property' | 'uc_column' | 'asset' = assignTargetType as any;
+    const entityType: 'data_contract_property' | 'uc_column' | 'asset' = assignTargetType as any;
 
     if (assignTargetType === 'data_contract_property') {
       entityId = selectedPropertyEntityId;
@@ -360,99 +416,112 @@ export default function PropertiesSearch({
       });
   };
 
+  const showingSelection = selectionText !== null && propertySearchQuery === selectionText;
+  const noResults =
+    !showingSelection &&
+    propertySearchQuery.trim() !== '' &&
+    answeredQuery === propertySearchQuery &&
+    searchError === null &&
+    propertySearchResults.length === 0;
+  const title = propertyLabel || selectedProperty?.label || '';
+  const domainRange = getDomainRange();
+
+  const contractOptions = uniqueOptions(
+    contracts.filter((c) => c && c.id != null).map((c) => ({ value: String(c.id), label: c.name || c.info?.title || String(c.id) })),
+  );
+  const schemaOptions = uniqueOptions(
+    schemas.filter((s) => s.name).map((s) => ({ value: String(s.name), label: String(s.name) })),
+  );
+  const propertyOptions = uniqueOptions(
+    properties.map((p) => {
+      const entityId = `${selectedContractId}#${selectedSchemaName}#${p.name}`;
+      return { value: entityId, label: String(p.name) };
+    }),
+  );
+  const assetOptions = uniqueOptions(
+    columnAssets.filter((a) => a && a.id != null).map((a) => ({
+      value: String(a.id),
+      label: `${a.name}${a.asset_type_name ? ` (${a.asset_type_name})` : ''}`,
+    })),
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">{t('search:properties.searchAndSelect')}</p>
-        <div className="relative">
-          <Input
-            value={propertySearchQuery}
-            onChange={(e) => setPropertySearchQuery(e.target.value)}
-            onFocus={() => setIsPropertyDropdownOpen(propertySearchResults.length > 0)}
-            placeholder={t('search:properties.searchPlaceholder')}
-            className="w-full"
-          />
-          {(propertySearchQuery || selectedProperty) && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1 h-7 w-7"
-              onClick={clearSearch}
-              aria-label={t('search:properties.clear')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+    <>
+      <PaneStack>
+        <SearchPane
+          paneLabel={t('search:properties.searchPane', 'Property search')}
+          intro={t('search:properties.searchAndSelect')}
+          placeholder={t('search:properties.searchPlaceholder')}
+          query={propertySearchQuery}
+          onQueryChange={setPropertySearchQuery}
+          onFocus={() => setIsPropertyDropdownOpen(propertySearchResults.length > 0)}
+          results={propertySearchResults}
+          open={isPropertyDropdownOpen}
+          onPick={(result) => selectProperty(result as PropertyItem)}
+          icon={<Columns2 aria-hidden size={14} />}
+          showClear={!!(propertySearchQuery || selectedProperty)}
+          clearLabel={t('search:properties.clear')}
+          onClear={clearSearch}
+          noResults={noResults}
+          error={searchError}
+          onRetry={() => setSearchNonce((n) => n + 1)}
+        />
 
-          {isPropertyDropdownOpen && propertySearchResults.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-80 overflow-y-auto">
-              {propertySearchResults.map((result) => (
-                <div
-                  key={result.value}
-                  className="px-3 py-2 text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border last:border-b-0 transition-colors"
-                  onClick={() => selectProperty(result)}
-                  title={result.value}
-                >
-                  <div className="text-sm flex items-center gap-2">
-                    <Columns2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="truncate">{result.label} - {result.value}</span>
+        {selectedProperty && (
+          <Pane
+            title={title}
+            titleTooltip
+            actions={
+              canLink ? (
+                <Button variant="outline" onClick={() => setAssignDialogOpen(true)} disabled={!selectedProperty}>
+                  <Link2 aria-hidden />
+                  {t('search:properties.assignToProperty')}
+                </Button>
+              ) : undefined
+            }
+          >
+            <p className={classes.iri}>
+              <Columns2 aria-hidden size={14} />
+              <span>{propertyIri}</span>
+            </p>
+            {detailError !== null ? (
+              <LoadError error={detailError} onRetry={() => selectProperty(selectedProperty)} />
+            ) : getLiteralAttributes().length > 0 ? (
+              <DetailsGrid
+                rows={getLiteralAttributes().map((prop) => ({
+                  label: prop.predicate.split('/').pop()?.split('#').pop() || prop.predicate,
+                  value: <span className={classes.value}>{prop.display}</span>,
+                }))}
+              />
+            ) : null}
+          </Pane>
+        )}
+
+        {selectedProperty && detailError === null && (
+          <Pane flush aria-label={t('search:properties.relationsPane', 'Property links')}>
+            <div className={classes.columns} style={{ '--columns': domainRange.length > 0 ? 2 : 1 } as CSSProperties}>
+              {domainRange.length > 0 && (
+                <div className={classes.column}>
+                  <h3 className={classes.columnTitle}>{t('search:properties.domainRange')}</h3>
+                  <div className={classes.chips}>
+                    {domainRange.map((n, idx) => {
+                      const text = `${n.predicate.split('#').pop() || n.predicate}: ${n.display.split('#').pop() || n.display}`;
+                      return (
+                        <span key={idx} className={classes.chip} data-plain="" title={text}>
+                          <span className={classes.ellipsis}>{text}</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+              )}
 
-      {selectedProperty && (
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Columns2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-mono text-foreground break-all">{propertyIri}</span>
-                </div>
-                {getLiteralAttributes().map((prop, idx) => (
-                  <div key={idx}>
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {prop.predicate.split('/').pop()?.split('#').pop() || prop.predicate}:
-                    </span>
-                    <span className="text-sm text-foreground ml-1">{prop.display}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {getDomainRange().length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{t('search:properties.domainRange')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {getDomainRange().map((n, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {n.predicate.split('#').pop() || n.predicate}: {n.display.split('#').pop() || n.display}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('search:properties.linkedCatalogObjects')}</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className={classes.column}>
+                <h3 className={classes.columnTitle}>{t('search:properties.linkedCatalogObjects')}</h3>
                 {semanticLinks.length === 0 ? (
-                  <p className="text-sm text-center text-muted-foreground">{t('search:properties.noCatalogObjects')}</p>
+                  <p className={classes.note}>{t('search:properties.noCatalogObjects')}</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className={classes.chips}>
                     {semanticLinks.map((link) => {
                       const typeLabel = link.entity_type === 'uc_column'
                         ? t('search:properties.assignDialog.ucColumn')
@@ -469,159 +538,118 @@ export default function PropertiesSearch({
                         ? Box
                         : Shapes;
                       return (
-                        <Badge
+                        <span
                           key={link.id}
-                          variant="outline"
-                          className="text-xs inline-flex items-center gap-1"
+                          className={classes.chip}
                           title={`${typeLabel}: ${link.entity_name || link.entity_id}`}
                         >
-                          <Icon className="h-3 w-3" /> {link.entity_name || link.entity_id}
-                        </Badge>
+                          <Icon aria-hidden size={12} />
+                          <span className={classes.ellipsis}>{link.entity_name || link.entity_id}</span>
+                        </span>
                       );
                     })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="pt-4">
-            <Button variant="outline" onClick={() => setAssignDialogOpen(true)} disabled={!selectedProperty}>
-              <Link2 className="h-4 w-4 mr-2" />
-              {t('search:properties.assignToProperty')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('search:properties.assignDialog.title')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedProperty && (
-              <div className="text-sm">
-                <p className="font-medium">{selectedProperty.label}</p>
-                <p className="text-muted-foreground font-mono text-xs">{selectedProperty.value}</p>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('search:properties.assignDialog.targetType')}</label>
-              <Select value={assignTargetType} onValueChange={handleAssignTargetTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('search:properties.assignDialog.selectTargetType')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="data_contract_property">{t('search:properties.assignDialog.dataContractProperty')}</SelectItem>
-                  <SelectItem value="uc_column">{t('search:properties.assignDialog.ucColumn')}</SelectItem>
-                  <SelectItem value="asset">{t('search:properties.assignDialog.asset', { defaultValue: 'Asset (Column / Logical Attribute)' })}</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
+          </Pane>
+        )}
+      </PaneStack>
 
+      <Dialog
+        opened={assignDialogOpen}
+        onClose={() => setAssignDialogOpen(false)}
+        title={t('search:properties.assignDialog.title')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>{t('common:actions.cancel')}</Button>
             {assignTargetType === 'data_contract_property' && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{t('search:properties.assignDialog.contract')}</label>
-                  <Select value={selectedContractId} onValueChange={(v) => { setSelectedContractId(v); setSelectedSchemaName(''); setSelectedPropertyEntityId(''); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('search:properties.assignDialog.selectContract')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contracts.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name || c.info?.title || c.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedContractId && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('search:properties.assignDialog.schema')}</label>
-                    <Select value={selectedSchemaName} onValueChange={(v) => { setSelectedSchemaName(v); setSelectedPropertyEntityId(''); }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('search:properties.assignDialog.selectSchema')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {schemas.map((s: { name: string }) => (
-                          <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {selectedSchemaName && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('search:properties.assignDialog.property')}</label>
-                    <Select value={selectedPropertyEntityId} onValueChange={setSelectedPropertyEntityId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('search:properties.assignDialog.selectProperty')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {properties.map((p: any) => {
-                          const entityId = `${selectedContractId}#${selectedSchemaName}#${p.name}`;
-                          return (
-                            <SelectItem key={entityId} value={entityId}>
-                              {p.name}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </>
+              <Button onClick={handleAssign} disabled={!selectedPropertyEntityId}>{t('common:actions.assign')}</Button>
             )}
-
-            {assignTargetType === 'uc_column' && (
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full" onClick={() => setUCAssetDialogOpen(true)}>
-                  {t('search:properties.assignDialog.browseUCColumn')}
-                </Button>
-              </div>
-            )}
-
             {assignTargetType === 'asset' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  {t('search:properties.assignDialog.asset', { defaultValue: 'Asset (Column / Logical Attribute)' })}
-                </label>
-                <Select value={selectedAssetId} onValueChange={setSelectedAssetId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('search:properties.assignDialog.selectAsset', { defaultValue: 'Select asset' })} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columnAssets.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        {t('search:properties.assignDialog.noColumnAssets', { defaultValue: 'No Column or Logical Attribute assets found' })}
-                      </div>
-                    ) : (
-                      columnAssets.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
-                          {a.asset_type_name ? ` (${a.asset_type_name})` : ''}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Button onClick={handleAssign} disabled={!selectedAssetId}>{t('common:actions.assign')}</Button>
             )}
-
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>{t('common:actions.cancel')}</Button>
-              {assignTargetType === 'data_contract_property' && (
-                <Button onClick={handleAssign} disabled={!selectedPropertyEntityId}>{t('common:actions.assign')}</Button>
-              )}
-              {assignTargetType === 'asset' && (
-                <Button onClick={handleAssign} disabled={!selectedAssetId}>{t('common:actions.assign')}</Button>
-              )}
+          </>
+        }
+      >
+        <div className={form.form}>
+          {selectedProperty && (
+            <div className={form.box}>
+              <span className={form.strong}>{selectedProperty.label}</span>
+              <span className={form.code}>{selectedProperty.value}</span>
             </div>
-          </div>
-        </DialogContent>
+          )}
+
+          <Select
+            label={t('search:properties.assignDialog.targetType')}
+            placeholder={t('search:properties.assignDialog.selectTargetType')}
+            data={[
+              { value: 'data_contract_property', label: t('search:properties.assignDialog.dataContractProperty') },
+              { value: 'uc_column', label: t('search:properties.assignDialog.ucColumn') },
+              { value: 'asset', label: t('search:properties.assignDialog.asset', { defaultValue: 'Asset (Column / Logical Attribute)' }) },
+            ]}
+            value={assignTargetType || null}
+            onChange={(value) => value && handleAssignTargetTypeChange(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+
+          {assignTargetType === 'data_contract_property' && (
+            <>
+              <Select
+                label={t('search:properties.assignDialog.contract')}
+                placeholder={t('search:properties.assignDialog.selectContract')}
+                data={contractOptions}
+                value={selectedContractId || null}
+                onChange={(v) => { if (!v) return; setSelectedContractId(v); setSelectedSchemaName(''); setSelectedPropertyEntityId(''); }}
+                allowDeselect={false}
+                classNames={SELECT_CLASSES}
+              />
+              {selectedContractId && (
+                <Select
+                  label={t('search:properties.assignDialog.schema')}
+                  placeholder={t('search:properties.assignDialog.selectSchema')}
+                  data={schemaOptions}
+                  value={selectedSchemaName || null}
+                  onChange={(v) => { if (!v) return; setSelectedSchemaName(v); setSelectedPropertyEntityId(''); }}
+                  allowDeselect={false}
+                  classNames={SELECT_CLASSES}
+                />
+              )}
+              {selectedSchemaName && (
+                <Select
+                  label={t('search:properties.assignDialog.property')}
+                  placeholder={t('search:properties.assignDialog.selectProperty')}
+                  data={propertyOptions}
+                  value={selectedPropertyEntityId || null}
+                  onChange={(v) => v && setSelectedPropertyEntityId(v)}
+                  allowDeselect={false}
+                  classNames={SELECT_CLASSES}
+                />
+              )}
+            </>
+          )}
+
+          {assignTargetType === 'uc_column' && (
+            <Button variant="outline" className={form.fullWidth} onClick={() => setUCAssetDialogOpen(true)}>
+              {t('search:properties.assignDialog.browseUCColumn')}
+            </Button>
+          )}
+
+          {assignTargetType === 'asset' && (
+            <Select
+              label={t('search:properties.assignDialog.asset', { defaultValue: 'Asset (Column / Logical Attribute)' })}
+              placeholder={t('search:properties.assignDialog.selectAsset', { defaultValue: 'Select asset' })}
+              data={assetOptions}
+              value={selectedAssetId || null}
+              onChange={(v) => v && setSelectedAssetId(v)}
+              allowDeselect={false}
+              nothingFoundMessage={t('search:properties.assignDialog.noColumnAssets', { defaultValue: 'No Column or Logical Attribute assets found' })}
+              classNames={SELECT_CLASSES}
+            />
+          )}
+        </div>
       </Dialog>
 
       <UCAssetLookupDialog
@@ -632,6 +660,6 @@ export default function PropertiesSearch({
         allowedTypes={[UCAssetType.TABLE, UCAssetType.VIEW, UCAssetType.MATERIALIZED_VIEW]}
         includeColumns={true}
       />
-    </div>
+    </>
   );
 }

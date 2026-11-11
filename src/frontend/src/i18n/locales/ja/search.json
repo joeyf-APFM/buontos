@@ -122,7 +122,9 @@
       "assignError": "エンティティタイプと特定のエンティティの両方を選択してください。",
       "assignFailed": "概念のオブジェクトへの割り当てに失敗しました。",
       "navigationError": "{{entityType}}にナビゲートできません"
-    }
+    },
+    "searchPane": "コンセプト検索",
+    "relationsPane": "コンセプトの関係"
   },
   "properties": {
     "searchAndSelect": "プロパティを検索して選択:",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "契約、スキーマ、プロパティを選択してください。",
       "linkedSuccess": "プロパティを正常にリンクしました。",
       "assignFailed": "プロパティのオブジェクトへの割り当てに失敗しました。"
-    }
+    },
+    "searchPane": "プロパティ検索",
+    "relationsPane": "プロパティのリンク"
   },
   "llm": {
     "title": "{{shortName}}に聞く",
@@ -237,5 +241,9 @@
     "chat_timeout": "リクエストがタイムアウトしました。より簡単な質問にするか、後でもう一度お試しください（エラー ID {{errorId}}）。",
     "chat_connection_failed": "必要なサービスに接続できませんでした。しばらくしてからもう一度お試しください（エラー ID {{errorId}}）。",
     "chat_failed": "リクエストの処理中にエラーが発生しました。質問を言い換えるか、もう一度お試しください。詳細はサーバーログにあります（エラー ID {{errorId}}）。"
+  },
+  "states": {
+    "searchFailed": "検索に失敗しました。",
+    "loadFailed": "詳細を読み込めませんでした。"
   }
 }

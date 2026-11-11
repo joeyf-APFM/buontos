@@ -1,0 +1,514 @@
+/*
+ * The parts the concept Search page's tabs share (wave 2 Task 13b):
+ * concepts-search, properties-search and kg-search (which Explore's SPARQL
+ * pane also shows). The search field and its results, the chips, the
+ * columns of a relations pane, the states, and the kg-search grid.
+ */
+
+/* ---- The search pane ---- */
+
+.intro {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The field with its Clear at the end */
+.field {
+  position: relative;
+}
+
+/* The results under the field, scrolling past 320px; each a 28px+ row */
+.results {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  margin-top: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+button.result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+  border-bottom: 1px solid var(--aura-border);
+}
+
+button.result:last-child {
+  border-bottom: 0;
+}
+
+button.result:hover {
+  background: var(--aura-surface-strong);
+}
+
+button.result:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.result > svg {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+/* A long label keeps to one line; the button's title has the IRI */
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A quiet line: no results, nothing linked */
+.note {
+  margin: 6px 0 0;
+  color: var(--aura-text-secondary);
+}
+
+.alert {
+  composes: alert from '../common/list-page.module.css';
+}
+
+.alertMessage {
+  composes: alertMessage from '../common/list-page.module.css';
+}
+
+/* A failed load: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.state > .alert {
+  align-self: stretch;
+  margin-top: 0;
+}
+
+/* ---- The selected concept or property ---- */
+
+/* The IRI, an identifier: mono, wrapping anywhere */
+.iri {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.iri > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--aura-text-secondary);
+}
+
+.iri:last-child {
+  margin-bottom: 0;
+}
+
+.value {
+  overflow-wrap: anywhere;
+}
+
+/* A relations pane: columns side by side, ruled between; one column under 1024px */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(var(--columns, 3), minmax(0, 1fr));
+}
+
+.column {
+  min-width: 0;
+  padding: 10px 12px 12px;
+}
+
+.column + .column {
+  border-left: 1px solid var(--aura-border);
+}
+
+@media (max-width: 1023.98px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .column + .column {
+    border-left: 0;
+    border-top: 1px solid var(--aura-border);
+  }
+}
+
+.columnTitle {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.subTitle {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+}
+
+.group + .group {
+  margin-top: 12px;
+}
+
+/* Chips: a row that wraps; each chip keeps to one line within the column */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--aura-text-body);
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.chip > svg {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+/* A property chip, not a link: the subtle fill */
+.chip[data-plain] {
+  background: var(--aura-surface-strong);
+  border-color: var(--aura-surface-strong);
+}
+
+button.chip {
+  cursor: pointer;
+}
+
+button.chip:hover {
+  background: var(--aura-surface-strong);
+}
+
+button.chip:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* ---- kg-search: Prefix Search and Path Explorer side by side, SPARQL
+   under both, sharing 1px borders (`section` outranks the kit pane's own
+   border and corners) ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.grid > section {
+  border-width: 0;
+  border-radius: 0;
+}
+
+.grid > section:nth-child(2) {
+  border-left-width: 1px;
+}
+
+.grid > section:nth-child(3) {
+  grid-column: 1 / -1;
+  border-top-width: 1px;
+}
+
+@media (max-width: 1023.98px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grid > section:nth-child(2) {
+    border-left-width: 0;
+    border-top-width: 1px;
+  }
+}
+
+.paneIntro {
+  margin: 0 0 10px;
+  color: var(--aura-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A prefix result or a link: its text, then its button */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 28px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rowLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The type badge and the kind tag keep their width; the value truncates */
+.rowLine > :not(.ellipsis):not(.entity) {
+  flex: none;
+}
+
+.rowMain {
+  flex: 1;
+}
+
+/* The SPARQL examples: wide enough for their names */
+.examples {
+  width: 420px;
+  max-width: 80vw;
+}
+
+.direction {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+.predicate {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The kind of value: a small tag after it */
+.kind {
+  flex: none;
+  padding: 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface-strong);
+  border-radius: 3px;
+}
+
+/* An app entity with its hover card: focusable, underlined on hover */
+.entity {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.entity:hover {
+  text-decoration: underline;
+}
+
+.entity:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* The path: one chip per step, each truncated within the pane */
+.path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+button.step {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+button.step:hover {
+  background: var(--aura-surface-strong);
+}
+
+button.step:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* The two filters, side by side on a subtle box */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--aura-surface-strong);
+  border-radius: 4px;
+}
+
+@media (max-width: 720px) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.filterLabel {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+/* The resource's triples, ruled off from the links */
+.detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.triples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.triple {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.triplePredicate {
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+}
+
+.tripleObject {
+  max-width: 280px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 12px;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--aura-border);
+}
+
+/* SPARQL: the query, Run, then the rows; a wide row scrolls inside itself */
+.sparqlBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sparqlBody > * {
+  max-width: 100%;
+}
+
+.query {
+  align-self: stretch;
+}
+
+.query textarea {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+.rows {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.json {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  background: var(--aura-surface-strong);
+  border-radius: 4px;
+}
+
+/* The app entity's hover card */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 320px;
+  max-width: 80vw;
+  font-size: 12px;
+}
+
+.cardTitle {
+  font-weight: 600;
+  color: var(--aura-text-navy);
+  overflow-wrap: anywhere;
+}
+
+.cardMuted {
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.cardDescription {
+  max-height: 96px;
+  overflow: auto;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
