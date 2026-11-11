@@ -292,3 +292,70 @@ test('the inline contract create opens kit on kit over a deliverable\'s form: on
   await expect(port).toBeVisible();
   await expect(opener).toBeFocused();
 });
+
+// Fix round 1, R40: the self-service dialog (Home, Data Curation) on the kit Dialog
+async function openSelfService(page: Page) {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockApi(page, PERSONAS.admin, {
+    ...DATA_FIXTURES,
+    '/api/settings/roles': [{ id: 'r-admin', name: 'Admin', assigned_groups: ['admins'], home_sections: ['DATA_CURATION'], feature_permissions: {} }],
+    '/api/user/teams': [{ id: 't-1', name: 'Sales' }],
+    '/api/self-service/bootstrap': { defaults: { catalog: 'user_e2e', schema: 'sandbox' } },
+    '/api/semantic-models/concepts': CONCEPTS,
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Self-Service' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Self-service data curation' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveClass(/mantine-Modal-content/);
+  return dialog;
+}
+
+test('the self-service dialog is a kit Dialog, and its column editor\'s quality form opens on top of it', async ({ page }) => {
+  const dialog = await openSelfService(page);
+  const tableName = dialog.getByRole('textbox', { name: 'Table name' });
+  await tableName.fill('clicks');
+  // Escape in its What to create list closes only the list
+  await dialog.getByRole('textbox', { name: 'What to create' }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(tableName).toHaveValue('clicks');
+
+  await dialog.getByRole('tab', { name: 'Quality' }).click();
+  const addCheck = dialog.getByRole('button', { name: 'Add Check' });
+  await addCheck.click();
+  const rule = page.getByRole('dialog', { name: 'Add Quality Rule' });
+  await expect(rule).toBeVisible();
+  await expect(rule).toHaveClass(/mantine-Modal-content/);
+  const name = rule.getByRole('textbox', { name: /Rule Name/ });
+  expect(await onTop(name)).toBe(true);
+  await name.click();
+  await name.pressSequentially('No nulls');
+  await expect(name).toHaveValue('No nulls');
+  await page.keyboard.press('Escape');
+  await expect(rule).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(tableName).toHaveValue('clicks');
+  await expect(addCheck).toBeFocused();
+});
+
+test('the self-service dialog\'s Radix concept picker opens on top of it, and Escape closes only the picker', async ({ page }) => {
+  const dialog = await openSelfService(page);
+  await dialog.getByRole('textbox', { name: 'Table name' }).fill('clicks');
+  await dialog.getByRole('tab', { name: 'Semantics' }).click();
+  await dialog.getByRole('button', { name: /^Add (Concept|Property)$/ }).first().click();
+  const picker = page.getByRole('dialog', { name: /^Select Business/ });
+  await expect(picker).toBeVisible();
+  await expect.poll(() => focusInside(picker)).toBe(true);
+  const search = picker.getByRole('textbox').first();
+  expect(await onTop(search)).toBe(true);
+  await search.click();
+  await search.pressSequentially('Cust');
+  await expect(search).toHaveValue('Cust');
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'Table name' })).toHaveValue('clicks');
+  await expect.poll(() => focusInside(dialog)).toBe(true);
+});

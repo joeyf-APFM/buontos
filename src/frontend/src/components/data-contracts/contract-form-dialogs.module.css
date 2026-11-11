@@ -307,3 +307,94 @@
 .upper {
   text-transform: uppercase;
 }
+
+/* The self-service dialog (R40): what to create, the catalog and the schema in one row */
+.threeCol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .threeCol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The table's name, half the width, as before */
+.half {
+  max-width: calc(50% - 6px);
+}
+
+@media (max-width: 720px) {
+  .half {
+    max-width: none;
+  }
+}
+
+/* The pre-creation checks: one bordered row per workflow, its failed steps under it */
+.workflows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.workflow {
+  padding: 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-critical-bg);
+}
+
+.workflow[data-passed] {
+  background: var(--aura-good-bg);
+}
+
+.workflowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.workflowHead > :last-child {
+  margin-left: auto;
+}
+
+.passed {
+  color: var(--aura-good);
+}
+
+.failed {
+  color: var(--aura-critical);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 24px;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.step > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.stepPolicy {
+  font-weight: 500;
+}
+
+.workflowError {
+  margin: 4px 0 0;
+  padding-left: 24px;
+}
