@@ -318,7 +318,58 @@ describe('term-mapping Review Focus 2: empty and error states', () => {
   });
 });
 
+describe('term-mapping keeps focus through a reload', () => {
+  it('the pane head stays mounted while the run reloads: Refresh and Apply auto keep focus', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await runButton(RUN_A.id));
+    const pane = within(detailPane());
+    await pane.findByText('Sources of suggestions');
+
+    held = { path: '/api/term-mappings/runs/aaaaaaaa-1111' };
+    const hold = held;
+    const refresh = pane.getByRole('button', { name: 'Refresh' });
+    await user.click(refresh);
+    // Loading: the loader is in the body, the head (and Refresh) stay
+    await waitFor(() => expect(pane.queryByText('Sources of suggestions')).toBeNull());
+    expect(pane.getByRole('button', { name: 'Refresh' })).toBe(refresh);
+    expect(refresh).toHaveFocus();
+    expect(refresh).toHaveAttribute('aria-busy', 'true');
+    await act(async () => hold.release?.());
+    await pane.findByText('Sources of suggestions');
+    expect(refresh).toHaveFocus();
+
+    const apply = pane.getByRole('button', { name: 'Apply auto (1)' });
+    await user.click(apply);
+    await waitFor(() => expect(calls('/api/term-mappings/runs/aaaaaaaa-1111/apply?apply_auto=true', 'POST')).toHaveLength(1));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Applied' })));
+    await pane.findByText('Sources of suggestions');
+    expect(pane.getByRole('button', { name: 'Apply auto (1)' })).toBe(apply);
+    expect(apply).toHaveFocus();
+  });
+});
+
 describe('term-mapping stale answers', () => {
+  it('the reload after Apply auto on run A does not replace run B, picked meanwhile', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await runButton(RUN_A.id));
+    await within(detailPane()).findByText('Sources of suggestions');
+    // Apply auto on A waits; B is picked before it answers
+    held = { path: '/api/term-mappings/runs/aaaaaaaa-1111/apply' };
+    const hold = held;
+    await user.click(within(detailPane()).getByRole('button', { name: 'Apply auto (1)' }));
+    await user.click(await runButton(RUN_B.id));
+    await within(detailPane()).findByText('urn:taxonomy:databricks_ontology');
+    const loadsOfA = calls('/api/term-mappings/runs/aaaaaaaa-1111').length;
+    await act(async () => hold.release?.());
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Applied' })));
+    // A isn't reloaded over B, which stays shown and picked
+    expect(calls('/api/term-mappings/runs/aaaaaaaa-1111')).toHaveLength(loadsOfA);
+    expect(within(detailPane()).getByText('urn:taxonomy:databricks_ontology')).toBeInTheDocument();
+    expect(within(detailPane()).getByRole('heading', { level: 2, name: /Run bbbbbbbb/ })).toBeInTheDocument();
+  });
+
   it('a slow answer for an earlier run is dropped once another run is picked', async () => {
     const user = userEvent.setup();
     renderPage();

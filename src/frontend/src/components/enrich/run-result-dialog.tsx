@@ -26,6 +26,8 @@ interface Props {
    * that dialog's button, which is gone by then.
    */
   returnFocusTo?: RefObject<HTMLElement | null>;
+  /** Whether the user may decide the suggestions (term-mapping Read/Write); the reviewer is read-only otherwise. @default true */
+  canWrite?: boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export default function RunResultDialog({
   loading = false,
   onRequestReview,
   returnFocusTo,
+  canWrite = true,
 }: Props) {
   const { t } = useTranslation(['term-mapping', 'common']);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -117,6 +120,7 @@ export default function RunResultDialog({
         suggestionRefs={suggestionRefs}
         reviewBoardHref="/data-asset-reviews"
         returnFocusTo={returnFocusTo}
+        canWrite={canWrite}
       />
     </>
   );

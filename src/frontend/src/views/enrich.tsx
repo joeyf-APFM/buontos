@@ -588,7 +588,6 @@ export default function EnrichView() {
               rows={rows}
               platformNoun={platformNoun}
               canWrite={canWrite}
-              isLive={coverageRows !== null}
               source={coverageSource}
               onRetry={() => void fetchCoverage()}
               onReview={handleReview}
@@ -665,6 +664,7 @@ export default function EnrichView() {
         suggestionRefs={runResult?.refs ?? []}
         loading={runResultLoading}
         returnFocusTo={suggestButton}
+        canWrite={canWrite}
         onRequestReview={() => {
           const r = runResult?.run ?? null;
           closeRunResult();

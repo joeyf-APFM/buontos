@@ -401,26 +401,26 @@ describe('CoverageMatrix', () => {
     })
   })
 
-  describe('isLive prop', () => {
-    it('accepts isLive prop', () => {
+  describe('source prop', () => {
+    it('accepts a live source', () => {
       const { container } = render(
         <CoverageMatrix
           rows={sampleRows}
           platformNoun="assets"
           onReview={mockOnReview}
-          isLive={true}
+          source="live"
         />,
       )
       expect(container).toBeInTheDocument()
     })
 
-    it('accepts isLive false', () => {
+    it('accepts a failed source', () => {
       const { container } = render(
         <CoverageMatrix
           rows={sampleRows}
           platformNoun="assets"
           onReview={mockOnReview}
-          isLive={false}
+          source="failed"
         />,
       )
       expect(container).toBeInTheDocument()
@@ -711,7 +711,7 @@ describe('CoverageMatrix', () => {
           rows={sampleRows}
           platformNoun="assets"
           onReview={mockOnReview}
-          isLive={false}
+          source="failed"
         />,
       )
       // 95 concepts - 63 covered

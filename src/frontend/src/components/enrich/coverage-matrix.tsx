@@ -66,10 +66,11 @@ interface Props {
   onReview: (row: CoverageRow) => void;
   /** Whether the current user may act on suggestions. */
   canWrite?: boolean;
-  /** True when rows come from the live coverage read-model; false when the
-   *  endpoint was unavailable and placeholder rows are shown. */
-  isLive?: boolean;
-  /** Why the rows aren't live: 'failed' adds Retry to the sample-data notice. @default 'failed' when not live */
+  /**
+   * Where the rows come from: the live coverage read-model, or the sample
+   * rows while it loads or once it failed (the sample-data notice shows, with
+   * Retry once it failed). @default 'live'
+   */
   source?: CoverageSource;
   /** Loads the live rows again, from the sample-data notice. */
   onRetry?: () => void;
@@ -125,8 +126,7 @@ export default function CoverageMatrix({
   platformNoun,
   onReview,
   canWrite = true,
-  isLive = true,
-  source = isLive ? 'live' : 'failed',
+  source = 'live',
   onRetry,
 }: Props) {
   const { t } = useTranslation(['concepts', 'common']);

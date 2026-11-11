@@ -214,6 +214,7 @@ export default function ReviewSuggestionsDialog({
         <TermMappingSuggestionReview
           key={liveRef.fqn}
           assetFqn={liveRef.fqn}
+          readOnly={!canWrite}
           currentIndex={activeIndex + 1}
           totalCount={suggestionRefs!.length}
           hasNext={activeIndex < suggestionRefs!.length - 1}

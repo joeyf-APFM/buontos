@@ -16,10 +16,10 @@ import type { Run } from '@/types/term-mapping';
 
 // The shared reviewer has its own tests (components/term-mapping)
 vi.mock('@/components/term-mapping/suggestion-review', () => ({
-  default: ({ assetFqn, currentIndex, totalCount, hasNext, onNext }: {
-    assetFqn: string; currentIndex: number; totalCount: number; hasNext: boolean; onNext: () => void;
+  default: ({ assetFqn, currentIndex, totalCount, hasNext, onNext, readOnly }: {
+    assetFqn: string; currentIndex: number; totalCount: number; hasNext: boolean; onNext: () => void; readOnly?: boolean;
   }) => (
-    <div data-testid="shared-reviewer">
+    <div data-testid="shared-reviewer" data-read-only={readOnly ? 'true' : 'false'}>
       {assetFqn} {currentIndex}/{totalCount}
       {hasNext && <button type="button" onClick={onNext}>next</button>}
     </div>
@@ -95,6 +95,17 @@ describe('RunResultDialog on the kit Dialog', () => {
     expect(review).toHaveTextContent('Nightly columns');
     await user.click(within(review).getAllByRole('button', { name: 'Close' })[0]);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('passes the write permission to the reviewer: decisions need term-mapping Read/Write (R63)', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderDialog();
+    await user.click(screen.getByRole('button', { name: 'Review matches' }));
+    expect(await screen.findByTestId('shared-reviewer')).toHaveAttribute('data-read-only', 'false');
+    unmount();
+    renderDialog({ canWrite: false });
+    await user.click(screen.getByRole('button', { name: 'Review matches' }));
+    expect(await screen.findByTestId('shared-reviewer')).toHaveAttribute('data-read-only', 'true');
   });
 });
 

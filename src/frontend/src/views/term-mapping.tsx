@@ -69,6 +69,13 @@ export default function TermMappingView() {
   // the detail when another run is picked
   const runsSeq = useRef(0);
   const detailSeq = useRef(0);
+  // The selected run, for answers that arrive after the selection moved on
+  // (a reload after Apply auto or Undo on run A while run B is picked)
+  const selectedRunIdRef = useRef<string | null>(null);
+  const selectRun = useCallback((id: string | null) => {
+    selectedRunIdRef.current = id;
+    setSelectedRunId(id);
+  }, []);
 
   const fetchRuns = useCallback(async () => {
     const seq = ++runsSeq.current;
@@ -87,6 +94,8 @@ export default function TermMappingView() {
 
   const fetchRunDetail = useCallback(
     async (runId: string) => {
+      // Only the selected run's detail is loaded: another run's would replace it
+      if (runId !== selectedRunIdRef.current) return;
       const seq = ++detailSeq.current;
       setRunDetailLoading(true);
       setRunDetailError(null);
@@ -140,13 +149,13 @@ export default function TermMappingView() {
         },
         ...prev,
       ]);
-      setSelectedRunId(created.id);
+      selectRun(created.id);
     },
-    [],
+    [selectRun],
   );
 
   const handleApplyAuto = async () => {
-    if (!selectedRun) return;
+    if (!selectedRun || actionPending) return;
     setActionPending(true);
     try {
       const res = await post<ApplyResult>(
@@ -175,7 +184,7 @@ export default function TermMappingView() {
   };
 
   const handleUndo = async () => {
-    if (!selectedRun) return;
+    if (!selectedRun || actionPending) return;
     if (!confirm(t('confirm.undo', { id: selectedRun.id }))) return;
     setActionPending(true);
     try {
@@ -237,7 +246,8 @@ export default function TermMappingView() {
         </Pane>
       );
     }
-    if (runDetailLoading || !selectedRun) {
+    // Switching runs: nothing of the new one to show yet
+    if (!selectedRun || selectedRun.id !== selectedRunId) {
       return (
         <Pane aria-label={paneLabel}>
           <div className={classes.state}>
@@ -261,7 +271,7 @@ export default function TermMappingView() {
               variant="outline"
               size="sm"
               onClick={() => fetchRunDetail(selectedRun.id)}
-              disabled={runDetailLoading}
+              aria-busy={runDetailLoading || undefined}
             >
               <RefreshCw size={14} aria-hidden /> {t('actions.refresh')}
             </Button>
@@ -270,7 +280,7 @@ export default function TermMappingView() {
                 variant="secondary"
                 size="sm"
                 onClick={handleApplyAuto}
-                disabled={actionPending}
+                aria-disabled={actionPending || undefined}
               >
                 {actionPending && <Loader size={12} color="currentColor" />}
                 {t('actions.applyAuto', { count: autoApply })}
@@ -279,8 +289,8 @@ export default function TermMappingView() {
             {canWrite && (pending > 0 || accepted > 0) && (
               <Button
                 size="sm"
-                onClick={() => setIsReviewOpen(true)}
-                disabled={actionPending}
+                onClick={() => !actionPending && setIsReviewOpen(true)}
+                aria-disabled={actionPending || undefined}
               >
                 {t('actions.generateReview')}
                 <ChevronRight size={14} aria-hidden />
@@ -291,7 +301,7 @@ export default function TermMappingView() {
                 variant="destructive"
                 size="sm"
                 onClick={handleUndo}
-                disabled={actionPending}
+                aria-disabled={actionPending || undefined}
               >
                 <Undo2 size={14} aria-hidden /> {t('actions.undo')}
               </Button>
@@ -299,44 +309,51 @@ export default function TermMappingView() {
           </>
         }
       >
-        <div className={classes.detail}>
-          <div className={classes.meta}>
-            <p className={classes.muted}>
-              {t('detail.createdAt')} <RelativeDate date={selectedRun.created_at} />{' '}
-              {selectedRun.created_by
-                ? t('detail.createdBy', { email: selectedRun.created_by })
-                : ''}
-            </p>
-            {selectedRun.comment && (
-              <p className={classes.comment}>{selectedRun.comment}</p>
-            )}
+        {/* A reload keeps the head (and a focused Refresh) mounted: the loader is in the body */}
+        {runDetailLoading ? (
+          <div className={classes.state} aria-live="polite">
+            <Loader size="sm" />
           </div>
-          {totalsRow(stats)}
-          {selectedRun.error && (
-            <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
-              <span className={classes.alertText}>{selectedRun.error}</span>
-            </Alert>
-          )}
+        ) : (
+          <div className={classes.detail}>
+            <div className={classes.meta}>
+              <p className={classes.muted}>
+                {t('detail.createdAt')} <RelativeDate date={selectedRun.created_at} />{' '}
+                {selectedRun.created_by
+                  ? t('detail.createdBy', { email: selectedRun.created_by })
+                  : ''}
+              </p>
+              {selectedRun.comment && (
+                <p className={classes.comment}>{selectedRun.comment}</p>
+              )}
+            </div>
+            {totalsRow(stats)}
+            {selectedRun.error && (
+              <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
+                <span className={classes.alertText}>{selectedRun.error}</span>
+              </Alert>
+            )}
 
-          <section className={classes.section} aria-labelledby="term-mapping-sources">
-            <h3 id="term-mapping-sources" className={classes.sectionTitle}>{t('detail.sourcesTitle')}</h3>
-            <div>
-              <FieldLabel>{t('detail.customerOntologies')}</FieldLabel>
-              <ContextList items={selectedRun.ontology_contexts} />
-            </div>
-            <div>
-              <FieldLabel>{t('detail.shippedTaxonomies')}</FieldLabel>
-              <ContextList items={selectedRun.include_shipped} />
-            </div>
-            <p className={classes.reviewsNote}>
-              {t('detail.reviewsLinkPrefix')}{' '}
-              <Link to="/data-asset-reviews" className={classes.link}>
-                {t('detail.reviewsLinkText')}
-              </Link>{' '}
-              {t('detail.reviewsLinkSuffix')}
-            </p>
-          </section>
-        </div>
+            <section className={classes.section} aria-labelledby="term-mapping-sources">
+              <h3 id="term-mapping-sources" className={classes.sectionTitle}>{t('detail.sourcesTitle')}</h3>
+              <div>
+                <FieldLabel>{t('detail.customerOntologies')}</FieldLabel>
+                <ContextList items={selectedRun.ontology_contexts} />
+              </div>
+              <div>
+                <FieldLabel>{t('detail.shippedTaxonomies')}</FieldLabel>
+                <ContextList items={selectedRun.include_shipped} />
+              </div>
+              <p className={classes.reviewsNote}>
+                {t('detail.reviewsLinkPrefix')}{' '}
+                <Link to="/data-asset-reviews" className={classes.link}>
+                  {t('detail.reviewsLinkText')}
+                </Link>{' '}
+                {t('detail.reviewsLinkSuffix')}
+              </p>
+            </section>
+          </div>
+        )}
       </Pane>
     );
   };
@@ -390,7 +407,7 @@ export default function TermMappingView() {
                   <UnstyledButton
                     className={classes.run}
                     aria-current={isSelected ? 'true' : undefined}
-                    onClick={() => setSelectedRunId(run.id)}
+                    onClick={() => selectRun(run.id)}
                   >
                     <span className={classes.runHead}>
                       <span className={classes.runId}>{run.id.slice(0, 8)}</span>
