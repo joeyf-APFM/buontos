@@ -199,6 +199,39 @@ test.describe('the generator', () => {
     await expect(results.getByRole('button', { name: 'Download' })).toBeVisible();
   });
 
+  test('a long class comment is cut to one 200px line, with its title', async ({ page }) => {
+    await setUp(page);
+    await loadRun(page, 'Workspace catalog');
+    const results = page.locator('main').getByRole('region', { name: 'Results' });
+    const comment = RESULT.classes[1].comment;
+    const text = results.getByText(comment, { exact: true });
+    await expect(text).toHaveAttribute('title', comment);
+    expect(await style(text, ['text-overflow', 'white-space', 'max-width'])).toEqual({ 'text-overflow': 'ellipsis', 'white-space': 'nowrap', 'max-width': '200px' });
+    expect(Math.round((await box(text)).width)).toBeLessThanOrEqual(200);
+    // Its cell stays narrow too: one line, not the comment's full width
+    const cell = text.locator('xpath=..');
+    expect(Math.round((await box(cell)).width)).toBeLessThanOrEqual(220);
+    expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  });
+
+  test('a reader sees the settings, the runs and a result, but none of the writes', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await mockApi(page, PERSONAS.consumer, {
+      ...DATA_FIXTURES,
+      '/api/ontology/runs': { runs: RUNS },
+      '/api/ontology/runs/run-done': detail(RUNS[0], RESULT),
+    });
+    await page.goto('/concepts/generator');
+    const main = page.locator('main');
+    await expect(main.getByRole('textbox', { name: 'Connection' })).toHaveValue('Workspace catalog');
+    await expect(main.getByRole('region', { name: 'Run', exact: true })).toHaveCount(0);
+    await expect(main.getByRole('button', { name: /Generate Ontology/ })).toHaveCount(0);
+    await loadRun(page, 'Workspace catalog');
+    await expect(main.getByRole('tab', { name: 'Classes (3)' })).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Save to scheme' })).toHaveCount(0);
+    await expect(recentRuns(page).getByRole('button', { name: 'Delete run' })).toHaveCount(0);
+  });
+
   test('a wide generated table scrolls inside its pane, not the page', async ({ page }) => {
     await setUp(page, {}, 1024);
     await loadRun(page, 'Workspace catalog');

@@ -63,11 +63,13 @@ vi.mock('@/components/concepts/mode-switch', () => ({
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
-// Write access on semantic-models, controllable per test (read-only users get
+// Write access on semantic-models (and ontology, for Generate), controllable per test (read-only users get
 // disabled actions). Readiness (usePermissionsReady) lives in a store so a change
 // re-renders the page as the real one does; not ready is a fresh load, when the
 // real store is empty and grants nothing.
 let canWriteMock = true;
+// Ontology write, which Generate needs (fix round 12b); granted with semantic-models unless a test says otherwise
+let canGenerateMock = true;
 vi.mock('@/stores/permissions-store', async () => {
   const { create } = await import('zustand');
   const { FeatureAccessLevel: Level } = await import('@/types/feature-access-levels');
@@ -75,7 +77,10 @@ vi.mock('@/stores/permissions-store', async () => {
   return {
     usePermissions: () => ({
       hasPermission: (featureId: string, level: string) =>
-        readyStore.getState().ready && featureId === 'semantic-models' && (level !== Level.READ_WRITE || canWriteMock),
+        readyStore.getState().ready && (
+          (featureId === 'semantic-models' && (level !== Level.READ_WRITE || canWriteMock)) ||
+          (featureId === 'ontology' && (level !== Level.READ_WRITE || canGenerateMock))
+        ),
       isLoading: false,
     }),
     usePermissionsReady: () => readyStore((s) => s.ready),
@@ -113,6 +118,7 @@ beforeEach(() => {
   authorDialogOpen = false;
   guidedDialogOpen = false;
   canWriteMock = true;
+  canGenerateMock = true;
   setReady(true);
   global.fetch = vi.fn(async (url: any) => {
     const u = String(url);
@@ -210,6 +216,7 @@ describe('DefineView', () => {
 
   it('read-only user sees the path actions disabled with a write-access hint', async () => {
     canWriteMock = false;
+    canGenerateMock = false;
     renderDefine();
     for (const label of ['New Concept Scheme', 'Start guided build', 'Upload files']) {
       const button = screen.getByRole('button', { name: label });
@@ -305,6 +312,7 @@ describe('DefineView ?open=', () => {
 
   it('waits for the permissions on a fresh load, then drops the param for a reader', async () => {
     canWriteMock = false;
+    canGenerateMock = false;
     setReady(false);
     const location = renderDefine('/concepts/define?open=import');
     await waitFor(() => expect(screen.getByText('156 draft terms from gold.*')).toBeInTheDocument());
@@ -319,6 +327,7 @@ describe('DefineView ?open=', () => {
     'opens no dialog from ?open=%s for a user without write access, and clears the param',
     async (open) => {
       canWriteMock = false;
+      canGenerateMock = false;
       const location = renderDefine(`/concepts/define?open=${open}`);
       await waitFor(() => expect(location().search).toBe(''));
       for (const testId of ['author-dialog', 'guided-dialog', 'import-dialog']) {

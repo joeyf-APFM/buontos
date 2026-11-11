@@ -163,6 +163,24 @@ describe('ImportConceptsDialog on the kit Dialog', () => {
     expect(String(importCall![0])).toBe('/api/knowledge/collections/urn%3Acoll%3Aa/import?conflict_mode=block');
   });
 
+  it('while it uploads, Import shows the spinner beside its Upload icon, and Cancel is disabled', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    addFiles('a.ttl');
+    await pick(user, selectField(dialog(), 'Target concept scheme'), 'Finance');
+    const submit = within(dialog()).getByRole('button', { name: 'Import 1 file(s)' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    let finish: (r: Response) => void = () => {};
+    fetchMock.mockImplementation((input: RequestInfo | URL) =>
+      String(input).includes('/import?') ? new Promise<Response>((r) => { finish = r; }) : Promise.resolve(json({ conflicts: [] })));
+    await user.click(submit);
+    await waitFor(() => expect(submit.querySelector('.mantine-Loader-root')).not.toBeNull());
+    expect(submit.querySelector('svg.lucide-upload')).not.toBeNull();
+    expect(within(dialog()).getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    finish(json({ mode: 'imported', triples_imported: 1 }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
   it('a failed import shows the error and per-file results, with no success toast', async () => {
     mockBackend({ importStatus: 400 });
     const user = userEvent.setup();

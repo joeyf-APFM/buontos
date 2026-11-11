@@ -501,7 +501,8 @@ svg.statusIcon[data-status='failed'] {
   font-family: var(--aura-font-mono);
 }
 
-/* A description: one line, its title has it in full */
+/* A description: one line at most 200px (on the span: a cell's max-width
+   doesn't hold in an auto-layout table), its title has it in full */
 .description {
   max-width: 200px;
 }

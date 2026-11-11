@@ -66,9 +66,10 @@ function mockBackend({ runs = RUNS as unknown, runsStatus = 200, createStatus = 
 const runLoads = () =>
   fetchMock.mock.calls.filter(([input]) => new URL(String(input), 'http://localhost').pathname === '/api/ontology/runs');
 
-function grant(level: FeatureAccessLevel) {
+/** semantic-models at `level`; ontology (which Generate needs) at the same level unless given. */
+function grant(level: FeatureAccessLevel, ontology: FeatureAccessLevel = level) {
   usePermissionsStore.setState({
-    permissions: { 'semantic-models': level },
+    permissions: { 'semantic-models': level, ontology },
     appliedRoleId: null,
     isLoading: false,
     _initAttempted: true,
@@ -263,6 +264,51 @@ describe('define on the page kit', () => {
     const tip = await screen.findByRole('tooltip');
     expect(tip).toHaveTextContent('Creates skos:Concept entries');
     expect(marks[0]).toHaveAccessibleDescription(/^Creates skos:Concept entries/);
+  });
+
+  it('define: Generate needs ontology write, Author and Import need semantic-models write', async () => {
+    const RW = FeatureAccessLevel.READ_WRITE;
+    const RO = FeatureAccessLevel.READ_ONLY;
+    // Ontology write but read-only schemes: only Generate
+    grant(RO, RW);
+    const { unmount } = renderPage();
+    await loaded();
+    expect(screen.getByRole('button', { name: 'Start guided build' })).toBeEnabled();
+    for (const name of ['New Concept Scheme', 'Upload files']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+      expect(screen.getByRole('button', { name })).toHaveAttribute('title', 'Requires write access');
+    }
+    unmount();
+    // Scheme write but read-only ontology: all but Generate
+    grant(RW, RO);
+    const second = renderPage();
+    await loaded();
+    expect(screen.getByRole('button', { name: 'Start guided build' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start guided build' })).toHaveAttribute('title', 'Requires write access');
+    for (const name of ['New Concept Scheme', 'Upload files']) expect(screen.getByRole('button', { name })).toBeEnabled();
+    second.unmount();
+  });
+
+  it('define: ?open=generate follows ontology write, ?open=import semantic-models write', async () => {
+    const RW = FeatureAccessLevel.READ_WRITE;
+    const RO = FeatureAccessLevel.READ_ONLY;
+    // Without ontology write, ?open=generate opens nothing and is dropped
+    grant(RW, RO);
+    const first = renderPage('/concepts/define?open=generate');
+    await loaded();
+    await waitFor(() => expect(location.search).toBe(''));
+    expect(screen.queryByRole('dialog', { name: 'Guided build' })).toBeNull();
+    first.unmount();
+    // With ontology write alone, it opens; ?open=import does not
+    grant(RO, RW);
+    const second = renderPage('/concepts/define?open=generate');
+    expect(await screen.findByRole('dialog', { name: 'Guided build' })).toBeInTheDocument();
+    expect(location.search).toBe('?open=generate');
+    second.unmount();
+    renderPage('/concepts/define?open=import');
+    await loaded();
+    await waitFor(() => expect(location.search).toBe(''));
+    expect(screen.queryByRole('dialog', { name: 'Import concepts' })).toBeNull();
   });
 
   it('define keeps ?open= for a writer, and clears it on close', async () => {

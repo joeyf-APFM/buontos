@@ -595,7 +595,9 @@ export const ImportConceptsDialog: React.FC<ImportConceptsDialogProps> = ({
           {!done && (
             // In the footer, outside the form: it submits the form by its id
             <Button type="submit" form={formId} disabled={!canSubmit}>
-              {isUploading ? <Loader size={12} color="currentColor" /> : <Upload aria-hidden />}
+              {/* While it uploads, the spinner joins the icon, as before */}
+              {isUploading && <Loader size={12} color="currentColor" />}
+              <Upload aria-hidden />
               {t('semantic-models:import.submitMulti', {
                 count: selectedFiles.length,
                 defaultValue: 'Import {{count}} file(s)',

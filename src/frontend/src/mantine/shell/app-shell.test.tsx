@@ -21,8 +21,11 @@ vi.mock('@/stores/ui-customization-store', () => ({
     select({ getShortName: () => 'APFM' }),
 }));
 
+// Every item's permission, at any depth (Define's Generate Ontology needs ontology)
+type Item = (typeof NAV)[keyof typeof NAV][number]['items'][number];
+const withChildren = (i: Item): Item[] => [i, ...(i.children ?? []).flatMap(withChildren)];
 const allPermissionIds = Object.values(NAV).flatMap((sections) =>
-  sections.flatMap((s) => s.items.flatMap((i) => [i, ...(i.children ?? [])])).map((i) => i.permissionId),
+  sections.flatMap((s) => s.items.flatMap(withChildren)).map((i) => i.permissionId),
 );
 
 function grantAll() {
@@ -854,6 +857,26 @@ describe('the side menu (Task 16c)', () => {
       expect(link('Define')).not.toHaveAttribute('aria-expanded');
       for (const name of DEFINE_CHILDREN) expect(within(build()).queryByRole('link', { name })).toBeNull();
       expect(highlighted(build())).toEqual(['Define']);
+    });
+
+    it('shows Generate Ontology only with ontology write, and Author Concepts and Import RDF only with semantic-models write', () => {
+      // (fix round 12b: Generate leads to the generator's run, which needs ontology write)
+      const RW = FeatureAccessLevel.READ_WRITE;
+      const RO = FeatureAccessLevel.READ_ONLY;
+      const cases: [Record<string, FeatureAccessLevel>, string[]][] = [
+        [{ 'semantic-models': RW, ontology: RW }, ['Author Concepts', 'Generate Ontology', 'Import RDF']],
+        [{ 'semantic-models': RW, ontology: RO }, ['Author Concepts', 'Import RDF']],
+        [{ 'semantic-models': RO, ontology: RW }, ['Generate Ontology']],
+      ];
+      for (const [permissions, shown] of cases) {
+        usePermissionsStore.setState({ permissions });
+        // Define unfolded, so its items show
+        useShellStore.setState({ expanded: ['concept-define'] });
+        const { unmount } = renderShell('/concepts/define');
+        openPinned('Build');
+        expect(DEFINE_CHILDREN.filter((name) => within(build()).queryByRole('link', { name }))).toEqual(shown);
+        unmount();
+      }
     });
   });
 });

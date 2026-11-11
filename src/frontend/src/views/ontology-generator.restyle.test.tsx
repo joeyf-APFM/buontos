@@ -87,9 +87,13 @@ const calls = (path: string, method = 'GET') =>
   fetchMock.mock.calls.filter(([input, init]) =>
     new URL(String(input), 'http://localhost').pathname === path && ((init as RequestInit | undefined)?.method ?? 'GET') === method);
 
-function grant(level: FeatureAccessLevel) {
+const RW = FeatureAccessLevel.READ_WRITE;
+const RO = FeatureAccessLevel.READ_ONLY;
+
+/** The user's levels: the page's writes need ontology write (the backend's check). */
+function grant(permissions: Record<string, FeatureAccessLevel>) {
   usePermissionsStore.setState({
-    permissions: { 'semantic-models': level },
+    permissions,
     appliedRoleId: null,
     isLoading: false,
     _initAttempted: true,
@@ -133,7 +137,7 @@ function tailwindIn(root: HTMLElement): string[] {
 describe('the ontology generator on the page kit', () => {
   beforeEach(() => {
     mockBackend();
-    grant(FeatureAccessLevel.READ_WRITE);
+    grant({ ontology: RW, 'semantic-models': RW });
   });
   afterEach(() => {
     cleanup();
@@ -168,41 +172,55 @@ describe('the ontology generator on the page kit', () => {
     expect(tailwindIn(container)).toEqual([]);
   });
 
-  for (const [persona, level] of [['writer', FeatureAccessLevel.READ_WRITE], ['reader', FeatureAccessLevel.READ_ONLY]] as const) {
-    it(`ontology generator keeps every control for a ${persona}`, async () => {
-      // The page has no permission gate of its own (the route is the gate): both see the same controls
-      grant(level);
+  // Who may write: ontology write alone is enough (Save to scheme too, as the
+  // backend checks only ontology); semantic-models write without it is not
+  const PERSONAS = [
+    ['a writer', { ontology: RW, 'semantic-models': RW }, true],
+    ['a writer with ontology but not semantic-models', { ontology: RW }, true],
+    ['a reader', { ontology: RO, 'semantic-models': RO }, false],
+    ['a writer with semantic-models but not ontology', { ontology: RO, 'semantic-models': RW }, false],
+  ] as const;
+
+  for (const [persona, permissions, writes] of PERSONAS) {
+    it(`ontology generator keeps every control for ${persona}${writes ? '' : ', with the writes hidden'}`, async () => {
+      grant(permissions);
       const user = userEvent.setup();
       renderPage();
       await loaded();
 
-      // Settings
+      // Settings: the same for everyone
       const options = within(pane('Generation Options'));
       expect(options.getByRole('textbox', { name: 'Guidelines' })).toHaveValue('');
       expect(options.getByRole('textbox', { name: 'Base URI' })).toHaveValue('http://ontos.example.org/ontology#');
       for (const name of ['Data properties', 'Relationships', 'Inheritance']) expect(options.getByRole('switch', { name })).toBeChecked();
       await user.click(options.getByRole('switch', { name: 'Inheritance' }));
       expect(options.getByRole('switch', { name: 'Inheritance' })).not.toBeChecked();
-
-      // Generate waits for a selection
-      const run = within(pane('Run'));
-      expect(run.getByRole('button', { name: 'Generate Ontology (0 selected)' })).toBeDisabled();
-      expect(run.getByText('Processes up to 50 tables per run. For large schemas, split your selection into multiple runs.')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'pick a table' }));
-      expect(run.getByRole('button', { name: 'Generate Ontology (1 selected)' })).toBeEnabled();
       expect(within(pane('Workspace catalog — Resources')).getByText('1 selected')).toBeInTheDocument();
 
-      // Recent runs: a toggle, then a row and a Delete per run
+      // Generate waits for a selection; without ontology write there's no Run pane
+      if (writes) {
+        const run = within(pane('Run'));
+        expect(run.getByRole('button', { name: 'Generate Ontology (1 selected)' })).toBeEnabled();
+        expect(run.getByText('Processes up to 50 tables per run. For large schemas, split your selection into multiple runs.')).toBeInTheDocument();
+      } else {
+        expect(screen.queryByRole('region', { name: 'Run' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Generate Ontology/ })).toBeNull();
+      }
+
+      // Recent runs: a toggle, then a row per run, and a Delete per run for a writer
       const runs = within(pane('Recent Runs'));
       const toggle = runs.getByRole('button', { name: /^Recent Runs/ });
       expect(toggle).toHaveAttribute('aria-expanded', 'false');
       await user.click(toggle);
       expect(toggle).toHaveAttribute('aria-expanded', 'true');
-      expect(runs.getAllByRole('button', { name: 'Delete run' })).toHaveLength(2);
+      expect(runs.getAllByRole('button', { name: /^(Workspace catalog|Enterprise)/ })).toHaveLength(2);
+      expect(runs.queryAllByRole('button', { name: 'Delete run' })).toHaveLength(writes ? 2 : 0);
 
-      // A result: Save to scheme, the tabs, Copy and Download
+      // A result: the tabs, Copy and Download; Save to scheme for a writer
       const results = await loadRun(user);
-      expect(results.getByRole('button', { name: 'Save to scheme' })).toBeEnabled();
+      if (writes) expect(results.getByRole('button', { name: 'Save to scheme' })).toBeEnabled();
+      else expect(results.queryByRole('button', { name: 'Save to scheme' })).toBeNull();
       expect(results.getByRole('cell', { name: 'Customer' })).toBeInTheDocument();
       await user.click(results.getByRole('tab', { name: 'Properties (1)' }));
       expect(results.getByRole('cell', { name: 'placedBy' })).toBeInTheDocument();
@@ -213,6 +231,28 @@ describe('the ontology generator on the page kit', () => {
       expect(results.getByText('list_tables(gold.sales)')).toBeInTheDocument();
     });
   }
+
+  it('shows no write before the permissions are known', async () => {
+    usePermissionsStore.setState({ permissions: {}, isLoading: true, isReady: false, _initAttempted: true, _isInitializing: true });
+    renderPage();
+    await loaded();
+    expect(screen.queryByRole('button', { name: /Generate Ontology/ })).toBeNull();
+    act(() => grant({ ontology: RW }));
+    expect(await screen.findByRole('button', { name: 'Generate Ontology (0 selected)' })).toBeInTheDocument();
+  });
+
+  it('a reader sees a running run\'s progress, but not Cancel', async () => {
+    grant({ ontology: RO });
+    const running = { ...RUNS[0], run_id: 'run-live', status: 'running', progress_message: 'Reading gold.sales' };
+    mockBackend({ runs: [running] });
+    const answer = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      new URL(String(input), 'http://localhost').pathname === '/api/ontology/runs/run-live' ? json({ ...running, steps: [] }) : answer(input, init));
+    renderPage();
+    const run = within(await screen.findByRole('region', { name: 'Run' }));
+    expect(await run.findByText('Reading gold.sales')).toBeInTheDocument();
+    expect(run.queryByRole('button', { name: 'Cancel Generation' })).toBeNull();
+  });
 
   it('the run: Generate posts the settings, polls, and shows the result', async () => {
     const user = userEvent.setup();

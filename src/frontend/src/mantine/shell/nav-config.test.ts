@@ -495,7 +495,8 @@ describe('Build → Concepts → Define (Task 16e)', () => {
     expect(define().path).toBe('/concepts/define');
     expect(define().children!.map((c) => [c.id, c.labelKey, c.path, c.permissionId, c.level])).toEqual([
       ['define-author', 'shell:items.authorConcepts', '/concepts/define?open=author', 'semantic-models', FeatureAccessLevel.READ_WRITE],
-      ['define-generate', 'shell:items.generateOntology', '/concepts/define?open=generate', 'semantic-models', FeatureAccessLevel.READ_WRITE],
+      // Generate leads to the generator's run, which needs ontology write (fix round 12b)
+      ['define-generate', 'shell:items.generateOntology', '/concepts/define?open=generate', 'ontology', FeatureAccessLevel.READ_WRITE],
       ['define-import', 'shell:items.importRdf', '/concepts/define?open=import', 'semantic-models', FeatureAccessLevel.READ_WRITE],
     ]);
   });
@@ -517,9 +518,22 @@ describe('Build → Concepts → Define (Task 16e)', () => {
     expect(children[children.length - 1].id).toBe('concept-collections');
   });
 
-  it('shows the three only with write access, as the page enables their card buttons, and keeps Define for readers', () => {
-    expect(visibleDefine(semanticModels(FeatureAccessLevel.READ_WRITE))!.children!.map((c) => c.id))
+  /** semantic-models at `level`, and ontology at `ontology` (none if left out). */
+  const withOntology = (level: FeatureAccessLevel, ontology?: FeatureAccessLevel) => (id: string, needed?: FeatureAccessLevel) =>
+    semanticModels(level)(id, needed) ||
+    (id === 'ontology' && ontology !== undefined &&
+      [FeatureAccessLevel.READ_ONLY, ontology].includes(needed ?? FeatureAccessLevel.READ_ONLY));
+
+  it('shows each only with the write access its card button needs, and keeps Define for readers', () => {
+    // Author and Import need semantic-models write; Generate needs ontology write
+    expect(visibleDefine(withOntology(FeatureAccessLevel.READ_WRITE, FeatureAccessLevel.READ_WRITE))!.children!.map((c) => c.id))
       .toEqual(['define-author', 'define-generate', 'define-import']);
+    expect(visibleDefine(semanticModels(FeatureAccessLevel.READ_WRITE))!.children!.map((c) => c.id))
+      .toEqual(['define-author', 'define-import']);
+    expect(visibleDefine(withOntology(FeatureAccessLevel.READ_WRITE, FeatureAccessLevel.READ_ONLY))!.children!.map((c) => c.id))
+      .toEqual(['define-author', 'define-import']);
+    expect(visibleDefine(withOntology(FeatureAccessLevel.READ_ONLY, FeatureAccessLevel.READ_WRITE))!.children!.map((c) => c.id))
+      .toEqual(['define-generate']);
     const forReader = visibleDefine(semanticModels(FeatureAccessLevel.READ_ONLY))!;
     expect(forReader.path).toBe('/concepts/define');
     expect(forReader.children).toBeUndefined();

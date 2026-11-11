@@ -26,6 +26,8 @@ import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { useKnowledgeGraphStore } from '@/stores/knowledge-graph-store';
+import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/feature-access-levels';
 import type { Connection } from '@/types/connections';
 import SchemaBrowser from '@/components/schema-importer/schema-browser';
 import classes from './ontology-generator.module.css';
@@ -132,12 +134,15 @@ function RunRow({
   selected,
   onLoad,
   onDelete,
+  canWrite,
   t,
 }: {
   run: RunSummary;
   selected: boolean;
   onLoad: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  /** Delete needs ontology write (the backend lists only the user's own runs, or all for an admin) */
+  canWrite: boolean;
   t: TFunction;
 }) {
   const card = useHoverFocusCard({ openDelay: 300, closeDelay: 100 });
@@ -202,7 +207,7 @@ function RunRow({
           )}
         </Popover.Dropdown>
       </Popover>
-      {run.status !== 'running' && run.status !== 'pending' && (
+      {canWrite && run.status !== 'running' && run.status !== 'pending' && (
         <UnstyledButton
           className={classes.deleteRun}
           onClick={onDelete}
@@ -224,6 +229,13 @@ export default function OntologyGeneratorView() {
   const setDynamicTitle = useBreadcrumbStore((s) => s.setDynamicTitle);
   const bumpKnowledgeGraphRefresh = useKnowledgeGraphStore((s) => s.bumpRefreshNonce);
   const runsListId = useId();
+
+  // The writes (Generate, Cancel, Delete run, Save to scheme) need ontology
+  // write, as the backend checks; they show once the permissions are known.
+  // The reads (connections, resources, runs and results) stay for everyone.
+  const { hasPermission } = usePermissions();
+  const permissionsReady = usePermissionsReady();
+  const canWrite = permissionsReady && hasPermission('ontology', FeatureAccessLevel.READ_WRITE);
 
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isLoadingConnections, setIsLoadingConnections] = useState(true);
@@ -693,6 +705,7 @@ export default function OntologyGeneratorView() {
             </Pane>
 
             {/* Generate / Cancel */}
+            {(canWrite || isRunning) && (
             <Pane aria-label={t('semantic-models:ontologyGenerator.runPane', 'Run')}>
               {isRunning ? (
                 <div className={classes.run}>
@@ -702,9 +715,11 @@ export default function OntologyGeneratorView() {
                       {progressMessage || t('semantic-models:ontologyGenerator.progress.working')}
                     </span>
                   </div>
-                  <Button variant="destructive" onClick={handleCancel} className={classes.fullWidth}>
-                    <XCircle aria-hidden /> {t('semantic-models:ontologyGenerator.cancelGeneration')}
-                  </Button>
+                  {canWrite && (
+                    <Button variant="destructive" onClick={handleCancel} className={classes.fullWidth}>
+                      <XCircle aria-hidden /> {t('semantic-models:ontologyGenerator.cancelGeneration')}
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className={classes.run}>
@@ -726,6 +741,7 @@ export default function OntologyGeneratorView() {
                 </div>
               )}
             </Pane>
+            )}
 
             {/* Recent Runs: the head toggles the list */}
             <Pane aria-label={t('semantic-models:ontologyGenerator.recentRuns')} flush>
@@ -760,6 +776,7 @@ export default function OntologyGeneratorView() {
                           selected={selectedRunId === run.run_id}
                           onLoad={() => loadRunResult(run.run_id)}
                           onDelete={(e) => deleteRun(run.run_id, e)}
+                          canWrite={canWrite}
                           t={t}
                         />
                       ))}
@@ -803,7 +820,7 @@ export default function OntologyGeneratorView() {
             {result && (
               <Pane aria-label={t('semantic-models:ontologyGenerator.results', 'Results')}>
                 <div className={classes.results}>
-                  {result.success && (result.classes.length > 0 || result.properties.length > 0) && (
+                  {canWrite && result.success && (result.classes.length > 0 || result.properties.length > 0) && (
                     <div className={classes.banner}>
                       <p>
                         Generated <span className={classes.strong}>{result.classes.length}</span> classes and{' '}
@@ -853,8 +870,8 @@ export default function OntologyGeneratorView() {
                                     {cls.dataProperties.length === 0 && <span className={classes.secondary}>{t('semantic-models:ontologyGenerator.table.none')}</span>}
                                   </div>
                                 </Table.Td>
-                                <Table.Td className={`${classes.description} ${classes.secondary}`}>
-                                  <span className={classes.truncate} title={cls.comment || undefined}>{cls.comment || '—'}</span>
+                                <Table.Td className={classes.secondary}>
+                                  <span className={`${classes.truncate} ${classes.description}`} title={cls.comment || undefined}>{cls.comment || '—'}</span>
                                 </Table.Td>
                               </Table.Tr>
                             ))}

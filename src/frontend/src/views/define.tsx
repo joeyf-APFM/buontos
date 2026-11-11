@@ -231,6 +231,9 @@ export default function DefineView() {
   const requiresWriteTitle = canWrite
     ? undefined
     : t('semantic-models:define.requiresWrite', 'Requires write access');
+  // Generate leads to the generator's run, which needs ontology write (the
+  // backend's check); Author and Import write schemes (semantic-models)
+  const canGenerate = hasPermission('ontology', FeatureAccessLevel.READ_WRITE);
 
   const { toast } = useToast();
 
@@ -245,6 +248,9 @@ export default function DefineView() {
   const wants = (name: OpenParam) => openParam === name;
   const wantsDialog = wants('author') || wants('generate') || wants('import');
   const canOpenFromUrl = !permissionsLoading && canWrite;
+  const canOpenGenerateFromUrl = !permissionsLoading && canGenerate;
+  // The dialog ?open= names, if any, and whether this user may open it
+  const allowedFromUrl = wants('generate') ? canGenerate : canWrite;
   const clearOpenParam = useCallback(
     () =>
       setSearchParams((prev) => {
@@ -255,12 +261,12 @@ export default function DefineView() {
     [setSearchParams],
   );
   const [authorOpen, setAuthorOpen] = useUrlDialog('author', openParam, canOpenFromUrl, clearOpenParam);
-  const [guidedOpen, setGuidedOpen] = useUrlDialog('generate', openParam, canOpenFromUrl, clearOpenParam);
+  const [guidedOpen, setGuidedOpen] = useUrlDialog('generate', openParam, canOpenGenerateFromUrl, clearOpenParam);
   const [importOpen, setImportOpen] = useUrlDialog('import', openParam, canOpenFromUrl, clearOpenParam);
   // Without write access, the param is dropped and nothing opens
   useEffect(() => {
-    if (wantsDialog && !permissionsLoading && !canWrite) clearOpenParam();
-  }, [wantsDialog, permissionsLoading, canWrite, clearOpenParam]);
+    if (wantsDialog && !permissionsLoading && !allowedFromUrl) clearOpenParam();
+  }, [wantsDialog, permissionsLoading, allowedFromUrl, clearOpenParam]);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [runs, setRuns] = useState<GenerationRunSummary[]>([]);
   const [runsLoading, setRunsLoading] = useState(true);
@@ -376,6 +382,10 @@ export default function DefineView() {
   };
 
   const requiresWrite = { disabled: !canWrite, title: requiresWriteTitle };
+  const requiresGenerate = {
+    disabled: !canGenerate,
+    title: canGenerate ? undefined : t('semantic-models:define.requiresWrite', 'Requires write access'),
+  };
 
   return (
     <PageLayout
@@ -466,7 +476,7 @@ export default function DefineView() {
               )}
               description={t('semantic-models:define.generate.desc', 'Answer a few questions; Ontos drafts the scheme.')}
               action={
-                <Button className={classes.cta} {...requiresWrite} onClick={() => setGuidedOpen(true)}>
+                <Button className={classes.cta} {...requiresGenerate} onClick={() => setGuidedOpen(true)}>
                   {t('semantic-models:define.generate.cta', 'Start guided build')}
                 </Button>
               }
