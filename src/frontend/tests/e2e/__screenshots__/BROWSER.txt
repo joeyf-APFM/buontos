@@ -1,6 +1,7 @@
 156.0.8078.81
 # The Google Chrome (Playwright channel 'chrome') that recorded restyle/.
 # restyle-check.spec.ts fails every page when the running Chrome differs:
-# re-record every page with --update-snapshots=all, which also updates the line above.
+# re-record every page, unfiltered, with --update-snapshots=all, which also
+# updates the line above.
 # macOS only: the Optima font exists only on macOS. Other systems fall back to
 # Candara or Segoe UI, and every glyph would differ from these baselines.

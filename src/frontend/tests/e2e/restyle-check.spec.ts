@@ -10,10 +10,12 @@
  *   must match __screenshots__/restyle/<persona>/<id>.png at a colour threshold
  *   of 0.01, within 0.2% of its pixels. Re-record with --update-snapshots, only
  *   once the inventories pass.
- * - Browser: the baselines are tied to the Chrome in __screenshots__/BROWSER.txt.
- *   Another version fails every page with "re-baseline: browser changed from X
- *   to Y" instead of a pile of pixel diffs. To move to it, re-record every page
- *   with --update-snapshots=all, which also records the new version.
+ * - Browser: the baselines are tied to the Chrome in __screenshots__/BROWSER.txt
+ *   (browser-pin.ts). Another version, or a missing pin, fails every page with
+ *   "re-baseline: …" instead of a pile of pixel diffs. To move to a new Chrome,
+ *   re-record every page, unfiltered, with --update-snapshots=all: the pin is
+ *   written only once every page has run. A filtered `all` run re-records its
+ *   pages but fails at the end and leaves BROWSER.txt alone.
  *   The baselines are macOS-only: the Optima font exists only on macOS, and any
  *   other OS falls back to Candara or Segoe UI, so every glyph would differ.
  *
@@ -26,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { checkPin, finishPin, readPin, writePin } from './browser-pin';
 import { mockApi, unmockedRequests } from './fixtures/api';
 import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
@@ -34,20 +37,24 @@ import { RESTYLE_PAGES, SEARCH_LIKE, SELECT_LIKE, controlInventory } from './res
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROLS_DIR = path.join(HERE, '__controls__');
 const BROWSER_FILE = path.join(HERE, '__screenshots__', 'BROWSER.txt');
+const pinText = () => (fs.existsSync(BROWSER_FILE) ? fs.readFileSync(BROWSER_FILE, 'utf8') : null);
 
-/** The Chrome version the baselines were recorded with: BROWSER.txt's first line that isn't a # comment. */
-function baselineBrowser(): string {
-  const lines = fs.readFileSync(BROWSER_FILE, 'utf8').split('\n').map((l) => l.trim());
-  return lines.find((l) => l && !l.startsWith('#')) ?? '';
-}
-
-/** Replaces BROWSER.txt's version line and keeps its comments. */
-function recordBrowser(version: string) {
-  const text = fs.readFileSync(BROWSER_FILE, 'utf8');
-  fs.writeFileSync(BROWSER_FILE, text.replace(baselineBrowser(), version));
-}
+// The pin is recorded only after an `all` run that ran every page in this worker
+const PAGE_TESTS = Object.keys(PERSONAS).length * RESTYLE_PAGES.length;
+let pageTestsRun = 0;
+let pinToRecord: string | null = null;
 
 test.afterAll(() => {
+  if (pinToRecord !== null) {
+    const result = finishPin({
+      wantsRecord: true,
+      ranEveryPage: pageTestsRun === PAGE_TESTS,
+      recorded: readPin(pinText()),
+      running: pinToRecord,
+    });
+    if (result.kind === 'write') fs.writeFileSync(BROWSER_FILE, writePin(pinText(), pinToRecord));
+    if (result.kind === 'fail') throw new Error(result.message);
+  }
   if (unmockedRequests.length) {
     // eslint-disable-next-line no-console
     console.log('[restyle-check] answered with []:', [...new Set(unmockedRequests)].sort());
@@ -125,16 +132,13 @@ test.describe('controlInventory', () => {
 for (const persona of Object.values(PERSONAS)) {
   for (const restylePage of RESTYLE_PAGES) {
     test(`${persona.id} ${restylePage.id} (${restylePage.route}) keeps its controls and look`, async ({ page, browser }, testInfo) => {
+      pageTestsRun += 1;
       test.skip(!!restylePage.skip, restylePage.skip);
 
       // A different Chrome renders text differently: say so, rather than fail on pixels
-      const recorded = baselineBrowser();
-      if (browser.version() !== recorded) {
-        if (testInfo.config.updateSnapshots !== 'all') {
-          throw new Error(`re-baseline: browser changed from ${recorded} to ${browser.version()}`);
-        }
-        recordBrowser(browser.version());
-      }
+      const pin = checkPin(readPin(pinText()), browser.version(), testInfo.config.updateSnapshots === 'all');
+      if (pin.kind === 'fail') throw new Error(pin.message);
+      if (pin.kind === 'record') pinToRecord = browser.version();
 
       // Relative dates and clocks render from a fixed now
       await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
