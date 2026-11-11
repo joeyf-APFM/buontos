@@ -28,6 +28,8 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   // user's subscriptions (its panes stacked at their own height)
   '/data-products',
   '/my-products',
+  // The contract list (full bleed: one pane fills the area)
+  '/data-contracts',
   // The user's requests (tabs over a pane), the owners list (full bleed: one
   // pane fills the area) and a product's consumers (two panes side by side)
   '/my-requests',

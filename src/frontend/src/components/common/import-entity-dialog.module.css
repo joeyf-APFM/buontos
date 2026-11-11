@@ -1,0 +1,94 @@
+/*
+ * The shared upload dialog (Data Contracts, Data Products; wave 2 Task 6) in
+ * the kit Dialog (mantine/page/dialog.tsx, which has the dialog look): the
+ * three import options as ruled rows with their hints, the drop zone, then
+ * the paste box.
+ */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* An import option: its label and hint, the switch at the end */
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.optionLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+.optionHint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 76px;
+  padding: 16px;
+  border: 1px dashed var(--aura-border-strong, var(--aura-border));
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.dropzone[data-active] {
+  border-color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.dropzone p {
+  margin: 0;
+}
+
+.dropText {
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.dropHint {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.paste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pasteLabel {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+/* Pasted JSON is code */
+.pasteInput {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+.pasteButton {
+  width: 100%;
+}

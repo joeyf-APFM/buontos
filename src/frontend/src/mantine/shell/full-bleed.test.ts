@@ -3,7 +3,7 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId', '/data-products', '/my-products', '/my-requests', '/business-owners', '/owner-consumers']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId', '/data-products', '/my-products', '/data-contracts', '/my-requests', '/business-owners', '/owner-consumers']);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);
@@ -19,7 +19,9 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/data-catalog/main/sales/orders')).toBe(true);
     expect(isFullBleed('/data-catalogue')).toBe(false);
     expect(isFullBleed('/Data-Catalog')).toBe(false);
-    expect(isFullBleed('/data-contracts')).toBe(false);
+    // The contract list (wave 2 Task 6), but not a contract
+    expect(isFullBleed('/data-contracts')).toBe(true);
+    expect(isFullBleed('/data-contracts/c1')).toBe(false);
   });
 
   it('matches the Schema Importer route, but not the importer inside the Concepts layout', () => {

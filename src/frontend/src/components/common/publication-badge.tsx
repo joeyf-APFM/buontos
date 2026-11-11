@@ -1,6 +1,6 @@
 import { Globe, Lock, Eye, Building2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip } from '@mantine/core';
 import { PUBLICATION_SCOPE_LABELS, type PublicationScope } from '@/types/lifecycle';
 import { badgeToneStyle, type StatusTone } from './aura-status';
 import classes from './badges.module.css';
@@ -44,27 +44,26 @@ export default function PublicationBadge({
   ].filter(Boolean);
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge
-            variant="outline"
-            className={classes.badge}
-            style={tone ? badgeToneStyle(tone) : undefined}
-            data-tone={tone}
-          >
-            <IconComponent size={12} className={classes.mark} aria-hidden />
-            {label}
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className={classes.tooltipLines}>
-            {tooltipLines.map((line, i) => (
-              <div key={i}>{line}</div>
-            ))}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip
+      withinPortal
+      classNames={{ tooltip: classes.tooltip }}
+      label={
+        <div className={classes.tooltipLines}>
+          {tooltipLines.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </div>
+      }
+    >
+      <Badge
+        variant="outline"
+        className={classes.badge}
+        style={tone ? badgeToneStyle(tone) : undefined}
+        data-tone={tone}
+      >
+        <IconComponent size={12} className={classes.mark} aria-hidden />
+        {label}
+      </Badge>
+    </Tooltip>
   );
 }

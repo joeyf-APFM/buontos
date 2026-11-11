@@ -1,5 +1,6 @@
 {
   "title": "Datenverträge",
+  "listPane": "Liste der Datenverträge",
   "subtitle": "Verwalten Sie Ihre Datenverträge und Spezifikationen",
   "newContract": "Neuer Vertrag",
   "uploadFile": "Datei hochladen",

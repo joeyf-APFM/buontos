@@ -1,0 +1,155 @@
+/*
+ * Data Contracts (/data-contracts) on the page kit (wave 2 Task 6): full
+ * bleed, the shell's breadcrumb, the kit header, then one flush pane holding
+ * the shared DataTable (components/ui/data-table.tsx), 14px in from the
+ * page's edges. The cells and the toolbar are Data Products'
+ * (data-products.module.css), which this list mirrors.
+ */
+
+/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
+   pane scrolls a long list */
+.body {
+  composes: body from './data-products.module.css';
+}
+
+.alert {
+  composes: alert from './data-products.module.css';
+}
+
+/* An error lists its issues line by line */
+.alertMessage {
+  composes: alertMessage from './data-products.module.css';
+}
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.state .alert {
+  align-self: stretch;
+  margin: 4px 0 0;
+}
+
+.sort {
+  composes: sort from './asset-types.module.css';
+}
+
+.sortIcon {
+  composes: sortIcon from './asset-types.module.css';
+}
+
+.titleCell {
+  composes: titleCell from './data-products.module.css';
+}
+
+.title {
+  composes: title from './data-products.module.css';
+}
+
+.person {
+  composes: person from './data-products.module.css';
+}
+
+.badges {
+  composes: badges from './data-products.module.css';
+}
+
+.actions {
+  composes: actions from './data-products.module.css';
+}
+
+/* The row's icon buttons: 24px, so the row stays 28px; `button.` outranks
+   Mantine's ActionIcon colour (R10) */
+button.action {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-text-secondary);
+}
+
+.action svg {
+  width: 14px;
+  height: 14px;
+}
+
+button.delete {
+  color: var(--aura-critical);
+}
+
+button.delete:hover:not(:disabled) {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+.history {
+  composes: history from './data-products.module.css';
+}
+
+/* For a user who can't create or upload: nothing to rule off from */
+.historyAlone {
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+
+.historyLabel {
+  composes: historyLabel from './data-products.module.css';
+}
+
+svg.help {
+  width: 12px;
+  height: 12px;
+  opacity: 0.5;
+}
+
+.tip {
+  composes: tip from './data-products.module.css';
+}
+
+.tipTitle {
+  composes: tipTitle from './data-products.module.css';
+}
+
+/* The upload error: its message (with the ODPS hint on its own lines), then
+   the technical details behind a toggle */
+.alertText {
+  white-space: pre-wrap;
+}
+
+.detailToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: inherit;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.detailToggle:hover {
+  opacity: 1;
+}
+
+.detailToggle svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The server's own error text: an identifier-like dump, in the mono font */
+.detail {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--aura-critical-bg);
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

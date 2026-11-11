@@ -1,5 +1,6 @@
 {
   "title": "Contrats de Données",
+  "listPane": "Liste des contrats de données",
   "subtitle": "Gérez vos contrats de données et spécifications",
   "newContract": "Nouveau Contrat",
   "uploadFile": "Téléverser un fichier",

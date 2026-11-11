@@ -1,10 +1,9 @@
 import React from 'react';
 import { useDropzone, Accept } from 'react-dropzone';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Loader, Switch, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Dialog } from '@/mantine/page';
+import classes from './import-entity-dialog.module.css';
 
 /**
  * Shared upload dialog for ODCS Data Contracts and ODPS Data Products.
@@ -89,84 +88,77 @@ export function ImportEntityDialog({
     },
   });
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{labels.title}</DialogTitle>
-          <DialogDescription>{labels.description}</DialogDescription>
-        </DialogHeader>
+  // An import option: its label and hint, the switch at the end. The hint
+  // describes the switch; only the label names it.
+  const toggle = (id: string, label: string, hint: string, checked: boolean, onChange: (v: boolean) => void) => (
+    <div className={classes.option}>
+      <div>
+        <label htmlFor={id} className={classes.optionLabel}>{label}</label>
+        <p id={`${id}-hint`} className={classes.optionHint}>{hint}</p>
+      </div>
+      <Switch
+        id={id}
+        aria-describedby={`${id}-hint`}
+        checked={checked}
+        onChange={(e) => onChange(e.currentTarget.checked)}
+        disabled={uploading}
+      />
+    </div>
+  );
 
+  return (
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      title={labels.title}
+      description={labels.description}
+    >
+      <div className={classes.body}>
         {alert}
 
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <div className="pr-3">
-            <Label htmlFor="ied-createMissingDomains" className="cursor-pointer">{labels.createMissingDomains}</Label>
-            <p className="text-xs text-muted-foreground mt-1">{labels.createMissingDomainsHint}</p>
-          </div>
-          <Switch
-            id="ied-createMissingDomains"
-            checked={toggles.createMissingDomains}
-            onCheckedChange={toggles.setCreateMissingDomains}
-            disabled={uploading}
-          />
-        </div>
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <div className="pr-3">
-            <Label htmlFor="ied-adoptIds" className="cursor-pointer">{labels.adoptIds}</Label>
-            <p className="text-xs text-muted-foreground mt-1">{labels.adoptIdsHint}</p>
-          </div>
-          <Switch id="ied-adoptIds" checked={toggles.adoptIds} onCheckedChange={toggles.setAdoptIds} disabled={uploading} />
-        </div>
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <div className="pr-3">
-            <Label htmlFor="ied-duplicatesAsNew" className="cursor-pointer">{labels.duplicatesAsNew}</Label>
-            <p className="text-xs text-muted-foreground mt-1">{labels.duplicatesAsNewHint}</p>
-          </div>
-          <Switch id="ied-duplicatesAsNew" checked={toggles.duplicatesAsNew} onCheckedChange={toggles.setDuplicatesAsNew} disabled={uploading} />
-        </div>
+        {toggle('ied-createMissingDomains', labels.createMissingDomains, labels.createMissingDomainsHint,
+          toggles.createMissingDomains, toggles.setCreateMissingDomains)}
+        {toggle('ied-adoptIds', labels.adoptIds, labels.adoptIdsHint, toggles.adoptIds, toggles.setAdoptIds)}
+        {toggle('ied-duplicatesAsNew', labels.duplicatesAsNew, labels.duplicatesAsNewHint,
+          toggles.duplicatesAsNew, toggles.setDuplicatesAsNew)}
 
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer ${
-            isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
-          }`}
-        >
+        <div {...getRootProps()} className={classes.dropzone} data-active={isDragActive || undefined}>
           <input {...getInputProps()} />
           {uploading ? (
-            <div className="flex justify-center">
-              <Loader2 className="animate-spin h-8 w-8 text-primary" />
-            </div>
+            <Loader size={24} />
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">{isDragActive ? labels.dropActive : labels.dropInactive}</p>
-              <p className="text-xs text-muted-foreground mt-2">{labels.supportedFormats}</p>
+              <p className={classes.dropText}>{isDragActive ? labels.dropActive : labels.dropInactive}</p>
+              <p className={classes.dropHint}>{labels.supportedFormats}</p>
             </>
           )}
         </div>
 
         {paste && (
-          <div className="mt-2">
-            <Label htmlFor="ied-paste">{labels.pasteLabel}</Label>
-            <textarea
+          <div className={classes.paste}>
+            <Textarea
               id="ied-paste"
+              label={labels.pasteLabel}
               placeholder={labels.pastePlaceholder}
-              className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              classNames={{ label: classes.pasteLabel, input: classes.pasteInput }}
+              autosize
+              minRows={6}
+              maxRows={14}
               value={paste.value}
-              onChange={(e) => paste.onChange(e.target.value)}
+              onChange={(e) => paste.onChange(e.currentTarget.value)}
               disabled={paste.submitting || uploading}
             />
             <Button
-              className="mt-2 w-full"
+              className={classes.pasteButton}
               disabled={!paste.value.trim() || paste.submitting || uploading}
               onClick={paste.onSubmit}
             >
-              {paste.submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {paste.submitting && <Loader size={12} color="currentColor" />}
               {labels.pasteButton}
             </Button>
           </div>
         )}
-      </DialogContent>
+      </div>
     </Dialog>
   );
 }

@@ -1,5 +1,6 @@
 {
   "title": "データ契約",
+  "listPane": "データ契約一覧",
   "subtitle": "データ契約と仕様を管理",
   "newContract": "新規契約",
   "uploadFile": "ファイルをアップロード",

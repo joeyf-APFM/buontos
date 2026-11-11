@@ -1,5 +1,6 @@
 {
   "title": "Data Contracts",
+  "listPane": "Data contract list",
   "subtitle": "Manage your data contracts and specifications",
   "newContract": "New Contract",
   "uploadFile": "Upload File",

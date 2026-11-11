@@ -3,7 +3,7 @@
  * editing (a status change goes through Change Status), and only lifecycle
  * statuses are offered.
  */
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders } from '@/test/utils';
 import DataContractBasicFormDialog from './data-contract-basic-form-dialog';
@@ -38,7 +38,8 @@ describe('DataContractBasicFormDialog — status', () => {
       />,
     );
 
-    expect(screen.getByRole('combobox', { name: /Status/ })).toBeDisabled();
+    // A Mantine Select: jsdom gives its field the textbox role
+    expect(screen.getByRole('textbox', { name: /Status/ })).toBeDisabled();
     expect(screen.getByText(/The status changes with Change Status on the page/)).toBeInTheDocument();
   });
 
@@ -47,10 +48,12 @@ describe('DataContractBasicFormDialog — status', () => {
       <DataContractBasicFormDialog isOpen={true} onOpenChange={vi.fn()} onSubmit={vi.fn()} />,
     );
 
-    const select = screen.getByRole('combobox', { name: /Status/ });
+    const select = screen.getByRole('textbox', { name: /Status/ });
     expect(select).not.toBeDisabled();
     fireEvent.click(select);
-    const options = screen.getAllByRole('option').map(o => o.textContent);
+    // Its own list (jsdom leaves a Mantine list display: none: hence hidden)
+    const list = document.getElementById(select.getAttribute('aria-controls') ?? '') as HTMLElement;
+    const options = within(list).getAllByRole('option', { hidden: true }).map(o => o.textContent);
     expect(options).toEqual(['Draft', 'Proposed', 'Under Review', 'Approved', 'Active', 'Deprecated', 'Retired']);
   });
 });

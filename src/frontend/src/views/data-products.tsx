@@ -896,6 +896,9 @@ export default function DataProducts() {
                           w={280}
                           position="bottom"
                           withinPortal
+                          // Shut while the upload dialog is open: an open tooltip
+                          // takes the Escape that should close the dialog
+                          opened={uploadDialogOpen ? false : undefined}
                           label={
                             <div className={classes.tip}>
                               <p className={classes.tipTitle}>{t('upload.tooltipTitle')}</p>
