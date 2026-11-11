@@ -88,7 +88,7 @@ describe('shared panels restyle', () => {
     expect(values[0]).toHaveTextContent('Alice Doe');
     expect(values[1]).toHaveTextContent('Bob Roe');
     // The remove control stays on each row, and Assign Owner in the header
-    expect(within(values[0]).getByRole('button')).toBeInTheDocument();
+    expect(within(values[0]).getByRole('button', { name: 'Remove Alice Doe' })).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Assign Owner' })).toBeInTheDocument();
     // A pane, not a Card: no Mantine Paper
     expect(panel.closest('.mantine-Paper-root')).toBeNull();

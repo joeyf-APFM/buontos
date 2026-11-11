@@ -61,6 +61,7 @@
     "previousOwners": "Proprietari precedenti",
     "noOwners": "Nessun proprietario assegnato",
     "assignOwner": "Assegna proprietario",
-    "history": "Mostra cronologia"
+    "history": "Mostra cronologia",
+    "removeOwnerNamed": "Rimuovi {{name}}"
   }
 }

@@ -233,6 +233,7 @@ export function OwnershipPanel({
                               color="gray"
                               size={24}
                               className={classes.remove}
+                              aria-label={t('business-owners:panel.removeOwnerNamed', { name: owner.user_name || owner.user_email })}
                               onClick={() => setRemoveTarget(owner)}
                             >
                               <Trash2 size={14} />

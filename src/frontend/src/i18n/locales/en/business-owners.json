@@ -61,6 +61,7 @@
     "previousOwners": "Previous Owners",
     "noOwners": "No owners assigned",
     "assignOwner": "Assign Owner",
-    "history": "Show History"
+    "history": "Show History",
+    "removeOwnerNamed": "Remove {{name}}"
   }
 }

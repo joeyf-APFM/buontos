@@ -61,6 +61,7 @@
     "previousOwners": "Vorige eigenaren",
     "noOwners": "Geen eigenaren toegewezen",
     "assignOwner": "Eigenaar toewijzen",
-    "history": "Historie tonen"
+    "history": "Historie tonen",
+    "removeOwnerNamed": "{{name}} verwijderen"
   }
 }

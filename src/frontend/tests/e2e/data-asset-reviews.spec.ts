@@ -429,23 +429,21 @@ test.describe('the detail page', () => {
     expect(Math.round((await box(assets)).y)).toBe(Math.round((await box(info)).y + (await box(info)).height));
     expect(await style(assets, ['border-top-width'])).toEqual({ 'border-top-width': '0px' });
     expect(await style(info.locator('dt').first(), ['color'])).toEqual({ color: TEXT_SECONDARY });
-    // Every label on one line, as tall as "Requester", and the labels keep at least the 86px column
-    const labelHeight = Math.round((await box(info.locator('dt').first())).height);
+    // Every label sits in the fixed 86px column (Task 13d fix round 1)
     for (const dt of await info.locator('dt').all()) {
-      if ((await dt.innerText()) === 'Notes') continue;
-      expect(Math.round((await box(dt)).height)).toBe(labelHeight);
+      expect(Math.round((await box(dt)).width)).toBe(86);
     }
-    expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBeGreaterThanOrEqual(86);
-    // A label wider than 86px in any font (Current Status is narrower in
-    // Optima): it stays on one line, the column grows past 86px for every
-    // label, and nothing is clipped
+    // A label wider than 86px in any font wraps inside its column, nothing is
+    // clipped, and the values still line up down the column: Requester,
+    // Current Status and Last Updated are the left column's pairs
     const wide = info.locator('dt', { hasText: 'Current Status' });
     await wide.evaluate((el) => { el.textContent = 'Current Status of this request for review'; });
-    expect(Math.round((await box(wide)).height)).toBe(labelHeight);
-    expect(Math.round((await box(wide)).width)).toBeGreaterThan(86);
-    // (Task 13d: each pair sizes its own label column, so a wide label no
-    // longer widens the other labels')
+    expect(Math.round((await box(wide)).width)).toBe(86);
     expect(await wide.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const left = async (label: string) => Math.round((await box(info.locator('dt', { hasText: label }).locator('xpath=following-sibling::dd'))).x);
+    const requesterX = await left('Requester');
+    expect(await left('Current Status')).toBe(requesterX);
+    expect(await left('Last Updated')).toBe(requesterX);
     // The notes read in full, on at least two lines
     const notes = info.getByText(LONG_NOTES, { exact: true });
     expect(await notes.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);

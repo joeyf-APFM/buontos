@@ -121,6 +121,31 @@ test('ownership panel: owners in an 86px label column, 12px rows 5px apart with 
   await expect(panel.locator('.mantine-Paper-root')).toHaveCount(0);
 });
 
+// Fix round 1 of Task 13d: the owner row sits in half the pane's width
+test('ownership panel: a long owner name truncates in its half and the named remove button stays inside the row', async ({ page }) => {
+  const LONG = `Alexandria ${'Montgomery-Featherstonehaugh'.repeat(6)}`;
+  await page.setViewportSize({ width: 900, height: 1600 });
+  await mockApi(page, PERSONAS.admin, {
+    ...PANEL_FIXTURES,
+    '/api/business-owners/by-object/asset': [owner('o1', LONG, 'Data Owner'), owner('o2', 'Bob Roe', 'Data Steward')],
+  });
+  await page.goto('/assets/e2e-asset-1');
+  const panel = page.getByRole('region', { name: 'Owners' });
+  await expect(panel.getByText('Bob Roe')).toBeVisible();
+  const button = panel.getByRole('button', { name: `Remove ${LONG}` });
+  await expect(button).toBeVisible();
+  const pair = panel.locator('dl > div').first();
+  const [row, btn] = [(await pair.boundingBox())!, (await button.boundingBox())!];
+  expect(btn.x).toBeGreaterThanOrEqual(row.x);
+  expect(btn.x + btn.width).toBeLessThanOrEqual(row.x + row.width + 0.5);
+  // The name is cut by the ellipsis, inside the pair
+  const name = panel.getByText(LONG, { exact: true });
+  expect(await name.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  const nb = (await name.boundingBox())!;
+  expect(nb.x + nb.width).toBeLessThanOrEqual(btn.x + 0.5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test('metadata panel: sections divided by border-subtle, 12px text, no nested cards', async ({ page }) => {
   await openAsset(page);
   const panel = page.getByRole('region', { name: 'Metadata' });

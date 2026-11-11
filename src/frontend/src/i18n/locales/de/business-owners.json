@@ -61,6 +61,7 @@
     "previousOwners": "Frühere Owner",
     "noOwners": "Keine Owner zugewiesen",
     "assignOwner": "Owner zuweisen",
-    "history": "Verlauf anzeigen"
+    "history": "Verlauf anzeigen",
+    "removeOwnerNamed": "{{name}} entfernen"
   }
 }

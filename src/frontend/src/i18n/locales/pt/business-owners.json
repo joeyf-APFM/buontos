@@ -61,6 +61,7 @@
     "previousOwners": "Responsáveis anteriores",
     "noOwners": "Nenhum responsável atribuído",
     "assignOwner": "Atribuir responsável",
-    "history": "Mostrar histórico"
+    "history": "Mostrar histórico",
+    "removeOwnerNamed": "Remover {{name}}"
   }
 }

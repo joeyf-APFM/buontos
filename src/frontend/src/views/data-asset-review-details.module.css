@@ -126,16 +126,8 @@ button.copy {
   height: 12px;
 }
 
-/* The request's details: the labels keep to one line ("Current Status" is
-   wider than the 86px column), so the label column grows to the longest
-   label, never below 86px. `.info dl > div` outranks the shared .kv (R10) */
-.info dl > div {
-  grid-template-columns: minmax(86px, max-content) minmax(0, 1fr);
-}
-
-.info dt {
-  white-space: nowrap;
-}
+/* The request's details use the shared fixed 86px label column; a longer
+   label wraps inside it, so the values line up down each column */
 
 /* Details values: long ones wrap, so they read in full */
 .wrap {

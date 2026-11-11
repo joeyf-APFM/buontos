@@ -61,6 +61,7 @@
     "previousOwners": "以前のオーナー",
     "noOwners": "オーナーが割り当てられていません",
     "assignOwner": "オーナーを割り当て",
-    "history": "履歴を表示"
+    "history": "履歴を表示",
+    "removeOwnerNamed": "{{name}} を削除"
   }
 }
