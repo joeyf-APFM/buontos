@@ -152,6 +152,10 @@ export default function ConceptsSearch({
   useEffect(() => {
     // A newer query (or Retry) wins over an answer still on its way
     const seq = ++searchSeq.current;
+    // The text a pick put in the field isn't a search: searching it would
+    // only rewrite ?query=, moving the URL under a dialog opened right after
+    // the pick (the kit Dialog then gives no focus back, R41)
+    if (selectionText !== null && conceptSearchQuery === selectionText) return undefined;
     const searchConcepts = async () => {
       if (!conceptSearchQuery.trim()) {
         setConceptSearchResults([]);
@@ -182,7 +186,7 @@ export default function ConceptsSearch({
 
     const timer = setTimeout(searchConcepts, 250);
     return () => clearTimeout(timer);
-  }, [conceptSearchQuery, searchNonce]);
+  }, [conceptSearchQuery, searchNonce, selectionText]);
 
   const clearSearch = () => {
     setConceptSearchQuery('');

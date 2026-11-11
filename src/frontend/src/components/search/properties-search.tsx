@@ -143,6 +143,10 @@ export default function PropertiesSearch({
   useEffect(() => {
     // A newer query (or Retry) wins over an answer still on its way
     const seq = ++searchSeq.current;
+    // The text a pick put in the field isn't a search: searching it would
+    // only rewrite ?query=, moving the URL under a dialog opened right after
+    // the pick (the kit Dialog then gives no focus back, R41)
+    if (selectionText !== null && propertySearchQuery === selectionText) return undefined;
     const searchProperties = async () => {
       if (!propertySearchQuery.trim()) {
         setPropertySearchResults([]);
@@ -173,7 +177,7 @@ export default function PropertiesSearch({
 
     const timer = setTimeout(searchProperties, 250);
     return () => clearTimeout(timer);
-  }, [propertySearchQuery, searchNonce]);
+  }, [propertySearchQuery, searchNonce, selectionText]);
 
   const clearSearch = () => {
     setPropertySearchQuery('');

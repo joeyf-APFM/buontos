@@ -45,6 +45,8 @@ const LINKS = [{ id: 'l1', entity_id: 'p1', entity_type: 'data_product', iri: 'u
 let fetchMock: ReturnType<typeof vi.fn>;
 /** Paths (no query) that answer 500 */
 let failing = new Set<string>();
+/** A concepts query whose answer waits for `release` (a stale response) */
+let held: { q: string; release?: () => void } | null = null;
 
 function mockBackend() {
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -52,6 +54,12 @@ function mockBackend() {
     const method = init?.method ?? 'GET';
     const q = url.searchParams.get('q') ?? '';
     if (failing.has(url.pathname)) return json({ detail: 'The triple store is down' }, 500);
+    if (url.pathname === '/api/semantic-models/concepts' && held && q === held.q) {
+      const hold = held;
+      return new Promise<Response>((resolve) => {
+        hold.release = () => resolve(json([{ value: 'urn:e2e:stale', label: 'Stale answer', type: 'class' }]));
+      });
+    }
     switch (url.pathname) {
       case '/api/semantic-models/concepts':
         return json(CONCEPTS.filter((c) => c.label.toLowerCase().includes(q.toLowerCase())));
@@ -153,6 +161,7 @@ async function selectWidgets(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   failing = new Set();
+  held = null;
   mockBackend();
   grant(FeatureAccessLevel.READ_WRITE);
 });
@@ -385,6 +394,76 @@ describe('concepts-search on the page kit', () => {
     await user.click(await within(pane('Property search')).findByRole('button', { name: 'hasPrice - urn:e2e:hasPrice' }));
     await screen.findByRole('region', { name: 'hasPrice' });
     expect(screen.queryByRole('button', { name: 'Assign to Property' })).toBeNull();
+  });
+});
+
+describe('concepts-search: picks and stale answers (fix round 1)', () => {
+  it('a dialog opened right after a pick gives focus back to Assign when it closes', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await searchConcept(user, 'Widg');
+    await user.click(await within(pane('Concept search')).findByRole('button', { name: 'Widgets - urn:e2e:widgets' }));
+    // Straight away: within the search's 250ms debounce
+    const assign = await within(await screen.findByRole('region', { name: 'Widgets' })).findByRole('button', { name: 'Assign to Concept' });
+    await user.click(assign);
+    const dialog = await screen.findByRole('dialog', { name: 'Assign Object to Concept' });
+    // Past the debounce: the pick's own text isn't searched, so the URL doesn't move under the dialog
+    await new Promise((r) => setTimeout(r, 400));
+    const search = location.search;
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Assign Object to Concept' })).toBeNull());
+    await waitFor(() => expect(within(pane('Widgets')).getByRole('button', { name: 'Assign to Concept' })).toHaveFocus());
+    expect(location.search).toBe(search);
+    expect(params().get('iri')).toBe('urn:e2e:widgets');
+  });
+
+  it('the pick\'s own text isn\'t searched; a new text is', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await searchConcept(user, 'Widg');
+    await user.click(await within(pane('Concept search')).findByRole('button', { name: 'Widgets - urn:e2e:widgets' }));
+    await screen.findByRole('region', { name: 'Widgets' });
+    await new Promise((r) => setTimeout(r, 400));
+    const searched = () => fetchMock.mock.calls
+      .map(([input]) => new URL(String(input), 'http://localhost'))
+      .filter((u) => u.pathname === '/api/semantic-models/concepts')
+      .map((u) => u.searchParams.get('q'));
+    expect(searched()).not.toContain('Widgets - urn:e2e:widgets');
+    await searchConcept(user, 'Cust');
+    await waitFor(() => expect(searched()).toContain('Cust'));
+  });
+
+  it('Properties: the pick\'s own text isn\'t searched either', async () => {
+    const user = userEvent.setup();
+    renderPage('/concepts/search?tab=properties');
+    await user.type(within(pane('Property search')).getByRole('textbox'), 'has');
+    await user.click(await within(pane('Property search')).findByRole('button', { name: 'hasPrice - urn:e2e:hasPrice' }));
+    await screen.findByRole('region', { name: 'hasPrice' });
+    await new Promise((r) => setTimeout(r, 400));
+    const searched = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input), 'http://localhost'))
+      .filter((u) => u.pathname === '/api/semantic-models/properties')
+      .map((u) => u.searchParams.get('q'));
+    expect(searched).toContain('has');
+    expect(searched).not.toContain('hasPrice - urn:e2e:hasPrice');
+  });
+
+  it('an older search answer that lands after a newer one is dropped', async () => {
+    held = { q: 'Wid' };
+    const user = userEvent.setup();
+    renderPage();
+    const field = await searchConcept(user, 'Wid');
+    // The older request is out, its answer held back
+    await waitFor(() => expect(held!.release).toBeDefined());
+    await user.type(field, 'g');
+    const search = pane('Concept search');
+    expect(await within(search).findByRole('button', { name: 'Widgets - urn:e2e:widgets' })).toBeInTheDocument();
+    // Now the older answer lands: the newer results stay
+    held!.release!();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(within(search).queryByRole('button', { name: /Stale answer/ })).toBeNull();
+    expect(within(search).getByRole('button', { name: 'Widgets - urn:e2e:widgets' })).toBeInTheDocument();
+    expect(params().get('query')).toBe('Widg');
   });
 });
 

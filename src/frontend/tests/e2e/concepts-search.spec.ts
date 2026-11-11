@@ -103,9 +103,6 @@ const searchField = (page: Page) => page.locator('main').getByRole('textbox', { 
 async function selectConcept(page: Page, text: string, result: string) {
   await searchField(page).fill(text);
   await page.locator('main').getByText(result, { exact: true }).click();
-  // The selection's text is searched (debounced) and written to ?query=; let
-  // the URL settle, as the kit Dialog gives focus back only on the page it opened on
-  await expect(page).toHaveURL(new RegExp(`query=${encodeURIComponent(result).replace(/%20/g, '\\+')}`));
 }
 
 test.describe('captures', () => {
@@ -208,6 +205,7 @@ test.describe('concepts-search', () => {
   test('Escape in the Assign dialog\'s Select closes only the Select', async ({ page }) => {
     await setUp(page);
     await selectConcept(page, 'Widg', 'Widgets - urn:e2e:widgets');
+    // Straight after the pick (the pick's text isn't searched, so the URL holds still)
     const assign = page.getByRole('button', { name: 'Assign to Concept' });
     await assign.click();
     const dialog = page.getByRole('dialog', { name: 'Assign Object to Concept' });
