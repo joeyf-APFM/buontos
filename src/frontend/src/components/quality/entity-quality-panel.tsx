@@ -41,6 +41,12 @@ type Props = {
    * head would repeat.
    */
   flush?: boolean;
+  /**
+   * The user may write on the host page: shows Add, Edit and Delete. Off by
+   * default, so a caller that doesn't say gets a read-only panel. Each caller
+   * passes its page's write permission.
+   */
+  canEdit?: boolean;
 };
 
 function fmtDate(iso: string) {
@@ -48,7 +54,7 @@ function fmtDate(iso: string) {
   catch { return iso; }
 }
 
-const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggregation, pane = false, flush = false }) => {
+const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggregation, pane = false, flush = false, canEdit = false }) => {
   const { t } = useTranslation(['metadata', 'common']);
   const titleId = React.useId();
   const [items, setItems] = React.useState<QualityItem[]>([]);
@@ -235,7 +241,9 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
                 {overallPct.toFixed(1)}%
               </div>
             </div>
-            <Button size="sm" onClick={openCreate}><Plus className={flush ? undefined : 'h-4 w-4 mr-2'} /> {t('metadata:quality.addMeasurement')}</Button>
+            {canEdit && (
+              <Button size="sm" onClick={openCreate}><Plus className={flush ? undefined : 'h-4 w-4 mr-2'} /> {t('metadata:quality.addMeasurement')}</Button>
+            )}
           </div>
         </div>
 
@@ -255,7 +263,7 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
                 <TableHead>{t('metadata:quality.table.source')}</TableHead>
                 <TableHead>{t('metadata:quality.table.score')}</TableHead>
                 <TableHead>{t('metadata:quality.table.measured')}</TableHead>
-                <TableHead className="w-24">{t('common:labels.actions')}</TableHead>
+                {canEdit && <TableHead className="w-24">{t('common:labels.actions')}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,10 +284,12 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
                     </span>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{fmtDate(it.measured_at)}</TableCell>
+                  {canEdit && (
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(it)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(it)} aria-label={t('common:actions.edit')} title={t('common:actions.edit')}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"
+                        aria-label={t('common:actions.delete')} title={t('common:actions.delete')}
                         onClick={async () => {
                           const resp = await fetch(`/api/quality-items/${it.id}`, { method: 'DELETE' });
                           if (resp.ok) { toast({ title: t('metadata:quality.messages.deleted') }); fetchData(); }
@@ -289,6 +299,7 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
                       </Button>
                     </div>
                   </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

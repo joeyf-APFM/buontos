@@ -317,6 +317,9 @@ export default function DataContractDetails() {
   const isContractAdmin = contractPermissionLevel === FeatureAccessLevel.ADMIN || contractPermissionLevel === FeatureAccessLevel.FULL
   const canWriteContracts =
     !permissionsLoading && hasPermission('data-contracts', FeatureAccessLevel.READ_WRITE)
+  // Linking or creating a product writes the product
+  const canWriteProducts =
+    !permissionsLoading && hasPermission('data-products', FeatureAccessLevel.READ_WRITE)
   const canApproveContractLifecycle = userHasApprovalPrivilege(
     ApprovalEntity.CONTRACTS,
     userInfo?.groups,
@@ -324,13 +327,14 @@ export default function DataContractDetails() {
     appliedRoleId
   )
 
-  // Computed properties for status-based editability
-  // Admins bypass status restrictions; others need draft/proposed
-  const canEditInPlace = isContractAdmin || !!(contract?.status && EDITABLE_STATUSES.includes(contract.status.toLowerCase()))
-  // Personal drafts are editable since they have draft status
+  // Editability: the status allows editing in place (draft/proposed), and the
+  // user may write. Admins bypass the status restriction.
+  const isEditableStatus = !!(contract?.status && EDITABLE_STATUSES.includes(contract.status.toLowerCase()))
+  const canEditInPlace = isContractAdmin || (canWriteContracts && isEditableStatus)
+  // Personal drafts have draft status, so their owner (who has write access) edits them in place
   const isPersonalDraft = contract?.draftOwnerId != null
-  // Contract is read-only if it's not editable and not a personal draft
-  const isReadOnly = !canEditInPlace
+  // Locked by its status (not by the user's permission): the read-only banner and Clone for Editing
+  const isReadOnly = !(isContractAdmin || isEditableStatus)
 
   // View mode state for filtering sections - initialize from localStorage
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -1995,7 +1999,7 @@ export default function DataContractDetails() {
                 <>
                   {backButton}
                   {/* Lifecycle actions */}
-                  {['proposed', 'under_review'].includes(status) && (
+                  {['proposed', 'under_review'].includes(status) && canApproveContractLifecycle && (
                     <>
                       <Button size="sm" variant="outline" onClick={handleApprove}>{t('data-contracts:detailsView.header.approve', 'Approve')}</Button>
                       <Button size="sm" variant="outline" className={common.danger} onClick={handleReject}>{t('data-contracts:detailsView.header.reject', 'Reject')}</Button>
@@ -2048,7 +2052,7 @@ export default function DataContractDetails() {
                     </>
                   )}
                   {/* Clone for editing (for active+ contracts) */}
-                  {!canEditInPlace && !isPersonalDraft && (
+                  {isReadOnly && !isPersonalDraft && (
                     <Button variant="outline" onClick={handleCloneForEditing} size="sm">
                       <CopyPlus /> {t('data-contracts:detailsView.header.cloneForEditing', 'Clone for Editing')}
                     </Button>
@@ -2162,7 +2166,7 @@ export default function DataContractDetails() {
               title={t('data-contracts:detailsView.schemas.title', 'Schemas ({{count}})', { count: contract.schema?.length || 0 })}
               actions={
                 <>
-                  {isDqxJobInstalled ? (
+                  {canWriteContracts && (isDqxJobInstalled ? (
                     // Wrapper span: a disabled button emits no pointer events of its own
                     <span tabIndex={-1}>{profileButton}</span>
                   ) : (
@@ -2189,7 +2193,7 @@ export default function DataContractDetails() {
                         )}
                       </Popover.Dropdown>
                     </Popover>
-                  )}
+                  ))}
                   {canEditInPlace && (
                     <>
                       <Button size="sm" variant="outline" onClick={() => setIsInferFromCatalogOpen(true)} disabled={isInferringSchema}>
@@ -2221,9 +2225,11 @@ export default function DataContractDetails() {
                     <span>
                       {t('data-contracts:detailsView.schemas.suggestionsAvailable', '{{count}} quality check suggestions available from DQX profiling', { count: pendingSuggestionsCount })}
                     </span>
-                    <Button size="sm" variant="outline" onClick={() => handleOpenSuggestions()}>
-                      {t('data-contracts:detailsView.schemas.reviewSuggestions', 'Review Suggestions')}
-                    </Button>
+                    {canWriteContracts && (
+                      <Button size="sm" variant="outline" onClick={() => handleOpenSuggestions()}>
+                        {t('data-contracts:detailsView.schemas.reviewSuggestions', 'Review Suggestions')}
+                      </Button>
+                    )}
                   </div>
                 </MantineAlert>
               )}
@@ -2307,7 +2313,7 @@ export default function DataContractDetails() {
             {shouldShowLinkedProducts() && (
               <Pane
                 title={t('data-contracts:detailsView.linkedProducts.title', 'Linked Data Products ({{count}})', { count: linkedProducts.length })}
-                actions={
+                actions={canWriteProducts ? (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setIsLinkProductDialogOpen(true)} disabled={!isActiveOrApproved}>
                       <Plus />
@@ -2318,7 +2324,7 @@ export default function DataContractDetails() {
                       {t('data-contracts:detailsView.linkedProducts.createProduct', 'Create Data Product')}
                     </Button>
                   </>
-                }
+                ) : undefined}
               >
                 <p className={classes.lead}>{t('data-contracts:detailsView.linkedProducts.subtitle', 'Data Products using this contract for deliverables')}</p>
                 {loadingProducts ? (
@@ -2330,12 +2336,12 @@ export default function DataContractDetails() {
                     <Package aria-hidden className={classes.emptyIcon} />
                     <p className={classes.emptyTitle}>{t('data-contracts:detailsView.linkedProducts.noneYet', 'No linked data products yet')}</p>
                     <p>{t('data-contracts:detailsView.linkedProducts.emptyHint', 'Create a data product that uses this contract to govern a deliverable')}</p>
-                    {isActiveOrApproved ? (
+                    {isActiveOrApproved ? (canWriteProducts && (
                       <Button size="sm" onClick={() => setIsCreateProductDialogOpen(true)}>
                         <Plus />
                         {t('data-contracts:detailsView.linkedProducts.createProduct', 'Create Data Product')}
                       </Button>
-                    ) : (
+                    )) : (
                       <p className={classes.italic}>
                         {t('data-contracts:detailsView.linkedProducts.statusRequirement', "Contract must be in 'active' or 'approved' status")}
                       </p>
@@ -2730,7 +2736,7 @@ export default function DataContractDetails() {
             {/* Quality Panel */}
             {contract.id && (
               <Pane aria-label={t('metadata:quality.title', 'Data Quality')}>
-                <EntityQualityPanel entityId={contract.id} entityType="data_contract" flush />
+                <EntityQualityPanel entityId={contract.id} entityType="data_contract" flush canEdit={canWriteContracts} />
               </Pane>
             )}
           </PaneStack>

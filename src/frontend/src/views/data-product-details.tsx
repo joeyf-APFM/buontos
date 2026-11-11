@@ -2129,7 +2129,7 @@ export default function DataProductDetails() {
             {/* Quality Panel */}
             {shouldShowSection('quality') && (
               <Pane aria-label={t('metadata:quality.title')}>
-                <EntityQualityPanel entityId={productId!} entityType="data_product" productAggregation flush />
+                <EntityQualityPanel entityId={productId!} entityType="data_product" productAggregation flush canEdit={canWrite} />
               </Pane>
             )}
           </PaneStack>

@@ -280,6 +280,22 @@ describe('data product details on the page kit', () => {
     expect(screen.queryByRole('region', { name: /Team Metadata/ })).toBeNull();
   });
 
+  it('data product details: the quality panel\'s Add measurement follows the data-products write permission', async () => {
+    localStorage.setItem('data-product-view-mode', 'large');
+    grant(FeatureAccessLevel.READ_ONLY);
+    renderPage();
+    await loaded();
+    const quality = () => screen.getAllByRole('region', { name: 'Data Quality' })[0];
+    await waitFor(() => expect(within(quality()).getByRole('button', { name: 'Refresh' })).toBeInTheDocument());
+    expect(within(quality()).queryByRole('button', { name: 'Add measurement' })).toBeNull();
+    cleanup();
+
+    grant(FeatureAccessLevel.READ_WRITE);
+    renderPage();
+    await loaded();
+    expect(await within(quality()).findByRole('button', { name: 'Add measurement' })).toBeEnabled();
+  });
+
   it('data product details: the shared panels sit flush in untitled panes', async () => {
     localStorage.setItem('data-product-view-mode', 'large');
     mockBackend(FULL);

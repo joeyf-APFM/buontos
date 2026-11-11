@@ -68,7 +68,7 @@ describe('shared panels flush', () => {
         <EntityMetadataPanel entityId="p1" entityType="data_product" flush />
         <EntityTagsPanel entityId="main.sales.orders" entityType="catalog-object" flush />
         <RatingPanel entityType="data_product" entityId="p1" flush />
-        <EntityQualityPanel entityId="p1" entityType="data_product" flush />
+        <EntityQualityPanel entityId="p1" entityType="data_product" flush canEdit />
       </>,
     );
 
@@ -136,7 +136,7 @@ describe('shared panels flush', () => {
 
   it('the quality measurement dialog picks its dimension from a Mantine Select', async () => {
     const user = userEvent.setup();
-    renderWithMantine(<EntityQualityPanel entityId="p1" entityType="data_product" flush />);
+    renderWithMantine(<EntityQualityPanel entityId="p1" entityType="data_product" flush canEdit />);
     const quality = await screen.findByRole('region', { name: 'Data Quality' });
     await user.click(within(quality).getByRole('button', { name: /Add measurement/i }));
 

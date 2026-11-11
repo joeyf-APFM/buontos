@@ -197,6 +197,11 @@ describe('asset detail on the page kit', () => {
     renderPage();
     const header = (await findHeading()).parentElement!;
 
+    // The quality panel follows the assets write permission
+    const quality = await screen.findByRole('region', { name: 'Data Quality' });
+    await waitFor(() => expect(within(quality).getByRole('button', { name: 'Refresh' })).toBeInTheDocument());
+    expect(within(quality).queryByRole('button', { name: 'Add measurement' })).toBeNull();
+
     expect(within(header).queryByRole('button', { name: 'Manage Lineage' })).toBeNull();
     expect(within(header).getByRole('button', { name: 'Edit' })).toBeDisabled();
     expect(within(header).getByRole('button', { name: 'Delete' })).toBeDisabled();

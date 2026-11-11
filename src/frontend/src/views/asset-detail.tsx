@@ -520,7 +520,7 @@ export default function AssetDetailView() {
               pane
             />
             <EntityCostsPanel entityId={assetId!} entityType="asset" pane />
-            <EntityQualityPanel entityId={assetId!} entityType="asset" pane />
+            <EntityQualityPanel entityId={assetId!} entityType="asset" pane canEdit={canWrite} />
           </PaneStack>
         </div>
       </PageLayout>

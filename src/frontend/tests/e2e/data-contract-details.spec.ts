@@ -102,6 +102,46 @@ test('the consumer has no edit, delete or certify control', async ({ page }) => 
   }
 });
 
+// Task 11c: a draft is editable in place, but only by a user who may write
+const DRAFT = {
+  ...BASE, status: 'draft',
+  schema: [{ name: 'orders', physicalName: 'main.sales.orders', properties: [] }],
+  qualityRules: [{ name: 'Order id is never null', dimension: 'completeness', severity: 'error', type: 'library' }],
+  sla: { uptimeTarget: 99.9 },
+  servers: [{ server: 'prod-warehouse', type: 'databricks', environment: 'prod' }],
+  customProperties: { retention: '30d' },
+};
+
+test('the consumer on a draft has no edit, delete, approve, profile, link or measurement control', async ({ page }) => {
+  await open(page, DRAFT, { persona: 'consumer', size: 'large' });
+  const main = page.getByRole('main');
+  await expect(main.getByRole('heading', { level: 1, name: 'Orders contract' })).toBeVisible();
+  await expect(main.getByRole('region', { name: /^Schemas/ })).toBeVisible();
+  await expect(main.getByRole('region', { name: 'Data Quality' }).first().getByRole('button', { name: 'Refresh' })).toBeVisible();
+  for (const name of [
+    'Edit Metadata', 'Delete', 'Edit description', 'Approve', 'Reject', 'Profile with DQX', 'Infer from Catalog',
+    'Infer from Asset', 'Add Schema', 'Add Rule', 'Edit SLA', 'Add Server', 'Add Property', 'Add Definition',
+    'Link to Existing Product', 'Create Data Product', 'Add measurement', 'Assign Owner', 'Clone for Editing',
+  ]) {
+    await expect(main.getByRole('button', { name, exact: true }), name).toHaveCount(0);
+  }
+  // No Add, Edit or Delete anywhere on the page (the linked concepts' Add included)
+  await expect(main.getByRole('button', { name: /^(Add|Edit|Delete)\b/ })).toHaveCount(0);
+  // What stays: reading and requesting
+  for (const name of ['Back to List', 'Request...', 'Export ODCS', 'Create New Version']) {
+    await expect(main.getByRole('button', { name, exact: true })).toBeEnabled();
+  }
+});
+
+test('the admin on the same draft keeps its controls', async ({ page }) => {
+  await open(page, DRAFT, { size: 'large' });
+  const main = page.getByRole('main');
+  await expect(main.getByRole('heading', { level: 1, name: 'Orders contract' })).toBeVisible();
+  for (const name of ['Edit Metadata', 'Delete', 'Edit description', 'Profile with DQX', 'Add Schema', 'Add Rule', 'Add measurement']) {
+    await expect(main.getByRole('button', { name, exact: true }).first(), name).toBeVisible();
+  }
+});
+
 test('a 409 from a section\'s form opens the version prompt on top, with focus inside it', async ({ page }) => {
   await open(page, { ...BASE, status: 'draft' }, { size: 'large' });
   await expect(page.getByRole('heading', { level: 1, name: 'Orders contract' })).toBeVisible();

@@ -79,7 +79,7 @@ function mockBackend(contract: unknown, extra: Record<string, unknown> = EXTRA) 
 
 function grant(level: FeatureAccessLevel) {
   usePermissionsStore.setState({
-    permissions: { 'data-contracts': level, 'semantic-models': level },
+    permissions: { 'data-contracts': level, 'data-products': level, 'semantic-models': level },
     availableRoles: [], appliedRoleId: null, isLoading: false, _initAttempted: true, _isInitializing: false,
   });
 }
@@ -307,10 +307,11 @@ describe('data contract details sections on the page kit', () => {
         expect(label, `${name}: ${label}`).not.toMatch(/^(Add|Edit|Delete|Infer)/);
       }
     }
-    // What a consumer keeps: DQX profiling, the schema tabs, and product links on an active contract
-    expect(within(pane(/^Schemas/)).getByRole('button', { name: 'Profile with DQX' })).toBeInTheDocument();
+    // What a consumer keeps: the schema tabs. DQX profiling and product links
+    // need write access (Task 11c), so they're gone too
     expect(within(pane(/^Schemas/)).getAllByRole('tab')).toHaveLength(2);
-    expect(within(pane(/^Linked Data Products/)).getByRole('button', { name: 'Link to Existing Product' })).toBeEnabled();
+    expect(within(pane(/^Schemas/)).queryByRole('button', { name: 'Profile with DQX' })).toBeNull();
+    expect(within(pane(/^Linked Data Products/)).queryByRole('button', { name: 'Link to Existing Product' })).toBeNull();
     cleanup();
 
     // Empty, read-only: the messages, and no Add
