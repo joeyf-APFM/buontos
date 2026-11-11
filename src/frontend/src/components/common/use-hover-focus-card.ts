@@ -51,10 +51,10 @@ export function useHoverFocusCard({ openDelay = 200, closeDelay = 150 }: { openD
         hadControl.current = true;
         if (enterOnOpen.current) first.focus();
         enterOnOpen.current = false;
-      } else if (++tries < 10) {
+      } else if (++tries < 30) {
         frame = window.requestAnimationFrame(look);
       } else {
-        hadControl.current = false;
+        // Not seen in time (a slow mount): what the card showed before stands
         enterOnOpen.current = false;
       }
     };
@@ -101,6 +101,8 @@ export function useHoverFocusCard({ openDelay = 200, closeDelay = 150 }: { openD
       ref: dropdownRef,
       onMouseEnter: clear,
       onMouseLeave: () => later(false, closeDelay),
+      // Focus inside the card proves it has a control, however slowly it mounted
+      onFocus: () => { if (firstControl()) hadControl.current = true; },
       onBlur: (e: FocusEvent<HTMLElement>) => { if (!inside(e.relatedTarget)) close(); },
       onKeyDown: (e: KeyboardEvent<HTMLElement>) => onEscape(e, true),
     },
