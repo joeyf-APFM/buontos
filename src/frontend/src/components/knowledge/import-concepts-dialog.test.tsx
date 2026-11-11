@@ -1,55 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import type { KnowledgeCollection } from '@/types/ontology';
-
-// Native <select> stand-in for Radix Select (driving Radix in jsdom hung CI).
-// Groups become <optgroup>s; headings and separators become disabled options.
-vi.mock('@/components/ui/select', async () => {
-  const React = await import('react');
-  const SelectTrigger = (_: { children?: React.ReactNode }) => null;
-  const SelectValue = () => null;
-  const SelectContent = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-  const SelectGroup = ({ children }: { children?: React.ReactNode }) => (
-    <optgroup data-testid="scheme-group">{children}</optgroup>
-  );
-  const SelectLabel = ({ children }: { children?: React.ReactNode }) => (
-    <option disabled data-testid="scheme-group-label">{children}</option>
-  );
-  const SelectSeparator = () => <option disabled value="" data-testid="separator" />;
-  const SelectItem = ({ value, children }: { value: string; children?: React.ReactNode }) => (
-    <option value={value}>{children}</option>
-  );
-  const Select = ({
-    value,
-    onValueChange,
-    children,
-  }: {
-    value?: string;
-    onValueChange?: (v: string) => void;
-    children?: React.ReactNode;
-  }) => {
-    const options: React.ReactNode[] = [];
-    React.Children.forEach(children, (child) => {
-      if (!React.isValidElement(child)) return;
-      if ((child as React.ReactElement).type !== SelectTrigger) options.push(child);
-    });
-    return (
-      <select value={value} onChange={(e) => onValueChange?.(e.target.value)}>
-        {options}
-      </select>
-    );
-  };
-  return {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectGroup,
-    SelectLabel,
-    SelectSeparator,
-    SelectItem,
-  };
-});
+import { renderWithMantine } from '@/test/utils';
+import { pick, selectField } from '@/test/kit-dialog';
+import dialogKit from '@/mantine/page/dialog.module.css';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -98,7 +53,7 @@ beforeEach(() => {
 });
 
 function renderDialog(props: Partial<React.ComponentProps<typeof ImportConceptsDialog>> = {}) {
-  return render(
+  return renderWithMantine(
     <ImportConceptsDialog
       open
       onOpenChange={vi.fn()}
@@ -143,16 +98,21 @@ describe('ImportConceptsDialog (multi-file + scheme strategy)', () => {
 });
 
 describe('ImportConceptsDialog (target scheme select)', () => {
-  const targetSelect = () => screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+  const targetSelect = () => selectField(screen.getByRole('dialog'), 'Target concept scheme');
+  /** Opens the target list and returns it (Mantine renders the options only while it's open). */
+  const openTarget = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(targetSelect());
+    return document.getElementById(targetSelect().getAttribute('aria-controls') ?? '') as HTMLElement;
+  };
 
-  it('pads the scroll container on both sides so focus rings are not clipped', () => {
+  it('keeps the form in the kit body, which pads it so focus rings are not clipped', () => {
     renderDialog();
-    const scroller = document.querySelector('form .overflow-y-auto')!;
-    expect(scroller).toHaveClass('px-1', '-mx-1');
-    expect(scroller).not.toHaveClass('pr-1');
+    const form = screen.getByRole('dialog').querySelector('form')!;
+    expect(form.parentElement).toHaveClass(dialogKit.body);
   });
 
-  it('groups editable schemes by type, alphabetically, with no dash prefixes', () => {
+  it('groups editable schemes by type, alphabetically, with no dash prefixes', async () => {
+    const user = userEvent.setup();
     renderDialog({
       collections: [
         make({ iri: 'urn:o', label: 'Ontology B', collection_type: 'ontology' }),
@@ -166,23 +126,26 @@ describe('ImportConceptsDialog (target scheme select)', () => {
         make({ iri: 'urn:t', label: 'Tax', collection_type: 'taxonomy' }),
       ],
     });
-    const labels = screen.getAllByTestId('scheme-group-label').map((el) => el.textContent);
+    const list = await openTarget(user);
+    const labels = [...list.querySelectorAll('[class*="groupLabel"]')].map((el) => el.textContent);
     expect(labels).toEqual(['Glossaries', 'Taxonomies', 'Ontologies']);
-    const [glossaries] = screen.getAllByTestId('scheme-group');
-    expect(within(glossaries).getAllByRole('option').map((o) => o.textContent)).toEqual([
-      'Glossaries',
-      'Alpha child',
+    // Create-new stays first; within a type, alphabetical, the parent as muted text
+    expect(within(list).getAllByRole('option', { hidden: true }).map((o) => o.textContent)).toEqual([
+      '＋ Create a new scheme…',
+      // the parent's "in {{parent}}" (this file's t stub leaves it unfilled)
+      expect.stringMatching(/^Alpha childin /),
       'zeta glossary',
+      'Tax',
+      'Ontology B',
     ]);
-    // Create-new stays first.
-    expect(targetSelect().options[0].value).toBe('__create_new_scheme__');
-    expect(targetSelect().textContent).not.toMatch(/[\u2014\u2013]/);
+    expect(list.textContent).not.toMatch(/[\u2014\u2013]/);
   });
 
-  it('selecting a scheme sets its iri', () => {
+  it('selecting a scheme sets its iri', async () => {
+    const user = userEvent.setup();
     renderDialog();
-    fireEvent.change(targetSelect(), { target: { value: 'urn:coll:a' } });
-    expect(targetSelect().value).toBe('urn:coll:a');
+    await pick(user, targetSelect(), 'Finance');
+    expect(targetSelect()).toHaveValue('Finance');
   });
 
   it('shows the read-only hint only when a read-only scheme exists', () => {
@@ -212,7 +175,7 @@ describe('ImportConceptsDialog (target scheme select)', () => {
     expect(screen.queryByText(READ_ONLY_HINT)).not.toBeInTheDocument();
   });
 
-  it('does not show the empty message when only a child scheme is editable', () => {
+  it('does not show the empty message when only a child scheme is editable', async () => {
     renderDialog({
       collections: [
         make({
@@ -226,7 +189,8 @@ describe('ImportConceptsDialog (target scheme select)', () => {
       ],
     });
     expect(screen.queryByText(NO_EDITABLE_MSG)).not.toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Editable child' })).toBeInTheDocument();
+    const list = await openTarget(userEvent.setup());
+    expect(within(list).getByRole('option', { name: /^Editable child/, hidden: true })).toBeInTheDocument();
   });
 
   it('shows the empty message when no scheme is editable', () => {

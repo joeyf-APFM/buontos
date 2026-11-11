@@ -1,0 +1,295 @@
+/*
+ * Define's Import Concepts dialog on the kit Dialog (wave 2 Task 12b). The
+ * shared form parts come from components/common/dialog-form.module.css;
+ * these are its own: the file list, the two strategy cards, the conflict
+ * box, the per-file outcomes and the diff preview.
+ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field > .flushHint,
+.field > p {
+  margin: 0;
+}
+
+/* The picker button opens the hidden file input */
+.chooseFiles {
+  width: 100%;
+  justify-content: flex-start;
+  color: var(--aura-text-secondary);
+}
+
+.fileInput {
+  display: none;
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file,
+.outcome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.outcome {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+svg.fileIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+/* A file name is an identifier: mono, one line, its title has it in full */
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+.fileSize {
+  flex: none;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.fileError {
+  flex: none;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-critical);
+}
+
+.held {
+  flex: none;
+  color: var(--aura-warning);
+}
+
+.requestId {
+  margin-left: 4px;
+  font-family: var(--aura-font-mono);
+  font-size: 10px;
+  color: var(--aura-text-secondary);
+}
+
+/* The landing strategy: two cards side by side */
+.strategies {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.strategy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  text-align: left;
+}
+
+.strategy[data-checked] {
+  border-color: var(--aura-accent);
+  box-shadow: 0 0 0 1px var(--aura-accent);
+}
+
+.strategy:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.indicator {
+  flex: none;
+  margin-top: 2px;
+}
+
+.strategyTitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.strategyDesc {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+.flushHint {
+  margin: -6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+.alert {
+  overflow-wrap: anywhere;
+}
+
+/* Conflicts: a warning box with the list and the choice */
+.conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--aura-warning);
+  border-radius: 4px;
+  background: var(--aura-warning-bg);
+}
+
+.conflictsHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.conflictsHead > svg {
+  flex: none;
+  color: var(--aura-warning);
+}
+
+.conflictList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 192px;
+  margin: 0;
+  padding: 0 4px 0 16px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+
+.conflict {
+  min-width: 0;
+}
+
+.conflictName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-weight: 500;
+}
+
+.conflictWhere {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+button.showAll {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--aura-accent);
+}
+
+button.showAll:hover {
+  text-decoration: underline;
+}
+
+button.showAll:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.conflictModes {
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.choiceLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The diff preview */
+.previewHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.previewHead > svg {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+.bucket {
+  font-size: 11px;
+}
+
+.bucketLabel {
+  margin-bottom: 2px;
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+}
+
+.bucketList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bucketItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bucketName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.referenced {
+  flex: none;
+  color: var(--aura-warning);
+}

@@ -1,9 +1,10 @@
 /**
  * Wave 2 Task 12b: the Ontology Generator (/concepts/generator) on the page
- * kit, measured in a real browser (ruling R10: jsdom ignores the cascade).
+ * kit, and Define's Guided Generate and Import Concepts dialogs on the kit
+ * Dialog, measured in a real browser (ruling R10: jsdom ignores the cascade).
  *
- * CAPTURE=before|after also saves images of the page, its result tabs and
- * the save dialog to
+ * CAPTURE=before|after also saves images of the page, its result tabs, the
+ * save dialog and the two Define dialogs to
  * .superpowers/sdd/2026-11-10-mantine-restyle-wave-2/task-12b-images/.
  */
 import path from 'node:path';
@@ -102,7 +103,7 @@ async function capture(page: Page, name: string, target?: Locator) {
 }
 
 test.describe('captures', () => {
-  test('captures the generator, its results and the save dialog', async ({ page }) => {
+  test('captures the generator, its results, the save dialog and the Define dialogs', async ({ page }) => {
     test.skip(!CAPTURE, 'only with CAPTURE=before|after');
     await setUp(page);
     await expect(page.locator('main').getByText('main', { exact: true })).toBeVisible();
@@ -116,6 +117,14 @@ test.describe('captures', () => {
     await page.locator('main').getByRole('button', { name: /Save to scheme/ }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await capture(page, 'generator-save-dialog');
+
+    await page.goto('/concepts/define?open=generate');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('dialog').getByLabel('What domain are you working in?').fill('Finance');
+    await capture(page, 'guided-generate-dialog');
+    await page.goto('/concepts/define?open=import');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await capture(page, 'import-concepts-dialog');
   });
 });
 
@@ -267,5 +276,98 @@ test.describe('the generator', () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('12 triples imported into "Sales Ontology".')).toBeVisible();
     expect(posted).toEqual([{ owl_content: RESULT.owl_content, collection_name: 'Sales Ontology', collection_description: '' }]);
+  });
+});
+
+test.describe('the Define dialogs', () => {
+  async function openDefine(page: Page, open: 'generate' | 'import') {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await mockApi(page, PERSONAS.admin, {
+      ...DATA_FIXTURES,
+      '/api/data-domains': [
+        { id: 'e2e-domain-fin', name: 'Finance', description: null },
+        { id: 'e2e-domain-ops', name: 'Operations', description: null },
+      ],
+      '/api/knowledge/collections': {
+        collections: [
+          { iri: 'urn:e2e:finance', label: 'Finance Glossary', collection_type: 'glossary', scope_level: 'enterprise', source_type: 'custom', is_editable: true, status: 'active', concept_count: 0, child_collections: [] },
+        ],
+      },
+    });
+    await page.goto(`/concepts/define?open=${open}`);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    return dialog;
+  }
+
+  test('Guided build is a kit Dialog: Escape in its domain list closes only the list, and Continue hands the prompt to the generator', async ({ page }) => {
+    const dialog = await openDefine(page, 'generate');
+    await expect(dialog).toHaveClass(/mantine-Modal-content/);
+    await expect(dialog).toHaveAccessibleName('Guided build');
+    const domain = dialog.getByRole('textbox', { name: 'What domain are you working in?' });
+    await expect(domain).toBeFocused();
+    await domain.fill('Finance');
+    const select = dialog.getByRole('textbox', { name: 'Data domain' });
+    await select.click();
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    await expect(domain).toHaveValue('Finance');
+    await dialog.getByRole('textbox', { name: 'Question 1' }).fill('Which invoices are overdue?');
+    await expect(dialog.getByTestId('guided-prompt-preview')).toContainText('1. Which invoices are overdue?');
+    await dialog.getByRole('button', { name: 'Continue to generator' }).click();
+    await expect(page).toHaveURL(/\/concepts\/generator\?guidelines=/);
+    await expect(page.locator('main').getByRole('textbox', { name: 'Guidelines' })).toHaveValue(
+      'Build a domain ontology for: Finance.\nIt should help answer these questions:\n1. Which invoices are overdue?',
+    );
+  });
+
+  test('opened from their cards, both dialogs give focus back to the card\'s button when Escape closes them', async ({ page }) => {
+    const first = await openDefine(page, 'import');
+    await page.keyboard.press('Escape');
+    await expect(first).toHaveCount(0);
+    await expect(page).toHaveURL(/\/concepts\/define$/);
+    for (const [button, title] of [['Start guided build', 'Guided build'], ['Upload files', 'Import files']]) {
+      const opener = page.locator('main').getByRole('button', { name: button });
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: title });
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+    }
+  });
+
+  test('Import files is a kit Dialog: Escape in its scheme list closes only the list, and the footer Import submits the form', async ({ page }) => {
+    const dialog = await openDefine(page, 'import');
+    await expect(dialog).toHaveClass(/mantine-Modal-content/);
+    await expect(dialog).toHaveAccessibleName('Import files');
+    const imported: string[] = [];
+    await page.route((url) => url.pathname.endsWith('/import') || url.pathname.endsWith('/import/conflicts'), (route) => {
+      imported.push(new URL(route.request().url()).pathname);
+      if (route.request().url().includes('/conflicts')) return route.fulfill({ json: { conflicts: [] } });
+      return route.fulfill({ json: { mode: 'imported', triples_imported: 7 } });
+    });
+    await dialog.locator('input[type="file"]').setInputFiles({ name: 'sales.ttl', mimeType: 'text/turtle', buffer: Buffer.from('@prefix : <urn:x#> .') });
+    await expect(dialog.getByText('sales.ttl')).toBeVisible();
+    const target = dialog.getByRole('textbox', { name: 'Target concept scheme' });
+    expect(Math.round((await box(target)).height)).toBe(28);
+    await target.click();
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    await target.click();
+    await page.getByRole('option', { name: 'Finance Glossary' }).click();
+    await expect(target).toHaveValue('Finance Glossary');
+    // The strategy choices are radios named by their titles
+    await expect(dialog.getByRole('radio', { name: /One scheme per file/ })).not.toBeChecked();
+    await expect(dialog.getByRole('radio', { name: /^One scheme Merge/ })).toBeChecked();
+    await dialog.getByRole('button', { name: 'Import 1 file(s)' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText('Imported 1 file(s).')).toBeVisible();
+    expect(imported).toContain('/api/knowledge/collections/urn%3Ae2e%3Afinance/import');
+    await expect(page).toHaveURL(/\/concepts\/define$/);
   });
 });

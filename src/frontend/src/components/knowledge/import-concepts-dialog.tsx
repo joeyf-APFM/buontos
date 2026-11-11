@@ -1,34 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ActionIcon, Alert, Loader, Radio, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { buildSchemeOptionGroups, flattenSchemeTree } from '@/lib/scheme-select-options';
-import { SchemeSelectItems } from './scheme-select-items';
+import { useSchemeSelectData } from './scheme-select-data';
 import { useToast } from '@/hooks/use-toast';
 import type { KnowledgeCollection } from '@/types/ontology';
-import { Loader2, Upload, FileUp, X, Info } from 'lucide-react';
+import { AlertCircle, Upload, FileUp, X, Info } from 'lucide-react';
+import classes from './import-concepts-dialog.module.css';
 
 const ACCEPTED_EXTENSIONS = '.ttl,.rdf,.xml,.owl,.n3,.nt,.jsonld,.json';
+
+// Sentinel value for the "create a new scheme" option in the target selector.
+const CREATE_NEW = '__create_new_scheme__';
 
 // Import supports two placement strategies. Conflict/dedup across schemes is
 // intentionally NOT handled here — it is reconciled later in the Review Board.
@@ -79,6 +66,7 @@ export const ImportConceptsDialog: React.FC<ImportConceptsDialogProps> = ({
 }) => {
   const { t } = useTranslation(['semantic-models', 'common']);
   const { toast } = useToast();
+  const formId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [schemeStrategy, setSchemeStrategy] = useState<SchemeStrategy>('merge');
@@ -127,14 +115,17 @@ export const ImportConceptsDialog: React.FC<ImportConceptsDialogProps> = ({
 
   // Only editable schemes can receive an import; they are offered wherever they
   // sit in the tree (an editable child of a read-only parent included).
-  const schemeOptionGroups = buildSchemeOptionGroups(collections);
+  const schemeOptionGroups = useMemo(() => buildSchemeOptionGroups(collections), [collections]);
   const hasSchemeOptions = schemeOptionGroups.length > 0;
   // Read-only schemes are deliberately not offered; say so when any exist.
   const hasReadOnlyScheme = flattenSchemeTree(collections).some((c) => !c.is_editable);
 
-  // Sentinel value for the "create a new scheme" option in the target selector.
-  const CREATE_NEW = '__create_new_scheme__';
   const creatingNew = selectedCollectionIri === CREATE_NEW;
+  // Create-new first, then the editable schemes, one group per type
+  const createNewLabel = t('semantic-models:import.createNewScheme', '＋ Create a new scheme…');
+  const leading = useMemo(() => [{ value: CREATE_NEW, label: createNewLabel }], [createNewLabel]);
+  const targetSelect = useSchemeSelectData(schemeOptionGroups, leading);
+  const newSchemePlaceholder = t('semantic-models:import.newSchemeName', 'New scheme name (e.g. Finance Ontology)');
 
   // A re-upload only produces a meaningful diff when the target scheme already
   // has concepts. Creating a new scheme (or an empty one) has nothing to diff.
@@ -572,462 +563,384 @@ export const ImportConceptsDialog: React.FC<ImportConceptsDialogProps> = ({
     .filter((r) => r.ok)
     .reduce((sum, r) => sum + (r.triplesImported ?? 0), 0);
 
+  const done = !!outcomes;
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {/* Cap the dialog height and let the BODY scroll — a long conflict list
-          (many IRIs) previously overflowed the viewport with no way to scroll
-          to the action buttons. Header + footer stay pinned; middle scrolls. */}
-      <DialogContent className="sm:max-w-[520px] max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{t('semantic-models:import.title', 'Import files')}</DialogTitle>
-          <DialogDescription>
-            {t(
-              'semantic-models:import.descriptionMulti',
-              'Drop one or more ontology files, then choose how they land. The file is just a carrier.'
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-          <div className="grid gap-4 py-4 overflow-y-auto min-h-0 flex-1 px-1 -mx-1">
-            {/* File picker (multiple) */}
-            <div className="grid gap-2">
-              <Label>{t('semantic-models:import.sourceFiles', 'Source files')}</Label>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {selectedFiles.length > 0
-                  ? t('semantic-models:import.addMoreFiles', 'Add more files…')
-                  : t('semantic-models:import.chooseFiles', 'Choose files…')}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={ACCEPTED_EXTENSIONS}
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              {selectedFiles.length > 0 && (
-                <div className="flex flex-col gap-1.5 mt-1">
-                  {selectedFiles.map((file) => (
-                    <div
-                      key={file.name}
-                      className="flex items-center gap-2 rounded-md border px-3 py-2"
-                    >
-                      <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate flex-1 font-mono">{file.name}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 shrink-0"
-                        onClick={() => handleRemoveFile(file.name)}
-                        aria-label={t('common:actions.remove', 'Remove')}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  'semantic-models:import.supportedFormats',
-                  'Supported: Turtle (.ttl), RDF/XML (.rdf, .xml), OWL (.owl), N-Triples (.nt), N3 (.n3), JSON-LD (.jsonld, .json)'
-                )}
-              </p>
-            </div>
-
-            {/* Scheme strategy */}
-            <div className="grid gap-2">
-              <Label>{t('semantic-models:import.howLand', 'How should these land?')}</Label>
-              <RadioGroup
-                value={schemeStrategy}
-                onValueChange={(v) => setSchemeStrategy(v as SchemeStrategy)}
-                className="grid grid-cols-2 gap-2"
-              >
-                <label
-                  htmlFor="scheme-merge"
-                  className={cn(
-                    'flex items-start gap-2 rounded-md border p-3 cursor-pointer',
-                    schemeStrategy === 'merge' && 'border-primary ring-1 ring-primary'
-                  )}
-                >
-                  <RadioGroupItem value="merge" id="scheme-merge" className="mt-0.5" />
-                  <span>
-                    <span className="block text-sm font-medium">
-                      {t('semantic-models:import.oneScheme', 'One scheme')}
-                    </span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">
-                      {t(
-                        'semantic-models:import.oneSchemeDesc',
-                        'Merge every file into a single concept scheme.'
-                      )}
-                    </span>
-                  </span>
-                </label>
-                <label
-                  htmlFor="scheme-perfile"
-                  className={cn(
-                    'flex items-start gap-2 rounded-md border p-3 cursor-pointer',
-                    schemeStrategy === 'perfile' && 'border-primary ring-1 ring-primary'
-                  )}
-                >
-                  <RadioGroupItem value="perfile" id="scheme-perfile" className="mt-0.5" />
-                  <span>
-                    <span className="block text-sm font-medium">
-                      {t('semantic-models:import.oneSchemePerFile', 'One scheme per file')}
-                    </span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">
-                      {t(
-                        'semantic-models:import.oneSchemePerFileDesc',
-                        'Each file becomes its own concept scheme.'
-                      )}
-                    </span>
-                  </span>
-                </label>
-              </RadioGroup>
-              {schemeStrategy === 'perfile' && (
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    'semantic-models:import.perFileNote',
-                    'Each file creates a new scheme named after the file. No target selection needed.'
-                  )}
-                </p>
-              )}
-            </div>
-
-            {/* Target collection — only for the merge strategy. Per-file derives
-                a scheme per file, so no target selection is shown. */}
-            {schemeStrategy !== 'perfile' && (
-            <div className="grid gap-2">
-              <Label>
-                {t('semantic-models:import.targetCollection', 'Target concept scheme')}
-              </Label>
-              <Select value={selectedCollectionIri} onValueChange={setSelectedCollectionIri}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={t('semantic-models:import.selectCollection', 'Select a scheme…')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Create-new-scheme path: no need to leave the dialog. */}
-                  <SelectItem value={CREATE_NEW}>
-                    {t('semantic-models:import.createNewScheme', '＋ Create a new scheme…')}
-                  </SelectItem>
-                  {hasSchemeOptions && <SelectSeparator />}
-                  <SchemeSelectItems groups={schemeOptionGroups} />
-                </SelectContent>
-              </Select>
-              {creatingNew && (
-                <Input
-                  autoFocus
-                  value={newSchemeName}
-                  onChange={(e) => setNewSchemeName(e.target.value)}
-                  placeholder={t('semantic-models:import.newSchemeName', 'New scheme name (e.g. Finance Ontology)')}
-                  className="mt-1"
-                />
-              )}
-              {!hasSchemeOptions && (
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    'semantic-models:import.noEditableCollections',
-                    'No editable schemes available. Create one first.'
-                  )}
-                </p>
-              )}
-              {hasReadOnlyScheme && (
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    'semantic-models:import.readOnlyHint',
-                    'Only editable schemes can receive imports. Imported and system schemes are read-only.'
-                  )}
-                </p>
-              )}
-            </div>
-            )}
-
-            {/* Conflicts-reconciled-later note — hidden when a hard IRI conflict
-                needs resolving HERE (the resolution UI below takes over), since
-                that note implies "handled later" which would be contradictory. */}
-            {conflicts.length === 0 && (
-              <div className="flex items-start gap-2 rounded-md border bg-muted/50 p-3 text-xs text-muted-foreground leading-relaxed">
-                <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <span>
-                  {t(
-                    'semantic-models:import.reconcileNote',
-                    'Overlapping or duplicate terms across schemes are reconciled later in the Review Board. Import just brings the graph in.'
-                  )}
-                </span>
-              </div>
-            )}
-
-            {/* Error */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Conflict resolution UI */}
-            {conflicts.length > 0 && (
-              <div className="grid gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-                <div className="flex items-center gap-2">
-                  <Info className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                    {t('semantic-models:import.conflict.title', 'Concept IRI conflicts detected')}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    'semantic-models:import.conflict.description',
-                    'The following concepts already exist in this scheme. Choose how to handle them:'
-                  )}
-                </p>
-                <ul className="space-y-1 text-xs max-h-48 overflow-y-auto pr-1">
-                  {(showAllConflicts ? conflicts : conflicts.slice(0, 5)).map((c) => {
-                    // PRIMARY line = the conflicting CONCEPT itself. Fall back to
-                    // the last path segment of its IRI when no label is supplied.
-                    const lastSegment = c.iri
-                      .split('#').pop()!
-                      .split('/').filter(Boolean).pop() || c.iri;
-                    const conceptName = c.label || lastSegment;
-                    return (
-                      <li key={c.iri} className="flex items-start gap-2 pl-2">
-                        <span className="shrink-0 mt-0.5">•</span>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium font-mono" title={c.iri}>{conceptName}</div>
-                          <div className="text-muted-foreground truncate text-[11px]">
-                            {t('semantic-models:import.conflict.alreadyIn', {
-                              scheme: c.existing_label || c.existing_context,
-                              defaultValue: 'Already in {{scheme}}',
-                            })}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {conflicts.length > 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllConflicts((v) => !v)}
-                    className="self-start text-xs font-medium text-primary hover:underline"
+    <Dialog
+      opened={open}
+      onClose={() => handleOpenChange(false)}
+      size="md"
+      title={t('semantic-models:import.title', 'Import files')}
+      description={t(
+        'semantic-models:import.descriptionMulti',
+        'Drop one or more ontology files, then choose how they land. The file is just a carrier.'
+      )}
+      // The kit keeps the title and footer in view; a long conflict list
+      // scrolls inside the body
+      footer={
+        // Single action: one Import button. On a re-upload the diff is shown
+        // above (review, then decide) and Import applies exactly that; on a
+        // first import there is nothing to diff. Once done → Close.
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isUploading}
+          >
+            {done
+              ? t('common:actions.close', 'Close')
+              : t('common:actions.cancel', 'Cancel')}
+          </Button>
+          {!done && (
+            // In the footer, outside the form: it submits the form by its id
+            <Button type="submit" form={formId} disabled={!canSubmit}>
+              {isUploading ? <Loader size={12} color="currentColor" /> : <Upload aria-hidden />}
+              {t('semantic-models:import.submitMulti', {
+                count: selectedFiles.length,
+                defaultValue: 'Import {{count}} file(s)',
+              })}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className={form.form}>
+        {/* File picker (multiple) */}
+        <div role="group" aria-labelledby={`${formId}-files`} className={classes.field}>
+          <span id={`${formId}-files`} className={form.label}>
+            {t('semantic-models:import.sourceFiles', 'Source files')}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            className={classes.chooseFiles}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload aria-hidden />
+            {selectedFiles.length > 0
+              ? t('semantic-models:import.addMoreFiles', 'Add more files…')
+              : t('semantic-models:import.chooseFiles', 'Choose files…')}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ACCEPTED_EXTENSIONS}
+            className={classes.fileInput}
+            onChange={handleFileSelect}
+          />
+          {selectedFiles.length > 0 && (
+            <ul className={classes.files}>
+              {selectedFiles.map((file) => (
+                <li key={file.name} className={classes.file}>
+                  <FileUp aria-hidden className={classes.fileIcon} />
+                  <span className={classes.fileName} title={file.name}>{file.name}</span>
+                  <span className={classes.fileSize}>{(file.size / 1024).toFixed(1)} KB</span>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size={24}
+                    onClick={() => handleRemoveFile(file.name)}
+                    aria-label={t('common:actions.remove', 'Remove')}
                   >
-                    {showAllConflicts
-                      ? t('semantic-models:import.conflict.showLess', 'Show fewer')
-                      : t('semantic-models:import.conflict.showAll', {
-                          count: conflicts.length,
-                          defaultValue: 'Check detailed list ({{count}})',
-                        })}
-                  </button>
-                )}
-                <div className="space-y-2 pt-2 border-t">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="conflict-mode"
-                      value="update"
-                      checked={conflictMode === 'update'}
-                      onChange={() => setConflictMode('update')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="text-xs font-medium">{t('semantic-models:import.conflict.update', 'Update existing')}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {t('semantic-models:import.conflict.updateDesc', 'Overwrite existing concepts with new definitions')}
-                      </div>
-                    </div>
-                  </label>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="conflict-mode"
-                      value="skip"
-                      checked={conflictMode === 'skip'}
-                      onChange={() => setConflictMode('skip')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="text-xs font-medium">{t('semantic-models:import.conflict.skip', 'Import only new')}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {t('semantic-models:import.conflict.skipDesc', 'Skip conflicting IRIs, import the rest')}
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
+                    <X size={14} aria-hidden />
+                  </ActionIcon>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className={form.hint}>
+            {t(
+              'semantic-models:import.supportedFormats',
+              'Supported: Turtle (.ttl), RDF/XML (.rdf, .xml), OWL (.owl), N-Triples (.nt), N3 (.n3), JSON-LD (.jsonld, .json)'
             )}
+          </p>
+        </div>
 
-            {/* Per-file outcomes + structural summary (CB-10, partial) */}
-            {outcomes && (
-              <div className="grid gap-2">
-                {outcomes.some((r) => r.ok) && (
-                  <Alert>
-                    <AlertDescription>
-                      {outcomes.some((r) => r.ok && r.status === 'held')
-                        ? t('semantic-models:import.summaryPending', {
-                            files: outcomes.filter((r) => r.ok).length,
-                            defaultValue: 'Upload submitted for approval ({{files}} file(s))',
-                          })
-                        : t('semantic-models:import.summary', {
-                            files: outcomes.filter((r) => r.ok).length,
-                            count: totalTriples,
-                            defaultValue:
-                              'Imported {{files}} file(s), {{count}} triples total.',
-                          })}
-                      {/* TODO(cb-v2): needs structural summary from import
-                          endpoint — # concepts by type, top-level vs child,
-                          dangling refs. Endpoint returns triples_imported only. */}
-                    </AlertDescription>
-                  </Alert>
-                )}
-                <div className="flex flex-col gap-1">
-                  {outcomes.map((r) => (
-                    <div
-                      key={r.name}
-                      className="flex items-center gap-2 text-xs rounded-md border px-3 py-1.5"
-                    >
-                      <span className="font-mono truncate flex-1">{r.name}</span>
-                      {r.ok ? (
-                        <div className="flex items-center gap-2 shrink-0">
-                          {r.status === 'held' ? (
-                            <span className="text-amber-600 dark:text-amber-400">
-                              {t('semantic-models:import.filePending', 'Pending approval')}
-                              {r.review_request_id && (
-                                <span className="text-muted-foreground ml-1 font-mono text-[10px]">
-                                  ({r.review_request_id.substring(0, 8)})
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {t('semantic-models:import.fileOk', {
-                                count: r.triplesImported ?? 0,
-                                defaultValue: '{{count}} triples',
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-destructive shrink-0 truncate max-w-[220px]">
-                          {r.error}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Computing the diff while files are being staged against a
-                non-empty scheme. */}
-            {previewing && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border bg-muted/30 px-3 py-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {t('semantic-models:import.computingDiff', 'Computing changes…')}
-              </div>
-            )}
-
-            {/* Diff panel. Shown BEFORE Import (review the changes, then decide);
-                once imported (outcomes set), the same panel reads as a summary of
-                what was applied. Import applies exactly what is shown here. */}
-            {previews.map((pv) => (
-              <div key={pv.preview_token} className="grid gap-2 rounded-md border bg-muted/30 p-3">
-                <div className="flex items-center gap-2">
-                  <Info className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium">
-                    {outcomes
-                      ? t('semantic-models:import.changelogTitle', 'Changes applied from {{file}}', { file: pv.fileName })
-                      : t('semantic-models:import.previewTitle', 'Changes from {{file}}', { file: pv.fileName })}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('semantic-models:import.changelogSummary', {
-                    modified: pv.summary.modified,
-                    added: pv.summary.new,
-                    removed: pv.summary.removed,
-                    unchanged: pv.summary.unchanged,
-                    defaultValue:
-                      'Modifies {{modified}}, adds {{added}}, removes {{removed}} ({{unchanged}} unchanged).',
-                  })}
-                </p>
-                {(['modified', 'new', 'removed'] as const).map((bucket) => {
-                  const items = pv[bucket];
-                  if (!items.length) return null;
-                  const labelForBucket =
-                    bucket === 'modified'
-                      ? t('semantic-models:import.bucketModified', 'Modified (new version)')
-                      : bucket === 'new'
-                      ? t('semantic-models:import.bucketNew', 'New')
-                      : t('semantic-models:import.bucketRemoved', 'Removed (deprecated, not deleted)');
-                  return (
-                    <div key={bucket} className="text-xs">
-                      <div className="font-medium text-muted-foreground mb-0.5">{labelForBucket}</div>
-                      <ul className="space-y-0.5">
-                        {items.map((c) => (
-                          <li key={c.iri} className="flex items-center gap-2">
-                            <span className="truncate">{c.label || c.iri}</span>
-                            {bucket === 'removed' && (c.reference_count ?? 0) > 0 && (
-                              <span className="text-amber-600 shrink-0">
-                                {t('semantic-models:import.stillReferenced', {
-                                  count: c.reference_count ?? 0,
-                                  defaultValue: 'used by {{count}}',
-                                })}
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Scheme strategy */}
+        <Radio.Group
+          label={t('semantic-models:import.howLand', 'How should these land?')}
+          value={schemeStrategy}
+          onChange={(v) => setSchemeStrategy(v as SchemeStrategy)}
+          classNames={FIELD_CLASSES}
+        >
+          <div className={classes.strategies}>
+            {([
+              ['merge', t('semantic-models:import.oneScheme', 'One scheme'), t('semantic-models:import.oneSchemeDesc', 'Merge every file into a single concept scheme.')],
+              ['perfile', t('semantic-models:import.oneSchemePerFile', 'One scheme per file'), t('semantic-models:import.oneSchemePerFileDesc', 'Each file becomes its own concept scheme.')],
+            ] as const).map(([value, title, desc]) => (
+              <Radio.Card key={value} value={value} className={classes.strategy}>
+                <Radio.Indicator size="xs" className={classes.indicator} />
+                <span>
+                  <span className={classes.strategyTitle}>{title}</span>
+                  <span className={classes.strategyDesc}>{desc}</span>
+                </span>
+              </Radio.Card>
             ))}
           </div>
+        </Radio.Group>
+        {schemeStrategy === 'perfile' && (
+          <p className={classes.flushHint}>
+            {t(
+              'semantic-models:import.perFileNote',
+              'Each file creates a new scheme named after the file. No target selection needed.'
+            )}
+          </p>
+        )}
 
-          <DialogFooter>
-            {/* Single action: one Import button. On a re-upload the diff is shown
-                ABOVE (review, then decide) and Import applies exactly that; on a
-                first import there is nothing to diff. Once done → Close. */}
-            {(() => {
-              const done = !!outcomes;
-              return (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleOpenChange(false)}
-                    disabled={isUploading}
-                  >
-                    {done
-                      ? t('common:actions.close', 'Close')
-                      : t('common:actions.cancel', 'Cancel')}
-                  </Button>
-                  {!done && (
-                    <Button type="submit" disabled={!canSubmit}>
-                      {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      <Upload className="h-4 w-4 mr-2" />
-                      {t('semantic-models:import.submitMulti', {
-                        count: selectedFiles.length,
-                        defaultValue: 'Import {{count}} file(s)',
-                      })}
-                    </Button>
+        {/* Target collection — only for the merge strategy. Per-file derives
+            a scheme per file, so no target selection is shown. */}
+        {schemeStrategy !== 'perfile' && (
+          <div className={classes.field}>
+            <Select
+              label={t('semantic-models:import.targetCollection', 'Target concept scheme')}
+              placeholder={t('semantic-models:import.selectCollection', 'Select a scheme…')}
+              data={targetSelect.data}
+              renderOption={targetSelect.renderOption}
+              value={selectedCollectionIri || null}
+              onChange={(value) => value && setSelectedCollectionIri(value)}
+              allowDeselect={false}
+              classNames={SELECT_CLASSES}
+            />
+            {creatingNew && (
+              <TextInput
+                autoFocus
+                value={newSchemeName}
+                onChange={(e) => setNewSchemeName(e.currentTarget.value)}
+                placeholder={newSchemePlaceholder}
+                aria-label={newSchemePlaceholder}
+              />
+            )}
+            {!hasSchemeOptions && (
+              <p className={form.hint}>
+                {t(
+                  'semantic-models:import.noEditableCollections',
+                  'No editable schemes available. Create one first.'
+                )}
+              </p>
+            )}
+            {hasReadOnlyScheme && (
+              <p className={form.hint}>
+                {t(
+                  'semantic-models:import.readOnlyHint',
+                  'Only editable schemes can receive imports. Imported and system schemes are read-only.'
+                )}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Conflicts-reconciled-later note — hidden when a hard IRI conflict
+            needs resolving HERE (the resolution UI below takes over), since
+            that note implies "handled later" which would be contradictory. */}
+        {conflicts.length === 0 && (
+          <div className={form.note}>
+            <Info size={14} aria-hidden />
+            <p>
+              {t(
+                'semantic-models:import.reconcileNote',
+                'Overlapping or duplicate terms across schemes are reconciled later in the Review Board. Import just brings the graph in.'
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.alert}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Conflict resolution UI */}
+        {conflicts.length > 0 && (
+          <div className={classes.conflicts}>
+            <div className={classes.conflictsHead}>
+              <Info size={14} aria-hidden />
+              <span>{t('semantic-models:import.conflict.title', 'Concept IRI conflicts detected')}</span>
+            </div>
+            <p className={form.muted}>
+              {t(
+                'semantic-models:import.conflict.description',
+                'The following concepts already exist in this scheme. Choose how to handle them:'
+              )}
+            </p>
+            <ul className={classes.conflictList}>
+              {(showAllConflicts ? conflicts : conflicts.slice(0, 5)).map((c) => {
+                // PRIMARY line = the conflicting CONCEPT itself. Fall back to
+                // the last path segment of its IRI when no label is supplied.
+                const lastSegment = c.iri
+                  .split('#').pop()!
+                  .split('/').filter(Boolean).pop() || c.iri;
+                const conceptName = c.label || lastSegment;
+                const existing = t('semantic-models:import.conflict.alreadyIn', {
+                  scheme: c.existing_label || c.existing_context,
+                  defaultValue: 'Already in {{scheme}}',
+                });
+                return (
+                  <li key={c.iri} className={classes.conflict}>
+                    <div className={classes.conflictName} title={c.iri}>{conceptName}</div>
+                    <div className={classes.conflictWhere} title={existing}>{existing}</div>
+                  </li>
+                );
+              })}
+            </ul>
+            {conflicts.length > 5 && (
+              <UnstyledButton
+                type="button"
+                onClick={() => setShowAllConflicts((v) => !v)}
+                className={classes.showAll}
+              >
+                {showAllConflicts
+                  ? t('semantic-models:import.conflict.showLess', 'Show fewer')
+                  : t('semantic-models:import.conflict.showAll', {
+                      count: conflicts.length,
+                      defaultValue: 'Check detailed list ({{count}})',
+                    })}
+              </UnstyledButton>
+            )}
+            <Radio.Group
+              name="conflict-mode"
+              value={conflictMode}
+              onChange={(v) => setConflictMode(v as 'skip' | 'update')}
+              className={classes.conflictModes}
+            >
+              <div className={form.choices}>
+                <Radio
+                  value="update"
+                  size="xs"
+                  label={t('semantic-models:import.conflict.update', 'Update existing')}
+                  description={t('semantic-models:import.conflict.updateDesc', 'Overwrite existing concepts with new definitions')}
+                  classNames={{ label: classes.choiceLabel, description: form.hint }}
+                />
+                <Radio
+                  value="skip"
+                  size="xs"
+                  label={t('semantic-models:import.conflict.skip', 'Import only new')}
+                  description={t('semantic-models:import.conflict.skipDesc', 'Skip conflicting IRIs, import the rest')}
+                  classNames={{ label: classes.choiceLabel, description: form.hint }}
+                />
+              </div>
+            </Radio.Group>
+          </div>
+        )}
+
+        {/* Per-file outcomes + structural summary (CB-10, partial) */}
+        {outcomes && (
+          <div className={classes.outcomes}>
+            {outcomes.some((r) => r.ok) && (
+              <Alert color="blue" variant="light" icon={<Info />} className={classes.alert}>
+                {outcomes.some((r) => r.ok && r.status === 'held')
+                  ? t('semantic-models:import.summaryPending', {
+                      files: outcomes.filter((r) => r.ok).length,
+                      defaultValue: 'Upload submitted for approval ({{files}} file(s))',
+                    })
+                  : t('semantic-models:import.summary', {
+                      files: outcomes.filter((r) => r.ok).length,
+                      count: totalTriples,
+                      defaultValue:
+                        'Imported {{files}} file(s), {{count}} triples total.',
+                    })}
+                {/* TODO(cb-v2): needs structural summary from import
+                    endpoint — # concepts by type, top-level vs child,
+                    dangling refs. Endpoint returns triples_imported only. */}
+              </Alert>
+            )}
+            <ul className={classes.files}>
+              {outcomes.map((r) => (
+                <li key={r.name} className={classes.outcome}>
+                  <span className={classes.fileName} title={r.name}>{r.name}</span>
+                  {r.ok ? (
+                    r.status === 'held' ? (
+                      <span className={classes.held}>
+                        {t('semantic-models:import.filePending', 'Pending approval')}
+                        {r.review_request_id && (
+                          <span className={classes.requestId}>({r.review_request_id.substring(0, 8)})</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className={classes.fileSize}>
+                        {t('semantic-models:import.fileOk', {
+                          count: r.triplesImported ?? 0,
+                          defaultValue: '{{count}} triples',
+                        })}
+                      </span>
+                    )
+                  ) : (
+                    <span className={classes.fileError} title={r.error}>{r.error}</span>
                   )}
-                </>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Computing the diff while files are being staged against a
+            non-empty scheme. */}
+        {previewing && (
+          <div className={form.loading}>
+            <Loader size={14} />
+            {t('semantic-models:import.computingDiff', 'Computing changes…')}
+          </div>
+        )}
+
+        {/* Diff panel. Shown BEFORE Import (review the changes, then decide);
+            once imported (outcomes set), the same panel reads as a summary of
+            what was applied. Import applies exactly what is shown here. */}
+        {previews.map((pv) => (
+          <div key={pv.preview_token} className={form.box}>
+            <div className={classes.previewHead}>
+              <Info size={14} aria-hidden />
+              <span>
+                {outcomes
+                  ? t('semantic-models:import.changelogTitle', 'Changes applied from {{file}}', { file: pv.fileName })
+                  : t('semantic-models:import.previewTitle', 'Changes from {{file}}', { file: pv.fileName })}
+              </span>
+            </div>
+            <p className={form.muted}>
+              {t('semantic-models:import.changelogSummary', {
+                modified: pv.summary.modified,
+                added: pv.summary.new,
+                removed: pv.summary.removed,
+                unchanged: pv.summary.unchanged,
+                defaultValue:
+                  'Modifies {{modified}}, adds {{added}}, removes {{removed}} ({{unchanged}} unchanged).',
+              })}
+            </p>
+            {(['modified', 'new', 'removed'] as const).map((bucket) => {
+              const items = Array.isArray(pv[bucket]) ? pv[bucket] : [];
+              if (!items.length) return null;
+              const labelForBucket =
+                bucket === 'modified'
+                  ? t('semantic-models:import.bucketModified', 'Modified (new version)')
+                  : bucket === 'new'
+                  ? t('semantic-models:import.bucketNew', 'New')
+                  : t('semantic-models:import.bucketRemoved', 'Removed (deprecated, not deleted)');
+              return (
+                <div key={bucket} className={classes.bucket}>
+                  <div className={classes.bucketLabel}>{labelForBucket}</div>
+                  <ul className={classes.bucketList}>
+                    {items.map((c) => (
+                      <li key={c.iri} className={classes.bucketItem}>
+                        <span className={classes.bucketName} title={c.label || c.iri}>{c.label || c.iri}</span>
+                        {bucket === 'removed' && (c.reference_count ?? 0) > 0 && (
+                          <span className={classes.referenced}>
+                            {t('semantic-models:import.stillReferenced', {
+                              count: c.reference_count ?? 0,
+                              defaultValue: 'used by {{count}}',
+                            })}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               );
-            })()}
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            })}
+          </div>
+        ))}
+      </form>
     </Dialog>
   );
 };
