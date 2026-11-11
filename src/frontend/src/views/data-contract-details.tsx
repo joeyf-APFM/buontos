@@ -5,17 +5,11 @@ import type { TFunction } from 'i18next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Download, Pencil, Trash2, Loader2, ArrowLeft, FileText, KeyRound, CopyPlus, Plus, Shapes, Columns2, Database, Sparkles, Package, ShieldCheck, Globe, Link2 } from 'lucide-react'
-import {
-  DetailHeaderSkeleton,
-  PanelSkeleton,
-  SkeletonBlock,
-  SkeletonLine,
-  TableSkeleton,
-} from '@/components/common/list-view-skeleton'
+import { AlertCircle, Download, Pencil, Trash2, Loader2, ArrowLeft, KeyRound, CopyPlus, Plus, Shapes, Columns2, Database, Sparkles, Package, ShieldCheck, Globe, Link2 } from 'lucide-react'
+import { DetailViewSkeleton, SkeletonBlock } from '@/components/common/list-view-skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Alert as MantineAlert, Popover } from '@mantine/core'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DataTable } from '@/components/ui/data-table'
@@ -72,6 +66,9 @@ import type { CertificationLevel, PublicationScope } from '@/types/lifecycle'
 import { userHasApprovalPrivilege } from '@/lib/permissions'
 import { ApprovalEntity } from '@/types/settings'
 import { apiErrorOf, statusChangeErrorText } from '@/lib/status-change-error'
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page'
+import classes from './data-contract-details.module.css'
+import common from '@/components/common/detail-page.module.css'
 
 // Status-based editability constants
 // Only draft/proposed contracts can be edited in place
@@ -80,6 +77,12 @@ const EDITABLE_STATUSES = ['draft', 'proposed']
 // View mode for filtering contract details sections
 type ViewMode = 'minimal' | 'medium' | 'large'
 const VIEW_MODE_STORAGE_KEY = 'data-contract-view-mode'
+// The S / M / L buttons: their names, and their tooltips' i18n keys
+const VIEW_MODE_BUTTONS: ReadonlyArray<{ mode: ViewMode; label: string; tooltip: string }> = [
+  { mode: 'minimal', label: 'S', tooltip: 'common:tooltips.smallView' },
+  { mode: 'medium', label: 'M', tooltip: 'common:tooltips.mediumView' },
+  { mode: 'large', label: 'L', tooltip: 'common:tooltips.largeView' },
+]
 
 // Define column structure for schema properties
 type SchemaProperty = {
@@ -178,23 +181,26 @@ const createSchemaPropertyColumns = (
       const rels = row.original.relationships
       if (!rels || rels.length === 0) return null
       return (
-        <Popover>
-          <PopoverTrigger asChild>
-            <span className="cursor-pointer" title={t('data-contracts:detailsView.columns.fkRelationship', 'Foreign key relationship')}>
-              <Link2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-            </span>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto max-w-xs p-3" side="right">
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold">{t('data-contracts:detailsView.columns.relationships', 'Relationships')}</p>
-              {rels.map((rel, i) => (
-                <div key={i} className="text-xs flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px] px-1 py-0">{rel.type}</Badge>
-                  <span className="font-mono">→ {typeof rel.to === 'string' ? rel.to : JSON.stringify(rel.to)}</span>
-                </div>
-              ))}
-            </div>
-          </PopoverContent>
+        <Popover position="right" withArrow shadow="md" trapFocus returnFocus>
+          <Popover.Target>
+            <button
+              type="button"
+              className={classes.fkTrigger}
+              aria-label={t('data-contracts:detailsView.columns.fkRelationship', 'Foreign key relationship')}
+              title={t('data-contracts:detailsView.columns.fkRelationship', 'Foreign key relationship')}
+            >
+              <Link2 aria-hidden />
+            </button>
+          </Popover.Target>
+          <Popover.Dropdown className={classes.fkDropdown}>
+            <p className={classes.fkTitle}>{t('data-contracts:detailsView.columns.relationships', 'Relationships')}</p>
+            {rels.map((rel, i) => (
+              <div key={i} className={classes.fkRow}>
+                <Badge variant="outline">{rel.type}</Badge>
+                <span className={classes.mono}>→ {typeof rel.to === 'string' ? rel.to : JSON.stringify(rel.to)}</span>
+              </div>
+            ))}
+          </Popover.Dropdown>
         </Popover>
       )
     },
@@ -1651,39 +1657,33 @@ export default function DataContractDetails() {
     return shouldShowSection('linked-products')
   }
 
+  const backButton = (
+    <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
+      <ArrowLeft />
+      {t('data-contracts:details.backToList', 'Back to List')}
+    </Button>
+  )
+
   if (loading) {
     return (
-      <div className="py-6 space-y-6">
-        <DetailHeaderSkeleton actionButtons={5} leftControls={2} />
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <SkeletonLine height="h-9" width="w-9" className="rounded" />
-            <SkeletonLine height="h-8" width="w-80" />
-            <SkeletonLine height="h-5" width="w-20" />
-          </div>
-          <SkeletonLine height="h-4" width="w-2/3" />
-        </div>
-        <PanelSkeleton rows={3} rowHeight="h-10" />
-        <div className="border rounded-lg">
-          <div className="p-6 border-b">
-            <div className="flex items-center gap-2">
-              <SkeletonLine height="h-5" width="w-5" />
-              <SkeletonLine height="h-5" width="w-32" />
-            </div>
-          </div>
-          <TableSkeleton columns={6} rows={5} bordered={false} />
-        </div>
-        <PanelSkeleton rows={2} rowHeight="h-12" />
-        <PanelSkeleton rows={2} rowHeight="h-10" />
+      <div className={classes.state}>
+        <DetailViewSkeleton cards={4} actionButtons={5} />
       </div>
     )
   }
   if (error || !contract) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error || t('data-contracts:detailsView.errors.contractNotFound', 'Contract not found.')}</AlertDescription>
-      </Alert>
+      <div className={classes.state}>
+        <div className={classes.stateBack}>{backButton}</div>
+        <MantineAlert
+          color={error ? 'red' : 'gray'}
+          variant="light"
+          icon={<AlertCircle size={16} />}
+          title={error ? t('common:status.error', 'Error') : undefined}
+        >
+          {error || t('data-contracts:detailsView.errors.contractNotFound', 'Contract not found.')}
+        </MantineAlert>
+      </div>
     )
   }
 
@@ -1720,390 +1720,309 @@ export default function DataContractDetails() {
     )
   }
 
+  const none = <span className={common.muted}>—</span>
+  const domainId = contract.domainId
+  const domainName = getDomainName(domainId) || contract.domain
+  const projectId = (contract as any).project_id
+
+  const detailRows: DetailsRow[] = [
+    {
+      label: t('data-contracts:detailsView.metadata.version', 'Version'),
+      value: contract.version ? <Badge variant="outline">{contract.version}</Badge> : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.domain', 'Domain'),
+      value: domainName && domainId ? (
+        <span className={classes.link} onClick={() => navigate(`/settings/data-domains/${domainId}`)}>
+          {domainName}
+        </span>
+      ) : domainName ? <span className={common.muted}>{domainName}</span> : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.project', 'Project'),
+      value: projectId && contract.project_name ? (
+        // No route shows one project, so the name is text, with the id in its title
+        <span title={t('data-contracts:detailsView.metadata.projectIdTitle', 'Project ID: {{id}}', { id: projectId })}>
+          {contract.project_name}
+        </span>
+      ) : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.tenant', 'Tenant'),
+      value: contract.tenant ? <span className={common.muted}>{contract.tenant}</span> : none,
+    },
+    {
+      // #854: the contract's dataProduct reference, resolved to its product
+      label: t('data-contracts:detailsView.metadata.dataProduct', 'Data Product'),
+      value: contract.dataProductId ? (
+        <span
+          className={classes.link}
+          onClick={() => navigate(`/data-products/${contract.dataProductId}`)}
+          title={t('data-contracts:detailsView.metadata.dataProductIdTitle', 'Product ID: {{id}}', { id: contract.dataProductId })}
+        >
+          {contract.dataProductName || contract.dataProduct}
+        </span>
+      ) : contract.dataProduct ? <span className={common.muted}>{contract.dataProduct}</span> : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.team', 'Team'),
+      value: contract.owner_team_id && contract.owner_team_name ? (
+        // No route shows one team, so the name is text, with the id in its title
+        <span title={t('data-contracts:detailsView.metadata.teamIdTitle', 'Team ID: {{id}}', { id: contract.owner_team_id })}>
+          {contract.owner_team_name}
+        </span>
+      ) : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.apiVersion', 'API Ver'),
+      value: contract.apiVersion ? <Badge variant="outline">{contract.apiVersion}</Badge> : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.created', 'Created'),
+      value: contract.created ? <span className={common.muted}>{formatDate(contract.created)}</span> : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.updated', 'Updated'),
+      value: contract.updated ? <span className={common.muted}>{formatDate(contract.updated)}</span> : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.cert', 'Cert'),
+      value: (contract.certification_level || contract.inherited_certification_level) ? (
+        <CertificationBadge
+          certificationLevel={contract.certification_level}
+          inheritedCertificationLevel={contract.inherited_certification_level}
+          certifiedAt={contract.certified_at}
+          certifiedBy={contract.certified_by}
+          levels={certificationLevels}
+          size="sm"
+        />
+      ) : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.published', 'Published'),
+      value: contract.publication_scope && contract.publication_scope !== 'none' ? (
+        <PublicationScopeBadge
+          scope={contract.publication_scope as PublicationScope}
+          publishedAt={contract.published_at}
+          publishedBy={contract.published_by}
+          size="sm"
+        />
+      ) : none,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.tags', 'Tags'),
+      value: (contract.tags || []).length > 0 ? (
+        <span className={classes.chips}>
+          {(contract.tags || []).map((tag, index) => (
+            <TagChip key={index} tag={tag} size="sm" />
+          ))}
+        </span>
+      ) : <span className={common.muted}>{t('data-contracts:details.coreMetadata.noTags', 'No tags')}</span>,
+    },
+    {
+      label: t('data-contracts:detailsView.metadata.linkedBusinessConcepts', 'Linked Business Concepts'),
+      value: (
+        <LinkedConceptChips
+          links={links}
+          onRemove={canEditInPlace ? (id) => removeLink(id) : undefined}
+          trailing={canEditInPlace ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add', 'Add')}</Button> : undefined}
+        />
+      ),
+    },
+  ]
+
+  const description = contract.description
+  const descriptionRows: DetailsRow[] = description ? [
+    ...(description.purpose ? [{ label: t('data-contracts:detailsView.description.purpose', 'Purpose'), value: <span className={classes.prose}>{description.purpose}</span> }] : []),
+    ...(description.limitations ? [{ label: t('data-contracts:detailsView.description.limitations', 'Limitations'), value: <span className={classes.prose}>{description.limitations}</span> }] : []),
+    ...(description.usage ? [{ label: t('data-contracts:detailsView.description.usage', 'Usage'), value: <span className={classes.prose}>{description.usage}</span> }] : []),
+  ] : []
+  const status = (contract.status || '').toLowerCase()
+
   return (
-    <div className="py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('data-contracts:details.backToList', 'Back to List')}
-          </Button>
-
-          {/* Version Navigation — unified across contracts and products (PRD #442). */}
-          <VersionNavigator
-            entityKind="contract"
-            currentEntityId={contractId!}
-            currentVersion={contract?.version}
-            onVersionChange={(id) => navigate(`${listPath}/${id}`)}
-          />
-
-
-          {/* View Mode Toggle */}
-          <div className="inline-flex items-stretch h-8 gap-px border rounded-md bg-background overflow-hidden">
-            <Button
-              variant={viewMode === 'minimal' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('minimal')}
-              className="h-full w-8 p-0 font-semibold text-xs rounded-none"
-              title={t('common:tooltips.smallView')}
-            >
-              S
-            </Button>
-            <Button
-              variant={viewMode === 'medium' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('medium')}
-              className="h-full w-8 p-0 font-semibold text-xs rounded-none"
-              title={t('common:tooltips.mediumView')}
-            >
-              M
-            </Button>
-            <Button
-              variant={viewMode === 'large' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('large')}
-              className="h-full w-8 p-0 font-semibold text-xs rounded-none"
-              title={t('common:tooltips.largeView')}
-            >
-              L
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Lifecycle actions */}
-          {contract && (['proposed','under_review'].includes((contract.status || '').toLowerCase())) && (
-            <>
-              <Button size="sm" variant="outline" onClick={handleApprove}>{t('data-contracts:detailsView.header.approve', 'Approve')}</Button>
-              <Button size="sm" variant="destructive" onClick={handleReject}>{t('data-contracts:detailsView.header.reject', 'Reject')}</Button>
-            </>
-          )}
-          {contract && contract.status?.toLowerCase() === 'active' && canApproveContractLifecycle && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const first = certificationLevels[0]?.level_order ?? null
-                setSelectedCertifyLevel(first)
-                setCertifyDialogOpen(true)
-              }}
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.certify', 'Certify')}
-            </Button>
-          )}
-          {contract &&
-            ['active', 'approved'].includes((contract.status || '').toLowerCase()) &&
-            canWriteContracts && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const cur = (contract.publication_scope || 'none') as PublicationScope
-                  setSelectedPublishScope(cur === 'none' ? 'organization' : cur)
-                  setPublishDialogOpen(true)
-                }}
-              >
-                <Globe className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.publish', 'Publish')}
-              </Button>
-            )}
-          <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm"><KeyRound className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.request', 'Request...')}</Button>
-          <CommentSidebar
-            entityType="data_contract"
-            entityId={contractId!}
-            isOpen={isCommentSidebarOpen}
-            onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
-            className="h-8"
-          />
-          {/* Personal draft actions */}
-          {isPersonalDraft && (
-            <>
-              <Button variant="default" onClick={() => setIsCommitDraftDialogOpen(true)} size="sm">
-                <CopyPlus className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.commitChanges', 'Commit Changes')}
-              </Button>
-              <Button variant="outline" onClick={handleDiscardDraft} size="sm">
-                <Trash2 className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.discardDraft', 'Discard Draft')}
-              </Button>
-            </>
-          )}
-          {/* Clone for editing (for active+ contracts) */}
-          {!canEditInPlace && !isPersonalDraft && (
-            <Button variant="outline" onClick={handleCloneForEditing} size="sm">
-              <CopyPlus className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.cloneForEditing', 'Clone for Editing')}
-            </Button>
-          )}
-          {/* Create new version (for any contract) */}
-          {!isPersonalDraft && (
-            <Button variant="outline" onClick={handleCreateNewVersion} size="sm">
-              <CopyPlus className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.createNewVersion', 'Create New Version')}
-            </Button>
-          )}
-          {/* Edit metadata only if editable */}
-          {canEditInPlace && (
-            <Button variant="outline" onClick={() => setIsBasicFormOpen(true)} size="sm">
-              <Pencil className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.editMetadata', 'Edit Metadata')}
-            </Button>
-          )}
-          <Button variant="outline" onClick={exportOdcs} size="sm"><Download className="mr-2 h-4 w-4" /> {t('data-contracts:detailsView.header.exportOdcs', 'Export ODCS')}</Button>
-          {canEditInPlace && (
-            <Button variant="destructive" onClick={handleDelete} size="sm"><Trash2 className="mr-2 h-4 w-4" /> {t('common:actions.delete', 'Delete')}</Button>
-          )}
-        </div>
-      </div>
-
-      {/* Personal Draft Banner */}
-      {isPersonalDraft && (
-        <Alert className="bg-amber-50 border-amber-300 dark:bg-amber-950 dark:border-amber-800">
-          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <AlertDescription className="text-amber-800 dark:text-amber-200">
-            <strong>{t('data-contracts:detailsView.banners.personalDraftTitle', 'Personal Draft')}</strong> — {t('data-contracts:detailsView.banners.personalDraftText', 'Only visible to you. Commit to share with your team.')}
-            {contract?.parentContractId && (
-              <span className="ml-2 text-sm">
-                {t('data-contracts:detailsView.banners.basedOn', 'Based on')}{' '}
-                <Button variant="link" className="h-auto p-0 text-amber-700 dark:text-amber-300" onClick={() => navigate(`${listPath}/${contract.parentContractId}`)}>
-                  v{contract?.version?.replace('-draft', '') || 'parent'}
-                </Button>
-              </span>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Read-Only Banner (for active+ contracts that aren't personal drafts) */}
-      {isReadOnly && !isPersonalDraft && (
-        <Alert className="bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-800">
-          <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <AlertDescription className="text-blue-800 dark:text-blue-200">
-            <strong>{t('data-contracts:detailsView.banners.readOnlyTitle', 'Read-Only')}</strong> — {t('data-contracts:detailsView.banners.readOnlyText', 'This contract is {{status}}. Clone to create a new version for editing.', { status: contract?.status?.toLowerCase() })}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Core Metadata Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="text-2xl font-bold flex items-center">
-                <FileText className="mr-3 h-7 w-7 text-primary shrink-0" />
-                <span className="truncate">{contract.name}</span>
-              </CardTitle>
-              <CardDescription className="pt-1">
-                {contract.description?.purpose || t('data-contracts:details.noDescription', 'No description provided')}
-              </CardDescription>
-            </div>
-            <div className="flex items-end gap-5 shrink-0">
-              <div className="flex flex-col items-center gap-1">
-                <Badge variant={getStatusColor(contract.status)}>
-                  {contract.status || '—'}
-                </Badge>
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('data-contracts:detailsView.metadata.status', 'Status')}</span>
-              </div>
-              {contract.id && (
-                <MaturityInline entityType="DataContract" entityId={contract.id} compact />
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid md:grid-cols-3 gap-x-6 gap-y-2">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.version', 'Version')}:</Label>
-              {contract.version ? (
-                <Badge variant="outline" className="text-xs">{contract.version}</Badge>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.domain', 'Domain')}:</Label>
-              {(() => {
-                const domainId = contract.domainId;
-                const domainName = getDomainName(domainId) || contract.domain;
-                if (domainName && domainId) {
-                  return (
-                    <span
-                      className="text-xs cursor-pointer text-primary hover:underline truncate"
-                      onClick={() => navigate(`/settings/data-domains/${domainId}`)}
-                    >
-                      {domainName}
-                    </span>
-                  );
-                }
-                if (domainName) {
-                  return <span className="text-xs text-muted-foreground truncate">{domainName}</span>;
-                }
-                return <span className="text-xs text-muted-foreground">—</span>;
-              })()}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.project', 'Project')}:</Label>
-              {(contract as any).project_id && contract.project_name ? (
-                <span
-                  className="text-xs cursor-pointer text-primary hover:underline truncate"
-                  onClick={() => navigate(`/projects/${(contract as any).project_id}`)}
-                  title={t('data-contracts:detailsView.metadata.projectIdTitle', 'Project ID: {{id}}', { id: (contract as any).project_id })}
-                >
-                  {contract.project_name}
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.tenant', 'Tenant')}:</Label>
-              {contract.tenant ? (
-                <span className="text-xs text-muted-foreground truncate">{contract.tenant}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            {/* #854: resolve the contract's dataProduct reference to a navigable product link. */}
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.dataProduct', 'Data Product')}:</Label>
-              {contract.dataProductId ? (
-                <span
-                  className="text-xs cursor-pointer text-primary hover:underline truncate"
-                  onClick={() => navigate(`/data-products/${contract.dataProductId}`)}
-                  title={t('data-contracts:detailsView.metadata.dataProductIdTitle', 'Product ID: {{id}}', { id: contract.dataProductId })}
-                >
-                  {contract.dataProductName || contract.dataProduct}
-                </span>
-              ) : contract.dataProduct ? (
-                <span className="text-xs text-muted-foreground truncate">{contract.dataProduct}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.team', 'Team')}:</Label>
-              {contract.owner_team_id && contract.owner_team_name ? (
-                <span
-                  className="text-xs cursor-pointer text-primary hover:underline truncate"
-                  onClick={() => navigate(`/teams/${contract.owner_team_id}`)}
-                  title={t('data-contracts:detailsView.metadata.teamIdTitle', 'Team ID: {{id}}', { id: contract.owner_team_id })}
-                >
-                  {contract.owner_team_name}
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.apiVersion', 'API Ver')}:</Label>
-              {contract.apiVersion ? (
-                <Badge variant="outline" className="text-xs">{contract.apiVersion}</Badge>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.created', 'Created')}:</Label>
-              {contract.created ? (
-                <span className="text-xs text-muted-foreground truncate">{formatDate(contract.created)}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.updated', 'Updated')}:</Label>
-              {contract.updated ? (
-                <span className="text-xs text-muted-foreground truncate">{formatDate(contract.updated)}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.cert', 'Cert')}:</Label>
-              {(contract.certification_level || contract.inherited_certification_level) ? (
-                <CertificationBadge
-                  certificationLevel={contract.certification_level}
-                  inheritedCertificationLevel={contract.inherited_certification_level}
-                  certifiedAt={contract.certified_at}
-                  certifiedBy={contract.certified_by}
-                  levels={certificationLevels}
-                  size="sm"
-                />
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-contracts:detailsView.metadata.published', 'Published')}:</Label>
-              {contract.publication_scope && contract.publication_scope !== 'none' ? (
-                <PublicationScopeBadge
-                  scope={contract.publication_scope as PublicationScope}
-                  publishedAt={contract.published_at}
-                  publishedBy={contract.published_by}
-                  size="sm"
-                />
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
-          </div>
-
-          <div className="pt-2 border-t">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 min-w-0">
-                <Label className="text-xs text-muted-foreground mb-1.5 block">{t('data-contracts:detailsView.metadata.tags', 'Tags')}:</Label>
-                <div className="flex flex-wrap gap-1">
-                  {(contract.tags || []).length > 0 ? (
-                    (contract.tags || []).map((tag, index) => (
-                      <TagChip key={index} tag={tag} size="sm" />
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{t('data-contracts:details.coreMetadata.noTags', 'No tags')}</span>
+    <>
+      <PageLayout
+        header={
+          <>
+            <PageHeader
+              title={contract.name || '—'}
+              badges={
+                <>
+                  <Badge variant={getStatusColor(contract.status)}>{contract.status || '—'}</Badge>
+                  {contract.id && <MaturityInline entityType="DataContract" entityId={contract.id} compact />}
+                </>
+              }
+              wrapActions
+              actions={
+                <>
+                  {backButton}
+                  {/* Lifecycle actions */}
+                  {['proposed', 'under_review'].includes(status) && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={handleApprove}>{t('data-contracts:detailsView.header.approve', 'Approve')}</Button>
+                      <Button size="sm" variant="outline" className={common.danger} onClick={handleReject}>{t('data-contracts:detailsView.header.reject', 'Reject')}</Button>
+                    </>
                   )}
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <Label className="text-xs text-muted-foreground mb-1.5 block">{t('data-contracts:detailsView.metadata.linkedBusinessConcepts', 'Linked Business Concepts')}:</Label>
-                <LinkedConceptChips
-                  links={links}
-                  onRemove={canEditInPlace ? (id) => removeLink(id) : undefined}
-                  trailing={canEditInPlace ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)} className="h-6 text-xs">{t('common:actions.add', 'Add')}</Button> : undefined}
-                />
-              </div>
+                  {status === 'active' && canApproveContractLifecycle && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const first = certificationLevels[0]?.level_order ?? null
+                        setSelectedCertifyLevel(first)
+                        setCertifyDialogOpen(true)
+                      }}
+                    >
+                      <ShieldCheck /> {t('data-contracts:detailsView.header.certify', 'Certify')}
+                    </Button>
+                  )}
+                  {['active', 'approved'].includes(status) && canWriteContracts && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = (contract.publication_scope || 'none') as PublicationScope
+                        setSelectedPublishScope(cur === 'none' ? 'organization' : cur)
+                        setPublishDialogOpen(true)
+                      }}
+                    >
+                      <Globe /> {t('data-contracts:detailsView.header.publish', 'Publish')}
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm">
+                    <KeyRound /> {t('data-contracts:detailsView.header.request', 'Request...')}
+                  </Button>
+                  <CommentSidebar
+                    entityType="data_contract"
+                    entityId={contractId!}
+                    isOpen={isCommentSidebarOpen}
+                    onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                  />
+                  {/* Personal draft actions */}
+                  {isPersonalDraft && (
+                    <>
+                      <Button variant="default" onClick={() => setIsCommitDraftDialogOpen(true)} size="sm">
+                        <CopyPlus /> {t('data-contracts:detailsView.header.commitChanges', 'Commit Changes')}
+                      </Button>
+                      <Button variant="outline" onClick={handleDiscardDraft} size="sm">
+                        <Trash2 /> {t('data-contracts:detailsView.header.discardDraft', 'Discard Draft')}
+                      </Button>
+                    </>
+                  )}
+                  {/* Clone for editing (for active+ contracts) */}
+                  {!canEditInPlace && !isPersonalDraft && (
+                    <Button variant="outline" onClick={handleCloneForEditing} size="sm">
+                      <CopyPlus /> {t('data-contracts:detailsView.header.cloneForEditing', 'Clone for Editing')}
+                    </Button>
+                  )}
+                  {/* Create new version (for any contract) */}
+                  {!isPersonalDraft && (
+                    <Button variant="outline" onClick={handleCreateNewVersion} size="sm">
+                      <CopyPlus /> {t('data-contracts:detailsView.header.createNewVersion', 'Create New Version')}
+                    </Button>
+                  )}
+                  {/* Edit metadata only if editable */}
+                  {canEditInPlace && (
+                    <Button variant="outline" onClick={() => setIsBasicFormOpen(true)} size="sm">
+                      <Pencil /> {t('data-contracts:detailsView.header.editMetadata', 'Edit Metadata')}
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={exportOdcs} size="sm">
+                    <Download /> {t('data-contracts:detailsView.header.exportOdcs', 'Export ODCS')}
+                  </Button>
+                  {canEditInPlace && (
+                    <Button variant="outline" className={common.danger} onClick={handleDelete} size="sm">
+                      <Trash2 /> {t('common:actions.delete', 'Delete')}
+                    </Button>
+                  )}
+                </>
+              }
+            />
+            <p className={classes.description}>
+              {contract.description?.purpose || t('data-contracts:details.noDescription', 'No description provided')}
+            </p>
+          </>
+        }
+      >
+        <div className={classes.body}>
+          {/* Personal Draft Banner */}
+          {isPersonalDraft && (
+            <MantineAlert color="yellow" variant="light" icon={<AlertCircle size={16} />} className={classes.banner}>
+              <strong>{t('data-contracts:detailsView.banners.personalDraftTitle', 'Personal Draft')}</strong> — {t('data-contracts:detailsView.banners.personalDraftText', 'Only visible to you. Commit to share with your team.')}
+              {contract.parentContractId && (
+                <span className={classes.basedOn}>
+                  {t('data-contracts:detailsView.banners.basedOn', 'Based on')}{' '}
+                  <button type="button" className={classes.inlineLink} onClick={() => navigate(`${listPath}/${contract.parentContractId}`)}>
+                    v{contract.version?.replace('-draft', '') || 'parent'}
+                  </button>
+                </span>
+              )}
+            </MantineAlert>
+          )}
+
+          {/* Read-Only Banner (for active+ contracts that aren't personal drafts) */}
+          {isReadOnly && !isPersonalDraft && (
+            <MantineAlert color="blue" variant="light" icon={<AlertCircle size={16} />} className={classes.banner}>
+              <strong>{t('data-contracts:detailsView.banners.readOnlyTitle', 'Read-Only')}</strong> — {t('data-contracts:detailsView.banners.readOnlyText', 'This contract is {{status}}. Clone to create a new version for editing.', { status })}
+            </MantineAlert>
+          )}
+
+          {/* The view controls, above the stack (which holds only panes) */}
+          <div className={classes.toolbar}>
+            {/* Version Navigation — unified across contracts and products (PRD #442). */}
+            <VersionNavigator
+              entityKind="contract"
+              currentEntityId={contractId!}
+              currentVersion={contract.version}
+              onVersionChange={(id) => navigate(`${listPath}/${id}`)}
+            />
+            {/* View Mode Toggle */}
+            <div className={classes.sizes}>
+              {VIEW_MODE_BUTTONS.map(({ mode, label, tooltip }) => (
+                <Button
+                  key={mode}
+                  size="sm"
+                  variant={viewMode === mode ? 'default' : 'outline'}
+                  className={classes.size}
+                  aria-pressed={viewMode === mode}
+                  onClick={() => setViewMode(mode)}
+                  title={t(tooltip)}
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Structured Description (ODCS) */}
-      {shouldShowSection('description') && contract.description && (contract.description.purpose || contract.description.usage || contract.description.limitations) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center">
-                <FileText className="mr-2 h-5 w-5" />
-                {t('common:labels.description', 'Description')}
-              </span>
-              {canEditInPlace && (
-                <Button size="sm" variant="outline" onClick={() => setIsBasicFormOpen(true)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {contract.description.purpose && (
-              <div>
-                <Label>{t('data-contracts:detailsView.description.purpose', 'Purpose')}:</Label>
-                <p className="text-sm mt-1">{contract.description.purpose}</p>
-              </div>
-            )}
-            {contract.description.limitations && (
-              <div>
-                <Label>{t('data-contracts:detailsView.description.limitations', 'Limitations')}:</Label>
-                <p className="text-sm mt-1">{contract.description.limitations}</p>
-              </div>
-            )}
-            {contract.description.usage && (
-              <div>
-                <Label>{t('data-contracts:detailsView.description.usage', 'Usage')}:</Label>
-                <p className="text-sm mt-1">{contract.description.usage}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          <PaneStack>
+            <Pane title={t('common:labels.details', 'Details')}>
+              <DetailsGrid rows={detailRows} />
+            </Pane>
 
+            {/* Structured Description (ODCS) */}
+            {shouldShowSection('description') && descriptionRows.length > 0 && (
+              <Pane
+                title={t('common:labels.description', 'Description')}
+                actions={canEditInPlace ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={common.iconButton}
+                    onClick={() => setIsBasicFormOpen(true)}
+                    aria-label={t('data-contracts:detailsView.description.edit', 'Edit description')}
+                    title={t('data-contracts:detailsView.description.edit', 'Edit description')}
+                  >
+                    <Pencil />
+                  </Button>
+                ) : undefined}
+              >
+                <DetailsGrid rows={descriptionRows} />
+              </Pane>
+            )}
+          </PaneStack>
+
+          {/* The sections from Schemas on (wave 2 Task 10), as they were */}
+          <div className={classes.sections}>
       {/* Schemas Section */}
       <Card>
         <CardHeader>
@@ -3141,48 +3060,60 @@ export default function DataContractDetails() {
       </Card>
       )}
 
-      {/* Ownership Panel (with imported ODCS contacts) */}
-      {shouldShowSection('metadata-panel') && contract.id && (
-        <OwnershipPanel
-          objectType="data_contract"
-          objectId={contract.id}
-          canAssign={canEditInPlace}
-          className="mb-6"
-          importedContacts={contract.team?.map((m) => ({
-            username: m.username,
-            name: m.name,
-            email: m.email,
-            role: m.role,
-            description: m.description,
-            dateIn: m.dateIn,
-            dateOut: m.dateOut,
-          }))}
-          importedContactsLabel={t('data-contracts:detailsView.panels.importedContacts', 'Imported Contacts')}
-          ownerTeamId={contract.owner_team_id}
-          ownerTeamName={contract.owner_team_name}
-        />
-      )}
+          </div>
 
-      {/* Entity Relationships Panel */}
-      {shouldShowSection('metadata-panel') && contract.id && (
-        <EntityTreePanel
-          entityType="DataContract"
-          entityId={contract.id}
-          title={t('data-contracts:detailsView.panels.relatedEntities', 'Related Entities')}
-          canEdit={canEditInPlace}
-        />
-      )}
+          <PaneStack>
+            {/* Ownership Panel (with imported ODCS contacts) */}
+            {shouldShowSection('metadata-panel') && contract.id && (
+              <Pane aria-label={t('business-owners:panel.title', 'Owners')}>
+                <OwnershipPanel
+                  flush
+                  objectType="data_contract"
+                  objectId={contract.id}
+                  canAssign={canEditInPlace}
+                  importedContacts={contract.team?.map((m) => ({
+                    username: m.username,
+                    name: m.name,
+                    email: m.email,
+                    role: m.role,
+                    description: m.description,
+                    dateIn: m.dateIn,
+                    dateOut: m.dateOut,
+                  }))}
+                  importedContactsLabel={t('data-contracts:detailsView.panels.importedContacts', 'Imported Contacts')}
+                  ownerTeamId={contract.owner_team_id}
+                  ownerTeamName={contract.owner_team_name}
+                />
+              </Pane>
+            )}
 
-      {/* Metadata Panel */}
-      {shouldShowSection('metadata-panel') && contract.id && (
-        <EntityMetadataPanel entityId={contract.id} entityType="data_contract" />
-      )}
+            {/* Entity Relationships Panel */}
+            {shouldShowSection('metadata-panel') && contract.id && (
+              <EntityTreePanel
+                entityType="DataContract"
+                entityId={contract.id}
+                title={t('data-contracts:detailsView.panels.relatedEntities', 'Related Entities')}
+                canEdit={canEditInPlace}
+                pane
+              />
+            )}
 
-      {/* Quality Panel */}
-      {contract.id && (
-        <EntityQualityPanel entityId={contract.id} entityType="data_contract" />
-      )}
+            {/* Metadata Panel */}
+            {shouldShowSection('metadata-panel') && contract.id && (
+              <Pane aria-label={t('metadata:title', 'Metadata')}>
+                <EntityMetadataPanel entityId={contract.id} entityType="data_contract" flush />
+              </Pane>
+            )}
 
+            {/* Quality Panel */}
+            {contract.id && (
+              <Pane aria-label={t('metadata:quality.title', 'Data Quality')}>
+                <EntityQualityPanel entityId={contract.id} entityType="data_contract" flush />
+              </Pane>
+            )}
+          </PaneStack>
+        </div>
+      </PageLayout>
       {/* Dialogs */}
       <DataContractBasicFormDialog
         isOpen={isBasicFormOpen}
@@ -3412,6 +3343,6 @@ export default function DataContractDetails() {
         isSubmitting={lifecycleActionSubmitting}
         onConfirm={handleDirectPublish}
       />
-    </div>
+    </>
   )
 }

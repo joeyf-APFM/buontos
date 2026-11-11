@@ -268,6 +268,21 @@ export const DATA_FIXTURES: Record<string, unknown> = {
     achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,
     evaluated_by: null,
   },
+  // A contract (wave 2 Task 9): before it, the router's [] stood in for one,
+  // so the page showed no name, version or panels
+  '/api/data-contracts/e2e-contract-1': {
+    apiVersion: 'v3.0.2', kind: 'DataContract', id: 'e2e-contract-1', status: 'active', name: 'Orders contract',
+    version: '1.0.0', domain: 'Sales', tenant: 'acme', owner_team_id: null, schema: [], tags: ['sales'],
+    customProperties: {}, team: [], description: {
+      purpose: 'Orders for reporting', limitations: 'Refreshed daily', usage: 'Dashboards and forecasts',
+    },
+    created: CREATED, updated: UPDATED,
+  },
+  '/api/data-contracts/e2e-contract-1/maturity': {
+    entity_type: 'DataContract', entity_id: 'e2e-contract-1', entity_name: 'Orders contract', achieved_level_order: null,
+    achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,
+    evaluated_by: null,
+  },
   '/api/settings/search-config': {
     version: '1',
     defaults: {

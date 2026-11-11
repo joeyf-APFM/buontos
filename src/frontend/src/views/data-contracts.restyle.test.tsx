@@ -119,7 +119,8 @@ describe('data contracts on the page kit', () => {
     await loaded();
 
     expect(isFullBleed('/data-contracts')).toBe(true);
-    expect(isFullBleed('/data-contracts/c-1')).toBe(false);
+    // A contract is full bleed too since wave 2 Task 9 (its panes stacked at their own height)
+    expect(isFullBleed('/data-contracts/c-1')).toBe(true);
     expect(container.querySelector(`.${kit.page}`)).toHaveAttribute('data-full-bleed');
     // The shell draws the breadcrumb: the page only names itself in the store
     expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();

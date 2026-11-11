@@ -302,7 +302,8 @@
     "description": {
       "purpose": "Finalidade",
       "limitations": "Limitações",
-      "usage": "Uso"
+      "usage": "Uso",
+      "edit": "Editar descrição"
     },
     "schemas": {
       "title": "Esquemas ({{count}})",

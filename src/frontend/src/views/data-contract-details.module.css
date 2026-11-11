@@ -1,0 +1,171 @@
+/*
+ * A Data Contract (/data-contracts/:id) on the page kit (wave 2, Task 9), as
+ * the Data Product page: the kit's one-line header (the name, its status and
+ * maturity, then the actions), the purpose under it, the banners and the view
+ * controls, then the Details and Description panes. The sections from Schemas
+ * on (Task 10) follow as they were, then the shared panels in a second stack.
+ * What is left here is the page's own.
+ */
+
+/* The purpose, under the header: it wraps, however long */
+.description {
+  max-width: 56rem;
+  margin: -4px 0 0;
+  padding: 0 14px 10px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Under the header: the banners, the view controls, then the stacks */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.banner {
+  overflow-wrap: anywhere;
+}
+
+/* "Based on v1.0.0" in the personal-draft banner: a link-styled button */
+.basedOn {
+  margin-left: 8px;
+}
+
+button.inlineLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--aura-accent);
+  cursor: pointer;
+}
+
+button.inlineLink:hover {
+  text-decoration: underline;
+}
+
+button.inlineLink:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The version navigator and the S / M / L view sizes */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.sizes {
+  display: inline-flex;
+  gap: 2px;
+}
+
+button.size {
+  width: 28px;
+  padding: 0;
+  font-weight: 600;
+}
+
+/* The sections from Schemas on, until Task 10 makes them panes */
+.sections {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Values in the details grid */
+.link {
+  color: var(--aura-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* The tags */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Prose in the details grid (the purpose, limitations and usage) */
+.prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+/* A column's foreign keys: an icon button that opens them */
+button.fkTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+button.fkTrigger:hover {
+  color: var(--aura-text-body);
+}
+
+button.fkTrigger:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+button.fkTrigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fkDropdown {
+  max-width: 20rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fkTitle {
+  margin: 0;
+  font-weight: 600;
+}
+
+.fkRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+/* Loading, error and not found: the way back above, in the kit's margin */
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 14px 14px;
+}
+
+.stateBack {
+  align-self: flex-start;
+}

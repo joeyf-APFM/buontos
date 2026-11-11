@@ -302,7 +302,8 @@
     "description": {
       "purpose": "Scopo",
       "limitations": "Limitazioni",
-      "usage": "Utilizzo"
+      "usage": "Utilizzo",
+      "edit": "Modifica descrizione"
     },
     "schemas": {
       "title": "Schemi ({{count}})",

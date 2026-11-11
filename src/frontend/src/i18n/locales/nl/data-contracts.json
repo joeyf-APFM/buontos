@@ -302,7 +302,8 @@
     "description": {
       "purpose": "Doel",
       "limitations": "Beperkingen",
-      "usage": "Gebruik"
+      "usage": "Gebruik",
+      "edit": "Beschrijving bewerken"
     },
     "schemas": {
       "title": "Schema's ({{count}})",

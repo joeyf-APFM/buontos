@@ -302,7 +302,8 @@
     "description": {
       "purpose": "目的",
       "limitations": "制限事項",
-      "usage": "利用方法"
+      "usage": "利用方法",
+      "edit": "説明を編集"
     },
     "schemas": {
       "title": "スキーマ（{{count}}）",
