@@ -270,3 +270,75 @@ test('the ODPS import/export dialog is a kit Dialog, its two tabs sharing the wi
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
+
+// Wave 2 Task 8b: the request dialog and the approval wizard on the kit Dialog
+test('the request dialog is a kit Dialog: Escape in its Selects closes only the list, and the typed reason survives', async ({ page }) => {
+  await open(page, BASE);
+  const opener = page.getByRole('button', { name: 'Request...' });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'Request Access to Product' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveClass(/mantine-Modal-content/);
+  expect(Math.round((await dialog.boundingBox())!.width)).toBe(560);
+
+  const type = dialog.getByRole('textbox', { name: 'Request Type' });
+  expect(Math.round((await type.boundingBox())!.height)).toBe(28);
+  const reason = dialog.getByRole('textbox', { name: /Reason for Access/ });
+  await reason.fill('Quarterly revenue reporting');
+
+  // The Mantine request type list
+  await type.click();
+  await expect(page.getByRole('option', { name: 'Request Review' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(reason).toHaveValue('Quarterly revenue reporting');
+
+  // The shared access fields' duration list (a Radix Select, also on the contract page)
+  await dialog.getByRole('combobox', { name: 'Access Duration' }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(reason).toHaveValue('Quarterly revenue reporting');
+
+  // The next Escape is the dialog's, and focus goes back to its opener
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test('the approval wizard opens over the request dialog: on top, clickable, and Escape closes only the wizard', async ({ page }) => {
+  const step = {
+    step_id: 'reason', name: 'Business reason', step_type: 'user_action', order: 0,
+    config: { required_fields: [{ id: 'reason', label: 'Business reason', type: 'text', required: true }] },
+  };
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockApi(page, PERSONAS.admin, {
+    ...DATA_FIXTURES,
+    [PATH]: BASE,
+    '/api/workflows/for-trigger/for_request_access': { id: 'wf-req' },
+    '/api/workflows/wf-req': { id: 'wf-req', name: 'Access request', steps: [step] },
+    '/api/approvals/sessions': { session_id: 's-1', current_step: step, step_results: [] },
+  });
+  await page.goto('/data-products/e2e-product-1');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Request...' }).click();
+  const request = page.getByRole('dialog', { name: 'Request Access to Product' });
+  await request.getByRole('button', { name: 'Continue' }).click();
+
+  const wizard = page.getByRole('dialog', { name: 'Approval wizard' });
+  await expect(wizard).toHaveClass(/mantine-Modal-content/);
+  const field = wizard.getByRole('textbox', { name: /Business reason/ });
+  // A real click lands on the wizard's field, and typing reaches it
+  await field.click();
+  await page.keyboard.type('Quarterly report');
+  await expect(field).toHaveValue('Quarterly report');
+  await expect(wizard.getByRole('button', { name: 'Complete' })).toBeEnabled();
+
+  await page.keyboard.press('Escape');
+  await expect(wizard).toHaveCount(0);
+  await expect(request).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(request).toHaveCount(0);
+});

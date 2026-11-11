@@ -55,6 +55,8 @@ describe('product team member form dialog', () => {
     expect(document.querySelectorAll('#username')).toHaveLength(1);
     expect(within(dialog).getByText('Username').closest('label')).toHaveAttribute('for', 'username');
     expect(within(dialog).getByText("User's username or email address (REQUIRED in ODPS)")).toBeInTheDocument();
+    // The hint describes the picker's input (wave 2 Task 8b)
+    expect(picker).toHaveAccessibleDescription("User's username or email address (REQUIRED in ODPS)");
     expect(within(dialog).getByRole('textbox', { name: 'Full Name' })).toHaveAttribute('placeholder', 'Full name (optional)');
     expect(within(dialog).getByRole('textbox', { name: 'Role' })).toHaveAccessibleDescription(
       "User's role in the team (e.g., owner, data steward, contributor)",

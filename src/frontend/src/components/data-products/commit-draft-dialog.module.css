@@ -1,0 +1,31 @@
+/*
+ * The Data Product page's commit-draft dialog (wave 2 Task 8b) in the kit
+ * Dialog (mantine/page/dialog.tsx): the done mark in the title, the loading
+ * line, the analysis summary and the version choices. The fields are in
+ * common/dialog-form.module.css.
+ */
+.done {
+  color: var(--aura-good);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 0;
+  color: var(--aura-text-secondary);
+}
+
+.summary {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.choiceLabel {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}

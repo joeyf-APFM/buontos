@@ -1,0 +1,82 @@
+/*
+ * A change analysis in a dialog (wave 2 Tasks 8a and 8b): the versioning
+ * recommendation and the commit-draft dialogs. The breaking and features tabs
+ * in their tones, each tab's list in a bordered card, the summary in the
+ * prose font, and the tone icons.
+ */
+.critical {
+  flex: none;
+  color: var(--aura-critical);
+}
+
+.info {
+  flex: none;
+  color: var(--aura-info);
+}
+
+.mutedIcon {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+/* The breaking and features tabs keep their tone, also when hovered or
+   active (doubled, over the kit's .tab states) */
+.breakingTab.breakingTab,
+.breakingTab.breakingTab:hover,
+.breakingTab.breakingTab[data-active] {
+  color: var(--aura-critical);
+}
+
+.featuresTab.featuresTab,
+.featuresTab.featuresTab:hover,
+.featuresTab.featuresTab[data-active] {
+  color: var(--aura-info);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+/* The summary keeps its line breaks, in the prose font */
+.summary {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}
+
+.list[data-tone='critical'] li::marker {
+  color: var(--aura-critical);
+}
+
+.list[data-tone='info'] li::marker {
+  color: var(--aura-info);
+}
+
+.list[data-tone='muted'] li::marker {
+  color: var(--aura-text-secondary);
+}

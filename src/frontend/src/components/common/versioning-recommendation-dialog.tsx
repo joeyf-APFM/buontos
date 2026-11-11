@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, Tabs } from '@/mantine/page'
 import form from '@/components/common/dialog-form.module.css'
+import changeCss from './change-analysis.module.css'
 import classes from './versioning-recommendation-dialog.module.css'
 
 interface ChangeAnalysis {
@@ -88,9 +89,9 @@ export default function VersioningRecommendationDialog({
 
   /** A tab's list of changes, under its heading, each item marked in the tab's tone. */
   const changeList = (tone: 'critical' | 'info' | 'muted', heading: ReactNode, items: string[]) => (
-    <section className={classes.card}>
-      <h3 className={classes.cardTitle}>{heading}</h3>
-      <ul className={classes.list} data-tone={tone}>
+    <section className={changeCss.card}>
+      <h3 className={changeCss.cardTitle}>{heading}</h3>
+      <ul className={changeCss.list} data-tone={tone}>
         {items.map((item, idx) => (
           <li key={idx}>{item}</li>
         ))}
@@ -146,12 +147,12 @@ export default function VersioningRecommendationDialog({
         <Tabs.List>
           <Tabs.Tab value="summary">{t('common:versioning.tabSummary')}</Tabs.Tab>
           {hasBreakingChanges && (
-            <Tabs.Tab value="breaking" className={classes.breakingTab}>
+            <Tabs.Tab value="breaking" className={changeCss.breakingTab}>
               {t('common:versioning.tabBreaking', { count: analysis.breaking_changes.length })}
             </Tabs.Tab>
           )}
           {hasNewFeatures && (
-            <Tabs.Tab value="features" className={classes.featuresTab}>
+            <Tabs.Tab value="features" className={changeCss.featuresTab}>
               {t('common:versioning.tabFeatures', { count: analysis.new_features.length })}
             </Tabs.Tab>
           )}
@@ -163,9 +164,9 @@ export default function VersioningRecommendationDialog({
         </Tabs.List>
 
         <Tabs.Panel value="summary">
-          <section className={classes.card}>
-            <h3 className={classes.cardTitle}>{t('common:versioning.changeSummary')}</h3>
-            <p className={classes.summary}>{analysis.summary}</p>
+          <section className={changeCss.card}>
+            <h3 className={changeCss.cardTitle}>{t('common:versioning.changeSummary')}</h3>
+            <p className={changeCss.summary}>{analysis.summary}</p>
           </section>
         </Tabs.Panel>
 
@@ -173,7 +174,7 @@ export default function VersioningRecommendationDialog({
           <Tabs.Panel value="breaking">
             {changeList('critical', (
               <>
-                <AlertCircle size={14} className={classes.critical} aria-hidden />
+                <AlertCircle size={14} className={changeCss.critical} aria-hidden />
                 {t('common:versioning.breakingChangesHeading')}
               </>
             ), analysis.breaking_changes)}
@@ -184,7 +185,7 @@ export default function VersioningRecommendationDialog({
           <Tabs.Panel value="features">
             {changeList('info', (
               <>
-                <CheckCircle2 size={14} className={classes.info} aria-hidden />
+                <CheckCircle2 size={14} className={changeCss.info} aria-hidden />
                 {t('common:versioning.newFeatures')}
               </>
             ), analysis.new_features)}
@@ -195,7 +196,7 @@ export default function VersioningRecommendationDialog({
           <Tabs.Panel value="fixes">
             {changeList('muted', (
               <>
-                <Info size={14} className={classes.mutedIcon} aria-hidden />
+                <Info size={14} className={changeCss.mutedIcon} aria-hidden />
                 {t('common:versioning.improvementsFixes')}
               </>
             ), analysis.fixes)}
@@ -205,8 +206,8 @@ export default function VersioningRecommendationDialog({
 
       {/* Detailed Schema/Port Changes */}
       {(analysis.schema_changes?.length || analysis.port_changes?.length) ? (
-        <section className={classes.card}>
-          <h3 className={classes.cardTitle}>{t('common:versioning.detailedChanges')}</h3>
+        <section className={changeCss.card}>
+          <h3 className={changeCss.cardTitle}>{t('common:versioning.detailedChanges')}</h3>
           <div className={classes.changes}>
             {analysis.schema_changes?.map((change, idx) => (
               <div key={`schema-${idx}`} className={classes.change}>

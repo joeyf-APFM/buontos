@@ -1,8 +1,8 @@
 /*
  * The versioning recommendation (wave 2 Task 8a) in the kit Dialog
- * (mantine/page/dialog.tsx): the bump, the breaking-change alert, the change
- * lists in kit Tabs, each in a bordered card, and the detailed changes, whose
- * long list scrolls inside its card.
+ * (mantine/page/dialog.tsx): its title and the detailed changes, whose long
+ * list scrolls inside its card. The change lists in kit Tabs, each in a
+ * bordered card, are in change-analysis.module.css.
  */
 .title {
   display: inline-flex;
@@ -13,83 +13,6 @@
 .warning {
   flex: none;
   color: var(--aura-warning);
-}
-
-.critical {
-  flex: none;
-  color: var(--aura-critical);
-}
-
-.info {
-  flex: none;
-  color: var(--aura-info);
-}
-
-.mutedIcon {
-  flex: none;
-  color: var(--aura-text-secondary);
-}
-
-/* The breaking and features tabs keep their tone, also when hovered or
-   active (doubled, over the kit's .tab states) */
-.breakingTab.breakingTab,
-.breakingTab.breakingTab:hover,
-.breakingTab.breakingTab[data-active] {
-  color: var(--aura-critical);
-}
-
-.featuresTab.featuresTab,
-.featuresTab.featuresTab:hover,
-.featuresTab.featuresTab[data-active] {
-  color: var(--aura-info);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--aura-border);
-  border-radius: 6px;
-  min-width: 0;
-}
-
-.cardTitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--aura-text-navy);
-}
-
-/* The summary keeps its line breaks, in the prose font */
-.summary {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 16px;
-  overflow-wrap: anywhere;
-}
-
-.list[data-tone='critical'] li::marker {
-  color: var(--aura-critical);
-}
-
-.list[data-tone='info'] li::marker {
-  color: var(--aura-info);
-}
-
-.list[data-tone='muted'] li::marker {
-  color: var(--aura-text-secondary);
 }
 
 .changes {

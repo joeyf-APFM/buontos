@@ -104,6 +104,7 @@ export default function TeamMemberFormDialog({ isOpen, onOpenChange, onSubmit, i
           label={t('data-products:teamMemberForm.usernameLabel')}
           withAsterisk
           description={t('data-products:teamMemberForm.usernameHint')}
+          descriptionProps={{ id: 'username-hint' }}
           inputWrapperOrder={HINT_BELOW}
           classNames={FIELD_CLASSES}
         >
@@ -114,6 +115,7 @@ export default function TeamMemberFormDialog({ isOpen, onOpenChange, onSubmit, i
             onChange={(next) => setUsername(next ?? '')}
             placeholder={t('data-products:teamMemberForm.usernamePlaceholder')}
             aria-label={t('data-products:teamMemberForm.usernameLabel')}
+            aria-describedby="username-hint"
           />
         </Input.Wrapper>
 

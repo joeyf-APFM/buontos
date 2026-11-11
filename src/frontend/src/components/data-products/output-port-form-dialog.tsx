@@ -195,12 +195,15 @@ export default function OutputPortFormDialog({ isOpen, onOpenChange, onSubmit, i
       </span>
     );
   };
-  const renderContract: SelectProps['renderOption'] = ({ option }) => (
-    <span className={form.optionLine}>
-      <span>{option.label}</span>
-      <Badge variant="secondary">v{(option as typeof contractOptions[number]).version}</Badge>
-    </span>
-  );
+  const renderContract: SelectProps['renderOption'] = ({ option }) => {
+    const { version: contractVersion } = option as typeof contractOptions[number];
+    return (
+      <span className={form.optionLine}>
+        <span>{option.label}</span>
+        {contractVersion && <Badge variant="secondary">{`v${contractVersion}`}</Badge>}
+      </span>
+    );
+  };
 
   // The chosen option's badge stays in the field, before the chevron, as the
   // Radix SelectValue repeated the item's badge
@@ -372,7 +375,7 @@ export default function OutputPortFormDialog({ isOpen, onOpenChange, onSubmit, i
                   onChange={(value) => value && setContractId(value)}
                   allowDeselect={false}
                   renderOption={renderContract}
-                  {...(chosenContract ? withBadge(<Badge variant="secondary">{`v${chosenContract.version}`}</Badge>) : {})}
+                  {...(chosenContract?.version ? withBadge(<Badge variant="secondary">{`v${chosenContract.version}`}</Badge>) : {})}
                   nothingFoundMessage="No active/approved contracts available"
                   description="Only showing active/approved/certified contracts"
                   inputWrapperOrder={HINT_BELOW}

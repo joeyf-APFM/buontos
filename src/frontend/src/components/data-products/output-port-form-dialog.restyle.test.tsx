@@ -162,4 +162,18 @@ describe('output port form dialog', () => {
     expect(within(list).getByText('No active/approved contracts available')).toBeInTheDocument();
     expect(within(list).queryAllByRole('option', { hidden: true })).toHaveLength(0);
   });
+
+  it('output port form dialog shows no version badge for a contract without a version', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) =>
+      String(input) === '/api/data-contracts' ? json([{ id: 'c-5', name: 'Unversioned', status: 'active' }]) : json([]));
+    render();
+    const dialog = await screen.findByRole('dialog', { name: 'Add Deliverable' });
+    await user.click(within(dialog).getByRole('radio', { name: 'Select Existing Contract' }));
+    const contract = await waitFor(() => selectField(dialog, 'Select Existing Contract'));
+    expect(await optionNames(user, contract)).toEqual(['Unversioned']);
+    await pick(user, contract, 'Unversioned');
+    expect(contract).toHaveValue('Unversioned');
+    expect(contract.closest('.mantine-InputWrapper-root')!.querySelector('.mantine-Badge-root')).toBeNull();
+  });
 });
