@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Skeleton, TextInput, UnstyledButton } from '@mantine/core';
+import { Alert, Skeleton, TextInput, UnstyledButton } from '@mantine/core';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Package, Users, Search, User, Calendar, MessageSquare } from 'lucide-react';
+import { AlertCircle, Package, Users, Search, User, Calendar, MessageSquare } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { RelativeDate } from '@/components/common/relative-date';
@@ -16,6 +17,8 @@ interface ProductWithSubscribers {
   product: DataProduct;
   subscribers: SubscriberInfo[];
   loading: boolean;
+  /** The failed load's message, shown with a Retry. */
+  error?: string | null;
 }
 
 export default function OwnerConsumersView() {
@@ -26,6 +29,7 @@ export default function OwnerConsumersView() {
 
   const [products, setProducts] = useState<DataProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productSubscribers, setProductSubscribers] = useState<Record<string, ProductWithSubscribers>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,12 +40,15 @@ export default function OwnerConsumersView() {
 
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true);
+    setProductsError(null);
     try {
       const resp = await apiGet<DataProduct[]>('/api/data-products');
-      // A failed load answers with an error and an empty object: guard the list
+      // useApi answers a failure with its error (and an empty object), and never throws
+      if (resp.error) throw new Error(resp.error);
       setProducts(Array.isArray(resp.data) ? resp.data : []);
     } catch (err) {
       console.error('Failed to fetch products:', err);
+      setProductsError(err instanceof Error ? err.message : String(err));
     } finally {
       setProductsLoading(false);
     }
@@ -54,10 +61,11 @@ export default function OwnerConsumersView() {
   const fetchSubscribers = useCallback(async (productId: string) => {
     setProductSubscribers((prev) => ({
       ...prev,
-      [productId]: { ...prev[productId], loading: true },
+      [productId]: { ...prev[productId], loading: true, error: null },
     }));
     try {
       const resp = await apiGet<{ subscribers: SubscriberInfo[] }>(`/api/data-products/${productId}/subscribers`);
+      if (resp.error) throw new Error(resp.error);
       const subscribers = resp.data?.subscribers;
       setProductSubscribers((prev) => ({
         ...prev,
@@ -65,13 +73,19 @@ export default function OwnerConsumersView() {
           product: products.find((p) => p.id === productId)!,
           subscribers: Array.isArray(subscribers) ? subscribers : [],
           loading: false,
+          error: null,
         },
       }));
     } catch (err) {
       console.error('Failed to fetch subscribers:', err);
       setProductSubscribers((prev) => ({
         ...prev,
-        [productId]: { ...prev[productId], subscribers: [], loading: false },
+        [productId]: {
+          product: products.find((p) => p.id === productId)!,
+          subscribers: [],
+          loading: false,
+          error: err instanceof Error ? err.message : String(err),
+        },
       }));
     }
   }, [apiGet, products]);
@@ -122,6 +136,13 @@ export default function OwnerConsumersView() {
 
   const activeProducts = products.filter((p) => p.status === 'active' || p.status === 'approved');
 
+  const errorState = (message: string, onRetry: () => void) => (
+    <div className={classes.state}>
+      <Alert color="red" variant="light" icon={<AlertCircle />}>{message}</Alert>
+      <Button variant="outline" onClick={onRetry}>{t('common:retry')}</Button>
+    </div>
+  );
+
   const emptyState = (message: string) => (
     <div className={classes.empty}>
       <Users aria-hidden />
@@ -166,6 +187,8 @@ export default function OwnerConsumersView() {
         <div className={classes.productList}>
           {productsLoading ? (
             Array.from({ length: 4 }, (_, i) => <Skeleton key={i} height={40} radius="sm" />)
+          ) : productsError ? (
+            errorState(productsError, fetchProducts)
           ) : products.length === 0 ? (
             <p className={classes.noProducts}>{t('ownerConsumers.noProducts')}</p>
           ) : (
@@ -219,6 +242,8 @@ export default function OwnerConsumersView() {
           <div className={classes.skeleton}>
             {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} height={28} radius="sm" />)}
           </div>
+        ) : selectedData?.error ? (
+          errorState(selectedData.error, () => fetchSubscribers(selectedProductId))
         ) : filteredSubscribers.length === 0 ? (
           emptyState(searchQuery ? t('ownerConsumers.noSubscribersMatch') : t('ownerConsumers.noSubscribers'))
         ) : (

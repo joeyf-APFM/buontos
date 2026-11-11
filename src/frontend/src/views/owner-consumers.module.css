@@ -142,7 +142,8 @@ table.grid > tbody > tr > td.subscriberCell {
 
 .email {
   display: block;
-  min-width: 160px;
+  /* Narrow enough that the grid fits its pane at 1024px (M4) */
+  min-width: 120px;
   max-width: 420px;
   font-weight: 500;
   overflow-wrap: anywhere;
@@ -164,7 +165,7 @@ table.grid > tbody > tr > td.subscriberCell {
 /* A long reason is cut off, with the whole of it in its title */
 .reason {
   display: inline-block;
-  max-width: 300px;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -193,4 +194,17 @@ table.grid > tbody > tr > td.subscriberCell {
 
 .empty p {
   margin: 0;
+}
+
+/* A failed load: its error, then Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+}
+
+.state > :first-child {
+  align-self: stretch;
 }

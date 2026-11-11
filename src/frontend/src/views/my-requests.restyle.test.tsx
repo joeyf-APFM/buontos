@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useParams } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { isFullBleed } from '@/mantine/shell/full-bleed';
 import kit from '@/mantine/page/page.module.css';
@@ -39,15 +39,31 @@ const REQUESTS = [
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function mockBackend(requests: unknown[] = REQUESTS, status = 200) {
+const subscription = (id: string, name: string, status: string) => ({
+  apiVersion: 'v1.0.0', kind: 'DataProduct', id, name, status, version: '1.2.0', domain: 'Sales',
+});
+const SUBSCRIPTIONS = [subscription('s1', 'Sales orders feed', 'active'), subscription('s2', 'Churn scores', 'draft')];
+
+interface Backend {
+  /** The subscriptions answer: a list, or an HTTP status for a failure. */
+  subscriptions?: unknown[] | number;
+  /** The cancel's HTTP status. */
+  deleteStatus?: number;
+}
+
+function mockBackend(requests: unknown[] = REQUESTS, status = 200, { subscriptions = [], deleteStatus = 204 }: Backend = {}) {
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     const method = init?.method ?? 'GET';
     if (url.pathname === '/api/access-grants/my-requests') {
       return status === 200 ? json({ requests, total: requests.length }) : json({ detail: 'down' }, status);
     }
-    if (url.pathname.startsWith('/api/access-grants/requests/') && method === 'DELETE') return new Response(null, { status: 204 });
-    if (url.pathname === '/api/data-products/my-subscriptions') return json([]);
+    if (url.pathname.startsWith('/api/access-grants/requests/') && method === 'DELETE') {
+      return deleteStatus < 300 ? new Response(null, { status: deleteStatus }) : json({ detail: 'Request is locked' }, deleteStatus);
+    }
+    if (url.pathname === '/api/data-products/my-subscriptions') {
+      return typeof subscriptions === 'number' ? json({ detail: 'Subscriptions are down' }, subscriptions) : json(subscriptions);
+    }
     return json([]);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -67,10 +83,18 @@ function grant(level: FeatureAccessLevel) {
   });
 }
 
+function IdPage({ label }: { label: string }) {
+  const { id } = useParams();
+  return <p>{label} {id}</p>;
+}
+
 const renderPage = () =>
   renderWithMantine(
     <Routes>
       <Route path="/my-requests" element={<MyRequests />} />
+      <Route path="/data-products/:id" element={<IdPage label="product page" />} />
+      <Route path="/data-contracts/:id" element={<IdPage label="contract page" />} />
+      <Route path="/my-products/:id" element={<IdPage label="my product" />} />
     </Routes>,
     { route: '/my-requests' },
   );
@@ -108,6 +132,8 @@ describe('my requests on the page kit', () => {
     expect(within(stats).getByText('Pending Requests').nextSibling).toHaveTextContent('2');
     expect(within(stats).getByText('Total Requests').nextSibling).toHaveTextContent('4');
     expect(within(stats).getByText('Active Subscriptions').nextSibling).toHaveTextContent('0');
+    // A label that a translation makes too long is cut off, with its title
+    expect(within(stats).getByText('Pending Requests')).toHaveAttribute('title', 'Pending Requests');
 
     // The kit tabs, over a flush pane holding the explorer grid
     expect(screen.getByRole('tablist')).toHaveClass(kit.tabList);
@@ -133,14 +159,13 @@ describe('my requests on the page kit', () => {
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Access Requests2', 'My Subscriptions']);
     expect(requestsTab()).toHaveAttribute('aria-selected', 'true');
 
-    // The newest first; the detail links where the type has a page. The links
-    // keep the page's own first segment, as before (an existing bug, reported
-    // in task-5-report.md: /my-requests/my-products/… is not a route)
+    // The newest first; the detail links where the type has a page: a request
+    // is for a product or contract the user may not hold yet (R31)
     const pane = requestsPane();
     expect(within(pane).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
-      ['Store visits', '/my-requests/my-products/r3-entity'],
-      ['Orders contract', '/my-requests/contracts/r2-entity'],
-      ['Sales orders', '/my-requests/my-products/r1-entity'],
+      ['Store visits', '/data-products/r3-entity'],
+      ['Orders contract', '/data-contracts/r2-entity'],
+      ['Sales orders', '/data-products/r1-entity'],
     ]);
     expect(within(rowOf('A notebook')).queryByRole('link')).toBeNull();
     expect(within(pane).getAllByRole('columnheader').map((h) => h.textContent))
@@ -155,6 +180,67 @@ describe('my requests on the page kit', () => {
     await waitFor(() => expect(calls('DELETE', '/api/access-grants/requests/r1')).toHaveLength(1));
     await waitFor(() => expect(calls('GET', '/api/access-grants/my-requests')).toHaveLength(2));
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Request cancelled' }));
+
+    // A name link opens its product
+    await user.click(screen.getByRole('link', { name: 'Sales orders' }));
+    expect(await screen.findByText('product page r1-entity')).toBeInTheDocument();
+  });
+
+  it('my requests: a failed cancel shows the error, not success', async () => {
+    mockBackend(REQUESTS, 200, { deleteStatus: 409 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(within(rowOf('Sales orders')).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Error', description: 'Request is locked', variant: 'destructive',
+    }));
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Request cancelled' }));
+    // The button is usable again, and the list was not reloaded
+    expect(within(rowOf('Sales orders')).getByRole('button', { name: 'Cancel' })).toBeEnabled();
+    expect(calls('GET', '/api/access-grants/my-requests')).toHaveLength(1);
+    vi.mocked(console.error).mockRestore();
+  });
+
+  it('my requests lists the subscriptions, which open their product', async () => {
+    mockBackend(REQUESTS, 200, { subscriptions: SUBSCRIPTIONS });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+
+    expect(subscriptionsTab()).toHaveTextContent('My Subscriptions2');
+    await waitFor(() =>
+      expect(within(screen.getByRole('group', { name: 'Summary' })).getByText('Active Subscriptions').nextSibling).toHaveTextContent('2'));
+    await user.click(subscriptionsTab());
+    const pane = screen.getByRole('region', { name: 'My Subscriptions' });
+    expect(within(pane).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Product', 'Domain', 'Status', 'Version']);
+    expect(within(pane).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['Sales orders feed', '/my-products/s1'],
+      ['Churn scores', '/my-products/s2'],
+    ]);
+    expect(within(rowOf('Churn scores')).getByText('draft')).toBeInTheDocument();
+    await user.click(within(pane).getByRole('link', { name: 'Churn scores' }));
+    expect(await screen.findByText('my product s2')).toBeInTheDocument();
+  });
+
+  it('my requests: a failed subscriptions load shows its error, with Retry', async () => {
+    mockBackend(REQUESTS, 200, { subscriptions: 500 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(subscriptionsTab());
+    const alert = await within(screen.getByRole('region', { name: 'My Subscriptions' })).findByRole('alert');
+    expect(alert).toHaveTextContent('Subscriptions are down');
+
+    mockBackend(REQUESTS, 200, { subscriptions: SUBSCRIPTIONS });
+    await user.click(within(screen.getByRole('region', { name: 'My Subscriptions' })).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('link', { name: 'Churn scores' })).toBeInTheDocument();
+    vi.mocked(console.error).mockRestore();
+    vi.mocked(console.warn).mockRestore();
   });
 
   it('my requests: the tabs switch with the arrow keys, and each tab keeps its controls', async () => {

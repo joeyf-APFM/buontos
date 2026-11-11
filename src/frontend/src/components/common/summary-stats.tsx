@@ -23,7 +23,7 @@ export function SummaryStat({ icon, tone, label, value, loading = false }: {
     <div className={classes.stat}>
       <span className={classes.icon} data-tone={tone}>{icon}</span>
       <div className={classes.text}>
-        <div className={classes.label}>{label}</div>
+        <div className={classes.label} title={label}>{label}</div>
         <div className={classes.value}>{loading ? <Skeleton height={16} width={28} radius="sm" /> : value}</div>
       </div>
     </div>

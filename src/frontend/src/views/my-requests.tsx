@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ActionIcon, Alert, Loader } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,12 +59,12 @@ const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'des
   expired: 'outline',
 };
 
-function getEntityDetailPath(entityType: string, entityId: string, basePath: string): string | null {
+/** Where a request's entity opens: a request is for one the user may not hold yet, so its own page. */
+function getEntityDetailPath(entityType: string, entityId: string): string | null {
   const key = entityType?.toLowerCase?.() ?? '';
   if (!entityId) return null;
-  const prefix = basePath.split('/').slice(0, 2).join('/');
-  if (key === 'data_product') return `${prefix}/my-products/${entityId}`;
-  if (key === 'data_contract') return `${prefix}/contracts/${entityId}`;
+  if (key === 'data_product') return `/data-products/${entityId}`;
+  if (key === 'data_contract') return `/data-contracts/${entityId}`;
   return null;
 }
 
@@ -80,7 +80,6 @@ export default function MyRequests() {
   // The hook returns a new object every render; its functions are stable
   const { get: apiGet, delete: apiDelete } = useApi();
   const { toast } = useToast();
-  const { pathname } = useLocation();
 
   const [activeTab, setActiveTab] = useState('requests');
 
@@ -136,8 +135,9 @@ export default function MyRequests() {
     setSubscriptionsLoading(true);
     setSubscriptionsError(null);
     try {
-      const data = await apiGet('/api/data-products/my-subscriptions');
-      setSubscriptions(Array.isArray(data) ? data : []);
+      const resp = await apiGet<DataProduct[]>('/api/data-products/my-subscriptions');
+      if (resp.error) throw new Error(resp.error);
+      setSubscriptions(Array.isArray(resp.data) ? resp.data : []);
     } catch (e) {
       console.warn('Failed to fetch subscriptions:', e);
       setSubscriptionsError(e instanceof Error ? e.message : t('data-asset-reviews:myRequests.loadFailed'));
@@ -153,7 +153,9 @@ export default function MyRequests() {
   const handleCancel = async (requestId: string) => {
     try {
       setCancellingId(requestId);
-      await apiDelete(`/api/access-grants/requests/${requestId}`);
+      // useApi answers a failure with its error, and never throws
+      const resp = await apiDelete(`/api/access-grants/requests/${requestId}`);
+      if (resp.error) throw new Error(resp.error);
       toast({ title: t('home:myRequests.cancelSuccess'), variant: 'default' });
       await loadRequests();
     } catch (e) {
@@ -168,7 +170,6 @@ export default function MyRequests() {
   };
 
   const pendingCount = rows.filter((r) => r.status === 'pending').length;
-  const prefix = pathname.split('/').slice(0, 2).join('/');
   const requestsLabel = t('data-asset-reviews:myRequests.accessRequestsTab');
   const subscriptionsLabel = t('data-asset-reviews:myRequests.subscriptionsTab');
 
@@ -260,7 +261,7 @@ export default function MyRequests() {
                     <tbody>
                       {rows.map((row) => {
                         const variant = STATUS_VARIANTS[row.status] ?? 'outline';
-                        const detailPath = getEntityDetailPath(row.entityType, row.entityId, pathname);
+                        const detailPath = getEntityDetailPath(row.entityType, row.entityId);
                         return (
                           <tr key={row.id}>
                             <td className={classes.muted}>{entityTypeLabel(row.entityType, t)}</td>
@@ -331,7 +332,7 @@ export default function MyRequests() {
                         <tr key={product.id}>
                           <td className={classes.nameCell}>
                             <span className={classes.name}>
-                              <Link to={`${prefix}/my-products/${product.id}`} className={classes.link}>
+                              <Link to={`/my-products/${product.id}`} className={classes.link}>
                                 {product.name ?? product.id}
                               </Link>
                             </span>

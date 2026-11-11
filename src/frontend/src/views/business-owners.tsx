@@ -3,6 +3,7 @@ import { Column, ColumnDef } from '@tanstack/react-table';
 import { Alert, UnstyledButton } from '@mantine/core';
 import { AlertCircle, ArrowUpDown } from 'lucide-react';
 import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
+import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { BusinessOwnerRead } from '@/types/business-owner';
@@ -139,9 +140,12 @@ export default function BusinessOwnersView() {
               {t('permissions.deniedView')}
             </Alert>
           ) : componentError ? (
-            <Alert color="red" variant="light" icon={<AlertCircle />} title={t('messages.errorLoadingData')} className={classes.alert}>
-              {componentError}
-            </Alert>
+            <div className={classes.state}>
+              <Alert color="red" variant="light" icon={<AlertCircle />} title={t('messages.errorLoadingData')} className={classes.alert}>
+                {componentError}
+              </Alert>
+              <Button variant="outline" onClick={fetchOwners}>{t('common:retry')}</Button>
+            </div>
           ) : (
             <DataTable
               columns={columns}

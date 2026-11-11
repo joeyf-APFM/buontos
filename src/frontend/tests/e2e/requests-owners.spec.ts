@@ -76,6 +76,24 @@ const box = async (loc: Locator) => (await loc.boundingBox())!;
 const noPageScroll = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
+/** The kit panes in <main> that scroll sideways, by name (none should). */
+const panesScrollingSideways = (page: Page) =>
+  page.locator('main section').evaluateAll((panes) =>
+    panes
+      .filter((p) => [p, ...p.querySelectorAll('*')].some((el) => el.scrollWidth > el.clientWidth + 1
+        && ['auto', 'scroll'].includes(getComputedStyle(el).overflowX)))
+      .map((p) => p.getAttribute('aria-label') ?? p.querySelector('h2')?.textContent ?? '?'));
+
+/** No page scroll, and no pane scrolling sideways, at 1280px and at 1024px (M4). */
+async function expectNoSidewaysScroll(page: Page) {
+  for (const width of [1280, 1024]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.waitForTimeout(100);
+    expect(await noPageScroll(page), `page scroll at ${width}px`).toBe(true);
+    expect(await panesScrollingSideways(page), `panes scrolling at ${width}px`).toEqual([]);
+  }
+}
+
 async function setUp(page: Page, route: string, title: string) {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
@@ -148,9 +166,7 @@ test.describe('my requests', () => {
       await expectFits(link.locator('..'), text);
       expect((await box(link)).height).toBeGreaterThan(30);
     }
-    expect(await noPageScroll(page)).toBe(true);
-    const pane = page.getByRole('region', { name: 'Access Requests' });
-    expect(await pane.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await expectNoSidewaysScroll(page);
   });
 });
 
@@ -167,7 +183,7 @@ test.describe('business owners', () => {
     for (const text of [LONG_NAME, UNBROKEN_NAME]) {
       await expectFits(page.locator('main').getByText(text, { exact: true }), text);
     }
-    expect(await noPageScroll(page)).toBe(true);
+    await expectNoSidewaysScroll(page);
   });
 });
 
@@ -192,6 +208,26 @@ test.describe('owner consumers', () => {
     await expectFits(page.locator('main').getByText(LONG_EMAIL, { exact: true }), LONG_EMAIL);
     await expectFits(page.locator('main').getByText(`${UNBROKEN_NAME}@example.com`, { exact: true }), `${UNBROKEN_NAME}@example.com`);
     await expectFits(page.getByRole('region', { name: 'Products' }).getByText(LONG_NAME, { exact: true }), LONG_NAME);
-    expect(await noPageScroll(page)).toBe(true);
+    await expectNoSidewaysScroll(page);
+  });
+
+  test('the summary strip wraps with a rule between every cell, and none at its edge', async ({ page }) => {
+    await setUpConsumers(page);
+    await page.setViewportSize({ width: 560, height: 800 });
+    const strip = page.getByRole('group', { name: 'Summary' });
+    const cells = strip.locator(':scope > div');
+    await expect(cells).toHaveCount(3);
+    // The strip wraps onto a second row
+    const tops = await cells.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBeGreaterThan(1);
+    // The 1px gap draws the rules, in both directions; no cell has its own
+    expect(await style(strip, ['row-gap', 'column-gap'])).toEqual({ 'row-gap': '1px', 'column-gap': '1px' });
+    for (const cell of await cells.all()) {
+      expect(await style(cell, ['border-left-width', 'border-top-width'])).toEqual({ 'border-left-width': '0px', 'border-top-width': '0px' });
+    }
+    // The last cell fills its row, so no empty slot shows beside it
+    const stripBox = await box(strip);
+    const last = await box(cells.last());
+    expect(Math.round(last.x + last.width)).toBe(Math.round(stripBox.x + stripBox.width - 1));
   });
 });

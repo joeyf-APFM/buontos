@@ -164,6 +164,14 @@ describe('business owners on the page kit', () => {
     expect(alert).toHaveTextContent('Backend exploded');
     expect(screen.getByRole('heading', { level: 1, name: 'Business Owners' })).toBeInTheDocument();
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error fetching business owners' }));
+
+    // Retry, under the alert, loads the list again (R31)
+    const retry = within(pane()).getByRole('button', { name: 'Retry' });
+    expect(alert.compareDocumentPosition(retry) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    mockBackend();
+    await userEvent.setup().click(retry);
+    expect(await loaded()).toBeInTheDocument();
+    expect(within(pane()).queryByRole('alert')).toBeNull();
     vi.mocked(console.error).mockRestore();
   });
 

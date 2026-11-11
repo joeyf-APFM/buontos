@@ -176,20 +176,40 @@ describe('owner consumers on the page kit', () => {
     expect(stat('Total Products')).toHaveTextContent('0');
     unmount();
 
-    // A failed product load is guarded: the empty list, not a crash
+    // A failed product load: its error and Retry in the Products pane, and no
+    // false "No products found" (R31)
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
     mockBackend({ detail: 'Backend exploded' }, 500);
     const { unmount: unmount2 } = renderPage();
-    expect(await within(productsPane()).findByText('No products found')).toBeInTheDocument();
+    const productsAlert = await within(productsPane()).findByRole('alert');
+    expect(productsAlert).toHaveClass('mantine-Alert-root');
+    expect(productsAlert).toHaveTextContent('Backend exploded');
+    expect(within(productsPane()).queryByText('No products found')).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Consumers' })).toBeInTheDocument();
+    mockBackend();
+    await user.click(within(productsPane()).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('sam@example.com', { exact: true })).toBeInTheDocument();
+    expect(within(productsPane()).queryByRole('alert')).toBeNull();
+    expect(within(productsPane()).getAllByRole('button')).toHaveLength(3);
     unmount2();
 
-    // A failed subscriber load: no subscribers, and the products and filter stay
-    mockBackend(PRODUCTS, 200, () => json({ detail: 'down' }, 500));
+    // A failed subscriber load: its error and Retry for that product, no false
+    // "No subscribers yet"; the products and the filter stay
+    mockBackend(PRODUCTS, 200, () => json({ detail: 'Subscribers are down' }, 500));
     renderPage();
-    expect(await within(subscribersPane()).findByText('No subscribers yet')).toBeInTheDocument();
+    const subscribersAlert = await within(subscribersPane()).findByRole('alert');
+    expect(subscribersAlert).toHaveTextContent('Subscribers are down');
+    expect(within(subscribersPane()).queryByText('No subscribers yet')).toBeNull();
     expect(within(productsPane()).getAllByRole('button')).toHaveLength(3);
     expect(screen.getByPlaceholderText('Filter subscribers...')).toBeEnabled();
+    mockBackend();
+    await user.click(within(subscribersPane()).getByRole('button', { name: 'Retry' }));
+    expect(await within(subscribersPane()).findByText('sam@example.com')).toBeInTheDocument();
+    // Only the chosen product is asked again
+    const subscriberCalls = fetchMock.mock.calls.map(([input]) => String(input)).filter((u) => u.endsWith('/subscribers'));
+    expect(subscriberCalls).toEqual(['/api/data-products/p-1/subscribers']);
+    expect(within(subscribersPane()).queryByRole('alert')).toBeNull();
     vi.mocked(console.error).mockRestore();
   });
 });

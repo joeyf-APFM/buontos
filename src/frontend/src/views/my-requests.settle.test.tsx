@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-const get = vi.fn(async () => []);
+// Like the real hook: an answer is `{ data }`
+const get = vi.fn(async () => ({ data: [] }));
 vi.mock('@/hooks/use-api', () => ({
   useApi: () => ({ get, post: vi.fn(), put: vi.fn(), delete: vi.fn() }),
 }));

@@ -22,6 +22,17 @@
   margin: 4px 0 8px;
 }
 
+/* A failed load: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.state > .alert {
+  align-self: stretch;
+}
+
 /* Sortable headers: the grid's header label with a sort mark */
 .sort {
   composes: sort from './asset-types.module.css';
