@@ -443,8 +443,8 @@ test.describe('the detail page', () => {
     await wide.evaluate((el) => { el.textContent = 'Current Status of this request for review'; });
     expect(Math.round((await box(wide)).height)).toBe(labelHeight);
     expect(Math.round((await box(wide)).width)).toBeGreaterThan(86);
-    expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBe(
-      Math.round((await box(wide)).width));
+    // (Task 13d: each pair sizes its own label column, so a wide label no
+    // longer widens the other labels')
     expect(await wide.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     // The notes read in full, on at least two lines
     const notes = info.getByText(LONG_NOTES, { exact: true });

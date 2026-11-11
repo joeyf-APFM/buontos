@@ -215,7 +215,7 @@ describe('page kit', () => {
     expect(terms.map((t) => t.textContent)).toEqual(['Type', 'Owner']);
     expect(definitions.map((d) => d.textContent)).toEqual(['Table', 'Sales Analytics']);
     // The same label/value module as the shared panels, so the two can't drift
-    expect(terms[0].parentElement).toHaveClass(panel.kv);
+    expect(terms[0].closest('dl')).toHaveClass(panel.kv);
     expect(terms[0].nextElementSibling).toBe(definitions[0]);
   });
 
@@ -382,7 +382,7 @@ describe('the explorer on the page kit', () => {
     const details = await screen.findByRole('complementary', { name: 'leads' });
     const terms = within(details).getAllByRole('term');
     expect(terms[0]).toHaveTextContent('Type');
-    expect(terms[0].parentElement).toHaveClass(panel.kv);
+    expect(terms[0].closest('dl')).toHaveClass(panel.kv);
     expect(terms[0].nextElementSibling).toHaveTextContent('Table');
   });
 });

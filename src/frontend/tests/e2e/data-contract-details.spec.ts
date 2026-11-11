@@ -356,3 +356,26 @@ test('contract support: the channel names are capitalised, as their badges were'
   await expect(label).toHaveText('slack');
   expect(await style(label, ['text-transform'])).toEqual({ 'text-transform': 'capitalize' });
 });
+
+// Task 13d: the Details pane is in two columns at every width
+test('the Details pane lays its pairs out two to a row, at 1280 and at 900', async ({ page }) => {
+  await open(page, BASE);
+  await expect(page.getByRole('heading', { level: 1, name: 'Orders contract' })).toBeVisible();
+  const pairs = page.getByRole('region', { name: 'Details' }).locator('dl > div');
+  expect(await pairs.count()).toBeGreaterThan(2);
+  for (const width of [1280, 900]) {
+    await page.setViewportSize({ width, height: 800 });
+    const [a, b, c] = await Promise.all([0, 1, 2].map(async (i) => (await pairs.nth(i).boundingBox())!));
+    expect(Math.abs(b.y - a.y), `${width}: pair 2 shares pair 1's top`).toBeLessThanOrEqual(0.5);
+    expect(b.x, `${width}: pair 2 is right of pair 1`).toBeGreaterThan(a.x + a.width - 1);
+    expect(c.y, `${width}: pair 3 is the next row`).toBeGreaterThan(a.y + 10);
+    expect(await noPageScroll(page), `${width}: no sideways scroll`).toBe(true);
+    // Reading order is the DOM order: left to right, then down
+    const boxes = await Promise.all(Array.from({ length: await pairs.count() }, async (_, i) => (await pairs.nth(i).boundingBox())!));
+    boxes.forEach((box, i) => {
+      expect(Math.abs(box.y - boxes[i - (i % 2)].y), `${width}: pair ${i + 1} is in row ${Math.floor(i / 2) + 1}`).toBeLessThanOrEqual(0.5);
+      if (i % 2 === 1) expect(box.x).toBeGreaterThan(boxes[i - 1].x);
+      if (i >= 2) expect(box.y).toBeGreaterThan(boxes[i - 2].y + 10);
+    });
+  }
+});

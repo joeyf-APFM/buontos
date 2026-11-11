@@ -12,7 +12,7 @@
  *     importedContactsLabel="Imported Contacts"
  *   />
  */
-import { Fragment, useState, useEffect, useCallback, useId, useRef } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { ActionIcon, Collapse } from '@mantine/core';
 import { Users2, History, UserPlus, Loader2, Trash2, ChevronDown, ChevronRight, Import, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -222,7 +222,7 @@ export function OwnershipPanel({
                   <p className={classes.sectionLabel}>{t('panel.currentOwners')}</p>
                   <dl className={classes.kv}>
                     {currentOwners.map((owner) => (
-                      <Fragment key={owner.id}>
+                      <div key={owner.id}>
                         <dt>{owner.role_name || '—'}</dt>
                         <dd>
                           <span className={cn(classes.grow, classes.strong)}>{owner.user_name || owner.user_email}</span>
@@ -239,7 +239,7 @@ export function OwnershipPanel({
                             </ActionIcon>
                           )}
                         </dd>
-                      </Fragment>
+                      </div>
                     ))}
                   </dl>
                 </>
@@ -251,7 +251,7 @@ export function OwnershipPanel({
                   <p className={classes.sectionLabel}>{t('panel.previousOwners')}</p>
                   <dl className={cn(classes.kv, classes.dimmed)}>
                     {previousOwners.map((owner) => (
-                      <Fragment key={owner.id}>
+                      <div key={owner.id}>
                         <dt>{owner.role_name || '—'}</dt>
                         <dd>
                           <span className={classes.grow}>{owner.user_name || owner.user_email}</span>
@@ -262,7 +262,7 @@ export function OwnershipPanel({
                             <RelativeDate date={owner.removed_at} className={classes.muted} />
                           )}
                         </dd>
-                      </Fragment>
+                      </div>
                     ))}
                   </dl>
                 </>
@@ -295,14 +295,14 @@ export function OwnershipPanel({
               <Collapse in={importedOpen} id={importedId} transitionDuration={0}>
                 <dl className={classes.kv}>
                   {importedContacts!.map((contact, idx) => (
-                    <Fragment key={idx}>
+                    <div key={idx}>
                       <dt>{contact.role || t('common:ownership.memberRole')}</dt>
                       <dd>
                         <span className={cn(classes.grow, classes.strong)}>
                           {contact.name || contact.username || contact.email || t('common:states.unknown')}
                         </span>
                       </dd>
-                    </Fragment>
+                    </div>
                   ))}
                 </dl>
               </Collapse>

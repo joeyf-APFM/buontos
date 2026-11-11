@@ -118,9 +118,42 @@ test('details grid: the 86px label column in text-secondary, at the explorer den
   expect((await style(dt, ['color']))['color']).toBe('rgb(86, 93, 101)');
   expect((await style(dt, ['font-size']))['font-size']).toBe('12px');
   // The explorer details panel's density (R12): rows about 23px apart, no rules
-  const next = (await grid.locator('dt').nth(1).boundingBox())!;
+  // (the third label, the first of the second row: two pairs share each row)
+  const next = (await grid.locator('dt').nth(2).boundingBox())!;
   expect(Math.abs(next.y - t.y - 23)).toBeLessThanOrEqual(1);
   for (const cell of [dt, dd]) expect((await style(cell, ['border-bottom-width']))['border-bottom-width']).toBe('0px');
+});
+
+// Task 13d: two columns at every width (owner), by flex-wrap
+test('details grid: two pairs per row, left to right then down, the same at 900px', async ({ page }) => {
+  const grid = page.getByTestId('details');
+  const pairs = grid.locator('dl > div');
+  for (const width of [1000, 900]) {
+    await page.setViewportSize({ width, height: 1600 });
+    expect(await style(grid.locator('dl'), ['display', 'flex-wrap'])).toEqual({ display: 'flex', 'flex-wrap': 'wrap' });
+    const [a, b, c] = await Promise.all([0, 1, 2].map(async (i) => (await pairs.nth(i).boundingBox())!));
+    expect(Math.abs(b.y - a.y), `${width}: pair 2 shares pair 1's top`).toBeLessThanOrEqual(0.5);
+    expect(b.x, `${width}: pair 2 is right of pair 1`).toBeGreaterThan(a.x + a.width - 1);
+    expect(c.y, `${width}: pair 3 is the next row`).toBeGreaterThan(a.y + 10);
+    expect(Math.abs(c.x - a.x), `${width}: pair 3 is back at the left`).toBeLessThanOrEqual(0.5);
+    // Each pair is half the width, less half the gap
+    expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(0.5);
+  }
+});
+
+test('details grid: a 200-character unbroken value stays in its half, with no sideways scroll', async ({ page }) => {
+  await page.evaluate(() => {
+    const dd = document.querySelector('[data-testid="details"] dd')!;
+    dd.textContent = 'x'.repeat(200);
+  });
+  const grid = page.getByTestId('details');
+  const [pair, other] = await Promise.all([0, 1].map(async (i) => (await grid.locator('dl > div').nth(i).boundingBox())!));
+  const dd = grid.locator('dd').first();
+  expect(await dd.evaluate((el) => el.scrollWidth <= el.clientWidth + 1 || getComputedStyle(el).overflowWrap === 'anywhere')).toBe(true);
+  const box = (await dd.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(pair.x + pair.width + 0.5);
+  expect(other.x).toBeGreaterThanOrEqual(pair.x + pair.width - 0.5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('tabs: the Task 7 look, and arrow keys switch them', async ({ page }) => {

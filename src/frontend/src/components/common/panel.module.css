@@ -114,22 +114,42 @@
   padding: 4px 12px 10px;
 }
 
-/* Label / value rows */
+/*
+ * Label / value rows (wave 2 Task 13d, owner: two columns on every screen).
+ * A flex-wrap row of pairs: each pair is a div holding one dt and one dd, half
+ * the width less half the 16px column gap, so pairs read left to right then
+ * down. Inside a pair the 86px label column and the 5px row gap are as before.
+ * Two columns at every width: there is no breakpoint back to one.
+ */
 .kv {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  /* A tall pair (long notes) doesn't stretch its neighbour's label */
+  align-items: flex-start;
+  column-gap: 16px;
   row-gap: 5px;
   margin: 0;
 }
 
-.kv > dt,
-.kv > dd {
+.kv > div {
+  flex: 0 0 calc(50% - 8px);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.kv[data-columns='1'] > div {
+  flex-basis: 100%;
+}
+
+.kv > div > dt,
+.kv > div > dd {
   margin: 0;
   min-width: 0;
   padding: 0;
 }
 
-.kv > dt {
+.kv > div > dt {
   display: flex;
   align-items: center;
   padding-right: 8px;
@@ -137,7 +157,7 @@
   overflow-wrap: anywhere;
 }
 
-.kv > dd {
+.kv > div > dd {
   display: flex;
   align-items: center;
   gap: 6px;

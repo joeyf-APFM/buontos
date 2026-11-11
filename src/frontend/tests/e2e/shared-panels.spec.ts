@@ -97,7 +97,9 @@ test('ownership panel: owners in an 86px label column, 12px rows 5px apart with 
   await capture(page, 'ownership-panel', panel);
 
   const grid = panel.locator('dl').first();
-  expect((await style(grid, ['grid-template-columns']))['grid-template-columns']).toMatch(/^86px /);
+  // Task 13d: pairs in two columns; the 86px label column is inside each pair
+  expect((await style(grid, ['display', 'flex-wrap']))).toEqual({ display: 'flex', 'flex-wrap': 'wrap' });
+  expect((await style(grid.locator(':scope > div').first(), ['grid-template-columns']))['grid-template-columns']).toMatch(/^86px /);
   const term = grid.locator('dt').first();
   expect(await term.textContent()).toBe('Data Owner');
   expect((await term.boundingBox())!.width).toBe(86);
@@ -105,13 +107,15 @@ test('ownership panel: owners in an 86px label column, 12px rows 5px apart with 
   expect((await style(grid.locator('dd').first(), ['border-bottom-width']))['border-bottom-width']).toBe('0px');
   // The explorer details panel's density (R12): a 5px gap between rows and no
   // padding, so a text row is about 23px from the next (page-kit.spec.ts). An
-  // owner row is as tall as its 24px remove button, so these sit 29px apart.
+  // owner row is as tall as its 24px remove button.
   const [first, second] = [(await term.boundingBox())!, (await grid.locator('dt').nth(1).boundingBox())!];
   expect(await style(term, ['padding-top', 'padding-bottom'])).toEqual({ 'padding-top': '0px', 'padding-bottom': '0px' });
   expect((await style(grid, ['row-gap']))['row-gap']).toBe('5px');
   const remove = (await grid.locator('dd').first().getByRole('button').boundingBox())!;
   expect(first.height).toBe(remove.height);
-  expect(Math.abs(second.y - first.y - (remove.height + 5))).toBeLessThanOrEqual(1);
+  // Two owners share the first row (Task 13d), side by side
+  expect(Math.abs(second.y - first.y)).toBeLessThanOrEqual(0.5);
+  expect(second.x).toBeGreaterThan(first.x + first.width);
   // A pane: one 1px border, no shadow, no card inside
   expect(await style(panel, ['box-shadow', 'border-top-width'])).toEqual({ 'box-shadow': 'none', 'border-top-width': '1px' });
   await expect(panel.locator('.mantine-Paper-root')).toHaveCount(0);

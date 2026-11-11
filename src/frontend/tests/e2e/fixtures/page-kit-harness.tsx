@@ -47,8 +47,8 @@ function Stage() {
           <Pane aria-label="Only">only</Pane>
         </PageLayout>
       </div>
-      <div data-testid="details" style={{ width: 280 }}>
-        <DetailsGrid rows={[{ label: 'Type', value: 'Table' }, { label: 'Owner', value: 'Sales Analytics' }]} />
+      <div data-testid="details" style={{ width: 420 }}>
+        <DetailsGrid rows={[{ label: 'Type', value: 'Table' }, { label: 'Owner', value: 'Sales Analytics' }, { label: 'Status', value: 'Draft' }]} />
       </div>
       <div data-testid="kit-tabs">
         <Tabs defaultValue="a">

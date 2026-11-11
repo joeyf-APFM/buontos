@@ -145,7 +145,7 @@ describe('asset detail on the page kit', () => {
     // The details grid matches the explorer's details panel
     const terms = within(details).getAllByRole('term').map((t) => t.textContent);
     expect(terms).toEqual(['Location', 'Platform', 'Created By', 'Created', 'Updated', 'Tags']);
-    expect(within(details).getAllByRole('term')[0].parentElement).toHaveClass(panel.kv);
+    expect(within(details).getAllByRole('term')[0].closest('dl')).toHaveClass(panel.kv);
     expect(within(details).getByText('main.sales.orders')).toBeInTheDocument();
     expect(within(details).getByText('sales')).toBeInTheDocument();
     expect(within(details).getByText('Linked Business Concepts')).toBeInTheDocument();
