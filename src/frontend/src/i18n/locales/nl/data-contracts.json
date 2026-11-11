@@ -525,6 +525,10 @@
       "startProfilingFailed": "Starten van profilering mislukt",
       "invalidVersionFormat": "\"{{version}}\" is geen geldige versie: een nieuwe versie heeft de vorm X.Y.Z, bijvoorbeeld 2.0.0.",
       "draftVersionFormat": "De versie \"{{version}}\" van dit contract heeft niet de vorm X.Y.Z, dus er kan geen persoonlijk concept van worden gemaakt. Maak in plaats daarvan een nieuwe versie (bijvoorbeeld 2.0.0)."
+    },
+    "rowActions": {
+      "edit": "{{name}} bewerken",
+      "delete": "{{name}} verwijderen"
     }
   },
   "list": {

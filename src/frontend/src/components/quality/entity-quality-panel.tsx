@@ -193,7 +193,7 @@ const EntityQualityPanel: React.FC<Props> = ({ entityId, entityType, productAggr
     <>
         <div className={look(classes.summary, 'flex items-center justify-between')}>
           <div className={look(classes.summaryStart, 'flex items-center gap-3')}>
-            <Button size="icon" variant="ghost" onClick={fetchData}><RefreshCcw /></Button>
+            <Button size="icon" variant="ghost" onClick={fetchData} aria-label={t('common:actions.refresh')} title={t('common:actions.refresh')}><RefreshCcw /></Button>
             {summary?.measured_at && (
               <span className={look(panel.muted, 'text-xs text-muted-foreground')}>{t('metadata:quality.lastMeasured', { date: fmtDate(summary.measured_at) })}</span>
             )}

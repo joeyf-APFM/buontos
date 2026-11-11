@@ -2,9 +2,10 @@
  * A Data Contract (/data-contracts/:id) on the page kit (wave 2, Task 9), as
  * the Data Product page: the kit's one-line header (the name, its status and
  * maturity, then the actions), the purpose under it, the banners and the view
- * controls, then the Details and Description panes. The sections from Schemas
- * on (Task 10) follow as they were, then the shared panels in a second stack.
- * What is left here is the page's own.
+ * controls, then every section as a pane in one stack, at its own height: the
+ * Details and Description panes (Task 9), the sections from Schemas to
+ * Authoritative Definitions (Task 10), then the shared panels. What is left
+ * here is the page's own.
  */
 
 /* The purpose, under the header: it wraps, however long */
@@ -16,7 +17,7 @@
   overflow-wrap: anywhere;
 }
 
-/* Under the header: the banners, the view controls, then the stacks */
+/* Under the header: the banners, the view controls, then the stack */
 .body {
   flex: 1;
   min-width: 0;
@@ -72,12 +73,428 @@ button.size {
   font-weight: 600;
 }
 
-/* The sections from Schemas on, until Task 10 makes them panes */
-.sections {
+/* A section's lead line, under its head */
+.lead {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+/* An empty section with its actions: centred, in a dashed box */
+.emptyBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+  border: 1px dashed var(--aura-border-strong);
+  border-radius: 6px;
+}
+
+.emptyBlock p {
+  margin: 0;
+}
+
+.emptyTitle {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.emptyIcon {
+  width: 32px;
+  height: 32px;
+  color: var(--aura-text-muted);
+}
+
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  color: var(--aura-accent);
+}
+
+.loading svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* DQX profiling and inference notices, above the schemas */
+.notice {
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+
+.noticeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* The hint beside a disabled Profile with DQX, with its notify action */
+.hint {
+  max-width: 20rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.hintText {
+  margin: 0;
+}
+
+button.notify {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--aura-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+button.notify:hover {
+  text-decoration: none;
+}
+
+button.notify:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button.notify:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.inlineIcon {
+  width: 12px;
+  height: 12px;
+}
+
+/* A section's list: one row per entry, ruled between rows; a long list
+   scrolls inside its pane, so the page and its header stay where they are */
+.list {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  overflow-y: auto;
+  margin: -4px 0;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.itemMain {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.itemLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.itemName {
+  font-weight: 600;
+  color: var(--aura-text-body);
+  overflow-wrap: anywhere;
+}
+
+a.itemName {
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+a.itemName:hover {
+  text-decoration: underline;
+}
+
+.itemActions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* A linked product: the whole row opens it, as before */
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:hover {
+  background: var(--aura-canvas);
+}
+
+/* A subsection inside a pane: the SLA, the servers, a schema's definitions */
+.subsection + .subsection,
+.schema > .subsection {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--aura-border-subtle);
+}
+
+.subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--aura-text-body);
+}
+
+/* Links whose text is a URL: they break anywhere */
+.url {
+  color: var(--aura-accent);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.url:hover {
+  text-decoration: underline;
+}
+
+/* Custom properties: the key, then the value (JSON pretty-printed) */
+.propertyKey {
+  align-self: flex-start;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--aura-surface-strong);
+  overflow-wrap: anywhere;
+}
+
+.json {
+  margin: 0;
+  max-height: 128px;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--aura-canvas);
+}
+
+/* Schemas: the picker (more than six) or tabs (two to six), then the schema */
+.schemas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schemaPicker {
+  max-width: 20rem;
+}
+
+.tabScroll {
+  overflow-x: auto;
+}
+
+.tabScroll [role='tab'] {
+  flex: none;
+  white-space: nowrap;
+}
+
+.tabCount {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.schema {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.schemaName {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--aura-text-body);
+}
+
+.stableId {
+  font-family: var(--aura-font-mono);
+  font-size: 10.5px;
+  color: var(--aura-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.badgeIcon {
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+}
+
+/* The schema's table in Catalog Commander */
+.tableLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-accent);
+  text-decoration: none;
+}
+
+.tableLink:hover {
+  text-decoration: underline;
+}
+
+.tableLink svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+/* Linked concepts, under a schema's or a column's name */
+.concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 11px;
+}
+
+a.concept {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--aura-text-secondary);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+a.concept:hover {
+  text-decoration: underline;
+}
+
+a.concept svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+/* The schema's columns: a long schema scrolls here, inside its pane, so the
+   page and its header stay where they are (the table itself scrolls sideways
+   in its own wrapper) */
+.properties {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.propertiesScroll {
+  max-height: 480px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* The column cells: names and descriptions wrap, however long */
+.propName {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  min-width: 8rem;
+  overflow-wrap: anywhere;
+}
+
+.propLine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.propDescription {
+  display: block;
+  padding: 4px 0;
+  min-width: 10rem;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.flag {
+  display: block;
+  text-align: center;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.paginationButtons {
+  display: flex;
+  gap: 4px;
 }
 
 /* Values in the details grid */

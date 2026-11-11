@@ -194,6 +194,26 @@ const ASSET_PAGE = {
   total: 2,
 };
 
+// A contract with one wide schema (wave 2 Task 10, Review Focus 5): 60
+// columns, served 50 at a time as the page asks (skip, limit). The first
+// column's name and description are long, unbroken text (Review Focus 1), as
+// is its quality rule's name. No restyle page uses it.
+const WIDE_COLUMNS = Array.from({ length: 60 }, (_, i) => ({
+  name: i === 0 ? `customer_${'lifetime_value_'.repeat(12)}usd` : `column_${String(i + 1).padStart(2, '0')}`,
+  logicalType: i % 3 === 0 ? 'string' : 'integer',
+  required: i % 2 === 0,
+  unique: i === 0,
+  description: i === 0 ? `${'Lifetime value of the customer across every channel '.repeat(4)}${'x'.repeat(160)}` : `Column ${i + 1}`,
+}));
+
+const WIDE_CONTRACT = {
+  apiVersion: 'v3.0.2', kind: 'DataContract', id: 'e2e-contract-wide', status: 'draft', name: 'Wide contract',
+  version: '1.0.0', owner_team_id: null, tags: [], customProperties: {}, team: [],
+  schema: [{ name: 'wide_orders', physicalName: 'main.sales.wide_orders', propertyCount: 60, properties: [] }],
+  qualityRules: [{ name: `rule_${'customer_lifetime_value_is_positive_'.repeat(8)}`, dimension: 'accuracy', severity: 'error', type: 'sql' }],
+  description: { purpose: 'A wide schema' }, created: CREATED, updated: UPDATED,
+};
+
 export const DATA_FIXTURES: Record<string, unknown> = {
   // Spot-check pages (Ruling R1)
   '/api/teams': TEAMS,
@@ -277,6 +297,17 @@ export const DATA_FIXTURES: Record<string, unknown> = {
       purpose: 'Orders for reporting', limitations: 'Refreshed daily', usage: 'Dashboards and forecasts',
     },
     created: CREATED, updated: UPDATED,
+  },
+  '/api/data-contracts/e2e-contract-wide': WIDE_CONTRACT,
+  '/api/data-contracts/e2e-contract-wide/maturity': {
+    entity_type: 'DataContract', entity_id: 'e2e-contract-wide', entity_name: 'Wide contract', achieved_level_order: null,
+    achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,
+    evaluated_by: null,
+  },
+  '/api/data-contracts/e2e-contract-wide/schemas/wide_orders/properties': (url: URL) => {
+    const skip = Number(url.searchParams.get('skip') ?? 0);
+    const limit = Number(url.searchParams.get('limit') ?? 50);
+    return { total: WIDE_COLUMNS.length, items: limit ? WIDE_COLUMNS.slice(skip, skip + limit) : WIDE_COLUMNS };
   },
   '/api/data-contracts/e2e-contract-1/maturity': {
     entity_type: 'DataContract', entity_id: 'e2e-contract-1', entity_name: 'Orders contract', achieved_level_order: null,

@@ -1,5 +1,4 @@
 [
-  "button \"\"",
   "button \"Add Schema Manually\"",
   "button \"Add Schema\"",
   "button \"Add measurement\"",
@@ -21,6 +20,7 @@
   "button \"Profile with DQX\"",
   "button \"Publish\"",
   "button \"Re-evaluate maturity\"",
+  "button \"Refresh\"",
   "button \"Request...\"",
   "button \"S\"",
   "link \"Build\"",

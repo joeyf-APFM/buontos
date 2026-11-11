@@ -1,5 +1,4 @@
 [
-  "button \"\"",
   "button \"Add measurement\"",
   "button \"Back to List\"",
   "button \"Clone for Editing\"",
@@ -11,6 +10,7 @@
   "button \"Not assessed Maturity\"",
   "button \"Profile with DQX\"",
   "button \"Re-evaluate maturity\"",
+  "button \"Refresh\"",
   "button \"Request...\"",
   "button \"S\"",
   "link \"Build\"",

@@ -1,11 +1,11 @@
 /**
- * Wave 2 Task 9: no Tailwind class in the Data Contract page's own markup
- * (its frame and top sections: the header, the banners, the version and view
- * controls, the Details and Description panes and the panes around the shared
- * panels). The sections from Schemas on are Task 10's: their container is
- * scanned, their insides are not. The components the page consumes as they
- * are (later waves, or already restyled) are stubbed. Every top section is
- * shown: a personal draft with every detail filled, in the large view.
+ * Wave 2 Tasks 9 and 10: no Tailwind class in the Data Contract page's own
+ * markup: the header, the banners, the version and view controls, every
+ * section pane from Details to Authoritative Definitions (with the schema
+ * columns' cells), and the panes around the shared panels. The components the
+ * page consumes as they are (later waves, or already restyled) are stubbed;
+ * DataTable's stub renders the page's own cells. Every section is shown: a
+ * personal draft with every detail filled, in the large view.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, screen } from '@testing-library/react';
@@ -14,7 +14,6 @@ import { renderWithMantine } from '@/test/utils';
 import usePermissionsStore from '@/stores/permissions-store';
 import { useUserStore } from '@/stores/user-store';
 import { FeatureAccessLevel } from '@/types/settings';
-import classes from './data-contract-details.module.css';
 import DataContractDetails from './data-contract-details';
 
 const { toast } = vi.hoisted(() => ({ toast: vi.fn() }));
@@ -36,6 +35,24 @@ vi.mock('@/components/common/version-selector', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   default: stub('VersionSelector'),
 }));
+// DataTable is consumed as it is: its stub draws only the page's own cells
+vi.mock('@/components/ui/data-table', () => ({
+  DataTable: ({ columns, data }: { columns: Array<{ cell?: (ctx: unknown) => unknown }>; data: Array<Record<string, unknown>> }) => (
+    <table>
+      <tbody>
+        {data.map((row, r) => (
+          <tr key={r}>
+            {columns.map((column, c) => (
+              <td key={c}>
+                {column.cell?.({ row: { original: row, getValue: (key: string) => row[key] } }) as never}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+}));
 // The loading skeleton is list-view-skeleton's, consumed as it is
 vi.mock('@/components/common/list-view-skeleton', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -49,8 +66,20 @@ const CONTRACT = {
   draftOwnerId: 'e2e.user@example.com', parentContractId: 'c-0',
   domainId: 'd-1', domain: 'Sales', tenant: 'acme', project_id: 'pr-1', project_name: 'Revenue',
   owner_team_id: 't-1', owner_team_name: 'Sales Analytics', dataProductId: 'p-1', dataProductName: 'Sales orders',
-  certification_level: 1, publication_scope: 'organization', tags: ['sales'], schema: [], customProperties: {},
+  certification_level: 1, publication_scope: 'organization', tags: ['sales'],
   description: { purpose: 'Orders for reporting', limitations: 'Daily only', usage: 'Dashboards' },
+  // Every section from Schemas on, filled in: two schemas (tabs), with ids, keys and concepts
+  schema: [
+    { name: 'orders', physicalName: 'main.sales.orders', stableId: 'sch-1', relationships: [{ type: 'foreignKey', to: 'customers' }], properties: [] },
+    { name: 'customers', properties: [] },
+  ],
+  qualityRules: [{ name: 'Order id is never null', dimension: 'completeness', severity: 'error', type: 'library' }],
+  team: [{ role: 'owner', name: 'Ada Lovelace' }],
+  sla: { uptimeTarget: 99.9, maxDowntimeMinutes: 30, queryResponseTimeMs: 200, dataFreshnessMinutes: 60 },
+  servers: [{ server: 'prod-warehouse', type: 'databricks', environment: 'prod', host: 'dbc.example.com' }],
+  accessControl: { classification: 'internal', containsPii: true },
+  customProperties: { retention: '30d', owners: '["a","b"]' },
+  support: { slack: 'https://slack.example.com/orders', email: '' },
   created: '2026-10-01T09:00:00Z', updated: '2026-11-02T15:30:00Z',
 };
 
@@ -65,24 +94,38 @@ function mockBackend(contract: unknown = CONTRACT) {
             { level_order: 2, level_name: 'Silver', achieved: false, gates: [{ passed: false, required: true }] }] });
       case '/api/data-contracts/c-1/versions':
         return json([{ id: 'c-2', version: '2.0.0' }, { id: 'c-1', version: '1.1.0-draft' }]);
+      case '/api/data-contracts/c-1/team-metadata':
+        return json({ name: 'Sales Analytics', description: 'Owns the orders data' });
+      case '/api/data-contracts/c-1/authoritative-definitions':
+        return json([{ id: 'ad-1', type: 'businessDefinition', url: 'https://wiki.example.com/orders' }]);
+      case '/api/data-contracts/c-1/schemas/orders/authoritative-definitions':
+        return json([{ id: 'sad-1', type: 'tableDefinition', url: 'https://wiki.example.com/orders-table' }]);
+      case '/api/data-contracts/c-1/schemas/orders/properties':
+        return json({ total: 1, items: [{ name: 'order_id', logicalType: 'string', required: true, unique: true, stableId: 'col-1',
+          description: 'The order', relationships: [{ type: 'foreignKey', to: 'customers.id' }] }] });
+      case '/api/semantic-links/entity/data_contract_schema/c-1%23orders':
+        return json([{ id: 'l-1', iri: 'https://example.com/onto#Order', label: 'Order' }]);
+      case '/api/semantic-links/entity-prefix/data_contract_property/c-1%23orders%23':
+        return json([{ id: 'l-2', entity_id: 'c-1#orders#order_id', iri: 'https://example.com/onto#OrderId', label: 'Order id' }]);
+      case '/api/data-products/by-contract/c-1':
+        return json([{ id: 'p-1', name: 'Sales orders', version: '1.0.0', status: 'active', description: { purpose: 'Orders' },
+          outputPorts: [{ name: 'orders', version: '1.0.0', contractId: 'c-1' }] }]);
       default: return json([]);
     }
   }));
 }
 
-/** Class names that aren't a CSS module's, Mantine's or an icon's, outside Task 10's sections. */
+/** Class names that aren't a CSS module's, Mantine's or an icon's. */
 function foreignClasses(root: HTMLElement): string[] {
   const own = /^(_[\w-]+_[0-9a-z]+|mantine-[\w-]+|m_[0-9a-f]+|lucide(-[\w-]+)?)$/;
   const found = new Set<string>();
-  const walk = (el: Element, scanChildren = true) => {
+  const walk = (el: Element) => {
     if (el.hasAttribute('data-consumed')) return;
     // ui/button and ui/badge render Mantine with their own utility classes (allowed until wave 6)
     const allowedRoot = el.classList.contains('mantine-Button-root') || el.classList.contains('mantine-Badge-root');
     if (!allowedRoot) {
       for (const name of Array.from(el.classList)) if (!own.test(name)) found.add(name);
     }
-    // Task 10's cards: the container is the page's, the cards are not (yet)
-    if (!scanChildren || el.classList.contains(classes.sections)) return;
     for (const child of Array.from(el.children)) walk(child);
   };
   walk(root);
@@ -111,7 +154,7 @@ describe('data contract details markup', () => {
     { route: '/data-contracts/c-1' },
   );
 
-  it('the page\'s frame and top sections carry no Tailwind class', async () => {
+  it('the page\'s frame and every section carry no Tailwind class', async () => {
     mockBackend();
     const { container } = render();
     await screen.findByRole('heading', { level: 1, name: 'Orders contract' });
@@ -121,7 +164,20 @@ describe('data contract details markup', () => {
     expect(screen.getByText('Personal Draft')).toBeInTheDocument();
     for (const name of ['Details', 'Description']) expect(screen.getByRole('region', { name })).toBeInTheDocument();
     for (const name of ['Owners', 'Metadata', 'Data Quality']) expect(screen.getByRole('region', { name })).toBeInTheDocument();
-    expect(container.querySelector(`.${classes.sections}`)).not.toBeNull();
+    // Every section, with its rows, the schema's columns, ids, keys and concepts
+    for (const name of [/^Schemas/, /^Linked Data Products/, /^Quality Rules/, 'ODCS Team Metadata', 'SLA & Infrastructure',
+      'Access Control', /^Custom Properties/, 'Support', 'Authoritative Definitions']) {
+      expect(screen.getByRole('region', { name })).toBeInTheDocument();
+    }
+    await screen.findByText('order_id');
+    await screen.findByText('Order id');
+    await screen.findByText('Order');
+    await screen.findByText('Sales orders', { selector: 'a[href="/data-products/p-1"]:not([title])' });
+    await screen.findByText('https://wiki.example.com/orders-table');
+    await screen.findByText('https://wiki.example.com/orders');
+    expect(screen.getByText('Owns the orders data')).toBeInTheDocument();
+    expect(screen.getByText('sch-1')).toBeInTheDocument();
+    expect(screen.getByText('col-1')).toBeInTheDocument();
 
     expect(foreignClasses(container)).toEqual([]);
   });
