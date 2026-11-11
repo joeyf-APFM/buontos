@@ -200,10 +200,9 @@ describe('data contract details on the page kit', () => {
     renderPage();
     await loaded();
 
-    expect(headerButtons()).toEqual([
-      'Back to List', 'Clone for Editing', 'Comments', 'Create New Version', 'Export ODCS', 'Request...',
-    ].sort());
-    for (const name of ['Edit Metadata', 'Delete', 'Certify', 'Publish', 'Approve', 'Reject']) {
+    // Neither clone: both write a contract (Task 11c fix round 1)
+    expect(headerButtons()).toEqual(['Back to List', 'Comments', 'Export ODCS', 'Request...'].sort());
+    for (const name of ['Edit Metadata', 'Delete', 'Certify', 'Publish', 'Approve', 'Reject', 'Clone for Editing', 'Create New Version']) {
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
     expect(within(screen.getByRole('region', { name: 'Details' })).queryByRole('button', { name: 'Add' })).toBeNull();

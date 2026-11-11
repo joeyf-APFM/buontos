@@ -541,6 +541,10 @@ export default function DataProductDetails() {
   const canRead = !permissionsLoading && hasPermission(featureId, Settings.FeatureAccessLevel.READ_ONLY);
   const canWrite = !permissionsLoading && hasPermission(featureId, Settings.FeatureAccessLevel.READ_WRITE);
   const canAdmin = !permissionsLoading && hasPermission(featureId, Settings.FeatureAccessLevel.ADMIN);
+  // The notes, costs and quality routes check data-domains; concept links check semantic-models
+  const canWriteDomains = !permissionsLoading && hasPermission('data-domains', Settings.FeatureAccessLevel.READ_WRITE);
+  const canWriteSemantic = !permissionsLoading && hasPermission('semantic-models', Settings.FeatureAccessLevel.READ_WRITE);
+  const canEditPanels = canWrite && canWriteDomains;
 
   const canApproveProductLifecycle = userHasApprovalPrivilege(
     ApprovalEntity.PRODUCTS,
@@ -1463,8 +1467,8 @@ export default function DataProductDetails() {
       value: (
         <LinkedConceptChips
           links={links}
-          onRemove={canModify ? removeLink : undefined}
-          trailing={canModify ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add')}</Button> : undefined}
+          onRemove={canModify && canWriteSemantic ? removeLink : undefined}
+          trailing={canModify && canWriteSemantic ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add')}</Button> : undefined}
         />
       ),
     },
@@ -2103,7 +2107,7 @@ export default function DataProductDetails() {
             {/* Metadata Panel */}
             {shouldShowSection('metadata-panel') && (
               <Pane aria-label={t('metadata:title')}>
-                <EntityMetadataPanel entityId={productId!} entityType="data_product" flush />
+                <EntityMetadataPanel entityId={productId!} entityType="data_product" flush canEdit={canEditPanels} />
               </Pane>
             )}
 
@@ -2123,13 +2127,13 @@ export default function DataProductDetails() {
 
             {/* Costs Panel */}
             {shouldShowSection('costs') && (
-              <EntityCostsPanel entityId={productId!} entityType="data_product" pane />
+              <EntityCostsPanel entityId={productId!} entityType="data_product" pane canEdit={canEditPanels} />
             )}
 
             {/* Quality Panel */}
             {shouldShowSection('quality') && (
               <Pane aria-label={t('metadata:quality.title')}>
-                <EntityQualityPanel entityId={productId!} entityType="data_product" productAggregation flush canEdit={canWrite} />
+                <EntityQualityPanel entityId={productId!} entityType="data_product" productAggregation flush canEdit={canEditPanels} />
               </Pane>
             )}
           </PaneStack>

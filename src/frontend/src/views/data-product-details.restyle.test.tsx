@@ -67,9 +67,9 @@ function mockBackend(product: unknown = PRODUCT, status = 200) {
   vi.stubGlobal('fetch', fetchMock);
 }
 
-function grant(level: FeatureAccessLevel, approver = false) {
+function grant(level: FeatureAccessLevel, approver = false, others: Record<string, FeatureAccessLevel> = {}) {
   usePermissionsStore.setState({
-    permissions: { 'data-products': level, 'semantic-models': level },
+    permissions: { 'data-products': level, 'semantic-models': level, 'data-domains': level, ...others },
     availableRoles: approver
       ? [{ id: 'r-1', name: 'Approver', assigned_groups: ['admins'], feature_permissions: {}, approval_privileges: { PRODUCTS: true } } as never]
       : [],
@@ -294,6 +294,43 @@ describe('data product details on the page kit', () => {
     renderPage();
     await loaded();
     expect(await within(quality()).findByRole('button', { name: 'Add measurement' })).toBeEnabled();
+  });
+
+  it('data product details: a products writer read-only on data-domains gets no notes, cost or quality edits', async () => {
+    localStorage.setItem('data-product-view-mode', 'large');
+    grant(FeatureAccessLevel.READ_WRITE, false, { 'data-domains': FeatureAccessLevel.READ_ONLY });
+    renderPage();
+    await loaded();
+    const quality = () => screen.getAllByRole('region', { name: 'Data Quality' })[0];
+    await waitFor(() => expect(within(quality()).getByRole('button', { name: 'Refresh' })).toBeInTheDocument());
+    expect(within(quality()).queryByRole('button', { name: 'Add measurement' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add expense' })).toBeNull();
+    const metadata = screen.getAllByRole('region', { name: 'Metadata' })[0];
+    const writeIcons = within(metadata).queryAllByRole('button').filter((b) =>
+      [...b.querySelectorAll('svg')].some((svg) => [...svg.classList].some((c) => /^lucide-(plus|share-?2|pencil|trash-?2)$/.test(c))));
+    expect(writeIcons).toHaveLength(0);
+    // The product itself stays editable (a draft)
+    expect(within(header()).getByRole('button', { name: 'Edit' })).toBeEnabled();
+    cleanup();
+
+    // With data-domains write the panels' edits come back
+    grant(FeatureAccessLevel.READ_WRITE);
+    renderPage();
+    await loaded();
+    expect(await screen.findByRole('button', { name: 'Add expense' })).toBeEnabled();
+  });
+
+  it('data product details: the concept links need semantic-models write', async () => {
+    grant(FeatureAccessLevel.READ_WRITE, false, { 'semantic-models': FeatureAccessLevel.READ_ONLY });
+    renderPage();
+    await loaded();
+    expect(within(screen.getByRole('region', { name: 'Details' })).queryByRole('button', { name: 'Add' })).toBeNull();
+    cleanup();
+
+    grant(FeatureAccessLevel.READ_WRITE);
+    renderPage();
+    await loaded();
+    expect(within(screen.getByRole('region', { name: 'Details' })).getByRole('button', { name: 'Add' })).toBeEnabled();
   });
 
   it('data product details: the shared panels sit flush in untitled panes', async () => {

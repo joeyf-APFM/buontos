@@ -30,9 +30,15 @@ interface Props {
    * which the panel's head would repeat.
    */
   flush?: boolean;
+  /**
+   * The user may write on the host page: shows the add, attach, edit and
+   * delete controls. Off by default, so a caller that doesn't say gets a
+   * read-only panel. Each caller passes its page's write permission.
+   */
+  canEdit?: boolean;
 }
 
-const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = false }) => {
+const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = false, canEdit = false }) => {
   const { toast } = useToast();
   const { t } = useTranslation(['metadata', 'common']);
   const ids = React.useId();
@@ -161,7 +167,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
             <h4 id={`${ids}-notes`} className={classes.sectionTitle}><FileText aria-hidden />{t('notes.title')}</h4>
             <TooltipProvider>
               <div className={classes.toolbar}>
-                {!addingNote && (
+                {canEdit && !addingNote && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -235,6 +241,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
                                 <TooltipContent>{t('notes.preview')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
+                            {canEdit && (<>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -254,6 +261,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
                             }}>
                               <Trash2 />
                             </Button>
+                            </>)}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -305,7 +313,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
             <h4 id={`${ids}-links`} className={classes.sectionTitle}><LinkIcon aria-hidden />{t('links.title')}</h4>
             <TooltipProvider>
               <div className={classes.toolbar}>
-                {!addingLink && (
+                {canEdit && !addingLink && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -379,6 +387,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
                                 <TooltipContent>{t('links.open')}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
+                            {canEdit && (<>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -398,6 +407,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
                             }}>
                               <Trash2 />
                             </Button>
+                            </>)}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -449,7 +459,7 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
             <h4 id={`${ids}-documents`} className={classes.sectionTitle}><Paperclip aria-hidden />{t('documents.title')}</h4>
             <TooltipProvider>
               <div className={classes.toolbar}>
-                {!addingDoc && (
+                {canEdit && !addingDoc && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -565,12 +575,14 @@ const EntityMetadataPanel: React.FC<Props> = ({ entityId, entityType, flush = fa
                             <TooltipContent>{t('documents.preview')}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        {canEdit && (
                         <Button variant="ghost" size="icon" className={classes.danger} onClick={async () => {
                           try { const resp = await fetch(`/api/documents/${d.id}`, { method: 'DELETE' }); if (!resp.ok) throw new Error(t('documents.messages.deleteFailed')); fetchMetadata(); }
                           catch (e: any) { toast({ title: t('documents.messages.deleteFailed'), description: e.message, variant: 'destructive' }); }
                         }}>
                           <Trash2 />
                         </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

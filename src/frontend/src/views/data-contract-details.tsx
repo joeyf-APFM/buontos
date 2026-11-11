@@ -317,6 +317,12 @@ export default function DataContractDetails() {
   const isContractAdmin = contractPermissionLevel === FeatureAccessLevel.ADMIN || contractPermissionLevel === FeatureAccessLevel.FULL
   const canWriteContracts =
     !permissionsLoading && hasPermission('data-contracts', FeatureAccessLevel.READ_WRITE)
+  // The notes and quality routes check data-domains; concept links check semantic-models
+  const canWriteDomains =
+    !permissionsLoading && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE)
+  const canWriteSemantic =
+    !permissionsLoading && hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE)
+  const canEditPanels = canWriteContracts && canWriteDomains
   // Linking or creating a product writes the product
   const canWriteProducts =
     !permissionsLoading && hasPermission('data-products', FeatureAccessLevel.READ_WRITE)
@@ -1966,8 +1972,8 @@ export default function DataContractDetails() {
       value: (
         <LinkedConceptChips
           links={links}
-          onRemove={canEditInPlace ? (id) => removeLink(id) : undefined}
-          trailing={canEditInPlace ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add', 'Add')}</Button> : undefined}
+          onRemove={canEditInPlace && canWriteSemantic ? (id) => removeLink(id) : undefined}
+          trailing={canEditInPlace && canWriteSemantic ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add', 'Add')}</Button> : undefined}
         />
       ),
     },
@@ -2052,13 +2058,13 @@ export default function DataContractDetails() {
                     </>
                   )}
                   {/* Clone for editing (for active+ contracts) */}
-                  {isReadOnly && !isPersonalDraft && (
+                  {isReadOnly && !isPersonalDraft && canWriteContracts && (
                     <Button variant="outline" onClick={handleCloneForEditing} size="sm">
                       <CopyPlus /> {t('data-contracts:detailsView.header.cloneForEditing', 'Clone for Editing')}
                     </Button>
                   )}
                   {/* Create new version (for any contract) */}
-                  {!isPersonalDraft && (
+                  {!isPersonalDraft && canWriteContracts && (
                     <Button variant="outline" onClick={handleCreateNewVersion} size="sm">
                       <CopyPlus /> {t('data-contracts:detailsView.header.createNewVersion', 'Create New Version')}
                     </Button>
@@ -2729,14 +2735,14 @@ export default function DataContractDetails() {
             {/* Metadata Panel */}
             {shouldShowSection('metadata-panel') && contract.id && (
               <Pane aria-label={t('metadata:title', 'Metadata')}>
-                <EntityMetadataPanel entityId={contract.id} entityType="data_contract" flush />
+                <EntityMetadataPanel entityId={contract.id} entityType="data_contract" flush canEdit={canEditPanels} />
               </Pane>
             )}
 
             {/* Quality Panel */}
             {contract.id && (
               <Pane aria-label={t('metadata:quality.title', 'Data Quality')}>
-                <EntityQualityPanel entityId={contract.id} entityType="data_contract" flush canEdit={canWriteContracts} />
+                <EntityQualityPanel entityId={contract.id} entityType="data_contract" flush canEdit={canEditPanels} />
               </Pane>
             )}
           </PaneStack>

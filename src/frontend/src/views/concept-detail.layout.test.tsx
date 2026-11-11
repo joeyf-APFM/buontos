@@ -14,9 +14,11 @@ const get = vi.fn();
 vi.mock('@/hooks/use-api', () => ({
   useApi: () => ({ get, post: vi.fn(), put: vi.fn(), delete: vi.fn() }),
 }));
+// Every permission, unless a test denies a feature
+const { denied } = vi.hoisted(() => ({ denied: new Set<string>() }));
 vi.mock('@/stores/permissions-store', async (orig) => {
   const actual = await orig<Record<string, unknown>>();
-  return { ...actual, usePermissions: () => ({ hasPermission: () => true }) };
+  return { ...actual, usePermissions: () => ({ hasPermission: (feature: string) => !denied.has(feature) }) };
 });
 
 // Heavy child panels fetch their own data; they are irrelevant here.
@@ -26,7 +28,10 @@ vi.mock('@/components/semantic/linked-objects-panel', () => ({ default: Stub }))
 vi.mock('@/components/semantic/concept-neighborhood-graph', () => ({ default: Stub }));
 vi.mock('@/components/knowledge/concept-editor-dialog', () => ({ ConceptEditorDialog: Stub }));
 vi.mock('@/components/common/ownership-panel', () => ({ OwnershipPanel: Stub }));
-vi.mock('@/components/metadata/entity-metadata-panel', () => ({ default: Stub }));
+const { metadataProps } = vi.hoisted(() => ({ metadataProps: [] as Array<{ canEdit?: boolean }> }));
+vi.mock('@/components/metadata/entity-metadata-panel', () => ({
+  default: (props: { canEdit?: boolean }) => { metadataProps.push(props); return null; },
+}));
 vi.mock('@/components/semantic/publish-version-dialog', () => ({ PublishVersionDialog: Stub }));
 vi.mock('@/components/semantic/version-history-panel', () => ({ VersionHistoryPanel: Stub }));
 vi.mock('@/components/semantic/deprecate-concept-dialog', () => ({ DeprecateConceptDialog: Stub }));
@@ -105,6 +110,8 @@ describe('ConceptDetailView layout', () => {
   beforeEach(() => {
     current = concept();
     dialogProps.length = 0;
+    metadataProps.length = 0;
+    denied.clear();
     get.mockImplementation(async (url: string) => {
       if (url.startsWith('/api/semantic-models/concepts/by-iri')) {
         return { data: { concept: current } };
@@ -182,6 +189,19 @@ describe('ConceptDetailView layout', () => {
       expect.objectContaining({ status: 'under_review', action: 'submit-review' }),
     ]);
     expect(last.newVersion).toEqual(expect.objectContaining({ disabled: true }));
+  });
+
+  // Task 11c fix round 1 (R45): the metadata routes check data-domains
+  it.each([
+    ['nothing', [], true],
+    ['data-domains', ['data-domains'], false],
+    ['semantic-models', ['semantic-models'], false],
+  ] as const)('the metadata panel edits only with semantic-models and data-domains write (denied: %s)', async (_, features, canEdit) => {
+    for (const feature of features) denied.add(feature);
+    renderPage();
+    await screen.findByTestId('concept-summary-panel');
+    expect(metadataProps.length).toBeGreaterThan(0);
+    expect(metadataProps[metadataProps.length - 1]?.canEdit).toBe(canEdit);
   });
 
   it('does not render a SPARQL button on the concept page', async () => {

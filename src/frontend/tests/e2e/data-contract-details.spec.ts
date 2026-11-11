@@ -92,12 +92,12 @@ test('a contract that fails to load shows its error, and Back to List goes to th
   await expect(page).toHaveURL(/\/data-contracts$/);
 });
 
-test('the consumer has no edit, delete or certify control', async ({ page }) => {
+test('the consumer has no edit, delete, clone or certify control', async ({ page }) => {
   await open(page, BASE, { persona: 'consumer' });
   const main = page.getByRole('main');
   await expect(main.getByRole('heading', { level: 1, name: 'Orders contract' })).toBeVisible();
-  await expect(main.getByRole('button', { name: 'Clone for Editing' })).toBeEnabled();
-  for (const name of ['Edit Metadata', 'Delete', 'Certify', 'Publish', 'Approve', 'Reject', 'Edit description']) {
+  await expect(main.getByRole('button', { name: 'Export ODCS' })).toBeEnabled();
+  for (const name of ['Edit Metadata', 'Delete', 'Certify', 'Publish', 'Approve', 'Reject', 'Edit description', 'Clone for Editing', 'Create New Version']) {
     await expect(main.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
 });
@@ -122,13 +122,14 @@ test('the consumer on a draft has no edit, delete, approve, profile, link or mea
     'Edit Metadata', 'Delete', 'Edit description', 'Approve', 'Reject', 'Profile with DQX', 'Infer from Catalog',
     'Infer from Asset', 'Add Schema', 'Add Rule', 'Edit SLA', 'Add Server', 'Add Property', 'Add Definition',
     'Link to Existing Product', 'Create Data Product', 'Add measurement', 'Assign Owner', 'Clone for Editing',
+    'Create New Version',
   ]) {
     await expect(main.getByRole('button', { name, exact: true }), name).toHaveCount(0);
   }
   // No Add, Edit or Delete anywhere on the page (the linked concepts' Add included)
   await expect(main.getByRole('button', { name: /^(Add|Edit|Delete)\b/ })).toHaveCount(0);
   // What stays: reading and requesting
-  for (const name of ['Back to List', 'Request...', 'Export ODCS', 'Create New Version']) {
+  for (const name of ['Back to List', 'Request...', 'Export ODCS']) {
     await expect(main.getByRole('button', { name, exact: true })).toBeEnabled();
   }
 });

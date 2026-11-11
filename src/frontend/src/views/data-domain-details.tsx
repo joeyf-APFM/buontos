@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 // Label - unused
 // import { Label } from '@/components/ui/label';
 import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
+import { usePermissions } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/settings';
 import { OwnershipPanel } from '@/components/common/ownership-panel';
 import { EntityTreePanel } from '@/components/common/entity-tree-panel';
 // Preview handled in EntityMetadataPanel
@@ -235,6 +237,9 @@ export default function DataDomainDetailsView() {
   const navigate = useNavigate();
   const listPath = '/settings/data-domains';
   const { get, post, delete: del } = useApi();
+  // The metadata routes check data-domains, which is this page's own feature
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const canWriteDomains = !permissionsLoading && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
   const { toast } = useToast();
   
   // Ignored once the page has gone, so a late answer can't name the next page
@@ -855,7 +860,7 @@ export default function DataDomainDetailsView() {
       />
 
       {/* Metadata Panel - Last Section */}
-      <EntityMetadataPanel entityId={domainId!} entityType={entityType} />
+      <EntityMetadataPanel entityId={domainId!} entityType={entityType} canEdit={canWriteDomains} />
 
       <ConceptSelectDialog
         isOpen={iriDialogOpen}

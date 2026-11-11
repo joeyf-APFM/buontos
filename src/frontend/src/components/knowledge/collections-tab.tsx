@@ -21,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
+import { usePermissions } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/settings';
 import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status';
 import { DetailsGrid, Pane } from '@/mantine/page';
 import type { KnowledgeCollection, CollectionType, ScopeLevel } from '@/types/ontology';
@@ -113,6 +115,9 @@ export const CollectionsTab: React.FC<CollectionsTabProps> = ({
   canEdit,
 }) => {
   const { t } = useTranslation(['semantic-models', 'common']);
+  // The metadata routes check data-domains
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const canWriteDomains = !permissionsLoading && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
 
   // The handlers through a ref, so the columns stay memoised (and a focused
   // cell keeps its focus) when the page re-renders with new handlers
@@ -327,7 +332,7 @@ export const CollectionsTab: React.FC<CollectionsTabProps> = ({
               <p className={classes.created}>Created: {new Date(selected.created_at).toLocaleDateString()}</p>
             )}
 
-            <EntityMetadataPanel entityType="collection" entityId={selected.iri} />
+            <EntityMetadataPanel entityType="collection" entityId={selected.iri} canEdit={canEdit && canWriteDomains} />
           </div>
         </Pane>
       )}

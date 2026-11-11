@@ -143,6 +143,8 @@ const CatalogCommander: React.FC = () => {
 
   const { hasPermission } = usePermissions();
   const canPerformWriteActions = hasPermission('catalog-commander', FeatureAccessLevel.FULL);
+  // The metadata routes check data-domains
+  const canWriteDomains = hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
 
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
   const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
@@ -1186,6 +1188,7 @@ const CatalogCommander: React.FC = () => {
                         <EntityMetadataPanel
                           entityId={getSelectedNodeDetails()?.id || ''}
                           entityType={'data_product' as any}
+                          canEdit={canPerformWriteActions && canWriteDomains}
                         />
                       )}
                     </div>

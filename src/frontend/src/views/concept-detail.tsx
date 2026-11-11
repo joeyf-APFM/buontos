@@ -186,6 +186,8 @@ export default function ConceptDetailView() {
   }, [rawIri]);
 
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
+  // The metadata routes check data-domains
+  const canWriteDomains = hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
 
   const [concept, setConcept] = useState<OntologyConcept | null>(null);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
@@ -1196,7 +1198,7 @@ export default function ConceptDetailView() {
         {/* Metadata (notes / links / documents) — full width, ALWAYS the last
             panel (in both Simple and Advanced view). */}
         <div data-panel="metadata">
-          <EntityMetadataPanel entityType="concept" entityId={concept.iri} />
+          <EntityMetadataPanel entityType="concept" entityId={concept.iri} canEdit={canWrite && canWriteDomains} />
         </div>
       </div>
 

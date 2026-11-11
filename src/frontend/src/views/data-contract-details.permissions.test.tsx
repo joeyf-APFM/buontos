@@ -62,17 +62,33 @@ function mockBackend(contract: Record<string, unknown>) {
   }));
 }
 
-type Persona = 'reader' | 'writer' | 'approver' | 'admin';
+const { READ_ONLY: RO, READ_WRITE: RW, ADMIN } = FeatureAccessLevel;
+type Levels = { contracts: FeatureAccessLevel; products: FeatureAccessLevel; semantic: FeatureAccessLevel; domains: FeatureAccessLevel };
+const same = (level: FeatureAccessLevel): Levels => ({ contracts: level, products: level, semantic: level, domains: level });
+
+// Each persona's level on the features the page's actions write
+const PERSONAS = {
+  reader: same(RO),
+  writer: same(RW),
+  approver: same(RW),
+  admin: same(ADMIN),
+  // Link and Create follow data-products, not data-contracts (M1, M2)
+  contractWriterProductReader: { ...same(RW), products: RO },
+  contractAdminProductReader: { ...same(ADMIN), products: RO },
+  // The notes and quality panels also need data-domains (R45)
+  domainReader: { ...same(RW), domains: RO },
+  // The concept links need semantic-models
+  semanticReader: { ...same(RW), semantic: RO },
+} satisfies Record<string, Levels>;
+type Persona = keyof typeof PERSONAS;
 
 function signIn(persona: Persona) {
-  const level = {
-    reader: FeatureAccessLevel.READ_ONLY,
-    writer: FeatureAccessLevel.READ_WRITE,
-    approver: FeatureAccessLevel.READ_WRITE,
-    admin: FeatureAccessLevel.ADMIN,
-  }[persona];
+  const levels = PERSONAS[persona];
   usePermissionsStore.setState({
-    permissions: { 'data-contracts': level, 'data-products': level, 'semantic-models': level, 'data-domains': level },
+    permissions: {
+      'data-contracts': levels.contracts, 'data-products': levels.products,
+      'semantic-models': levels.semantic, 'data-domains': levels.domains,
+    },
     availableRoles: persona === 'approver'
       ? [{ id: 'r-1', name: 'Steward', assigned_groups: ['stewards'], feature_permissions: {}, approval_privileges: { CONTRACTS: true } } as never]
       : [],
@@ -149,6 +165,11 @@ const productControls = () => ({
   'Create Data Product': button(region(/^Linked Data Products/), 'Create Data Product'),
 });
 
+// The metadata panel's icon-only add and attach buttons, by their icons
+const metadataWriteButtons = () =>
+  within(region('Metadata')).queryAllByRole('button').filter((b) =>
+    [...b.querySelectorAll('svg')].some((svg) => [...svg.classList].some((c) => /^lucide-(plus|share-?2|pencil|trash-?2)$/.test(c))));
+
 const IN_PLACE = Object.keys({
   'Edit Metadata': 0, Delete: 0, 'Edit description': 0, 'concept Add': 0, 'Infer from Catalog': 0, 'Infer from Asset': 0,
   'Add Schema': 0, 'Edit orders': 0, 'Delete orders': 0, 'schema definition Add': 0, 'Add Rule': 0, 'Edit rule': 0,
@@ -177,11 +198,13 @@ describe('data contract details permission gates', () => {
     for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
     // The owners and relationships panels lose their assign and add too
     expect(within(region('Owners')).queryByRole('button', { name: 'Assign Owner' })).toBeNull();
-    // As before for a draft: no read-only banner and no Clone for Editing (its status is editable)
+    expect(metadataWriteButtons()).toHaveLength(0);
+    // As before for a draft: no read-only banner
     expect(screen.queryByText('Read-Only')).toBeNull();
-    expect(button(header(), 'Clone for Editing')).toHaveLength(0);
+    // Both clones write a contract (fix round 1, I1)
+    for (const name of ['Clone for Editing', 'Create New Version']) expect(button(header(), name)).toHaveLength(0);
     // What stays: reading and requesting
-    for (const name of ['Back to List', 'Request...', 'Export ODCS', 'Create New Version']) {
+    for (const name of ['Back to List', 'Request...', 'Export ODCS']) {
       expect(within(header()).getByRole('button', { name })).toBeEnabled();
     }
   });
@@ -195,6 +218,9 @@ describe('data contract details permission gates', () => {
     expect(products['Link to Existing Product'][0]).toBeDisabled();
     expect(products['Create Data Product'][0]).toBeDisabled();
     expect(within(region('Owners')).getByRole('button', { name: 'Assign Owner' })).toBeInTheDocument();
+    // Notes, links and documents: add and attach each
+    expect(metadataWriteButtons()).toHaveLength(6);
+    expect(within(header()).getByRole('button', { name: 'Create New Version' })).toBeEnabled();
     // A draft isn't up for approval
     for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
   });
@@ -218,13 +244,36 @@ describe('data contract details permission gates', () => {
     expect(screen.getByText('Read-Only')).toBeInTheDocument();
   });
 
-  it('data contract permissions: a reader on an active contract keeps Clone for Editing and the banner, as before', async () => {
+  it('data contract permissions: a reader on an active contract keeps the banner but gets neither clone', async () => {
     await open('reader', 'active');
     expect(present(inPlaceControls())).toEqual([]);
     expect(present(writeControls())).toEqual([]);
     expect(present(productControls())).toEqual([]);
-    expect(within(header()).getByRole('button', { name: 'Clone for Editing' })).toBeEnabled();
+    for (const name of ['Clone for Editing', 'Create New Version']) expect(button(header(), name)).toHaveLength(0);
     expect(screen.getByText('Read-Only')).toBeInTheDocument();
+  });
+
+  it.each(['contractWriterProductReader', 'contractAdminProductReader'] as const)(
+    'data contract permissions: Link and Create follow data-products write, not contracts (%s)', async (persona) => {
+      await open(persona, 'active');
+      expect(present(productControls())).toEqual([]);
+      // Everything that follows data-contracts stays
+      expect(present(writeControls())).toEqual(WRITE);
+      expect(within(header()).getByRole('button', { name: 'Create New Version' })).toBeEnabled();
+      if (persona === 'contractAdminProductReader') expect(present(inPlaceControls())).toEqual(IN_PLACE);
+    });
+
+  it('data contract permissions: a contracts writer read-only on data-domains gets no notes or quality edits', async () => {
+    await open('domainReader', 'draft');
+    expect(metadataWriteButtons()).toHaveLength(0);
+    expect(present(writeControls())).toEqual(['Profile with DQX', 'Review Suggestions']);
+    // The contract's own content stays editable
+    expect(present(inPlaceControls())).toEqual(IN_PLACE);
+  });
+
+  it('data contract permissions: a contracts writer read-only on semantic-models gets no concept Add', async () => {
+    await open('semanticReader', 'draft');
+    expect(present(inPlaceControls())).toEqual(IN_PLACE.filter((name) => name !== 'concept Add'));
   });
 
   it.each(['draft', 'active'])('data contract permissions: an admin on a %s contract has every control, as before', async (status) => {

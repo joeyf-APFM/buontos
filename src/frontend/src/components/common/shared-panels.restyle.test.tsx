@@ -104,7 +104,7 @@ describe('shared panels restyle', () => {
       return json([]);
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<EntityMetadataPanel entityId="e1" entityType="data_product" />);
+    renderWithProviders(<EntityMetadataPanel entityId="e1" entityType="data_product" canEdit />);
 
     const panel = await screen.findByRole('region', { name: 'Metadata' });
     await within(panel).findByText('Read me');

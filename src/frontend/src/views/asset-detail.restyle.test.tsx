@@ -73,9 +73,9 @@ function mockBackend(asset: Record<string, unknown> = ASSET) {
   return fetchMock;
 }
 
-function setPermissions(level: FeatureAccessLevel) {
+function setPermissions(level: FeatureAccessLevel, others: Record<string, FeatureAccessLevel> = {}) {
   usePermissionsStore.setState({
-    permissions: { assets: level, 'semantic-models': level, comments: level },
+    permissions: { assets: level, 'semantic-models': level, comments: level, 'data-domains': level, ...others },
     appliedRoleId: null,
     isLoading: false,
     _initAttempted: true,
@@ -192,15 +192,32 @@ describe('asset detail on the page kit', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
+  it('asset detail: an assets writer read-only on data-domains gets no notes, cost or quality edits', async () => {
+    setPermissions(FeatureAccessLevel.READ_WRITE, { 'data-domains': FeatureAccessLevel.READ_ONLY });
+    renderPage();
+    const header = (await findHeading()).parentElement!;
+    const quality = await screen.findByRole('region', { name: 'Data Quality' });
+    await waitFor(() => expect(within(quality).getByRole('button', { name: 'Refresh' })).toBeInTheDocument());
+    expect(within(quality).queryByRole('button', { name: 'Add measurement' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add expense' })).toBeNull();
+    const metadata = screen.getAllByRole('region', { name: 'Metadata' })[0];
+    const writeIcons = within(metadata).queryAllByRole('button').filter((b) =>
+      [...b.querySelectorAll('svg')].some((svg) => [...svg.classList].some((c) => /^lucide-(plus|share-?2|pencil|trash-?2)$/.test(c))));
+    expect(writeIcons).toHaveLength(0);
+    // The asset itself stays editable
+    expect(within(header).getByRole('button', { name: 'Edit' })).toBeEnabled();
+  });
+
   it('asset detail keeps the read-only gates for a consumer', async () => {
     setPermissions(FeatureAccessLevel.READ_ONLY);
     renderPage();
     const header = (await findHeading()).parentElement!;
 
-    // The quality panel follows the assets write permission
+    // The quality and cost panels follow the assets write permission
     const quality = await screen.findByRole('region', { name: 'Data Quality' });
     await waitFor(() => expect(within(quality).getByRole('button', { name: 'Refresh' })).toBeInTheDocument());
     expect(within(quality).queryByRole('button', { name: 'Add measurement' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add expense' })).toBeNull();
 
     expect(within(header).queryByRole('button', { name: 'Manage Lineage' })).toBeNull();
     expect(within(header).getByRole('button', { name: 'Edit' })).toBeDisabled();

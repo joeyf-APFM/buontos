@@ -1,8 +1,6 @@
 [
   "button \"Back to List\"",
-  "button \"Clone for Editing\"",
   "button \"Comments\"",
-  "button \"Create New Version\"",
   "button \"Export ODCS\"",
   "button \"L\"",
   "button \"M\"",

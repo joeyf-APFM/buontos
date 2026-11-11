@@ -19,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { CommentSidebar } from '@/components/comments';
 import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
+import { usePermissions } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/settings';
 import { formatRuleWarning, type RuleWarning } from '@/lib/compliance-rule-warnings';
 import { complianceRunErrorText } from '@/lib/compliance-run-error';
 
@@ -69,6 +71,11 @@ export default function CompliancePolicyDetails() {
   const navigate = useNavigate();
   const { get, post, put } = useApi();
   const { toast } = useToast();
+  // The metadata panel writes on compliance and on data-domains (the metadata routes' feature)
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+  const canEditMetadata = !permissionsLoading
+    && hasPermission('compliance', FeatureAccessLevel.READ_WRITE)
+    && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
   // Ignored once the page has gone, so a late answer can't name the next page
   const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
@@ -438,7 +445,7 @@ export default function CompliancePolicyDetails() {
         </Card>
       )}
 
-      <EntityMetadataPanel entityId={policyId!} entityType="compliance_policy" />
+      <EntityMetadataPanel entityId={policyId!} entityType="compliance_policy" canEdit={canEditMetadata} />
 
       {/* Edit Policy Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
