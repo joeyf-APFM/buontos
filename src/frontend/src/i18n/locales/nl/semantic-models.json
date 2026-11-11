@@ -368,7 +368,8 @@
     "parentCollection": "Bovenliggend conceptschema",
     "noneRootCollection": "Geen (hoofdconceptschema)",
     "editable": "Bewerkbaar",
-    "editableHelp": "Sta het aanmaken en bewerken van concepten in dit conceptschema toe"
+    "editableHelp": "Sta het aanmaken en bewerken van concepten in dit conceptschema toe",
+    "typeInfo": "Over schematypen"
   },
   "promotion": {
     "promoteConcept": "Concept promoveren",
@@ -560,7 +561,8 @@
   },
   "define": {
     "requiresWrite": "Schrijftoegang vereist",
-    "runsFailed": "Het lopende aanmaakwerk kon niet worden geladen."
+    "runsFailed": "Het lopende aanmaakwerk kon niet worden geladen.",
+    "about": "Over {{name}}"
   },
   "lifecycle": {
     "changeStatus": "Status wijzigen",

@@ -143,12 +143,16 @@ function renderDefine(entry = '/concepts/define') {
   return () => observed;
 }
 
+// The runs load settles (its state updates land inside RTL's act)
+const settled = () => screen.findByText('156 draft terms from gold.*');
+
 describe('DefineView', () => {
   it('renders the three creation-path cards', async () => {
     renderDefine();
     expect(screen.getByText('Author')).toBeInTheDocument();
     expect(screen.getByText('Generate')).toBeInTheDocument();
     expect(screen.getByText('Import')).toBeInTheDocument();
+    await settled();
   });
 
   it('Author card opens the New Concept Scheme dialog in place', async () => {
@@ -172,7 +176,7 @@ describe('DefineView', () => {
     expect(importDialogOpen).toBe(true);
   });
 
-  it('legend puts each rung vocabulary behind an info icon shown in both modes', () => {
+  it('legend puts each rung vocabulary behind an info icon shown in both modes', async () => {
     renderDefine();
     expect(screen.queryByRole('button', { name: 'What gets written' })).not.toBeInTheDocument();
     for (const key of ['glossary', 'taxonomy', 'ontology']) {
@@ -182,9 +186,10 @@ describe('DefineView', () => {
     }
     // Vocabulary text lives in tooltips, not inline under the rungs.
     expect(screen.queryByText(/skos:prefLabel \/ skos:altLabel/)).not.toBeInTheDocument();
+    await settled();
   });
 
-  it('legend arrows are separators between rungs, not coupled to the info icon', () => {
+  it('legend arrows are separators between rungs, not coupled to the info icon', async () => {
     renderDefine();
     // Two separators for three rungs: none after the last item.
     const seps = screen.getAllByTestId('rung-separator');
@@ -200,6 +205,7 @@ describe('DefineView', () => {
       const row = screen.getByTestId(`rung-vocab-${key}`).parentElement!;
       expect(row.textContent).not.toContain('→');
     }
+    await settled();
   });
 
   it('read-only user sees the path actions disabled with a write-access hint', async () => {

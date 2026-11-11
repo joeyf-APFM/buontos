@@ -306,7 +306,8 @@
     "parentCollection": "Schema di concetti padre",
     "noneRootCollection": "Nessuno (schema di concetti radice)",
     "editable": "Modificabile",
-    "editableHelp": "Consenti la creazione e la modifica di concetti in questo schema di concetti"
+    "editableHelp": "Consenti la creazione e la modifica di concetti in questo schema di concetti",
+    "typeInfo": "Informazioni sui tipi di schema"
   },
   "promotion": {
     "promoteConcept": "Promuovi Concetto",
@@ -498,6 +499,7 @@
   },
   "define": {
     "requiresWrite": "Richiede accesso in scrittura",
-    "runsFailed": "Impossibile caricare il lavoro di creazione in corso."
+    "runsFailed": "Impossibile caricare il lavoro di creazione in corso.",
+    "about": "Informazioni su {{name}}"
   }
 }

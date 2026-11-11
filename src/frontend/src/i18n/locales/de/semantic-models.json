@@ -306,7 +306,8 @@
     "parentCollection": "Übergeordnetes Konzeptschema",
     "noneRootCollection": "Keines (Stamm-Konzeptschema)",
     "editable": "Bearbeitbar",
-    "editableHelp": "Erstellen und Bearbeiten von Konzepten in diesem Konzeptschema zulassen"
+    "editableHelp": "Erstellen und Bearbeiten von Konzepten in diesem Konzeptschema zulassen",
+    "typeInfo": "Über Schematypen"
   },
   "promotion": {
     "promoteConcept": "Konzept hochstufen",
@@ -498,6 +499,7 @@
   },
   "define": {
     "requiresWrite": "Schreibzugriff erforderlich",
-    "runsFailed": "Die laufenden Arbeiten konnten nicht geladen werden."
+    "runsFailed": "Die laufenden Arbeiten konnten nicht geladen werden.",
+    "about": "Über {{name}}"
   }
 }

@@ -199,7 +199,14 @@ export const CollectionEditorDialog: React.FC<CollectionEditorDialogProps> = ({
                   w={280}
                   events={{ hover: true, focus: true, touch: false }}
                 >
-                  <span className={classes.info} tabIndex={0} aria-label={typeTip}>i</span>
+                  <span
+                    role="img"
+                    className={classes.info}
+                    tabIndex={0}
+                    aria-label={t('semantic-models:collectionEditor.typeInfo', 'About scheme types')}
+                  >
+                    i
+                  </span>
                 </Tooltip>
               </span>
             }

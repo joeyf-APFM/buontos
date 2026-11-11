@@ -26,7 +26,12 @@ export default function CollectionsView() {
   // Data state
   const [isLoading, setIsLoading] = useState(true);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
+  // The failed load's detail ('' when it gave none), or null
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The skeleton is for the first load only: a reload keeps the table
+  // mounted, so a dialog opened from a row's menu can give focus back to it
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const createButton = useRef<HTMLButtonElement>(null);
   const [selectedCollection, setSelectedCollection] = useState<KnowledgeCollection | null>(null);
 
   // Dialog state
@@ -53,12 +58,13 @@ export default function CollectionsView() {
       if (id !== loadId.current) return;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body?.detail || t('semantic-models:collections.loadFailed', 'Could not load the schemes.'));
+        throw new Error(body?.detail || '');
       }
       const data = await res.json();
       if (id !== loadId.current) return;
       setCollections(Array.isArray(data?.collections) ? data.collections : []);
       setLoadError(null);
+      setHasLoaded(true);
     } catch (error) {
       if (id !== loadId.current) return;
       console.error('Failed to fetch collections:', error);
@@ -66,7 +72,7 @@ export default function CollectionsView() {
     } finally {
       if (id === loadId.current) setIsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -142,6 +148,16 @@ export default function CollectionsView() {
       });
 
       await fetchData();
+      // The deleted row is gone (and the table's rows move up, so its menu
+      // button may now be another row's): focus goes from the body or the
+      // table to Create Scheme, unless the user has put it elsewhere since.
+      // A frame later, after the menu's own focus return (Mantine's 10ms).
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (!active || active === document.body || !active.isConnected || active.closest('table')) {
+          createButton.current?.focus({ preventScroll: true });
+        }
+      });
     } catch (error: any) {
       toast({
         title: t('common:toast.error'),
@@ -189,7 +205,7 @@ export default function CollectionsView() {
             title={t('semantic-models:tabs.collections')}
             actions={
               canWrite && (
-                <Button onClick={handleCreateCollection}>
+                <Button ref={createButton} onClick={handleCreateCollection}>
                   <Plus aria-hidden />
                   {t('semantic-models:actions.createCollection')}
                 </Button>
@@ -202,13 +218,13 @@ export default function CollectionsView() {
         </>
       }
     >
-      {isLoading ? (
+      {isLoading && !hasLoaded ? (
         <Pane flush aria-label={listPane}>
           <div className={classes.body}>
             <ListViewSkeleton columns={6} rows={3} toolbarButtons={1} />
           </div>
         </Pane>
-      ) : loadError ? (
+      ) : loadError !== null ? (
         <Pane flush aria-label={listPane}>
           <div className={`${classes.body} ${classes.state}`}>
             <Alert
@@ -218,7 +234,7 @@ export default function CollectionsView() {
               title={t('semantic-models:collections.loadFailed', 'Could not load the schemes.')}
               className={classes.alert}
             >
-              {loadError}
+              {loadError || undefined}
             </Alert>
             <Button variant="outline" onClick={fetchData}>{t('common:retry')}</Button>
           </div>

@@ -306,7 +306,8 @@
     "parentCollection": "Schéma de concepts parent",
     "noneRootCollection": "Aucun (schéma de concepts racine)",
     "editable": "Modifiable",
-    "editableHelp": "Autoriser la création et la modification de concepts dans ce schéma de concepts"
+    "editableHelp": "Autoriser la création et la modification de concepts dans ce schéma de concepts",
+    "typeInfo": "À propos des types de schéma"
   },
   "promotion": {
     "promoteConcept": "Promouvoir le concept",
@@ -498,6 +499,7 @@
   },
   "define": {
     "requiresWrite": "Nécessite un accès en écriture",
-    "runsFailed": "Impossible de charger les créations en cours."
+    "runsFailed": "Impossible de charger les créations en cours.",
+    "about": "À propos de {{name}}"
   }
 }

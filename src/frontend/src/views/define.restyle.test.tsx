@@ -6,7 +6,7 @@
  * and a reader, the Author dialog, and the empty and error states.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import { useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
@@ -49,11 +49,12 @@ const RUNS = [
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function mockBackend({ runs = RUNS as unknown, runsStatus = 200 } = {}) {
+function mockBackend({ runs = RUNS as unknown, runsStatus = 200, createStatus = 200 } = {}) {
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     if (url.pathname === '/api/ontology/runs') return json(runsStatus === 200 ? { runs } : { detail: 'Runs exploded' }, runsStatus);
     if (url.pathname === '/api/knowledge/collections' && init?.method === 'POST') {
+      if (createStatus !== 200) return json({ detail: 'Name already taken' }, createStatus);
       return json({ iri: 'urn:new-scheme', label: 'Risk Glossary' });
     }
     if (url.pathname === '/api/knowledge/collections') return json({ collections: [] });
@@ -231,6 +232,37 @@ describe('define on the page kit', () => {
     expect(within(pane('In progress')).queryByRole('alert')).toBeNull();
     expect(logged).toHaveBeenCalledWith('Failed to fetch generation runs:', expect.any(Error));
     logged.mockRestore();
+  });
+
+  it('define: a failed Author save shows an error toast and keeps the editor open', async () => {
+    mockBackend({ createStatus: 409 });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'New Concept Scheme' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create Scheme' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Finance Glossary');
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Name already taken', variant: 'destructive' })),
+    );
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ description: 'Scheme created successfully' }));
+    expect(screen.getByRole('dialog', { name: 'Create Scheme' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Create' })).toBeEnabled();
+    expect(location.pathname).toBe('/concepts/define');
+  });
+
+  it('define: the info marks are images with a short name, their tip describing them on focus', async () => {
+    renderPage();
+    await loaded();
+    const cards = pane('Start with…');
+    const marks = within(cards).getAllByRole('img');
+    expect(marks.map((m) => m.getAttribute('aria-label'))).toEqual(['About Author', 'About Generate', 'About Import']);
+    expect(within(pane('What you can build')).getAllByRole('img', { name: /vocabulary$/ })).toHaveLength(3);
+    act(() => marks[0].focus());
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent('Creates skos:Concept entries');
+    expect(marks[0]).toHaveAccessibleDescription(/^Creates skos:Concept entries/);
   });
 
   it('define keeps ?open= for a writer, and clears it on close', async () => {

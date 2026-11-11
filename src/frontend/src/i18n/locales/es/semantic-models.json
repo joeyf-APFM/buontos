@@ -306,7 +306,8 @@
     "parentCollection": "Esquema de conceptos padre",
     "noneRootCollection": "Ninguno (esquema de conceptos raíz)",
     "editable": "Editable",
-    "editableHelp": "Permitir crear y editar conceptos en este esquema de conceptos"
+    "editableHelp": "Permitir crear y editar conceptos en este esquema de conceptos",
+    "typeInfo": "Acerca de los tipos de esquema"
   },
   "promotion": {
     "promoteConcept": "Promover concepto",
@@ -498,6 +499,7 @@
   },
   "define": {
     "requiresWrite": "Requiere acceso de escritura",
-    "runsFailed": "No se pudo cargar el trabajo de creación en curso."
+    "runsFailed": "No se pudo cargar el trabajo de creación en curso.",
+    "about": "Acerca de {{name}}"
   }
 }

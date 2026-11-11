@@ -368,7 +368,8 @@
     "parentCollection": "Esquema de conceitos pai",
     "noneRootCollection": "Nenhum (esquema de conceitos raiz)",
     "editable": "Editável",
-    "editableHelp": "Permitir criar e editar conceitos neste esquema de conceitos"
+    "editableHelp": "Permitir criar e editar conceitos neste esquema de conceitos",
+    "typeInfo": "Sobre os tipos de esquema"
   },
   "promotion": {
     "promoteConcept": "Promover conceito",
@@ -560,7 +561,8 @@
   },
   "define": {
     "requiresWrite": "Requer acesso de gravação",
-    "runsFailed": "Não foi possível carregar o trabalho de criação em andamento."
+    "runsFailed": "Não foi possível carregar o trabalho de criação em andamento.",
+    "about": "Sobre {{name}}"
   },
   "lifecycle": {
     "changeStatus": "Alterar status",

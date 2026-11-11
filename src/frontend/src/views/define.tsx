@@ -149,11 +149,15 @@ function BuildsRow({ builds, note }: { builds: BuildsMap; note?: string }) {
   );
 }
 
-/** The ring-and-"i" mark whose tooltip explains the thing beside it; it opens on focus too. */
+/**
+ * The ring-and-"i" mark whose tooltip explains the thing beside it: an image
+ * with a short name; the tooltip, which opens on hover and on focus, is its
+ * description while it shows (Mantine's Tooltip sets aria-describedby).
+ */
 function InfoMark({ tip, label, width = 240, testId }: { tip: ReactNode; label: string; width?: number; testId?: string }) {
   return (
     <Tooltip label={tip} multiline w={width} events={TOOLTIP_EVENTS}>
-      <span className={classes.info} tabIndex={0} aria-label={label} data-testid={testId}>
+      <span role="img" className={classes.info} tabIndex={0} aria-label={label} data-testid={testId}>
         i
       </span>
     </Tooltip>
@@ -176,13 +180,15 @@ function PathCard({
   action: ReactNode;
   builds: ReactNode;
 }) {
+  const { t } = useTranslation('semantic-models');
   const titleId = useId();
+  const aboutLabel = t('semantic-models:define.about', { defaultValue: 'About {{name}}', name: title });
   return (
     <div role="group" aria-labelledby={titleId} className={classes.card}>
       <div className={classes.cardIcon}>{icon}</div>
       <div className={classes.cardTitleLine}>
         <h3 id={titleId} className={classes.cardTitle}>{title}</h3>
-        <InfoMark tip={tip} label={tip} />
+        <InfoMark tip={tip} label={aboutLabel} />
       </div>
       <p className={classes.cardDescription}>{description}</p>
       <div className={classes.cardFoot}>
@@ -320,7 +326,10 @@ export default function DefineView() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.detail || 'Failed to create concept scheme');
+        const message = err?.detail || 'Failed to create concept scheme';
+        // Say so; the editor stays open (it catches the throw)
+        toast({ title: t('common:toast.error', 'Error'), description: message, variant: 'destructive' });
+        throw new Error(message);
       }
       const created = await res.json();
       toast({

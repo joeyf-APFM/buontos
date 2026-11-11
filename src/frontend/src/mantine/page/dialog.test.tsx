@@ -373,7 +373,7 @@ describe('kit Dialog focus return (R41)', () => {
       await pastExit();
       expect(opener).not.toHaveFocus();
     } finally {
-      window.history.pushState({}, '', before);
+      window.history.replaceState({}, '', before);
     }
   });
 

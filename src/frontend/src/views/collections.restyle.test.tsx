@@ -38,7 +38,7 @@ const SCHEMES = [
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function mockBackend({ list = SCHEMES as unknown, status = 200, saveStatus = 200 } = {}) {
+function mockBackend({ list = SCHEMES as unknown, status = 200, saveStatus = 200, deleteStatus = 200 } = {}) {
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     const method = init?.method ?? 'GET';
@@ -47,6 +47,7 @@ function mockBackend({ list = SCHEMES as unknown, status = 200, saveStatus = 200
     }
     if (url.pathname.startsWith('/api/knowledge/collections')) {
       if (url.pathname.endsWith('/export')) return new Response('@prefix x: <urn:x> .', { status: 200 });
+      if (method === 'DELETE' && deleteStatus !== 200) return json({ detail: 'Scheme is in use' }, deleteStatus);
       return saveStatus === 200 ? json({ iri: 'urn:new' }) : json({ detail: 'Name already taken' }, saveStatus);
     }
     return json([]);
@@ -238,6 +239,46 @@ describe('collections on the page kit', () => {
     expect(within(editor).getByRole('button', { name: 'Create' })).toBeEnabled();
   });
 
+  it('collections: a failed Delete shows the error, with no success toast, and keeps the list', async () => {
+    mockBackend({ deleteStatus: 409 });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await menuItems(user, 'Finance Glossary');
+    await user.click(screen.getByRole('menuitem', { name: 'Delete', hidden: true }));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Scheme is in use', variant: 'destructive' })),
+    );
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ description: 'Scheme deleted successfully' }));
+    expect(listLoads()).toHaveLength(1);
+    expect(within(list()).getByText('Finance Glossary', { exact: true })).toBeInTheDocument();
+  });
+
+  it('collections: a reload keeps the table, so focus goes back to the row after a Save from its menu, and to Create Scheme after a Delete', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    const table = within(list()).getByRole('table');
+
+    // Edit from the row's menu, Save: the list reloads in place and the kit
+    // gives focus back to the row's Actions button
+    await menuItems(user, 'Finance Glossary');
+    await user.click(screen.getByRole('menuitem', { name: 'Edit', hidden: true }));
+    const editor = await screen.findByRole('dialog', { name: 'Edit Scheme' });
+    await user.click(within(editor).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(listLoads()).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit Scheme' })).toBeNull());
+    expect(within(list()).getByRole('table')).toBe(table);
+    await waitFor(() => expect(within(list()).getByRole('button', { name: 'Actions for Finance Glossary' })).toHaveFocus());
+
+    // Delete from the row's menu: once the list is back, focus is on Create Scheme
+    await menuItems(user, 'Finance Glossary');
+    await user.click(screen.getByRole('menuitem', { name: 'Delete', hidden: true }));
+    await waitFor(() => expect(listLoads()).toHaveLength(3));
+    expect(within(list()).getByRole('table')).toBe(table);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create Scheme' })).toHaveFocus());
+  });
+
   it('collections: Escape in an editor Select closes only the Select, and the name survives', async () => {
     const user = userEvent.setup();
     renderPage();
@@ -245,6 +286,9 @@ describe('collections on the page kit', () => {
     await user.click(screen.getByRole('button', { name: 'Create Scheme' }));
     const editor = await screen.findByRole('dialog', { name: 'Create Scheme' });
     await user.type(within(editor).getByRole('textbox', { name: 'Name' }), 'Risk Glossary');
+    // The Type field's info mark: an image with a short name; the field keeps its own
+    expect(within(editor).getByRole('img', { name: 'About scheme types' })).toHaveAttribute('tabindex', '0');
+    expect(within(editor).getByRole('textbox', { name: 'Type' })).toBeInTheDocument();
     const scope = within(editor).getByRole('textbox', { name: 'Scope' });
     await user.click(scope);
     await waitFor(() => expect(scope).toHaveAttribute('aria-controls'));

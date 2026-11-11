@@ -250,6 +250,39 @@ test.describe('collections', () => {
     await expect(create).toBeFocused();
   });
 
+  test('a reload keeps the table: focus goes back to the row after a Save from its menu, and to Create Scheme after a Delete', async ({ page }) => {
+    await setUpCollections(page);
+    const list = page.getByRole('region', { name: 'Scheme list' });
+    let loads = 0;
+    await page.route('**/api/knowledge/collections**', async (route) => {
+      const method = route.request().method();
+      if (method === 'GET') {
+        loads += 1;
+        // A slow reload: the table must stay in place meanwhile
+        await new Promise((r) => setTimeout(r, 300));
+        return route.fulfill({ json: { collections: SCHEMES } });
+      }
+      return route.fulfill({ json: scheme('urn:e2e:finance', 'Finance Glossary') });
+    });
+    page.on('dialog', (d) => d.accept());
+
+    const actions = list.getByRole('button', { name: 'Actions for Finance Glossary' });
+    await actions.click();
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Edit' }).click();
+    const editor = page.getByRole('dialog', { name: 'Edit Scheme' });
+    await editor.getByRole('button', { name: 'Save' }).click();
+    await expect(editor).toHaveCount(0);
+    await expect(list.getByRole('table')).toBeVisible();
+    await expect.poll(() => loads).toBe(1);
+    await expect(actions).toBeFocused();
+
+    await actions.click();
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Delete' }).click();
+    await expect.poll(() => loads).toBe(2);
+    await expect(list.getByRole('table')).toBeVisible();
+    await expect(page.locator('main').getByRole('button', { name: 'Create Scheme' })).toBeFocused();
+  });
+
   test('saving a new scheme posts it, closes the editor and reloads the list', async ({ page }) => {
     await setUpCollections(page);
     const posted: unknown[] = [];

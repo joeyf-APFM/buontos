@@ -306,7 +306,8 @@
     "parentCollection": "親コンセプトスキーム",
     "noneRootCollection": "なし（ルートコンセプトスキーム）",
     "editable": "編集可能",
-    "editableHelp": "このコンセプトスキームでコンセプトの作成と編集を許可する"
+    "editableHelp": "このコンセプトスキームでコンセプトの作成と編集を許可する",
+    "typeInfo": "スキームの種類について"
   },
   "promotion": {
     "promoteConcept": "コンセプトを昇格",
@@ -498,6 +499,7 @@
   },
   "define": {
     "requiresWrite": "書き込み権限が必要です",
-    "runsFailed": "進行中の作成作業を読み込めませんでした。"
+    "runsFailed": "進行中の作成作業を読み込めませんでした。",
+    "about": "{{name}} について"
   }
 }

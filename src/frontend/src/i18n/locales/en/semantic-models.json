@@ -440,7 +440,8 @@
     "parentCollection": "Parent Scheme",
     "noneRootCollection": "None (root scheme)",
     "editable": "Editable",
-    "editableHelp": "Allow creating and editing concepts in this scheme"
+    "editableHelp": "Allow creating and editing concepts in this scheme",
+    "typeInfo": "About scheme types"
   },
   "promotion": {
     "promoteConcept": "Promote Concept",
@@ -632,6 +633,7 @@
   },
   "define": {
     "requiresWrite": "Requires write access",
-    "runsFailed": "Could not load the creation work in progress."
+    "runsFailed": "Could not load the creation work in progress.",
+    "about": "About {{name}}"
   }
 }
