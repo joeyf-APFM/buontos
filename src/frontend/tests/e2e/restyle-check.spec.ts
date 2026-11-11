@@ -7,8 +7,15 @@
  *   exactly. A missing file is written from the current UI. --update-snapshots
  *   never rewrites one: to re-record an inventory, delete its file.
  * - Look: a screenshot of <main> at 1280×800, with the app's top bar hidden,
- *   must match __screenshots__/restyle/<persona>/<id>.png within 1% of its pixels.
- *   Re-record with --update-snapshots, only once the inventories pass.
+ *   must match __screenshots__/restyle/<persona>/<id>.png at a colour threshold
+ *   of 0.01, within 0.2% of its pixels. Re-record with --update-snapshots, only
+ *   once the inventories pass.
+ * - Browser: the baselines are tied to the Chrome in __screenshots__/BROWSER.txt.
+ *   Another version fails every page with "re-baseline: browser changed from X
+ *   to Y" instead of a pile of pixel diffs. To move to it, re-record every page
+ *   with --update-snapshots=all, which also records the new version.
+ *   The baselines are macOS-only: the Optima font exists only on macOS, and any
+ *   other OS falls back to Candara or Segoe UI, so every glyph would differ.
  *
  * Every /api call is answered by fixtures/api.ts; nothing reaches a backend.
  *
@@ -26,6 +33,19 @@ import { RESTYLE_PAGES, SEARCH_LIKE, SELECT_LIKE, controlInventory } from './res
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROLS_DIR = path.join(HERE, '__controls__');
+const BROWSER_FILE = path.join(HERE, '__screenshots__', 'BROWSER.txt');
+
+/** The Chrome version the baselines were recorded with: BROWSER.txt's first line that isn't a # comment. */
+function baselineBrowser(): string {
+  const lines = fs.readFileSync(BROWSER_FILE, 'utf8').split('\n').map((l) => l.trim());
+  return lines.find((l) => l && !l.startsWith('#')) ?? '';
+}
+
+/** Replaces BROWSER.txt's version line and keeps its comments. */
+function recordBrowser(version: string) {
+  const text = fs.readFileSync(BROWSER_FILE, 'utf8');
+  fs.writeFileSync(BROWSER_FILE, text.replace(baselineBrowser(), version));
+}
 
 test.afterAll(() => {
   if (unmockedRequests.length) {
@@ -104,8 +124,17 @@ test.describe('controlInventory', () => {
 
 for (const persona of Object.values(PERSONAS)) {
   for (const restylePage of RESTYLE_PAGES) {
-    test(`${persona.id} ${restylePage.id} (${restylePage.route}) keeps its controls and look`, async ({ page }) => {
+    test(`${persona.id} ${restylePage.id} (${restylePage.route}) keeps its controls and look`, async ({ page, browser }, testInfo) => {
       test.skip(!!restylePage.skip, restylePage.skip);
+
+      // A different Chrome renders text differently: say so, rather than fail on pixels
+      const recorded = baselineBrowser();
+      if (browser.version() !== recorded) {
+        if (testInfo.config.updateSnapshots !== 'all') {
+          throw new Error(`re-baseline: browser changed from ${recorded} to ${browser.version()}`);
+        }
+        recordBrowser(browser.version());
+      }
 
       // Relative dates and clocks render from a fixed now
       await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
@@ -134,7 +163,10 @@ for (const persona of Object.values(PERSONAS)) {
       await expect(main).toHaveScreenshot([persona.id, `${restylePage.id}.png`], {
         animations: 'disabled',
         caret: 'hide',
-        maxDiffPixelRatio: 0.01,
+        // Strict enough to tell Aura's cream canvas (#FFFDF7) from white, which
+        // needs a threshold under 0.0125; 0.002 is about 1,800 pixels of <main>
+        threshold: 0.01,
+        maxDiffPixelRatio: 0.002,
         // Hides the app's top bar
         stylePath: path.join(HERE, 'restyle-capture.css'),
       });
