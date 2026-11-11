@@ -24,10 +24,13 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   // (its panes stacked at their own height, scrolling with the page)
   '/data-asset-reviews',
   '/data-asset-reviews/:requestId',
-  // Build: the product list (full bleed: one pane fills the area) and the
-  // user's subscriptions (its panes stacked at their own height)
+  // Build: the product list (full bleed: one pane fills the area), the
+  // user's subscriptions, and a product from either list (their panes stacked
+  // at their own height)
   '/data-products',
+  '/data-products/:productId',
   '/my-products',
+  '/my-products/:productId',
   // The contract list (full bleed: one pane fills the area)
   '/data-contracts',
   // The user's requests (tabs over a pane), the owners list (full bleed: one

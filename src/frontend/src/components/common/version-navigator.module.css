@@ -1,0 +1,11 @@
+/* Newer, the version menu, older (wave 2, Task 7) */
+.nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+button.step {
+  width: 26px;
+  padding: 0;
+}

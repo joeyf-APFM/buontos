@@ -1,0 +1,209 @@
+/*
+ * The maturity level beside a product's or a contract's name (wave 2, Task
+ * 7): "Maturity <level> ↻" on one line, and its levels and gates on hover.
+ */
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.loading {
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+.spin {
+  animation: maturity-spin 1s linear infinite;
+}
+
+@keyframes maturity-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Compact: the label, then the level and its re-evaluate button */
+.compact {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: default;
+  border-radius: 4px;
+}
+
+.compact:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 2px;
+}
+
+.label {
+  order: -1;
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+}
+
+.level {
+  font-weight: 700;
+  color: var(--aura-text-secondary);
+}
+
+.compact:hover .level {
+  color: var(--aura-text-body);
+}
+
+button.refresh {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+button.refresh:hover {
+  color: var(--aura-text-body);
+  background: var(--aura-surface-strong);
+}
+
+button.refresh svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Inline: the badge, the gate count and the re-evaluate button */
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button.badgeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+.count {
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+}
+
+button.evaluate {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+button.evaluate svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The hover card */
+.card {
+  width: 288px;
+  padding: 10px 12px;
+  font-size: 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detailTitle {
+  margin: 0;
+  font-weight: 700;
+  color: var(--aura-navy);
+}
+
+.levels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 192px;
+  overflow-y: auto;
+}
+
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.gate {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.gate[data-status='pass'] {
+  color: var(--aura-good);
+}
+
+.gate[data-status='fail'] {
+  color: var(--aura-critical);
+}
+
+.gate[data-status='warn'] {
+  color: var(--aura-warning);
+}
+
+.order {
+  width: 12px;
+  font-family: var(--aura-font-mono);
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+}
+
+.levelName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+.levelName[data-achieved] {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.small {
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+}
+
+.evaluated {
+  margin: 0;
+  padding-top: 4px;
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+  border-top: 1px solid var(--aura-border-subtle);
+}

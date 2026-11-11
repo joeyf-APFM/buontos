@@ -1,0 +1,327 @@
+/*
+ * A Data Product (/data-products/:id and /my-products/:id) on the page kit
+ * (wave 2, Task 7): the kit's one-line header (the name, its status, quality
+ * and maturity, then the actions), the purpose under it, the view controls,
+ * then the product's sections as panes in one stack, at their own heights.
+ * What is left here is the page's own.
+ */
+
+/* The actions at the end of the header: they wrap onto a second line before
+   the page scrolls sideways, and the name gives way first */
+.actions {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+/* With this many actions, the header shares its line out: the name keeps its
+   own width up to 45% (then truncates, with its title), and the actions take
+   the rest, wrapping onto more lines (the kit's header holds them in its end
+   slot, which these selectors reach) */
+h1:has(~ * > .actions) {
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+
+*:has(> .actions) {
+  flex: 1 1 0;
+}
+
+/* Beside the name: the quality score */
+.metric {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.metricLabel {
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+}
+
+.score {
+  font-weight: 700;
+}
+
+.score[data-tone='good'] {
+  color: var(--aura-good);
+}
+
+.score[data-tone='warning'] {
+  color: var(--aura-warning);
+}
+
+.score[data-tone='critical'] {
+  color: var(--aura-critical);
+}
+
+/* The purpose, under the header: it wraps, however long */
+.description {
+  max-width: 56rem;
+  margin: -4px 0 0;
+  padding: 0 14px 10px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Under the header: the banners, the view controls, then the stack */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.banner {
+  overflow-wrap: anywhere;
+}
+
+/* The version navigator and the S / M / L view sizes */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.sizes {
+  display: inline-flex;
+  gap: 2px;
+}
+
+button.size {
+  width: 28px;
+  padding: 0;
+  font-weight: 600;
+}
+
+/* Delete reads as destructive */
+.danger {
+  color: var(--aura-critical);
+}
+
+/* A section's lead line, under its head */
+.lead {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+/* A section's list: one row per entry, ruled between rows; a long list
+   scrolls inside its pane, so the page and its header stay where they are */
+.list {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  overflow-y: auto;
+  margin: -4px 0;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.itemMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.itemLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemName {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.italic {
+  font-style: italic;
+  color: var(--aura-text-secondary);
+}
+
+.mono {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+.itemActions {
+  flex: none;
+  display: flex;
+  gap: 2px;
+}
+
+button.iconAction {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+button.iconAction svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* A small text button inside a row, such as Link Contract */
+button.inlineAction {
+  align-self: flex-start;
+  height: 22px;
+  padding: 0 6px;
+  color: var(--aura-text-secondary);
+}
+
+button.inlineAction svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Badges that open a page */
+.clickable {
+  cursor: pointer;
+}
+
+.link {
+  color: var(--aura-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* The tags and the linked concepts */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Prose in the details grid (the purpose, limitations and usage) */
+.prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Contacts: initials, then the name over the role */
+.contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  min-width: 0;
+}
+
+.initials {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.contactText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.contactName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* A port's linked assets: badges with an unlink mark shown on hover */
+.assets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assetBadge {
+  cursor: pointer;
+}
+
+button.unlink {
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.assetBadge:hover button.unlink,
+button.unlink:focus-visible {
+  opacity: 1;
+}
+
+/* The lineage view's height, in its flush pane */
+.graph {
+  height: 500px;
+}
+
+/* Loading, error and not found: the breadcrumb above, in the kit's margin */
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 14px 14px;
+}
+
+.stateBack {
+  align-self: flex-start;
+}
+
+/* A button's spinner while it works */
+.spin {
+  animation: details-spin 1s linear infinite;
+}
+
+@keyframes details-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
