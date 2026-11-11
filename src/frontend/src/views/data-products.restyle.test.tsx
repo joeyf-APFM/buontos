@@ -45,6 +45,10 @@ function mockBackend(list: unknown = PRODUCTS, status = 200) {
     const method = init?.method ?? 'GET';
     if (url.pathname === '/api/data-products' && method === 'GET') return json(list, status);
     if (url.pathname.startsWith('/api/data-products/') && method === 'DELETE') return new Response(null, { status: 204 });
+    // The preview's rating summary
+    if (url.pathname.endsWith('/ratings')) {
+      return json({ average_rating: 0, total_ratings: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, user_current_rating: null });
+    }
     return json([]);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -81,32 +85,34 @@ const names = (els: HTMLElement[]) =>
   els.map((el) => el.getAttribute('aria-label') ?? (el.textContent?.trim() || el.getAttribute('title')));
 const sorted = (list: (string | null | undefined)[]) => [...list].sort();
 
+/** TanStack's missing-column errors logged so far. */
+const tableErrors = () =>
+  errorSpy.mock.calls.map((args) => String(args[0])).filter((m) => m.startsWith('[Table]'));
+let errorSpy: MockInstance<(...args: unknown[]) => void>;
+const titles = () => screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[1]?.textContent);
+
 const HEADERS = ['Title', 'Owner', 'Version', 'Type', 'Status', 'Created', 'Updated'];
 const PAGER = ['Go to first page', 'Go to previous page', 'Go to next page', 'Go to last page'];
 
 describe('data products on the page kit', () => {
   let confirmSpy: MockInstance<(message?: string) => boolean>;
-  let errorSpy: MockInstance<(...args: unknown[]) => void>;
   beforeEach(() => {
-    // The grid's search column, 'info.title', is not one of its column ids
-    // (TanStack makes it 'info_title'): a warning the page has always had,
-    // kept out of the output
-    const log = console.error.bind(console);
-    errorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-      if (String(args[0]).startsWith("[Table] Column with id 'info.title'")) return;
-      log(...args);
-    });
+    // Watched, not silenced: no test may log a TanStack missing-column error
+    errorSpy = vi.spyOn(console, 'error');
+    localStorage.removeItem('data-products-sort');
     mockBackend();
     grant(FeatureAccessLevel.ADMIN);
     toast.mockClear();
     confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
   afterEach(() => {
+    const logged = tableErrors();
     cleanup();
     useProjectStore.setState({ currentProject: null });
     vi.unstubAllGlobals();
     confirmSpy.mockRestore();
     errorSpy.mockRestore();
+    expect(logged).toEqual([]);
   });
 
   it('data products renders with the page kit', async () => {
@@ -142,7 +148,7 @@ describe('data products on the page kit', () => {
       'Preview Metadata', 'Edit', 'Delete', 'Preview Metadata', 'Edit', 'Delete', ...PAGER,
     ]));
     expect(screen.getByRole('switch', { name: 'Show all versions' })).not.toBeChecked();
-    expect(screen.getByPlaceholderText('Filter info > titles...').tagName).toBe('INPUT');
+    expect(screen.getByPlaceholderText('Filter names...').tagName).toBe('INPUT');
     expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
     expect(screen.getAllByRole('checkbox', { name: 'Select row' })).toHaveLength(2);
     expect(screen.queryAllByRole('link')).toHaveLength(0);
@@ -279,6 +285,105 @@ describe('data products on the page kit', () => {
     // Create still opens its dialog
     await user.click(screen.getByRole('button', { name: 'Create Product' }));
     expect(await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' })).toBeInTheDocument();
+  });
+
+  it('data products filters by name and sorts by title', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    // Sorted by name from the start, ascending; Title turns it round
+    expect(titles()).toEqual(['Customer 360', 'Sales orders']);
+    await user.click(screen.getByRole('button', { name: 'Title' }));
+    expect(titles()).toEqual(['Sales orders', 'Customer 360']);
+
+    await user.type(screen.getByPlaceholderText('Filter names...'), 'custom');
+    await waitFor(() => expect(screen.queryByText('Sales orders', { exact: true })).toBeNull());
+    expect(screen.getByText('Customer 360', { exact: true })).toBeInTheDocument();
+    expect(tableErrors()).toEqual([]);
+  });
+
+  it('data products takes a saved sort on the old title column as the name', async () => {
+    for (const id of ['info_title', 'info.title']) {
+      localStorage.setItem('data-products-sort', JSON.stringify([{ id, desc: true }]));
+      const { unmount } = renderPage();
+      await loaded();
+      expect(titles()).toEqual(['Sales orders', 'Customer 360']);
+      expect(tableErrors()).toEqual([]);
+      unmount();
+    }
+    // A saved sort on a column that no longer exists at all is dropped
+    localStorage.setItem('data-products-sort', JSON.stringify([{ id: 'gone', desc: false }]));
+    renderPage();
+    await loaded();
+    expect(titles()).toEqual(['Customer 360', 'Sales orders']);
+    expect(tableErrors()).toEqual([]);
+  });
+
+  it('data products keeps focus on a row button when the page re-renders', async () => {
+    renderPage();
+    await loaded();
+    const edit = within(rowOf('Sales orders')).getByRole('button', { name: 'Edit' });
+    edit.focus();
+    // A permissions refresh re-renders the page with the same access
+    act(() => {
+      usePermissionsStore.setState({ permissions: { 'data-products': FeatureAccessLevel.ADMIN } });
+    });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(document.activeElement).toBe(edit);
+    expect(edit).toBeInTheDocument();
+  });
+
+  it('data products opens the preview and upload dialogs, and bulk-deletes after the confirmation', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+
+    await user.click(within(rowOf('Sales orders')).getByRole('button', { name: 'Preview Metadata' }));
+    expect(await screen.findByRole('dialog', { name: /Sales orders/ })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Sales orders/ })).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'Upload File' }));
+    expect(await screen.findByRole('dialog', { name: 'Upload Data Products' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Data Products' })).toBeNull());
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    confirmSpy.mockReturnValueOnce(false);
+    await user.click(screen.getByRole('button', { name: /Delete Selected/ }));
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: /Delete Selected/ }));
+    await waitFor(() => expect(calls('DELETE', '/api/data-products/p-2')).toHaveLength(1));
+    expect(calls('DELETE', '/api/data-products/p-1')).toHaveLength(1);
+    await waitFor(() => expect(calls('GET', '/api/data-products')).toHaveLength(2));
+  });
+
+  it('data products drops a late answer from before a project switch', async () => {
+    let releaseFirst: (r: Response) => void = () => {};
+    fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname !== '/api/data-products') return Promise.resolve(json([]));
+      if (!url.searchParams.has('project_id')) return new Promise<Response>((resolve) => { releaseFirst = resolve; });
+      return Promise.resolve(json([PRODUCTS[0]]));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderPage();
+    await waitFor(() => expect(calls('GET', '/api/data-products')).toHaveLength(1));
+    act(() => {
+      useProjectStore.setState({ currentProject: { id: 'proj-1', name: 'Sales', title: 'Sales' } as never });
+    });
+    expect(await loaded()).toBeInTheDocument();
+
+    const late = json(PRODUCTS);
+    const body = vi.spyOn(late, 'json');
+    releaseFirst(late);
+    await waitFor(() => expect(body).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await body.mock.results[0].value;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.queryByText('Customer 360', { exact: true })).toBeNull();
+    expect(screen.getByText('Sales orders', { exact: true })).toBeInTheDocument();
   });
 
   it('data products tells a user without read access, in a kit alert', async () => {

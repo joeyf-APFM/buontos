@@ -1165,7 +1165,8 @@
     "untitled": "Senza titolo",
     "productsAvailable_one": "{{count}} prodotto disponibile",
     "productsAvailable_other": "{{count}} prodotti disponibili",
-    "productsPane": "Prodotti sottoscritti"
+    "productsPane": "Prodotti sottoscritti",
+    "tilesPerRow": "Riquadri per riga"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumatori",

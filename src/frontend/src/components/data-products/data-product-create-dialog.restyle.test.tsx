@@ -148,6 +148,48 @@ describe('data product create dialog on the kit Dialog', () => {
     expect(within(dialog).getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
   });
 
+  it('data product create dialog asks before discarding a change made only in a Select', async () => {
+    const user = userEvent.setup();
+    const { onOpenChange } = renderDialog();
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    await user.click(selectField(dialog, /Product Type/));
+    await user.click(await screen.findByRole('option', { name: 'Aggregate', hidden: true }));
+
+    // The first close asks, in an alertdialog stacked over the open dialog
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Discard unsaved changes?' });
+    expect(confirm).toHaveClass(dialogKit.content);
+    expect(screen.getByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' })).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    // Escape closes only the confirm
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    // Continue Editing keeps the input
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Continue Editing' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(selectField(dialog, /Product Type/)).toHaveValue('Aggregate');
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    // Discard closes the dialog
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Discard Changes' }));
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('data product create dialog asks before discarding a typed name, on the first close', async () => {
+    const user = userEvent.setup();
+    const { onOpenChange } = renderDialog();
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    await user.type(within(dialog).getByRole('textbox', { name: /Product Name/ }), 'Orders');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(await screen.findByRole('alertdialog', { name: 'Discard unsaved changes?' })).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it('data product create dialog closes from Cancel, Escape and the corner close', async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();

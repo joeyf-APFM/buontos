@@ -1165,7 +1165,8 @@
     "untitled": "無題",
     "productsAvailable_one": "{{count}} 件の製品が利用可能",
     "productsAvailable_other": "{{count}} 件の製品が利用可能",
-    "productsPane": "サブスクライブ済みのプロダクト"
+    "productsPane": "サブスクライブ済みのプロダクト",
+    "tilesPerRow": "1 行あたりのタイル数"
   },
   "ownerConsumers": {
     "breadcrumb": "消費者",

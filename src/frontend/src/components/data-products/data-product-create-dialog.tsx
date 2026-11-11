@@ -155,9 +155,13 @@ export default function DataProductCreateDialog({
     }
   }, [open, mode, product, form, currentProject]);
 
+  // Read during render, so react-hook-form tracks it from the first change
+  // (read only in the handler, it stayed false and the confirm never opened)
+  const { isDirty } = form.formState;
+
   const handleCloseAttempt = () => {
     // Check if form has been modified
-    if (form.formState.isDirty && !isSubmitting) {
+    if (isDirty && !isSubmitting) {
       setShowDiscardConfirm(true);
     } else {
       onOpenChange(false);
@@ -413,7 +417,7 @@ export default function DataProductCreateDialog({
               withAsterisk
               data={statusOptions}
               value={form.watch('status')}
-              onChange={(value) => value && form.setValue('status', value)}
+              onChange={(value) => value && form.setValue('status', value, { shouldDirty: true })}
               allowDeselect={false}
               disabled={mode === 'edit'}
               description={mode === 'edit' ? t('data-products:form.statusChangeHint') : undefined}
@@ -431,7 +435,7 @@ export default function DataProductCreateDialog({
               placeholder={t('data-products:createDialog.productTypePlaceholder')}
               data={typeOptions}
               value={form.watch('productType') ?? null}
-              onChange={(value) => value && form.setValue('productType', value as FormData['productType'])}
+              onChange={(value) => value && form.setValue('productType', value as FormData['productType'], { shouldDirty: true })}
               allowDeselect={false}
               description={t('data-products:createDialog.productTypeHint')}
               inputWrapperOrder={hintBelow}
@@ -446,7 +450,7 @@ export default function DataProductCreateDialog({
                 : t('data-products:createDialog.selectTeamPlaceholder')}
               data={teamsLoading ? [] : teamOptions}
               value={form.watch('ownerTeamId') || null}
-              onChange={(value) => value && form.setValue('ownerTeamId', value)}
+              onChange={(value) => value && form.setValue('ownerTeamId', value, { shouldDirty: true })}
               allowDeselect={false}
               disabled={teamsLoading}
               description={t('data-products:createDialog.ownerTeamHint')}
@@ -462,7 +466,7 @@ export default function DataProductCreateDialog({
             placeholder={t('data-products:createDialog.selectProjectPlaceholder')}
             data={projectOptions}
             value={form.watch('projectId') || NO_PROJECT}
-            onChange={(value) => value && form.setValue('projectId', value === NO_PROJECT ? '' : value)}
+            onChange={(value) => value && form.setValue('projectId', value === NO_PROJECT ? '' : value, { shouldDirty: true })}
             allowDeselect={false}
             disabled={projectsLoading}
             description={t('data-products:createDialog.projectMemberHint')}
@@ -481,8 +485,8 @@ export default function DataProductCreateDialog({
                 value={form.watch('domain_ids') || []}
                 primaryDomainId={form.watch('primary_domain_id')}
                 onChange={(domainIds, primaryDomainId) => {
-                  form.setValue('domain_ids', domainIds);
-                  form.setValue('primary_domain_id', primaryDomainId);
+                  form.setValue('domain_ids', domainIds, { shouldDirty: true });
+                  form.setValue('primary_domain_id', primaryDomainId, { shouldDirty: true });
                 }}
                 placeholder={t('data-products:createDialog.domainsPlaceholder')}
               />

@@ -71,6 +71,38 @@ function SortButton({ column, label }: { column: Column<DataProduct, unknown>; l
   );
 }
 
+/** Where the DataTable keeps the list's sort. */
+const SORT_KEY = 'data-products-sort';
+const COLUMN_IDS = new Set(['name', 'team_members', 'version', 'outputPorts', 'status', 'created_at', 'updated_at']);
+/** The Title column's ids before it sorted by name ('info.title' never matched a product). */
+const OLD_TITLE_IDS = new Set(['info_title', 'info.title']);
+
+/**
+ * A saved sort on the old Title column sorts by name now; one on a column
+ * that no longer exists is dropped, so the table never asks for a missing
+ * column. Run before the DataTable reads it.
+ */
+function migrateSavedSort() {
+  try {
+    const raw = localStorage.getItem(SORT_KEY);
+    if (!raw) return;
+    const saved: unknown = JSON.parse(raw);
+    if (!Array.isArray(saved)) {
+      localStorage.removeItem(SORT_KEY);
+      return;
+    }
+    const sort = saved
+      .filter((s): s is { id: string; desc?: boolean } => !!s && typeof s.id === 'string')
+      .map((s) => (OLD_TITLE_IDS.has(s.id) ? { ...s, id: 'name' } : s))
+      .filter((s) => COLUMN_IDS.has(s.id));
+    if (sort.length > 0) localStorage.setItem(SORT_KEY, JSON.stringify(sort));
+    else localStorage.removeItem(SORT_KEY);
+  } catch {
+    // Storage can be off or hold junk: the table then takes its default sort
+    try { localStorage.removeItem(SORT_KEY); } catch { /* storage off */ }
+  }
+}
+
 // Status Color Helper (used by the status column)
 const getStatusColor = (status: string | undefined): "default" | "secondary" | "destructive" | "outline" => {
   const lowerStatus = status?.toLowerCase() || '';
@@ -85,6 +117,8 @@ const getStatusColor = (status: string | undefined): "default" | "secondary" | "
 
 export default function DataProducts() {
   const { t } = useTranslation(['data-products', 'common']);
+  // Once, before the table first reads the saved sort
+  useState(migrateSavedSort);
   const [products, setProducts] = useState<DataProduct[]>([]);
   // "Show all versions" toggle — flips include_history on the products list
   // endpoint. Off (default) collapses each family to its newest visible
@@ -609,7 +643,8 @@ export default function DataProducts() {
   // --- Column Definitions (memoised for the DataTable) ---
   const columns = useMemo<ColumnDef<DataProduct>[]>(() => [
     {
-      accessorKey: "info.title",
+      // The product's name: what the filter box searches and Title sorts
+      accessorKey: "name",
       header: ({ column }) => <SortButton column={column} label={t('table.title')} />,
       cell: ({ row }) => {
         const product = row.original;
@@ -822,8 +857,8 @@ export default function DataProducts() {
                   <DataTable
                     columns={columns}
                     data={displayedProducts}
-                    searchColumn="info.title"
-                    storageKey="data-products-sort"
+                    searchColumn="name"
+                    storageKey={SORT_KEY}
                     toolbarActions={
                       <>
                         {/* Family-collapse toggle. Mirrors the contracts list view.

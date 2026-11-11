@@ -1165,7 +1165,8 @@
     "untitled": "Naamloos",
     "productsAvailable_one": "{{count}} product beschikbaar",
     "productsAvailable_other": "{{count}} producten beschikbaar",
-    "productsPane": "Geabonneerde producten"
+    "productsPane": "Geabonneerde producten",
+    "tilesPerRow": "Tegels per rij"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumenten",

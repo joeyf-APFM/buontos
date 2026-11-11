@@ -108,8 +108,8 @@ describe('my products on the page kit', () => {
     expect(names(within(domainsPane()).getAllByRole('button'))).toEqual(['List', 'Graph', 'All Domains', 'People', 'Sales', 'Retail']);
     expect(names(within(productsPane()).getAllByRole('button'))).toEqual(Array(3).fill('Open in details view'));
     expect(screen.getByPlaceholderText('What can we help you find today?')).toHaveAttribute('type', 'search');
-    // The tiles-per-row field, unnamed as before
-    expect(screen.getByDisplayValue('4 per row')).toBeInTheDocument();
+    // The tiles-per-row field, named (a Mantine Select: jsdom's textbox role)
+    expect(within(productsPane()).getByRole('textbox', { name: 'Tiles per row' })).toHaveValue('4 per row');
     expect(screen.queryByRole('switch')).toBeNull();
 
     // A domain narrows the list to it and its children; exact match to it alone

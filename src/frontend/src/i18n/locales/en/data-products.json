@@ -1165,7 +1165,8 @@
     "untitled": "Untitled",
     "productsAvailable_one": "{{count}} product available",
     "productsAvailable_other": "{{count}} products available",
-    "productsPane": "Subscribed products"
+    "productsPane": "Subscribed products",
+    "tilesPerRow": "Tiles per row"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumers",

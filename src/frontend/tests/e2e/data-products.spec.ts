@@ -34,6 +34,9 @@ const box = async (loc: Locator) => (await loc.boundingBox())!;
 
 const PRODUCTS = DATA_FIXTURES['/api/data-products'] as Record<string, unknown>[];
 const LONG_PRODUCT = { ...PRODUCTS[0], id: 'e2e-product-long', name: LONG_NAME };
+// And one with no break opportunity at all, so only overflow-wrap can wrap it
+const UNBROKEN_NAME = 'x'.repeat(200);
+const UNBROKEN_PRODUCT = { ...PRODUCTS[0], id: 'e2e-product-unbroken', name: UNBROKEN_NAME };
 
 const DOMAINS = [
   { id: 'e2e-domain-1', name: 'Sales', parent_id: null, description: 'Selling things', children_count: 1 },
@@ -116,11 +119,13 @@ test.describe('data products', () => {
   });
 
   test('a 200-character name wraps and causes no horizontal page scroll', async ({ page }) => {
-    await setUpList(page, { '/api/data-products': [...PRODUCTS, LONG_PRODUCT] });
-    const name = page.locator('main').getByText(LONG_NAME, { exact: true });
-    await expect(name).toBeVisible();
-    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    expect((await box(name)).height).toBeGreaterThan(30);
+    await setUpList(page, { '/api/data-products': [...PRODUCTS, LONG_PRODUCT, UNBROKEN_PRODUCT] });
+    for (const text of [LONG_NAME, UNBROKEN_NAME]) {
+      const name = page.locator('main').getByText(text, { exact: true });
+      await expect(name).toBeVisible();
+      expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect((await box(name)).height).toBeGreaterThan(30);
+    }
     expect(await noPageScroll(page)).toBe(true);
     const pane = page.getByRole('region', { name: 'Data product list' });
     expect(await pane.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -164,11 +169,13 @@ test.describe('my products', () => {
   });
 
   test('a 200-character name is truncated with a title and causes no horizontal page scroll', async ({ page }) => {
-    await setUpMine(page, [...PRODUCTS, LONG_PRODUCT]);
-    const name = page.locator('main').getByText(LONG_NAME, { exact: true });
-    await expect(name).toBeVisible();
-    await expect(name).toHaveAttribute('title', LONG_NAME);
-    expect(await style(name, ['text-overflow', 'white-space'])).toEqual({ 'text-overflow': 'ellipsis', 'white-space': 'nowrap' });
+    await setUpMine(page, [...PRODUCTS, LONG_PRODUCT, UNBROKEN_PRODUCT]);
+    for (const text of [LONG_NAME, UNBROKEN_NAME]) {
+      const name = page.locator('main').getByText(text, { exact: true });
+      await expect(name).toBeVisible();
+      await expect(name).toHaveAttribute('title', text);
+      expect(await style(name, ['text-overflow', 'white-space'])).toEqual({ 'text-overflow': 'ellipsis', 'white-space': 'nowrap' });
+    }
     expect(await noPageScroll(page)).toBe(true);
   });
 });

@@ -335,6 +335,7 @@ export default function MyProducts() {
               <Select
                 size="xs"
                 w={100}
+                aria-label={t('data-products:myProductsView.tilesPerRow')}
                 data={tileOptions}
                 value={String(tilesPerRow)}
                 onChange={(v) => v && setTilesPerRow(Number(v) as TilesPerRow)}

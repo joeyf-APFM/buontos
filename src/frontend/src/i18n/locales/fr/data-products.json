@@ -1165,7 +1165,8 @@
     "untitled": "Sans titre",
     "productsAvailable_one": "{{count}} produit disponible",
     "productsAvailable_other": "{{count}} produits disponibles",
-    "productsPane": "Produits abonnés"
+    "productsPane": "Produits abonnés",
+    "tilesPerRow": "Vignettes par ligne"
   },
   "ownerConsumers": {
     "breadcrumb": "Consommateurs",
