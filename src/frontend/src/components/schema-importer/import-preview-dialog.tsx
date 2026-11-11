@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { asyncRunProgressText, asyncRunStatusLabel } from '@/lib/schema-import-run-text';
 import {
@@ -166,32 +166,6 @@ export default function ImportPreviewDialog({
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(new Set());
   const [pathMappings, setPathMappings] = useState<Record<string, MappedAsset>>({});
   const [selectorOpenForPath, setSelectorOpenForPath] = useState<string | null>(null);
-  // The button that opened the asset selector, to take focus back when it closes
-  const selectorOpener = useRef<HTMLElement | null>(null);
-
-  // The selector (a Radix Dialog without a Trigger) leaves focus on <body>
-  // once its content unmounts, after its exit animation, and Mantine's focus
-  // trap doesn't recover it. Wait for that, then focus the opener again.
-  useEffect(() => {
-    const opener = selectorOpener.current;
-    if (selectorOpenForPath || !opener) return;
-    let frame = 0;
-    let frames = 0;
-    const settle = () => {
-      const active = document.activeElement;
-      if (!active || active === document.body) {
-        if (opener.isConnected) opener.focus();
-        selectorOpener.current = null;
-      } else if (active.closest('.mantine-Modal-content') || frames++ > 90) {
-        // Focus is back in this dialog (or went elsewhere on purpose)
-        selectorOpener.current = null;
-      } else {
-        frame = requestAnimationFrame(settle);
-      }
-    };
-    frame = requestAnimationFrame(settle);
-    return () => cancelAnimationFrame(frame);
-  }, [selectorOpenForPath]);
 
   const loadPreview = async () => {
     setIsLoadingPreview(true);
@@ -518,8 +492,9 @@ export default function ImportPreviewDialog({
 
           {/* Link / unlink icon for ancestors that would be created. One
               button for both, so it stays mounted when a mapping swaps Link
-              for Unlink: the asset selector returns focus to it, and focus
-              stays in this dialog (a new button would leave it on <body>). */}
+              for Unlink: the kit gives focus back to it as the asset selector
+              closes, and focus stays in this dialog (a new button would leave
+              it on <body>). */}
           {(canLink || isMapped) && (
             <Tooltip
               label={isMapped ? t('database-schema:preview.unlinkCreateNew') : t('database-schema:preview.linkToExisting')}
@@ -527,11 +502,10 @@ export default function ImportPreviewDialog({
               withArrow
             >
               <button
-                onClick={(e) => {
+                onClick={() => {
                   if (isMapped) {
                     clearMapping(item.path);
                   } else {
-                    selectorOpener.current = e.currentTarget;
                     setSelectorOpenForPath(item.path);
                   }
                 }}

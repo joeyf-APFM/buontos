@@ -21,10 +21,34 @@ function openerOf(active: Element | null, own: HTMLElement | null): HTMLElement 
   return dropdownTarget(active) ?? active;
 }
 
+/**
+ * The content refs of the kit dialogs whose `opened` is true now. A dialog
+ * on its way out isn't in it, though its content is still in the DOM.
+ */
+const openDialogs = new Set<RefObject<HTMLElement | null>>();
+
 /** Whether a kit dialog other than `own` is open now (a newer one took over, as on a 409). */
-function otherDialogOpen(own: HTMLElement | null): boolean {
-  return [...document.querySelectorAll(`.${classes.content}`)].some((node) => node !== own && node.isConnected);
+function otherDialogOpen(own: RefObject<HTMLElement | null>): boolean {
+  return [...openDialogs].some((ref) => ref !== own);
 }
+
+/** Whether `node` is in the content of a kit dialog that's open now. */
+function inOpenDialog(node: Element): boolean {
+  const host = node.closest(`.${classes.content}`);
+  return !!host && [...openDialogs].some((ref) => ref.current === host);
+}
+
+/**
+ * Whether focus is in another kit dialog that's closing too (a confirm whose
+ * button closed it and its form): it goes to the body once that one leaves.
+ */
+function focusInClosingDialog(closed: HTMLElement | null): boolean {
+  const host = document.activeElement?.closest(`.${classes.content}`);
+  return !!host && host !== closed && !inOpenDialog(host);
+}
+
+/** About a second of frames: longer than any dialog's exit. */
+const SETTLE_FRAMES = 60;
 
 export interface DialogProps {
   opened: boolean;
@@ -83,7 +107,10 @@ export interface DialogProps {
  *   if the opener is still there, focus is free (`focusIsFree`), the page
  *   hasn't moved on (the location at open), and no other kit dialog took
  *   over (one is open and the opener isn't inside a kit dialog: the version
- *   prompt a 409 opens). It's checked a frame after the exit, so a dialog
+ *   prompt a 409 opens). "Open" means `opened` is true, not merely in the
+ *   DOM; while another dialog that's closing too still holds focus (a
+ *   confirm that closed itself and its form), the check waits for it to
+ *   leave. It's checked a frame after the exit, so a dialog
  *   that took over with no transition has its focus by then.
  */
 export function Dialog({
@@ -123,6 +150,10 @@ export function Dialog({
     if (!opened) return;
     opener.current = openerOf(document.activeElement, content.current);
     openedAt.current = window.location.href;
+    openDialogs.add(content);
+    return () => {
+      openDialogs.delete(content);
+    };
   }, [opened]);
 
   const exited = () => {
@@ -132,13 +163,20 @@ export function Dialog({
     const target = returnFocusTo?.current ?? opener.current;
     const closed = content.current;
     const at = openedAt.current;
-    window.requestAnimationFrame(() => {
+    const check = (framesLeft: number) => {
       if (!target?.isConnected || window.location.href !== at) return;
-      // Another kit dialog is open, and the opener isn't in one: that dialog
-      // took over (the version prompt on a 409) and keeps focus
-      if (otherDialogOpen(closed) && !target.closest(`.${classes.content}`)) return;
+      // An opener in a kit dialog gets focus only while that one is open (not
+      // when it's closing too). One outside them gets it only if no other kit
+      // dialog is open: that one took over (the version prompt on a 409).
+      if (target.closest(`.${classes.content}`) ? !inOpenDialog(target) : otherDialogOpen(content)) return;
+      // A dialog closing with this one still holds focus: wait for it to go
+      if (focusInClosingDialog(closed) && framesLeft > 0) {
+        window.requestAnimationFrame(() => check(framesLeft - 1));
+        return;
+      }
       if (focusIsFree(closed)) target.focus({ preventScroll: true });
-    });
+    };
+    window.requestAnimationFrame(() => check(SETTLE_FRAMES));
   };
 
   const name = closeLabel === null ? undefined : closeLabel ?? t('actions.close');

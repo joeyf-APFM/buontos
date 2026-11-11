@@ -204,7 +204,7 @@ test('the column editor\'s quality check form opens kit on kit over the schema f
   // The column editor's own (Radix) Selects: Escape closes only the list
   const info = dialog.getByRole('region', { name: 'Schema Information' });
   await info.getByRole('textbox', { name: /^Name/ }).fill('wide_orders_v2');
-  await dialog.locator('#prop-logical-type').click();
+  await dialog.getByRole('combobox', { name: /Logical Type/ }).click();
   await expect(page.getByRole('listbox')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);

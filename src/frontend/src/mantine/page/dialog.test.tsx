@@ -5,7 +5,7 @@
  */
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Menu } from '@mantine/core';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { Dialog, type DialogProps } from '.';
@@ -207,7 +207,11 @@ describe('kit Dialog focus return (R41)', () => {
     );
   }
 
-  /** A form that hands over to a prompt as it closes (the 409 path). */
+  /**
+   * A form that hands over to a prompt (the 409 path): Save opens the prompt
+   * and the form closes once the prompt has focus. Mantine's own focus return
+   * (before R41) took focus back to Open, behind the prompt.
+   */
   function Handover() {
     const [form, setForm] = useState(false);
     const [prompt, setPrompt] = useState(false);
@@ -215,10 +219,49 @@ describe('kit Dialog focus return (R41)', () => {
       <>
         <button type="button" onClick={() => setForm(true)}>Open</button>
         <Dialog opened={form} onClose={() => setForm(false)} title="Edit SLA">
-          <button type="button" onClick={() => { setPrompt(true); setForm(false); }}>Save</button>
+          <button
+            type="button"
+            onClick={() => {
+              setPrompt(true);
+              window.setTimeout(() => setForm(false), 100);
+            }}
+          >
+            Save
+          </button>
         </Dialog>
         <Dialog opened={prompt} onClose={() => setPrompt(false)} title="Version prompt">
           <button type="button">Keep</button>
+        </Dialog>
+      </>
+    );
+  }
+
+  /**
+   * A form with a discard confirm whose Discard closes both (as in
+   * data-contract-basic-form-dialog and data-product-create-dialog). The
+   * confirm closes a moment after the form, so the form's exit ends while the
+   * confirm is still on its way out and still holds focus: the race the two
+   * do in one handler, made certain.
+   */
+  function DiscardBoth() {
+    const [form, setForm] = useState(false);
+    const [confirm, setConfirm] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setForm(true)}>Open</button>
+        <Dialog opened={form} onClose={() => setConfirm(true)} title="New product">
+          <button type="button" onClick={() => setConfirm(true)}>Cancel</button>
+        </Dialog>
+        <Dialog opened={confirm} onClose={() => setConfirm(false)} title="Discard changes?" role="alertdialog">
+          <button
+            type="button"
+            onClick={() => {
+              setForm(false);
+              window.setTimeout(() => setConfirm(false), 50);
+            }}
+          >
+            Discard
+          </button>
         </Dialog>
       </>
     );
@@ -244,7 +287,8 @@ describe('kit Dialog focus return (R41)', () => {
     );
   }
 
-  const pastExit = () => new Promise((r) => setTimeout(r, 400));
+  // Inside act: the exits' state updates land while it waits
+  const pastExit = () => act(() => new Promise<void>((r) => setTimeout(r, 400)));
 
   it('Dialog gives focus back to the element that opened it, without scrolling', async () => {
     const user = userEvent.setup();
@@ -280,10 +324,26 @@ describe('kit Dialog focus return (R41)', () => {
     await user.click(within(form).getByRole('button', { name: 'Save' }));
     const prompt = await screen.findByRole('dialog', { name: 'Version prompt' });
     await waitFor(() => expect(prompt.contains(document.activeElement)).toBe(true));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit SLA' })).toBeNull());
     await pastExit();
-    expect(screen.queryByRole('dialog', { name: 'Edit SLA' })).toBeNull();
     expect(prompt.contains(document.activeElement)).toBe(true);
     expect(opener).not.toHaveFocus();
+  });
+
+  it('Dialog gives focus back to the opener when it closes together with its confirm', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<DiscardBoth />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const form = await screen.findByRole('dialog', { name: 'New product' });
+    await user.click(within(form).getByRole('button', { name: 'Cancel' }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Discard changes?' });
+    await waitFor(() => expect(confirm.contains(document.activeElement)).toBe(true));
+    await user.click(within(confirm).getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await pastExit();
+    expect(opener).toHaveFocus();
   });
 
   it('Dialog opened from a Menu item gives focus back to the menu\'s target', async () => {
@@ -305,11 +365,16 @@ describe('kit Dialog focus return (R41)', () => {
     const opener = screen.getByRole('button', { name: 'Open' });
     await open(user);
     const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    const before = window.location.href;
     window.history.pushState({}, '', '/elsewhere');
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await pastExit();
-    expect(opener).not.toHaveFocus();
+    try {
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      await pastExit();
+      expect(opener).not.toHaveFocus();
+    } finally {
+      window.history.pushState({}, '', before);
+    }
   });
 
   it('Dialog leaves focus alone when its opener has gone', async () => {
