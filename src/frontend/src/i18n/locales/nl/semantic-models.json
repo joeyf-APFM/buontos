@@ -357,7 +357,10 @@
     "selectSuperclass": "Superklasse selecteren",
     "selectParentConcept": "Bovenliggend concept selecteren",
     "searchClasses": "Klassen zoeken...",
-    "searchConceptsInScheme": "Concepten zoeken in dit conceptschema..."
+    "searchConceptsInScheme": "Concepten zoeken in dit conceptschema...",
+    "removeValue": "{{name}} verwijderen",
+    "addSynonym": "Synoniem toevoegen",
+    "addExample": "Voorbeeld toevoegen"
   },
   "collectionEditor": {
     "editTitle": "Conceptschema bewerken",
@@ -561,7 +564,10 @@
   "explore": {
     "emptyTitle": "Nog niets om te verkennen",
     "emptyBody": "Importeer bestanden of maak concepten aan op het tabblad Definiëren.",
-    "emptyCta": "Ga naar Definiëren"
+    "emptyCta": "Ga naar Definiëren",
+    "conceptsPane": "Concepten",
+    "filtersPane": "Filters",
+    "loadFailed": "De concepten konden niet worden geladen."
   },
   "define": {
     "requiresWrite": "Schrijftoegang vereist",

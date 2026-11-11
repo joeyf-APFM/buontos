@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
+import { AppMantineProvider } from '@/mantine/provider';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type { OntologyConcept } from '@/types/ontology';
 
@@ -85,20 +86,6 @@ vi.mock('@/components/search/kg-search', () => ({
   default: () => <div data-testid="kg-search" />,
 }));
 
-// Inline stand-in for the Radix dropdown: always renders its items as buttons
-// (driving Radix pointer/portal machinery in jsdom is flaky in CI).
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  DropdownMenuContent: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="create-menu">{children}</div>
-  ),
-  DropdownMenuItem: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => (
-    <button type="button" role="menuitem" onClick={onClick}>{children}</button>
-  ),
-  DropdownMenuSeparator: () => <hr data-testid="menu-separator" />,
-}));
-
 // A stable filtered selection returned by the single source-of-truth hook.
 const FILTERED: OntologyConcept[] = [
   { iri: 'urn:a', label: 'A', concept_type: 'concept' } as unknown as OntologyConcept,
@@ -110,6 +97,7 @@ vi.mock('@/hooks/use-explore-concepts', async () => ({
   ...(await vi.importActual<typeof import('@/hooks/use-explore-concepts')>('@/hooks/use-explore-concepts')),
   useExploreConcepts: () => ({
     isLoading: false,
+    loadError: null,
     collections: collectionsMock,
     groupedConcepts: groupedConceptsMock,
     groupedProperties: {},
@@ -166,6 +154,7 @@ vi.mock('@/components/knowledge', () => ({
 }));
 
 import ExploreView from './explore';
+import exploreClasses from './explore.module.css';
 import { useExploreSessionStore, systemSourcesQuery } from '@/hooks/use-explore-concepts';
 
 beforeEach(() => {
@@ -195,13 +184,15 @@ function renderExplore(initialEntry = '/concepts/browser') {
     return null;
   }
   render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/concepts/browser" element={<><ExploreView /><Probe /></>} />
-        <Route path="/concepts/browser/*" element={<><div data-testid="detail-route" /><Probe /></>} />
-        <Route path="/concepts/define" element={<><div data-testid="define-route" /><Probe /></>} />
-      </Routes>
-    </MemoryRouter>,
+    <AppMantineProvider>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/concepts/browser" element={<><ExploreView /><Probe /></>} />
+          <Route path="/concepts/browser/*" element={<><div data-testid="detail-route" /><Probe /></>} />
+          <Route path="/concepts/define" element={<><div data-testid="define-route" /><Probe /></>} />
+        </Routes>
+      </MemoryRouter>
+    </AppMantineProvider>,
   );
   return () => observed;
 }
@@ -320,63 +311,81 @@ const ONTOLOGY = { iri: 'urn:ontology:core', label: 'Core', collection_type: 'on
 const TAXONOMY = { iri: 'urn:taxonomy:regions', label: 'Regions', collection_type: 'taxonomy', is_editable: true };
 const GLOSSARY = { iri: 'urn:glossary:business', label: 'Business', collection_type: 'glossary', is_editable: true };
 
-function menuLabels() {
-  return screen.getAllByRole('menuitem').map((el) => el.textContent);
+// The Create menu (a Mantine Menu): opened from its button. jsdom gives every
+// box 0×0, so floating-ui hides the dropdown: its items are queried hidden.
+async function openCreateMenu() {
+  const target = screen.getByRole('button', { name: /common:actions\.create/ });
+  fireEvent.click(target);
+  return waitFor(() => {
+    const menu = document.querySelector<HTMLElement>(`[role="menu"][aria-labelledby="${target.id}"]`);
+    expect(menu).not.toBeNull();
+    return menu!;
+  });
+}
+
+async function menuLabels() {
+  const menu = await openCreateMenu();
+  return within(menu).getAllByRole('menuitem', { hidden: true }).map((el) => el.textContent);
+}
+
+async function pickMenuItem(name: RegExp) {
+  const menu = await openCreateMenu();
+  fireEvent.click(within(menu).getByRole('menuitem', { name, hidden: true }));
 }
 
 describe('Explore Create menu adapts to the scheme in focus', () => {
-  it('glossary in focus: New Term, then New Concept Scheme', () => {
+  it('glossary in focus: New Term, then New Concept Scheme', async () => {
     collectionsMock = [GLOSSARY];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Term', 'New Concept Scheme']);
+    expect(await menuLabels()).toEqual(['New Term', 'New Concept Scheme']);
   });
 
-  it('taxonomy in focus: New Concept', () => {
+  it('taxonomy in focus: New Concept', async () => {
     collectionsMock = [TAXONOMY];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Concept', 'New Concept Scheme']);
+    expect(await menuLabels()).toEqual(['New Concept', 'New Concept Scheme']);
   });
 
-  it('ontology in focus: New Class only (no New Concept, property creation parked)', () => {
+  it('ontology in focus: New Class only (no New Concept, property creation parked)', async () => {
     collectionsMock = [ONTOLOGY];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Class', 'New Concept Scheme']);
-    expect(screen.getByTestId('menu-separator')).toBeInTheDocument();
+    expect(await menuLabels()).toEqual(['New Class', 'New Concept Scheme']);
+    expect(document.querySelector('[role="menu"] .mantine-Menu-divider')).not.toBeNull();
   });
 
-  it('several editable schemes, none in focus: full set', () => {
+  it('several editable schemes, none in focus: full set', async () => {
     collectionsMock = [GLOSSARY, TAXONOMY, ONTOLOGY];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Term', 'New Concept', 'New Class', 'New Concept Scheme']);
+    expect(await menuLabels()).toEqual(['New Term', 'New Concept', 'New Class', 'New Concept Scheme']);
   });
 
-  it('no single scheme in focus offers the full set even if no scheme fits a type', () => {
+  it('no single scheme in focus offers the full set even if no scheme fits a type', async () => {
     collectionsMock = [GLOSSARY, TAXONOMY];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Term', 'New Concept', 'New Class', 'New Concept Scheme']);
-    expect(screen.queryByRole('menuitem', { name: /New Property/ })).not.toBeInTheDocument();
+    expect(await menuLabels()).toEqual(['New Term', 'New Concept', 'New Class', 'New Concept Scheme']);
+    expect(screen.queryByRole('menuitem', { name: /New Property/, hidden: true })).not.toBeInTheDocument();
   });
 
-  it('source filter leaving one editable scheme visible focuses it', () => {
+  it('source filter leaving one editable scheme visible focuses it', async () => {
     collectionsMock = [GLOSSARY, ONTOLOGY];
     hiddenSourcesMock = ['business'];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Class', 'New Concept Scheme']);
+    expect(await menuLabels()).toEqual(['New Class', 'New Concept Scheme']);
   });
 
-  it('source filter compares the scheme source_key when the backend sends one', () => {
+  it('source filter compares the scheme source_key when the backend sends one', async () => {
     // Demo-style scheme: concepts are grouped under "Demo Data", not the stripped IRI.
     const DEMO = { iri: 'urn:demo', label: 'Demo', collection_type: 'glossary', is_editable: true, source_key: 'Demo Data' };
     collectionsMock = [DEMO, ONTOLOGY];
     hiddenSourcesMock = ['Demo Data'];
     renderExplore();
-    expect(menuLabels()).toEqual(['New Class', 'New Concept Scheme']);
+    expect(await menuLabels()).toEqual(['New Class', 'New Concept Scheme']);
   });
 
   it('picking an item opens the editor preset to that type and the focused scheme', async () => {
     collectionsMock = [ONTOLOGY];
     renderExplore();
-    fireEvent.click(screen.getByRole('menuitem', { name: /New Class/ }));
+    await pickMenuItem(/New Class/);
     await waitFor(() => expect(editorProps.open).toBe(true));
     expect(editorProps.initialConceptType).toBe('class');
     expect(editorProps.collection).toEqual(ONTOLOGY);
@@ -385,7 +394,7 @@ describe('Explore Create menu adapts to the scheme in focus', () => {
   it('generic pick targets the first scheme that fits the type', async () => {
     collectionsMock = [GLOSSARY, TAXONOMY, ONTOLOGY];
     renderExplore();
-    fireEvent.click(screen.getByRole('menuitem', { name: /New Class/ }));
+    await pickMenuItem(/New Class/);
     await waitFor(() => expect(editorProps.open).toBe(true));
     expect(editorProps.initialConceptType).toBe('class');
     expect(editorProps.collection).toEqual(ONTOLOGY);
@@ -394,7 +403,7 @@ describe('Explore Create menu adapts to the scheme in focus', () => {
   it('generic pick with no fitting scheme leaves the scheme unset', async () => {
     collectionsMock = [GLOSSARY, TAXONOMY];
     renderExplore();
-    fireEvent.click(screen.getByRole('menuitem', { name: /New Class/ }));
+    await pickMenuItem(/New Class/);
     await waitFor(() => expect(editorProps.open).toBe(true));
     expect(editorProps.collection).toBeUndefined();
   });
@@ -402,7 +411,7 @@ describe('Explore Create menu adapts to the scheme in focus', () => {
   it('onCreateScheme closes the entry editor and opens the scheme editor preset to the kind', async () => {
     collectionsMock = [GLOSSARY, TAXONOMY];
     renderExplore();
-    fireEvent.click(screen.getByRole('menuitem', { name: /New Class/ }));
+    await pickMenuItem(/New Class/);
     await waitFor(() => expect(editorProps.open).toBe(true));
     act(() => editorProps.onCreateScheme('ontology'));
     await waitFor(() => expect(schemeEditorProps.open).toBe(true));
@@ -414,7 +423,7 @@ describe('Explore Create menu adapts to the scheme in focus', () => {
   it('the menu New Concept Scheme opens the scheme editor without a preset kind', async () => {
     collectionsMock = [GLOSSARY];
     renderExplore();
-    fireEvent.click(screen.getByRole('menuitem', { name: /New Concept Scheme/ }));
+    await pickMenuItem(/New Concept Scheme/);
     await waitFor(() => expect(schemeEditorProps.open).toBe(true));
     expect(schemeEditorProps.initialCollectionType).toBeUndefined();
   });
@@ -438,7 +447,8 @@ describe('Explore SPARQL panel', () => {
     fireEvent.click(toggle);
     const panel = await screen.findByTestId('explore-sparql-panel');
     expect(panel).toHaveClass('adv-only');
-    expect(panel.className).toContain('min-h-[420px]');
+    // It keeps room for the results (its min-height is in explore.module.css)
+    expect(panel).toHaveClass(exploreClasses.sparql);
     expect(screen.getByTestId('kg-search')).toBeInTheDocument();
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
 
@@ -455,7 +465,7 @@ describe('Explore empty state', () => {
     expect(screen.getByText('Nothing to explore yet')).toBeInTheDocument();
     expect(screen.getByText('Import files or create concepts on the Define page.')).toBeInTheDocument();
     expect(screen.getByTestId('filter-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('create-menu')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /common:actions\.create/ })).toBeInTheDocument();
     expect(screen.queryByTestId('concepts-tab')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to Define' }));

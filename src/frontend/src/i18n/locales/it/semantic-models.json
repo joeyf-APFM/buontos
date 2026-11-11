@@ -295,7 +295,10 @@
     "selectSuperclass": "Seleziona superclasse",
     "selectParentConcept": "Seleziona concetto padre",
     "searchClasses": "Cerca classi...",
-    "searchConceptsInScheme": "Cerca concetti in questo schema di concetti..."
+    "searchConceptsInScheme": "Cerca concetti in questo schema di concetti...",
+    "removeValue": "Rimuovi {{name}}",
+    "addSynonym": "Aggiungi sinonimo",
+    "addExample": "Aggiungi esempio"
   },
   "collectionEditor": {
     "editTitle": "Modifica Schema di concetti",
@@ -499,7 +502,10 @@
   "explore": {
     "emptyTitle": "Ancora niente da esplorare",
     "emptyBody": "Importa file o crea concetti nella scheda Define.",
-    "emptyCta": "Vai a Define"
+    "emptyCta": "Vai a Define",
+    "conceptsPane": "Concetti",
+    "filtersPane": "Filtri",
+    "loadFailed": "Impossibile caricare i concetti."
   },
   "define": {
     "requiresWrite": "Richiede accesso in scrittura",

@@ -7,7 +7,8 @@ import { useLayeredEscape } from '@/mantine/use-layered-escape';
 import { Z_INDEX } from '@/mantine/z-index';
 import classes from './dialog.module.css';
 
-const WIDTHS = { sm: 420, md: 560, lg: 720, xl: 960 } as const;
+// 'full' is for a canvas that wants the window (the concept graph's fullscreen view)
+const WIDTHS = { sm: 420, md: 560, lg: 720, xl: 960, full: '95vw' } as const;
 
 /**
  * The element to give focus back to: the one that had it when the dialog
@@ -56,8 +57,8 @@ export interface DialogProps {
   title: ReactNode;
   /** Rendered as the accessible description, under the title. */
   description?: ReactNode;
-  /** 420 / 560 / 720 / 960 px. @default 'md' */
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** 420 / 560 / 720 / 960 px, or 'full': nearly the window's width (95vw, within Mantine's window margin). @default 'md' */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   /**
    * A fixed height, such as '80vh', for content that loads after opening, so
    * the dialog doesn't grow and re-centre. Still capped at the window less

@@ -21,9 +21,11 @@ type Props = {
   /** Render as a page-kit Pane instead of a Card, for pages on the page kit. The body is the same. */
   pane?: boolean;
   /**
-   * The user may write on the host page: shows Add expense, Edit and Delete.
-   * Off by default, so a caller that doesn't say gets a read-only panel. Each
-   * caller passes its page's write permission.
+   * The user may write here: shows Add expense, Edit and Delete. Off by
+   * default, so a caller that doesn't say gets a read-only panel. A caller
+   * passes its host page's write permission AND data-domains READ_WRITE,
+   * because the cost routes check data-domains (costs_routes.py), whatever
+   * page hosts the panel (ruling R45).
    */
   canEdit?: boolean;
 };

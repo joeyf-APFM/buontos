@@ -10,34 +10,14 @@ import {
   relationshipOrder,
   selectRelationshipProperties,
 } from './knowledge-graph-relationships';
+import { ActionIcon, Checkbox, Popover, ScrollArea, Select, Slider } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Dialog } from '@/mantine/page';
 import { ZoomIn, ZoomOut, Maximize, RotateCcw, Expand, Group, Ungroup, ChevronDown, Tag, Workflow, CircleDot, MoveHorizontal } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
 import { DISPLAY_FONT } from '@/mantine/theme';
 import { useGlossaryPreferencesStore } from '@/stores/glossary-preferences-store';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import classes from './knowledge-graph.module.css';
 
 // Domain colors from app.py
 const DOMAIN_COLORS = [
@@ -103,44 +83,30 @@ const RootNodeFilter: React.FC<RootNodeFilterProps> = ({
   // Badge mode: render clickable badge buttons (when <= threshold)
   if (rootNodes.length <= ROOT_BADGE_THRESHOLD) {
     return (
-      <div className="flex flex-wrap gap-2 text-xs">
+      <div className={classes.roots}>
         {rootNodes.map(root => {
           const color = rootColors.get(root.iri) || '#64748b';
           const label = resolveLabel(root, selectedLanguage);
           const isHidden = hiddenRoots.has(root.iri);
           const descendants = getRootDescendants(root.iri);
-          
+
           return (
             <button
               key={root.iri}
+              type="button"
               onClick={() => onToggleRoot(root.iri)}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all",
-                "hover:shadow-md hover:scale-105",
-                "bg-card border-2",
-                isHidden ? "opacity-40 hover:opacity-60" : "opacity-100"
-              )}
-              style={{
-                borderColor: color,
-                backgroundColor: isHidden ? undefined : `${color}15`
-              }}
+              className={classes.root}
+              data-hidden={isHidden || undefined}
+              aria-pressed={!isHidden}
+              // The root's own colour, from the data
+              style={{ borderColor: color, backgroundColor: isHidden ? undefined : `${color}15` }}
               title={isHidden
                 ? t('semantic-models:knowledgeGraph.rootFilter.show', { label, count: descendants.size })
                 : t('semantic-models:knowledgeGraph.rootFilter.hide', { label, count: descendants.size })}
             >
-              <div 
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color }}
-              />
-              <span className={cn(
-                "font-medium text-foreground",
-                isHidden && "line-through"
-              )}>
-                {label}
-              </span>
-              <span className="text-muted-foreground">
-                ({descendants.size})
-              </span>
+              <span aria-hidden className={classes.dot} style={{ backgroundColor: color }} />
+              <span className={classes.rootLabel}>{label}</span>
+              <span className={classes.muted}>({descendants.size})</span>
             </button>
           );
         })}
@@ -150,85 +116,71 @@ const RootNodeFilter: React.FC<RootNodeFilterProps> = ({
 
   // Dropdown mode: render a popover with checkboxes (when > threshold)
   return (
-    <div className="flex items-center gap-3 text-xs">
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 gap-2">
-            <span className="font-medium">
-              {t('semantic-models:knowledgeGraph.rootFilter.sourcesVisible', { visible: visibleCount, total: totalCount })}
-            </span>
-            <ChevronDown className="h-4 w-4 opacity-50" />
+    <div className={classes.rootsLine}>
+      <Popover position="bottom-start" withinPortal trapFocus shadow="md">
+        <Popover.Target>
+          <Button variant="outline" size="sm">
+            {t('semantic-models:knowledgeGraph.rootFilter.sourcesVisible', { visible: visibleCount, total: totalCount })}
+            <ChevronDown aria-hidden />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80 p-0" align="start">
-          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
-            <span className="text-sm font-medium">{t('semantic-models:knowledgeGraph.rootFilter.filterSources')}</span>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={handleShowAll}
-              >
+        </Popover.Target>
+        <Popover.Dropdown className={classes.rootsDropdown}>
+          <div className={classes.rootsHead}>
+            <span className={classes.strong}>{t('semantic-models:knowledgeGraph.rootFilter.filterSources')}</span>
+            <div className={classes.inline}>
+              <Button variant="ghost" size="sm" onClick={handleShowAll}>
                 {t('semantic-models:knowledgeGraph.rootFilter.showAll')}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={handleHideAll}
-              >
+              <Button variant="ghost" size="sm" onClick={handleHideAll}>
                 {t('semantic-models:knowledgeGraph.rootFilter.hideAll')}
               </Button>
             </div>
           </div>
-          <ScrollArea className="h-[300px]">
-            <div className="p-2 space-y-1">
+          <ScrollArea.Autosize mah={300}>
+            <div className={classes.rootsList}>
               {rootNodes.map(root => {
                 const color = rootColors.get(root.iri) || '#64748b';
                 const label = resolveLabel(root, selectedLanguage);
                 const isVisible = !hiddenRoots.has(root.iri);
                 const descendants = getRootDescendants(root.iri);
-                
+
                 return (
-                  <label
+                  <Checkbox
                     key={root.iri}
-                    className={cn(
-                      "flex items-center gap-3 px-2 py-1.5 rounded-md cursor-pointer transition-colors",
-                      "hover:bg-muted/50",
-                      isVisible ? "opacity-100" : "opacity-60"
-                    )}
-                  >
-                    <Checkbox
-                      checked={isVisible}
-                      onCheckedChange={() => onToggleRoot(root.iri)}
-                    />
-                    <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span className={cn(
-                      "flex-1 text-sm",
-                      !isVisible && "line-through text-muted-foreground"
-                    )}>
-                      {label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      ({descendants.size})
-                    </span>
-                  </label>
+                    size="xs"
+                    className={classes.rootOption}
+                    data-hidden={!isVisible || undefined}
+                    checked={isVisible}
+                    onChange={() => onToggleRoot(root.iri)}
+                    label={
+                      <span className={classes.rootOptionLabel}>
+                        <span aria-hidden className={classes.dot} style={{ backgroundColor: color }} />
+                        <span className={classes.rootLabel}>{label}</span>
+                        <span className={classes.muted}>({descendants.size})</span>
+                      </span>
+                    }
+                  />
                 );
               })}
             </div>
-          </ScrollArea>
-        </PopoverContent>
+          </ScrollArea.Autosize>
+        </Popover.Dropdown>
       </Popover>
-      <span className="text-muted-foreground">
+      <span className={classes.muted}>
         {t('semantic-models:knowledgeGraph.rootFilter.toggleHint')}
       </span>
     </div>
   );
 };
+
+/** A zoom control: an icon button named by its label (also its tooltip). */
+function ZoomButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+  return (
+    <ActionIcon variant="subtle" size={26} aria-label={label} title={label} onClick={onClick}>
+      {icon}
+    </ActionIcon>
+  );
+}
 
 interface KnowledgeGraphProps {
   concepts: OntologyConcept[];
@@ -838,163 +790,161 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     }
   };
 
-  return (
-    <div className="h-full flex flex-col border rounded-lg bg-background overflow-hidden">
-      {/* Legend with toggleable roots - shown when Group by Source is OFF */}
-      {showRootBadges && (
-        <div className="px-6 py-3 border-b bg-muted/30">
-          <RootNodeFilter
-            rootNodes={graphData.rootNodes}
-            rootColors={graphData.rootColors}
-            hiddenRoots={hiddenRoots}
-            onToggleRoot={onToggleRoot}
-            getRootDescendants={graphData.getRootDescendants}
-            selectedLanguage={selectedLanguage}
+  const conceptCount = graphData.elements.filter(e => e.classes?.includes('concept-node')).length;
+  const layouts = [
+    { value: 'circle', label: t('semantic-models:knowledgeGraph.layouts.circular') },
+    { value: 'cose', label: t('semantic-models:knowledgeGraph.layouts.forceDirected') },
+    { value: 'grid', label: t('semantic-models:knowledgeGraph.layouts.grid') },
+    { value: 'breadthfirst', label: t('semantic-models:knowledgeGraph.layouts.hierarchical') },
+    { value: 'concentric', label: t('semantic-models:knowledgeGraph.layouts.concentric') },
+  ];
+
+  // The display options, the same in the pane and in the fullscreen view.
+  // Their popovers trap focus, so Escape closes only them (also inside the
+  // fullscreen Dialog).
+  const displayOptions = (align: 'start' | 'end') => (
+    <div className={classes.options}>
+      <Select
+        aria-label={t('semantic-models:knowledgeGraph.layout.placeholder')}
+        placeholder={t('semantic-models:knowledgeGraph.layout.placeholder')}
+        data={layouts}
+        value={layout}
+        onChange={(v) => v && setLayout(v as LayoutType)}
+        allowDeselect={false}
+        className={classes.layout}
+      />
+
+      <Button
+        variant={showDomainBoxes ? 'secondary' : 'ghost'}
+        size="sm"
+        aria-pressed={showDomainBoxes}
+        onClick={handleToggleDomainBoxes}
+        title={showDomainBoxes ? t('semantic-models:knowledgeGraph.toolbar.hideDomainGroups') : t('semantic-models:knowledgeGraph.toolbar.showDomainGroups')}
+      >
+        {showDomainBoxes ? <Group aria-hidden /> : <Ungroup aria-hidden />}
+        {t('semantic-models:knowledgeGraph.toolbar.groups')}
+      </Button>
+
+      <Button
+        variant={showNodeLabels ? 'secondary' : 'ghost'}
+        size="sm"
+        aria-pressed={showNodeLabels}
+        onClick={() => setShowNodeLabels(prev => !prev)}
+        title={showNodeLabels ? t('semantic-models:knowledgeGraph.toolbar.hideNodeLabels') : t('semantic-models:knowledgeGraph.toolbar.showNodeLabels')}
+      >
+        <Tag aria-hidden />
+        {t('semantic-models:knowledgeGraph.toolbar.nodeLabels')}
+      </Button>
+
+      <Button
+        variant={showEdgeLabels ? 'secondary' : 'ghost'}
+        size="sm"
+        aria-pressed={showEdgeLabels}
+        onClick={() => setShowEdgeLabels(prev => !prev)}
+        title={showEdgeLabels ? t('semantic-models:knowledgeGraph.toolbar.hideEdgeLabels') : t('semantic-models:knowledgeGraph.toolbar.showEdgeLabels')}
+      >
+        <Workflow aria-hidden />
+        {t('semantic-models:knowledgeGraph.toolbar.edgeLabels')}
+      </Button>
+
+      <Popover position={align === 'start' ? 'bottom-start' : 'bottom-end'} withinPortal trapFocus shadow="md">
+        <Popover.Target>
+          <Button variant="ghost" size="sm" title={t('semantic-models:knowledgeGraph.toolbar.nodeSize')}>
+            <CircleDot aria-hidden />
+            {t('semantic-models:knowledgeGraph.toolbar.size')}
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown className={classes.sliderDropdown}>
+          <div className={classes.sliderHead}>
+            <span className={classes.strong}>{t('semantic-models:knowledgeGraph.toolbar.nodeSize')}</span>
+            <div className={classes.inline}>
+              <span className={classes.value}>{nodeSize}</span>
+              <Button variant="ghost" size="sm" onClick={() => setNodeSize(24)}>
+                {t('common:actions.reset')}
+              </Button>
+            </div>
+          </div>
+          <Slider
+            value={nodeSize}
+            onChange={setNodeSize}
+            min={12}
+            max={48}
+            step={2}
+            label={null}
+            thumbLabel={t('semantic-models:knowledgeGraph.toolbar.nodeSize')}
           />
-        </div>
-      )}
+        </Popover.Dropdown>
+      </Popover>
+
+      <Popover position={align === 'start' ? 'bottom-start' : 'bottom-end'} withinPortal trapFocus shadow="md">
+        <Popover.Target>
+          <Button variant="ghost" size="sm" title={t('semantic-models:knowledgeGraph.toolbar.nodeSpacing')}>
+            <MoveHorizontal aria-hidden />
+            {t('semantic-models:knowledgeGraph.toolbar.spacing')}
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown className={classes.sliderDropdown}>
+          <div className={classes.sliderHead}>
+            <span className={classes.strong}>{t('semantic-models:knowledgeGraph.toolbar.spacing')}</span>
+            <div className={classes.inline}>
+              <span className={classes.value}>{spacing}</span>
+              <Button variant="ghost" size="sm" onClick={() => setSpacing(80)}>
+                {t('common:actions.reset')}
+              </Button>
+            </div>
+          </div>
+          <Slider
+            value={spacing}
+            onChange={setSpacing}
+            min={40}
+            max={240}
+            step={10}
+            label={null}
+            thumbLabel={t('semantic-models:knowledgeGraph.toolbar.nodeSpacing')}
+          />
+          <p className={classes.hint}>{t('semantic-models:knowledgeGraph.toolbar.spacingHint')}</p>
+        </Popover.Dropdown>
+      </Popover>
+
+      <Badge variant="secondary">
+        {t('semantic-models:knowledgeGraph.toolbar.conceptCount', { count: conceptCount })}
+      </Badge>
+    </div>
+  );
+
+  const legend = showRootBadges && (
+    <div className={classes.legend}>
+      <RootNodeFilter
+        rootNodes={graphData.rootNodes}
+        rootColors={graphData.rootColors}
+        hiddenRoots={hiddenRoots}
+        onToggleRoot={onToggleRoot}
+        getRootDescendants={graphData.getRootDescendants}
+        selectedLanguage={selectedLanguage}
+      />
+    </div>
+  );
+
+  return (
+    <div className={classes.graph}>
+      {/* Legend with toggleable roots - shown when Group by Source is OFF */}
+      {legend}
 
       {/* Toolbar */}
-      <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/20">
-        <div className="flex items-center gap-2">
-          <Select value={layout} onValueChange={(v) => setLayout(v as LayoutType)}>
-            <SelectTrigger className="w-[160px] h-8">
-              <SelectValue placeholder={t('semantic-models:knowledgeGraph.layout.placeholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="circle">{t('semantic-models:knowledgeGraph.layouts.circular')}</SelectItem>
-              <SelectItem value="cose">{t('semantic-models:knowledgeGraph.layouts.forceDirected')}</SelectItem>
-              <SelectItem value="grid">{t('semantic-models:knowledgeGraph.layouts.grid')}</SelectItem>
-              <SelectItem value="breadthfirst">{t('semantic-models:knowledgeGraph.layouts.hierarchical')}</SelectItem>
-              <SelectItem value="concentric">{t('semantic-models:knowledgeGraph.layouts.concentric')}</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button
-            variant={showDomainBoxes ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={handleToggleDomainBoxes}
-            title={showDomainBoxes ? t('semantic-models:knowledgeGraph.toolbar.hideDomainGroups') : t('semantic-models:knowledgeGraph.toolbar.showDomainGroups')}
-          >
-            {showDomainBoxes ? <Group className="h-4 w-4" /> : <Ungroup className="h-4 w-4" />}
-            <span>{t('semantic-models:knowledgeGraph.toolbar.groups')}</span>
-          </Button>
-
-          <Button
-            variant={showNodeLabels ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={() => setShowNodeLabels(prev => !prev)}
-            title={showNodeLabels ? t('semantic-models:knowledgeGraph.toolbar.hideNodeLabels') : t('semantic-models:knowledgeGraph.toolbar.showNodeLabels')}
-          >
-            <Tag className="h-4 w-4" />
-            <span>{t('semantic-models:knowledgeGraph.toolbar.nodeLabels')}</span>
-          </Button>
-
-          <Button
-            variant={showEdgeLabels ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={() => setShowEdgeLabels(prev => !prev)}
-            title={showEdgeLabels ? t('semantic-models:knowledgeGraph.toolbar.hideEdgeLabels') : t('semantic-models:knowledgeGraph.toolbar.showEdgeLabels')}
-          >
-            <Workflow className="h-4 w-4" />
-            <span>{t('semantic-models:knowledgeGraph.toolbar.edgeLabels')}</span>
-          </Button>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5" title={t('semantic-models:knowledgeGraph.toolbar.nodeSize')}>
-                <CircleDot className="h-4 w-4" />
-                <span>{t('semantic-models:knowledgeGraph.toolbar.size')}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="start">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">{t('semantic-models:knowledgeGraph.toolbar.nodeSize')}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground tabular-nums w-6 text-right">{nodeSize}</span>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setNodeSize(24)}>
-                    {t('common:actions.reset')}
-                  </Button>
-                </div>
-              </div>
-              <Slider
-                value={[nodeSize]}
-                onValueChange={(v) => setNodeSize(v[0])}
-                min={12}
-                max={48}
-                step={2}
-                aria-label={t('semantic-models:knowledgeGraph.toolbar.nodeSize')}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5" title={t('semantic-models:knowledgeGraph.toolbar.nodeSpacing')}>
-                <MoveHorizontal className="h-4 w-4" />
-                <span>{t('semantic-models:knowledgeGraph.toolbar.spacing')}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="start">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">{t('semantic-models:knowledgeGraph.toolbar.spacing')}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">{spacing}</span>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSpacing(80)}>
-                    {t('common:actions.reset')}
-                  </Button>
-                </div>
-              </div>
-              <Slider
-                value={[spacing]}
-                onValueChange={(v) => setSpacing(v[0])}
-                min={40}
-                max={240}
-                step={10}
-                aria-label={t('semantic-models:knowledgeGraph.toolbar.nodeSpacing')}
-              />
-              <p className="text-[10px] text-muted-foreground mt-2">
-                {t('semantic-models:knowledgeGraph.toolbar.spacingHint')}
-              </p>
-            </PopoverContent>
-          </Popover>
-
-          <Badge variant="secondary" className="text-xs">
-            {t('semantic-models:knowledgeGraph.toolbar.conceptCount', { count: graphData.elements.filter(e => e.classes?.includes('concept-node')).length })}
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} title={t('common:tooltips.zoomOut')}>
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomIn} title={t('common:tooltips.zoomIn')}>
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleFit} title={t('common:tooltips.fitToView')}>
-            <Maximize className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleReset} title={t('common:tooltips.resetLayout')}>
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8" 
-            onClick={() => setIsFullscreen(true)} 
-            title={t('common:tooltips.openFullscreen')}
-          >
-            <Expand className="h-4 w-4" />
-          </Button>
+      <div className={classes.toolbar}>
+        {displayOptions('start')}
+        <div className={classes.zoom}>
+          <ZoomButton label={t('common:tooltips.zoomOut')} icon={<ZoomOut aria-hidden size={14} />} onClick={handleZoomOut} />
+          <ZoomButton label={t('common:tooltips.zoomIn')} icon={<ZoomIn aria-hidden size={14} />} onClick={handleZoomIn} />
+          <ZoomButton label={t('common:tooltips.fitToView')} icon={<Maximize aria-hidden size={14} />} onClick={handleFit} />
+          <ZoomButton label={t('common:tooltips.resetLayout')} icon={<RotateCcw aria-hidden size={14} />} onClick={handleReset} />
+          <span aria-hidden className={classes.divider} />
+          <ZoomButton label={t('common:tooltips.openFullscreen')} icon={<Expand aria-hidden size={14} />} onClick={() => setIsFullscreen(true)} />
         </div>
       </div>
 
       {/* Graph */}
-      <div className="flex-1 relative" style={{ minHeight: 0 }}>
+      <div className={classes.canvas}>
         <CytoscapeComponent
           key={`graph-${showDomainBoxes}`}
           cy={(cy: Core) => {
@@ -1024,224 +974,67 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         />
       </div>
 
-      {/* Fullscreen Modal */}
-      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] p-0 flex flex-col">
-          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-xl font-semibold">{t('common:labels.viewGraph')}</DialogTitle>
-                <DialogDescription className="sr-only">
-                  {t('semantic-models:knowledgeGraph.fullscreen.description')}
-                </DialogDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={layout} onValueChange={(v) => setLayout(v as LayoutType)}>
-                  <SelectTrigger className="w-[160px] h-8">
-                    <SelectValue placeholder={t('semantic-models:knowledgeGraph.layout.placeholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="circle">{t('semantic-models:knowledgeGraph.layouts.circular')}</SelectItem>
-                    <SelectItem value="cose">{t('semantic-models:knowledgeGraph.layouts.forceDirected')}</SelectItem>
-                    <SelectItem value="grid">{t('semantic-models:knowledgeGraph.layouts.grid')}</SelectItem>
-                    <SelectItem value="breadthfirst">{t('semantic-models:knowledgeGraph.layouts.hierarchical')}</SelectItem>
-                    <SelectItem value="concentric">{t('semantic-models:knowledgeGraph.layouts.concentric')}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant={showDomainBoxes ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  onClick={handleToggleDomainBoxes}
-                  title={showDomainBoxes ? t('semantic-models:knowledgeGraph.toolbar.hideDomainGroups') : t('semantic-models:knowledgeGraph.toolbar.showDomainGroups')}
-                >
-                  {showDomainBoxes ? <Group className="h-4 w-4" /> : <Ungroup className="h-4 w-4" />}
-                  <span>{t('semantic-models:knowledgeGraph.toolbar.groups')}</span>
-                </Button>
-                <Button
-                  variant={showNodeLabels ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  onClick={() => setShowNodeLabels(prev => !prev)}
-                  title={showNodeLabels ? t('semantic-models:knowledgeGraph.toolbar.hideNodeLabels') : t('semantic-models:knowledgeGraph.toolbar.showNodeLabels')}
-                >
-                  <Tag className="h-4 w-4" />
-                  <span>{t('semantic-models:knowledgeGraph.toolbar.nodeLabels')}</span>
-                </Button>
-                <Button
-                  variant={showEdgeLabels ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  onClick={() => setShowEdgeLabels(prev => !prev)}
-                  title={showEdgeLabels ? t('semantic-models:knowledgeGraph.toolbar.hideEdgeLabels') : t('semantic-models:knowledgeGraph.toolbar.showEdgeLabels')}
-                >
-                  <Workflow className="h-4 w-4" />
-                  <span>{t('semantic-models:knowledgeGraph.toolbar.edgeLabels')}</span>
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5" title={t('semantic-models:knowledgeGraph.toolbar.nodeSize')}>
-                      <CircleDot className="h-4 w-4" />
-                      <span>{t('semantic-models:knowledgeGraph.toolbar.size')}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3" align="end">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{t('semantic-models:knowledgeGraph.toolbar.nodeSize')}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground tabular-nums w-6 text-right">{nodeSize}</span>
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setNodeSize(24)}>
-                          {t('common:actions.reset')}
-                        </Button>
-                      </div>
-                    </div>
-                    <Slider
-                      value={[nodeSize]}
-                      onValueChange={(v) => setNodeSize(v[0])}
-                      min={12}
-                      max={48}
-                      step={2}
-                      aria-label={t('semantic-models:knowledgeGraph.toolbar.nodeSize')}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5" title={t('semantic-models:knowledgeGraph.toolbar.nodeSpacing')}>
-                      <MoveHorizontal className="h-4 w-4" />
-                      <span>{t('semantic-models:knowledgeGraph.toolbar.spacing')}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3" align="end">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{t('semantic-models:knowledgeGraph.toolbar.spacing')}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">{spacing}</span>
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSpacing(80)}>
-                          {t('common:actions.reset')}
-                        </Button>
-                      </div>
-                    </div>
-                    <Slider
-                      value={[spacing]}
-                      onValueChange={(v) => setSpacing(v[0])}
-                      min={40}
-                      max={240}
-                      step={10}
-                      aria-label={t('semantic-models:knowledgeGraph.toolbar.nodeSpacing')}
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-2">
-                      {t('semantic-models:knowledgeGraph.toolbar.spacingHint')}
-                    </p>
-                  </PopoverContent>
-                </Popover>
-                <Badge variant="secondary" className="text-xs">
-                  {t('semantic-models:knowledgeGraph.toolbar.conceptCount', { count: graphData.elements.filter(e => e.classes?.includes('concept-node')).length })}
-                </Badge>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          {/* Legend in modal - shown when Group by Source is OFF */}
-          {showRootBadges && (
-            <div className="px-6 py-3 border-b bg-muted/30 flex-shrink-0">
-              <RootNodeFilter
-                rootNodes={graphData.rootNodes}
-                rootColors={graphData.rootColors}
-                hiddenRoots={hiddenRoots}
-                onToggleRoot={onToggleRoot}
-                getRootDescendants={graphData.getRootDescendants}
-                selectedLanguage={selectedLanguage}
-              />
-            </div>
+      {/* Fullscreen view, on the kit Dialog */}
+      <Dialog
+        opened={isFullscreen}
+        onClose={() => setIsFullscreen(false)}
+        size="full"
+        height="95vh"
+        title={t('common:labels.viewGraph')}
+        description={t('semantic-models:knowledgeGraph.fullscreen.hint')}
+        footer={
+          <>
+            <ZoomButton label={t('common:tooltips.zoomOut')} icon={<ZoomOut aria-hidden size={14} />} onClick={() => fullscreenCyRef.current?.zoom((fullscreenCyRef.current?.zoom() || 1) / 1.3)} />
+            <ZoomButton label={t('common:tooltips.zoomIn')} icon={<ZoomIn aria-hidden size={14} />} onClick={() => fullscreenCyRef.current?.zoom((fullscreenCyRef.current?.zoom() || 1) * 1.3)} />
+            <ZoomButton label={t('common:tooltips.fitToView')} icon={<Maximize aria-hidden size={14} />} onClick={() => fullscreenCyRef.current?.fit(undefined, 60)} />
+            <ZoomButton label={t('common:tooltips.resetLayout')} icon={<RotateCcw aria-hidden size={14} />} onClick={() => {
+              const cy = fullscreenCyRef.current;
+              if (cy) {
+                const layoutConfig = getLayoutConfig(layout, true);
+                layoutElements(cy).layout(layoutConfig).run();
+              }
+            }} />
+          </>
+        }
+      >
+        {displayOptions('end')}
+        {/* Legend in the dialog - shown when Group by Source is OFF */}
+        {legend}
+
+        {/* Fullscreen Graph */}
+        <div className={classes.fullscreenCanvas}>
+          {isFullscreen && (
+            <CytoscapeComponent
+              key={`fullscreen-graph-${showDomainBoxes}`}
+              cy={(cy: Core) => {
+                fullscreenCyRef.current = cy;
+                // Run layout only once after mounting in fullscreen
+                if (!fullscreenInitialLayoutDoneRef.current) {
+                  fullscreenInitialLayoutDoneRef.current = true;
+                  const timeoutId = setTimeout(() => {
+                    if (fullscreenCyRef.current && fullscreenCyRef.current.elements().length > 0) {
+                      const layoutConfig = getLayoutConfig(layout, true);
+                      layoutElements(fullscreenCyRef.current).layout(layoutConfig).run();
+                    }
+                  }, 150);
+                  // Store cleanup
+                  cy.scratch('_layoutTimeout', timeoutId);
+                }
+              }}
+              elements={graphData.elements}
+              stylesheet={stylesheet}
+              layout={{ name: 'preset' }}
+              style={{ width: '100%', height: '100%' }}
+              minZoom={0.05}
+              maxZoom={5}
+              wheelSensitivity={0.3}
+              boxSelectionEnabled={false}
+              autounselectify={false}
+              userPanningEnabled={true}
+              userZoomingEnabled={true}
+            />
           )}
-
-          {/* Fullscreen Graph */}
-          <div className="flex-1 relative">
-            {isFullscreen && (
-              <CytoscapeComponent
-                key={`fullscreen-graph-${showDomainBoxes}`}
-                cy={(cy: Core) => {
-                  fullscreenCyRef.current = cy;
-                  // Run layout only once after mounting in fullscreen
-                  if (!fullscreenInitialLayoutDoneRef.current) {
-                    fullscreenInitialLayoutDoneRef.current = true;
-                    const timeoutId = setTimeout(() => {
-                      if (fullscreenCyRef.current && fullscreenCyRef.current.elements().length > 0) {
-                        const layoutConfig = getLayoutConfig(layout, true);
-                        layoutElements(fullscreenCyRef.current).layout(layoutConfig).run();
-                      }
-                    }, 150);
-                    // Store cleanup
-                    cy.scratch('_layoutTimeout', timeoutId);
-                  }
-                }}
-                elements={graphData.elements}
-                stylesheet={stylesheet}
-                layout={{ name: 'preset' }}
-                style={{ width: '100%', height: '100%' }}
-                minZoom={0.05}
-                maxZoom={5}
-                wheelSensitivity={0.3}
-                boxSelectionEnabled={false}
-                autounselectify={false}
-                userPanningEnabled={true}
-                userZoomingEnabled={true}
-              />
-            )}
-          </div>
-
-          {/* Fullscreen toolbar */}
-          <div className="px-4 py-2 border-t flex items-center justify-between bg-muted/20 flex-shrink-0">
-            <div className="text-sm text-muted-foreground">
-              {t('semantic-models:knowledgeGraph.fullscreen.hint')}
-            </div>
-            <div className="flex items-center gap-1">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                onClick={() => fullscreenCyRef.current?.zoom((fullscreenCyRef.current?.zoom() || 1) / 1.3)} 
-                title={t('common:tooltips.zoomOut')}
-              >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                onClick={() => fullscreenCyRef.current?.zoom((fullscreenCyRef.current?.zoom() || 1) * 1.3)} 
-                title={t('common:tooltips.zoomIn')}
-              >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                onClick={() => fullscreenCyRef.current?.fit(undefined, 60)} 
-                title={t('common:tooltips.fitToView')}
-              >
-                <Maximize className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                onClick={() => {
-                  const cy = fullscreenCyRef.current;
-                  if (cy) {
-                    const layoutConfig = getLayoutConfig(layout, true);
-                    layoutElements(cy).layout(layoutConfig).run();
-                  }
-                }} 
-                title={t('common:tooltips.resetLayout')}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
+        </div>
       </Dialog>
     </div>
   );

@@ -295,7 +295,10 @@
     "selectSuperclass": "Seleccionar superclase",
     "selectParentConcept": "Seleccionar concepto superior",
     "searchClasses": "Buscar clases...",
-    "searchConceptsInScheme": "Buscar conceptos en este esquema de conceptos..."
+    "searchConceptsInScheme": "Buscar conceptos en este esquema de conceptos...",
+    "removeValue": "Quitar {{name}}",
+    "addSynonym": "Añadir sinónimo",
+    "addExample": "Añadir ejemplo"
   },
   "collectionEditor": {
     "editTitle": "Editar esquema de conceptos",
@@ -499,7 +502,10 @@
   "explore": {
     "emptyTitle": "Todavía no hay nada que explorar",
     "emptyBody": "Importa archivos o crea conceptos en la pestaña Define.",
-    "emptyCta": "Ir a Define"
+    "emptyCta": "Ir a Define",
+    "conceptsPane": "Conceptos",
+    "filtersPane": "Filtros",
+    "loadFailed": "No se pudieron cargar los conceptos."
   },
   "define": {
     "requiresWrite": "Requiere acceso de escritura",

@@ -295,7 +295,10 @@
     "selectSuperclass": "スーパークラスを選択",
     "selectParentConcept": "親コンセプトを選択",
     "searchClasses": "クラスを検索...",
-    "searchConceptsInScheme": "このコンセプトスキーム内のコンセプトを検索..."
+    "searchConceptsInScheme": "このコンセプトスキーム内のコンセプトを検索...",
+    "removeValue": "{{name}} を削除",
+    "addSynonym": "同義語を追加",
+    "addExample": "例を追加"
   },
   "collectionEditor": {
     "editTitle": "コンセプトスキームを編集",
@@ -499,7 +502,10 @@
   "explore": {
     "emptyTitle": "探索できるものはまだありません",
     "emptyBody": "Define タブでファイルをインポートするか、コンセプトを作成してください。",
-    "emptyCta": "Define に移動"
+    "emptyCta": "Define に移動",
+    "conceptsPane": "コンセプト",
+    "filtersPane": "フィルター",
+    "loadFailed": "コンセプトを読み込めませんでした。"
   },
   "define": {
     "requiresWrite": "書き込み権限が必要です",

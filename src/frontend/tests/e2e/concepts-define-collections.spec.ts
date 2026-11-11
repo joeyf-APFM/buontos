@@ -305,10 +305,8 @@ test.describe('collections', () => {
 });
 
 test.describe('explore', () => {
-  // Explore (Task 13) keeps its Radix Create menu for now. Closing, the menu
-  // gives focus back to its Create button, after the editor has opened, as it
-  // did with the Radix editor before (the same at BASE). Task 13's move to a
-  // Mantine Menu leaves focus in the editor.
+  // Explore's Create menu is a Mantine Menu since Task 13a, which leaves
+  // focus in the editor it opens (tests/e2e/concepts-explore.spec.ts).
   test('New Concept Scheme from the Create menu opens the kit editor on top, and it takes typing', async ({ page }) => {
     await setUp(page, '/concepts/browser');
     await page.locator('main').getByRole('button', { name: 'Create' }).click();

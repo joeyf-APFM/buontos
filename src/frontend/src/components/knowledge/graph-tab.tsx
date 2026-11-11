@@ -1,6 +1,7 @@
 import React from 'react';
 import type { OntologyConcept } from '@/types/ontology';
 import { KnowledgeGraph } from '@/components/semantic-models/knowledge-graph';
+import classes from './graph-tab.module.css';
 
 interface GraphTabProps {
   concepts: OntologyConcept[];
@@ -22,9 +23,9 @@ export const GraphTab: React.FC<GraphTabProps> = ({
   selectedLanguage = 'en',
 }) => {
   return (
-    <div className="h-[800px] flex flex-col">
+    <div className={classes.tab}>
       {/* Graph */}
-      <div className="flex-1 min-h-0">
+      <div className={classes.graph}>
         <KnowledgeGraph
           concepts={concepts}
           relationships={relationships}

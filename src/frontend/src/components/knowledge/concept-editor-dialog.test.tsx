@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { renderWithMantine, userEvent } from '@/test/utils';
+import { optionNames, pick } from '@/test/kit-dialog';
 import type { KnowledgeCollection } from '@/types/ontology';
 
 // ---------------------------------------------------------------------------
@@ -48,40 +50,6 @@ vi.mock('@/components/semantic/concept-select-dialog', () => ({
   },
 }));
 
-// Native <select> stand-in for Radix Select (driving Radix in jsdom hung CI).
-vi.mock('@/components/ui/select', async () => {
-  const React = await import('react');
-  const SelectTrigger = (_: { children?: React.ReactNode }) => null;
-  const SelectValue = () => null;
-  const SelectContent = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-  const SelectItem = ({ value, children }: { value: string; children?: React.ReactNode }) => (
-    <option value={value}>{children}</option>
-  );
-  const Select = ({
-    value,
-    onValueChange,
-    disabled,
-    children,
-  }: {
-    value?: string;
-    onValueChange?: (v: string) => void;
-    disabled?: boolean;
-    children?: React.ReactNode;
-  }) => {
-    const options: React.ReactNode[] = [];
-    React.Children.forEach(children, (child) => {
-      if (!React.isValidElement(child)) return;
-      if ((child as React.ReactElement).type !== SelectTrigger) options.push(child);
-    });
-    return (
-      <select value={value} disabled={disabled} onChange={(e) => onValueChange?.(e.target.value)}>
-        {options}
-      </select>
-    );
-  };
-  return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
-});
-
 import { ConceptEditorDialog } from './concept-editor-dialog';
 
 const ONTOLOGY = { iri: 'urn:ontology:core', label: 'Core', collection_type: 'ontology', is_editable: true } as unknown as KnowledgeCollection;
@@ -92,7 +60,7 @@ const READONLY_GLOSSARY = { iri: 'urn:glossary:ro', label: 'Read Only', collecti
 
 function renderDialog(props: Partial<React.ComponentProps<typeof ConceptEditorDialog>> = {}) {
   const onSave = vi.fn(async () => {});
-  render(
+  renderWithMantine(
     <ConceptEditorDialog
       open
       onOpenChange={vi.fn()}
@@ -115,11 +83,25 @@ async function fillAndSubmit(onSave: ReturnType<typeof vi.fn>, buttonName = 'com
   return onSave.mock.calls[0][0] as Record<string, any>;
 }
 
-// Options of the scheme picker (the first select; a property also has a
-// property-type select further down).
-function schemeOptions() {
-  const select = screen.getAllByRole('combobox')[0];
-  return Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
+// The Mantine Selects (jsdom gives them the textbox role, with a listbox popup)
+function selectFields() {
+  return screen.queryAllByRole('textbox').filter((el) => el.getAttribute('aria-haspopup') === 'listbox');
+}
+
+// The scheme picker (the first Select; a property also has a property-type
+// Select further down)
+const schemeField = () => selectFields()[0];
+
+// Options of the scheme picker. A single fitting scheme leaves the Select
+// disabled, showing that scheme: its list can't open
+async function schemeOptions() {
+  const field = schemeField() as HTMLInputElement;
+  if (field.disabled) {
+    // The field shows the chosen scheme once the editor has settled on it
+    await waitFor(() => expect(field.value).not.toBe(''));
+    return [field.value];
+  }
+  return optionNames(userEvent.setup(), field);
 }
 
 const EXISTING_CLASS = {
@@ -158,7 +140,7 @@ describe('ConceptEditorDialog header and type', () => {
     renderDialog({ collection: GLOSSARY, initialConceptType: 'term' });
     expect(screen.getByTestId('concept-type-row')).toHaveTextContent('semantic-models:types.term');
     // The only select is the (disabled, single-option) scheme picker.
-    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    expect(selectFields()).toHaveLength(1);
     expect(screen.queryByRole('option', { name: 'semantic-models:types.concept' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('mode-switch')).not.toBeInTheDocument();
   });
@@ -184,32 +166,32 @@ describe('ConceptEditorDialog header and type', () => {
 });
 
 describe('ConceptEditorDialog scheme list follows the type', () => {
-  it('term: glossaries only (editable ones), single fit is read-only', () => {
+  it('term: glossaries only (editable ones), single fit is read-only', async () => {
     renderDialog({ collection: undefined, initialConceptType: 'term', collections: [ONTOLOGY, GLOSSARY, READONLY_GLOSSARY, TAXONOMY] });
-    expect(schemeOptions()).toEqual(['Business']);
-    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(await schemeOptions()).toEqual(['Business']);
+    expect(schemeField()).toBeDisabled();
   });
 
-  it('concept: taxonomies only', () => {
+  it('concept: taxonomies only', async () => {
     renderDialog({ collection: undefined, initialConceptType: 'concept' });
-    expect(schemeOptions()).toEqual(['Regions']);
+    expect(await schemeOptions()).toEqual(['Regions']);
   });
 
-  it('class and property: ontologies only', () => {
+  it('class and property: ontologies only', async () => {
     renderDialog({ initialConceptType: 'class' });
-    expect(schemeOptions()).toEqual(['Core', 'Ext']);
-    expect(screen.getByRole('combobox')).not.toBeDisabled();
+    expect(await schemeOptions()).toEqual(['Core', 'Ext']);
+    expect(schemeField()).not.toBeDisabled();
   });
 
-  it('property: ontologies only', () => {
+  it('property: ontologies only', async () => {
     renderDialog({ initialConceptType: 'property' });
-    expect(schemeOptions()).toEqual(['Core', 'Ext']);
+    expect(await schemeOptions()).toEqual(['Core', 'Ext']);
   });
 
-  it('includes fitting schemes nested under other schemes', () => {
+  it('includes fitting schemes nested under other schemes', async () => {
     const parent = { ...TAXONOMY, child_collections: [ONTOLOGY_2] } as unknown as KnowledgeCollection;
     renderDialog({ collection: undefined, initialConceptType: 'class', collections: [parent] });
-    expect(schemeOptions()).toEqual(['Ext']);
+    expect(await schemeOptions()).toEqual(['Ext']);
   });
 
   it('preselects the first fitting scheme when the preset scheme does not fit', async () => {
@@ -221,7 +203,7 @@ describe('ConceptEditorDialog scheme list follows the type', () => {
 
   it('saves the scheme the user picks', async () => {
     const onSave = renderDialog({ initialConceptType: 'class' });
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: ONTOLOGY_2.iri } });
+    await pick(userEvent.setup(), schemeField(), 'Ext');
     const data = await fillAndSubmit(onSave);
     expect(data.collection_iri).toBe(ONTOLOGY_2.iri);
   });
@@ -232,7 +214,7 @@ describe('ConceptEditorDialog with no fitting scheme', () => {
     const onCreateScheme = vi.fn();
     renderDialog({ collection: undefined, initialConceptType: 'term', collections: [ONTOLOGY, READONLY_GLOSSARY], onCreateScheme });
     expect(screen.getByTestId('no-scheme-notice')).toHaveTextContent('Create one first.');
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(selectFields()).toHaveLength(0);
     fireEvent.change(document.getElementById('label')!, { target: { value: 'Thing' } });
     expect(screen.getByRole('button', { name: 'common:actions.create' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'New Concept Scheme' }));
@@ -362,9 +344,9 @@ describe('ConceptEditorDialog property block', () => {
 describe('ConceptEditorDialog parent picker scope', () => {
   const TAXONOMY_2 = { iri: 'urn:taxonomy:products', label: 'Products', collection_type: 'taxonomy', is_editable: true } as unknown as KnowledgeCollection;
 
-  it('taxonomy concept: scoped to the chosen scheme, no other schemes', () => {
+  it('taxonomy concept: scoped to the chosen scheme, no other schemes', async () => {
     renderDialog({ collection: TAXONOMY, collections: [ONTOLOGY, TAXONOMY, TAXONOMY_2], initialConceptType: 'concept' });
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: TAXONOMY_2.iri } });
+    await pick(userEvent.setup(), schemeField(), 'Products');
     fireEvent.click(screen.getByRole('button', { name: 'Add Parent' }));
     expect(pickerProps!.conceptTypes).toEqual(['concept']);
     expect(pickerProps!.scopeSourceKey).toBe('products');

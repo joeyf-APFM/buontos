@@ -1,18 +1,8 @@
-import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input } from '@/components/ui/input';
+import { ActionIcon, Checkbox, Menu, Popover, TextInput } from '@mantine/core';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 import {
@@ -30,7 +20,7 @@ import {
   ListFilter,
 } from 'lucide-react';
 import { usePagination, PaginationControls } from '@/components/common/paginated-list';
-import { cn } from '@/lib/utils';
+import { badgeToneStyle } from '@/components/common/aura-status';
 import type {
   OntologyConcept,
   KnowledgeCollection,
@@ -40,6 +30,8 @@ import { resolveLabel } from '@/lib/ontology-utils';
 import { systemRdfNamespaceDisplayLabel } from '@/lib/system-rdf-namespace-labels';
 import { createSchemeLookup } from '@/lib/scheme-lookup';
 import { useGlossaryPreferencesStore } from '@/stores/glossary-preferences-store';
+import { statusTone, typeTone } from './concept-tones';
+import classes from './concepts-tab.module.css';
 
 interface ConceptsTabProps {
   collections: KnowledgeCollection[];
@@ -61,8 +53,13 @@ interface ConceptsTabProps {
   // 'list' renders a flat, alphabetically-sorted list of concepts with no
   // broader/narrower nesting. Additive — the tree path is unchanged.
   viewMode?: 'list' | 'tree';
-  // Callback to open editor for a concept (list view only)
+  // Callback to open editor for a concept; no Edit button without it (the
+  // caller passes it only to a user who may write)
   onEditConcept?: (concept: OntologyConcept) => void;
+  /** Bulk selection and Set status (list view): semantic-models READ_WRITE. @default false */
+  canBulkEdit?: boolean;
+  /** Certify in Set status: semantic-models ADMIN. @default false */
+  canCertify?: boolean;
   // Called after a bulk action mutates concepts, so the parent can refetch.
   onConceptsChanged?: () => void;
 }
@@ -70,6 +67,7 @@ interface ConceptsTabProps {
 // Bulk "Set status" targets → the real lifecycle transition endpoints. Only
 // the safe, always-available forward transitions are offered here; the backend
 // still enforces VALID_TRANSITIONS and returns an error for invalid ones.
+// Certify needs semantic-models ADMIN on the backend; the others READ_WRITE.
 const BULK_STATUS_ACTIONS: { action: string; labelKey: string; defaultLabel: string }[] = [
   { action: 'submit-review', labelKey: 'semantic-models:bulk.status.submitReview', defaultLabel: 'Submit for review' },
   { action: 'approve', labelKey: 'semantic-models:bulk.status.approve', defaultLabel: 'Approve' },
@@ -84,21 +82,28 @@ const BULK_STATUS_ACTIONS: { action: string; labelKey: string; defaultLabel: str
 // "No source file" group rather than vanishing.
 const NO_FILE_KEY = '__no_file__';
 
-const typeIcons: Record<string, React.ReactNode> = {
-  concept: <Layers className="h-4 w-4 text-emerald-500 shrink-0" />,
-  class: <BookOpen className="h-4 w-4 text-blue-500 shrink-0" />,
-  property: <Zap className="h-4 w-4 text-purple-500 shrink-0" />,
-  individual: <User className="h-4 w-4 text-violet-500 shrink-0" />,
-  term: <Layers className="h-4 w-4 text-emerald-500 shrink-0" />,
+// The type's icon, in the type's tone (concepts-tab.module.css)
+const TYPE_ICONS: Record<string, typeof Layers> = {
+  concept: Layers,
+  class: BookOpen,
+  property: Zap,
+  individual: User,
+  term: Layers,
 };
 
-const typeColors: Record<string, string> = {
-  concept: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  class: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30',
-  property: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30',
-  individual: 'bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30',
-  term: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-};
+function TypeIcon({ type }: { type: string }) {
+  const Icon = TYPE_ICONS[type] || Layers;
+  return <Icon aria-hidden className={classes.typeIcon} data-type={type} />;
+}
+
+/** A concept's status or type, as a badge in its Aura tone. */
+function ToneBadge({ tone, children }: { tone: ReturnType<typeof statusTone>; children: React.ReactNode }) {
+  return (
+    <Badge variant="outline" style={badgeToneStyle(tone)}>
+      {children}
+    </Badge>
+  );
+}
 
 // Statuses that mean a concept is no longer active clutter — dim them and,
 // when they name successors, offer a "Replaced by" link. Kept broad so both
@@ -153,20 +158,6 @@ export function matchConceptSearch(
   return null;
 }
 
-const STATUS_VARIANTS: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground border-muted-foreground/20',
-  pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
-  in_review: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
-  under_review: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
-  active: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  approved: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  published: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  certified: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  deprecated: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
-  archived: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30',
-  retired: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30',
-};
-
 // Per-concept mapping status, from POST /api/semantic-links/mapping-status.
 // Whether a concept links to a physical Asset, a data Product, and/or a data
 // Contract. The three are independent (a concept can link to several), so they
@@ -197,7 +188,7 @@ function mappingLabel(
   return { text: t('semantic-models:mapping.none', 'Not mapped'), none: true };
 }
 
-export const ConceptsTab: React.FC<ConceptsTabProps> = ({
+export function ConceptsTab({
   collections,
   groupedConcepts: _groupedConcepts,
   filteredConcepts,
@@ -210,8 +201,10 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
   selectedLanguage,
   viewMode = 'tree',
   onEditConcept,
+  canBulkEdit = false,
+  canCertify = false,
   onConceptsChanged,
-}) => {
+}: ConceptsTabProps) {
   const { t } = useTranslation(['semantic-models', 'common']);
   const { toast } = useToast();
   const expandedGroups = useGlossaryPreferencesStore((s) => s.expandedConceptGroups);
@@ -223,6 +216,7 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
   const setSearchQuery = useGlossaryPreferencesStore((s) => s.setConceptListSearch);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const statusGroupId = useId();
 
   // Bulk-select state (list view only). Tracks selected concept IRIs; a light
   // bulk-action bar appears when any are selected. Selection is component-local
@@ -656,23 +650,22 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
     const successors = successorsByIri[concept.iri];
     if (!successors || successors.length === 0) return null;
     const primary = successors[0];
+    const text = t('semantic-models:versionHistory.replacedBy', 'Replaced by {{label}}', {
+      label: labelForIri(primary),
+    });
     return (
       <button
         type="button"
-        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline shrink-0"
-        title={t('semantic-models:versionHistory.replacedBy', 'Replaced by {{label}}', {
-          label: labelForIri(primary),
-        })}
+        className={classes.replacedBy}
+        title={text}
         onClick={(e) => {
           e.stopPropagation();
           const target = treeData.conceptMap.get(primary) || filteredConcepts.find((c) => c.iri === primary);
           if (target) onSelectConcept(target);
         }}
       >
-        <ArrowRight className="h-3 w-3" />
-        {t('semantic-models:versionHistory.replacedBy', 'Replaced by {{label}}', {
-          label: labelForIri(primary),
-        })}
+        <ArrowRight aria-hidden />
+        <span className={classes.truncate}>{text}</span>
       </button>
     );
   };
@@ -732,13 +725,6 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
       }
     }
 
-    const getConceptIcon = () => {
-      if (isSourceGroup) {
-        return <FolderTree className="h-4 w-4 shrink-0 text-orange-500" />;
-      }
-      return typeIcons[concept?.concept_type || 'concept'] || <Layers className="h-4 w-4 shrink-0" />;
-    };
-
     const displayName = isFileGroup
       // A file group's title IS the filename verbatim (no namespace
       // prettifying — it's a literal file). The sentinel renders as a muted
@@ -751,6 +737,7 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
         : (concept ? conceptLabel(concept) : itemId);
 
     const collectionLabel = concept?.source_context ? schemeLabel(concept.source_context) : null;
+    const groupFile = isSourceGroup ? sourceGroupFile.get(itemId) : null;
 
     return (
       <div key={itemId}>
@@ -758,15 +745,12 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
           role={isSourceGroup ? 'button' : 'link'}
           tabIndex={0}
           data-testid={isSourceGroup ? `concept-group-${itemId}` : `concept-row-${itemId}`}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer w-full text-left",
-            "hover:bg-accent hover:text-accent-foreground transition-colors",
-            isSelected && !isSourceGroup && "bg-primary/10 text-primary",
-            isSourceGroup && "font-semibold bg-muted/40",
-            // Dim inactive concepts (deprecated/superseded/retired) so they
-            // don't read as active clutter. Hover restores full opacity.
-            !isSourceGroup && isInactiveStatus(concept?.status) && "opacity-60 hover:opacity-100",
-          )}
+          className={classes.treeRow}
+          data-group={isSourceGroup || undefined}
+          data-selected={(isSelected && !isSourceGroup) || undefined}
+          // Dim inactive concepts (deprecated/superseded/retired) so they
+          // don't read as active clutter. Hover restores full opacity.
+          data-inactive={(!isSourceGroup && isInactiveStatus(concept?.status)) || undefined}
           style={{ paddingLeft: `${level * 12 + 8}px` }}
           onClick={() => {
             if (!isSourceGroup && concept) {
@@ -786,50 +770,43 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
             }
           }}
         >
-          <div className="flex items-center w-5 justify-center shrink-0">
+          <div className={classes.toggleSlot}>
             {hasChildren && (
               <button
                 type="button"
-                aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                className="p-0.5 hover:bg-muted rounded"
+                aria-label={
+                  isExpanded
+                    ? t('semantic-models:collectionTree.collapse', { defaultValue: 'Collapse {{name}}', name: displayName })
+                    : t('semantic-models:collectionTree.expand', { defaultValue: 'Expand {{name}}', name: displayName })
+                }
+                aria-expanded={isExpanded}
+                className={classes.toggle}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleConceptGroup(itemId);
                 }}
               >
-                {isExpanded ? (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-                )}
+                {isExpanded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
               </button>
             )}
           </div>
 
-          {getConceptIcon()}
+          {isSourceGroup ? <FolderTree aria-hidden className={classes.groupIcon} /> : <TypeIcon type={concept?.concept_type || 'concept'} />}
 
-          {isSourceGroup && sourceGroupFile.get(itemId) ? (
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-sm font-medium" title={displayName}>
+          {groupFile ? (
+            <span className={classes.nameStack}>
+              <span className={`${classes.name} ${classes.truncate}`} title={displayName}>
                 {displayName}
               </span>
-              <span
-                className="truncate text-[10px] font-normal text-muted-foreground"
-                title={sourceGroupFile.get(itemId) as string}
-              >
-                {t('semantic-models:columns.fromFile', 'from {{file}}', {
-                  file: sourceGroupFile.get(itemId) as string,
-                })}
+              <span className={`${classes.sub} ${classes.truncate}`} title={groupFile}>
+                {t('semantic-models:columns.fromFile', 'from {{file}}', { file: groupFile })}
               </span>
             </span>
           ) : (
             <span
-              className={cn(
-                'truncate text-sm font-medium',
-                // The "No source file" sentinel group reads as an absence, so
-                // render it muted/italic to set it apart from real filenames.
-                isFileGroup && itemId === NO_FILE_KEY && 'italic text-muted-foreground',
-              )}
+              className={`${classes.name} ${classes.truncate}`}
+              // The "No source file" sentinel group reads as an absence
+              data-absent={(isFileGroup && itemId === NO_FILE_KEY) || undefined}
               title={displayName}
             >
               {displayName}
@@ -838,49 +815,37 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
 
           {/* Right-side metadata: type, collection, status, property hints */}
           {!isSourceGroup && concept && (
-            <div className="ml-auto flex items-center gap-2 shrink-0 pl-2">
+            <div className={classes.meta}>
               {concept.concept_type === 'property' && (concept.domain || concept.range) && (
-                <span
-                  className="hidden md:inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground font-mono truncate max-w-[260px]"
-                  title={`${concept.domain || '?'} → ${concept.range || '?'}`}
-                >
+                <span className={classes.domainRange} title={`${concept.domain || '?'} → ${concept.range || '?'}`}>
                   {(concept.domain ? concept.domain.split(/[/#]/).pop() : '?')}
-                  <span className="opacity-60">→</span>
+                  <span aria-hidden className={classes.arrow}>→</span>
                   {(concept.range ? concept.range.split(/[/#]/).pop() : '?')}
                 </span>
               )}
               {collectionLabel && (
-                <Badge
-                  variant="outline"
-                  className="hidden lg:inline-flex text-[10px] font-normal max-w-[200px] truncate border-muted-foreground/20"
-                  title={collectionLabel}
-                >
-                  {collectionLabel}
-                </Badge>
+                <span className={classes.schemeBadge}>
+                  <Badge variant="outline" title={collectionLabel}>
+                    <span className={classes.truncate}>{collectionLabel}</span>
+                  </Badge>
+                </span>
               )}
-              <Badge
-                variant="outline"
-                className={cn('text-[10px] font-medium', typeColors[concept.concept_type] || '')}
-              >
+              <ToneBadge tone={typeTone(concept.concept_type)}>
                 {t(`semantic-models:types.${concept.concept_type}`)}
-              </Badge>
+              </ToneBadge>
               {concept.status && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'hidden sm:inline-flex text-[10px] font-medium',
-                    STATUS_VARIANTS[concept.status] || '',
-                  )}
-                >
-                  {t(`semantic-models:status.${concept.status}`, concept.status)}
-                </Badge>
+                <span className={classes.statusBadge}>
+                  <ToneBadge tone={statusTone(concept.status)}>
+                    {t(`semantic-models:status.${concept.status}`, concept.status)}
+                  </ToneBadge>
+                </span>
               )}
               {renderReplacedBy(concept)}
               {onEditConcept && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                <ActionIcon
+                  variant="subtle"
+                  size={24}
+                  className={classes.edit}
                   aria-label={t('common:actions.edit')}
                   title={t('common:actions.edit')}
                   onClick={(e) => {
@@ -888,21 +853,21 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
                     onEditConcept(concept);
                   }}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
+                  <Pencil aria-hidden size={14} />
+                </ActionIcon>
               )}
             </div>
           )}
 
           {isSourceGroup && (
-            <Badge variant="secondary" className="text-xs ml-auto">
-              {children.length}
-            </Badge>
+            <span className={classes.count}>
+              <Badge variant="secondary">{children.length}</Badge>
+            </span>
           )}
         </div>
 
         {hasChildren && isExpanded && (
-          <div className="ml-2">
+          <div className={classes.children}>
             {children.map(childId => renderTreeItem(childId, level + 1))}
           </div>
         )}
@@ -910,12 +875,19 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
     );
   };
 
-  // Grid column template shared by the list header and list rows so cells align.
-  // checkbox | name+definition | Kind | Scheme | Mapping | Status | edit
-  // Name is capped (minmax with a max) and Scheme/Mapping get flexible shares so
-  // on wide screens the columns spread out instead of clustering on the right.
-  const LIST_GRID =
-    'grid grid-cols-[28px_minmax(220px,1.6fr)_110px_minmax(120px,1fr)_minmax(120px,0.8fr)_110px_40px] gap-4 items-center';
+  // Grid columns shared by the list header and its rows, so cells align:
+  // checkbox | name+definition | Kind | Scheme | Mapping | Status | edit.
+  // The checkbox and edit columns are there only for a user who may use them.
+  const listColumns = [
+    canBulkEdit ? '28px' : null,
+    'minmax(220px, 1.6fr)',
+    '110px',
+    'minmax(120px, 1fr)',
+    'minmax(120px, 0.8fr)',
+    '110px',
+    onEditConcept ? '40px' : null,
+  ].filter(Boolean).join(' ');
+  const gridStyle = { gridTemplateColumns: listColumns };
 
   // Render one flat LIST row: a real table row with columns, a bulk-select
   // checkbox, and an inline edit pencil. Distinct from renderTreeItem so the
@@ -932,96 +904,86 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
       <div
         key={concept.iri}
         data-testid={`concept-row-${concept.iri}`}
-        className={cn(
-          LIST_GRID,
-          'px-3 py-2 border-b last:border-b-0 cursor-pointer transition-colors',
-          checked ? 'bg-sky-500/[0.08]' : 'hover:bg-accent',
-          // Dim inactive concepts (deprecated/superseded/retired); hover restores.
-          isInactiveStatus(concept.status) && !checked && 'opacity-60 hover:opacity-100',
-        )}
+        className={classes.listRow}
+        style={gridStyle}
+        data-checked={checked || undefined}
+        // Dim inactive concepts (deprecated/superseded/retired); hover restores.
+        data-inactive={(isInactiveStatus(concept.status) && !checked) || undefined}
         onClick={() => handleSelect(concept)}
       >
-        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
-          <Checkbox
-            checked={checked}
-            onCheckedChange={() => toggleRowSelect(concept.iri)}
-            aria-label={t('common:actions.select', 'Select')}
-          />
-        </div>
+        {canBulkEdit && (
+          <div onClick={(e) => e.stopPropagation()} className={classes.cellCenter}>
+            <Checkbox
+              size="xs"
+              checked={checked}
+              onChange={() => toggleRowSelect(concept.iri)}
+              aria-label={t('common:actions.select', 'Select')}
+            />
+          </div>
+        )}
 
-        <div className="flex items-center gap-2 min-w-0">
-          {typeIcons[concept.concept_type] || typeIcons.concept}
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="truncate text-sm font-medium" title={label}>{label}</span>
+        <div className={classes.nameCell}>
+          <TypeIcon type={concept.concept_type} />
+          <div className={classes.nameStack}>
+            <div className={classes.nameLine}>
+              <span className={`${classes.name} ${classes.truncate}`} title={label}>{label}</span>
               {viaLang && (
-                <span
-                  className="shrink-0 text-[10px] text-muted-foreground"
-                  data-testid={`concept-match-lang-${concept.iri}`}
-                >
+                <span className={classes.sub} data-testid={`concept-match-lang-${concept.iri}`}>
                   {t('semantic-models:search.matchedLanguage', 'matched: {{lang}}', { lang: viaLang })}
                 </span>
               )}
             </div>
             {definition && (
-              <div className="truncate text-xs text-muted-foreground" title={definition}>
+              <div className={`${classes.definition} ${classes.truncate}`} title={definition}>
                 {definition}
               </div>
             )}
             {/* Raw IRI is the ontology layer — shown only in Advanced view. */}
-            <div className="adv-only truncate text-[10px] font-mono text-muted-foreground/80" title={concept.iri}>
+            <div className={`adv-only ${classes.iri} ${classes.truncate}`} title={concept.iri}>
               {concept.iri}
             </div>
           </div>
         </div>
 
-        <span className="text-xs text-muted-foreground truncate">
+        <span className={`${classes.secondary} ${classes.truncate}`}>
           {t(`semantic-models:types.${concept.concept_type}`)}
         </span>
 
-        <span className="text-sm truncate" title={collectionLabel}>{collectionLabel}</span>
+        <span className={classes.truncate} title={collectionLabel}>{collectionLabel}</span>
 
-        <span
-          className={cn(
-            'text-sm truncate',
-            map?.none && 'text-amber-700 dark:text-amber-400',
-          )}
-        >
-          {map ? map.text : <span className="text-muted-foreground">—</span>}
+        <span className={classes.truncate} data-unmapped={map?.none || undefined}>
+          {map ? map.text : <span className={classes.secondary}>—</span>}
         </span>
 
-        <span className="min-w-0 flex flex-col items-start gap-0.5">
+        <span className={classes.statusCell}>
           {concept.concept_type === 'property' ? (
-            <span className="text-muted-foreground">—</span>
+            <span className={classes.secondary}>—</span>
           ) : (
             <>
               {concept.status && (
-                <Badge
-                  variant="outline"
-                  className={cn('text-[10px] font-medium', STATUS_VARIANTS[concept.status] || '')}
-                >
+                <ToneBadge tone={statusTone(concept.status)}>
                   {t(`semantic-models:status.${concept.status}`, concept.status)}
-                </Badge>
+                </ToneBadge>
               )}
               {renderReplacedBy(concept)}
             </>
           )}
         </span>
 
-        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-          {onEditConcept && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+        {onEditConcept && (
+          <div className={classes.cellCenter} onClick={(e) => e.stopPropagation()}>
+            <ActionIcon
+              variant="subtle"
+              size={26}
+              className={classes.edit}
               aria-label={t('common:actions.edit')}
               title={t('common:actions.edit')}
               onClick={() => onEditConcept(concept)}
             >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
+              <Pencil aria-hidden size={14} />
+            </ActionIcon>
+          </div>
+        )}
       </div>
     );
   };
@@ -1031,119 +993,111 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
 
   // Column header row for the list. Labels live here so cells stay quiet text.
   const listHeader = (
-    <div
-      className={cn(
-        LIST_GRID,
-        'px-3 py-2 border-b bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sticky top-0 z-10',
+    <div className={classes.listHeader} style={gridStyle}>
+      {canBulkEdit && (
+        <div onClick={(e) => e.stopPropagation()} className={classes.cellCenter}>
+          <Checkbox
+            size="xs"
+            checked={allVisibleSelected}
+            onChange={(e) => {
+              // Select (or deselect) all visible rows on the current page
+              const newSelected = new Set(selectedIris);
+              if (e.currentTarget.checked) pagedFlatConcepts.forEach((c) => newSelected.add(c.iri));
+              else pagedFlatConcepts.forEach((c) => newSelected.delete(c.iri));
+              setSelectedIris(newSelected);
+            }}
+            aria-label={t('semantic-models:bulk.selectAll', 'Select all')}
+          />
+        </div>
       )}
-    >
-      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
-        <Checkbox
-          checked={allVisibleSelected}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              // Select all visible rows on the current page
-              const newSelected = new Set(selectedIris);
-              pagedFlatConcepts.forEach((c) => newSelected.add(c.iri));
-              setSelectedIris(newSelected);
-            } else {
-              // Deselect all visible rows on the current page
-              const newSelected = new Set(selectedIris);
-              pagedFlatConcepts.forEach((c) => newSelected.delete(c.iri));
-              setSelectedIris(newSelected);
-            }
-          }}
-          aria-label={t('semantic-models:bulk.selectAll', 'Select all')}
-        />
-      </div>
       <span>{t('semantic-models:columns.name', 'Name')}</span>
       <span>{t('semantic-models:columns.kind', 'Kind')}</span>
       <span>{t('semantic-models:columns.scheme', 'Scheme')}</span>
       <span>{t('semantic-models:columns.mapping', 'Mapping')}</span>
       <span>{t('semantic-models:columns.status', 'Status')}</span>
-      <span />
+      {onEditConcept && <span />}
     </div>
   );
 
   // Light bulk-action bar, shown when any rows are selected (list view only).
-  const bulkBar = selectedIris.size > 0 && (
-    <div className="flex items-center gap-3 px-3 py-2 mb-2 rounded-md border border-sky-500/30 bg-sky-500/[0.08] text-sm">
-      <b className="font-semibold">
+  const bulkBar = canBulkEdit && selectedIris.size > 0 && (
+    <div className={classes.bulkBar}>
+      <b className={classes.bulkCount}>
         {t('semantic-models:bulk.selected', '{{count}} selected', { count: selectedIris.size })}
       </b>
-      <div className="ml-auto flex items-center gap-2">
+      <div className={classes.bulkActions}>
         {/* Set status: real lifecycle transitions across the selection. The
             backend enforces which transitions are valid per concept. */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7" disabled={bulkBusy}>
+        <Menu position="bottom-end" withinPortal>
+          <Menu.Target>
+            <Button variant="outline" size="sm" disabled={bulkBusy}>
               {t('semantic-models:bulk.setStatus', 'Set status')}
-              <ChevronDown className="h-3.5 w-3.5 ml-1" />
+              <ChevronDown aria-hidden />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {BULK_STATUS_ACTIONS.map((a) => {
+          </Menu.Target>
+          <Menu.Dropdown>
+            {BULK_STATUS_ACTIONS.filter((a) => a.action !== 'certify' || canCertify).map((a) => {
               const label = t(a.labelKey, a.defaultLabel);
               return (
-                <DropdownMenuItem key={a.action} onClick={() => runBulkStatus(a.action, label)}>
+                <Menu.Item key={a.action} onClick={() => runBulkStatus(a.action, label)}>
                   {label}
-                </DropdownMenuItem>
+                </Menu.Item>
               );
             })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
+          </Menu.Dropdown>
+        </Menu>
+        <ActionIcon
+          variant="subtle"
+          size={26}
           aria-label={t('common:actions.clear', 'Clear')}
+          title={t('common:actions.clear', 'Clear')}
           onClick={() => setSelectedIris(new Set())}
         >
-          <X className="h-4 w-4" />
-        </Button>
+          <X aria-hidden size={14} />
+        </ActionIcon>
       </div>
     </div>
   );
 
-  // List-scoped Status filter (list view only). A checkbox menu over the
+  // List-scoped Status filter (list view only). A checkbox list over the
   // statuses actually present; unchecked = hidden. Retired + archived are
   // hidden by default (see hiddenStatuses init). Shows a small count badge when
   // any status is hidden so the filtered-down state is legible.
   const hiddenPresentCount = presentStatuses.filter((s) => hiddenStatuses.has(s)).length;
   const statusFilterBar = presentStatuses.length > 0 && (
-    <div className="flex items-center gap-2 px-3 py-2 mb-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-7">
-            <ListFilter className="h-3.5 w-3.5 mr-1.5" />
+    <div className={classes.statusBar}>
+      <Popover position="bottom-start" withinPortal shadow="md">
+        <Popover.Target>
+          <Button variant="outline" size="sm">
+            <ListFilter aria-hidden />
             {t('semantic-models:filters.status', 'Status')}
             {hiddenPresentCount > 0 && (
-              <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
+              <Badge variant="secondary">
                 {presentStatuses.length - hiddenPresentCount}/{presentStatuses.length}
               </Badge>
             )}
-            <ChevronDown className="h-3.5 w-3.5 ml-1" />
+            <ChevronDown aria-hidden />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuLabel>
-            {t('semantic-models:filters.showStatuses', 'Show statuses')}
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {presentStatuses.map((status) => (
-            <DropdownMenuCheckboxItem
-              key={status}
-              checked={!hiddenStatuses.has(status)}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={() => toggleStatusHidden(status)}
-            >
-              {t(`semantic-models:status.${status}`, status)}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </Popover.Target>
+        <Popover.Dropdown className={classes.statusDropdown}>
+          <div role="group" aria-labelledby={statusGroupId} className={classes.statusOptions}>
+            <span id={statusGroupId} className={classes.statusLabel}>
+              {t('semantic-models:filters.showStatuses', 'Show statuses')}
+            </span>
+            {presentStatuses.map((status) => (
+              <Checkbox
+                key={status}
+                size="xs"
+                label={t(`semantic-models:status.${status}`, status)}
+                checked={!hiddenStatuses.has(status)}
+                onChange={() => toggleStatusHidden(status)}
+              />
+            ))}
+          </div>
+        </Popover.Dropdown>
+      </Popover>
       {hiddenPresentCount > 0 && (
-        <span className="text-[11px] text-muted-foreground">
+        <span className={classes.secondary}>
           {t('semantic-models:filters.statusHiddenNote', '{{count}} hidden', {
             count: hiddenPresentCount,
           })}
@@ -1152,23 +1106,30 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
     </div>
   );
 
+  const noConcepts = (
+    <div className={classes.empty}>
+      <Layers aria-hidden />
+      <p>{t('semantic-models:messages.noConceptsFound')}</p>
+    </div>
+  );
+  const searchLabel = t('common:placeholders.searchConceptsAndTerms');
+
   return (
-    <div className="border rounded-lg flex flex-col bg-card overflow-hidden max-h-[calc(100vh-260px)]">
-      <div className="p-2 border-b flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('common:placeholders.searchConceptsAndTerms')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+    <div className={classes.root}>
+      <div className={classes.toolbar}>
+        <TextInput
+          className={classes.search}
+          leftSection={<Search aria-hidden size={14} />}
+          placeholder={searchLabel}
+          aria-label={searchLabel}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+        />
       </div>
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 min-h-0 overflow-auto"
+        className={classes.scroll}
         onScroll={(e) => {
           const target = e.currentTarget;
           // Throttle via rAF; this is simple and good enough for a tree.
@@ -1179,7 +1140,7 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
           }
         }}
       >
-        <div className={cn('p-2', viewMode === 'list' ? 'min-w-[760px]' : 'min-w-max')}>
+        <div className={classes.body} data-view={viewMode}>
           {viewMode === 'list' ? (
             <>
               {bulkBar}
@@ -1202,19 +1163,18 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
                       : schemeLabel(groupKey);
                     return (
                       <div key={`flat-group-${groupKey}`}>
-                        <div className="flex items-center gap-2 px-3 py-1.5 font-semibold bg-muted/40 border-b">
-                          <FolderTree className="h-4 w-4 shrink-0 text-orange-500" />
+                        <div className={classes.groupHeader}>
+                          <FolderTree aria-hidden className={classes.groupIcon} />
                           <span
-                            className={cn(
-                              'truncate text-sm',
-                              groupByFile && groupKey === NO_FILE_KEY && 'italic text-muted-foreground',
-                            )}
+                            className={`${classes.name} ${classes.truncate}`}
+                            data-absent={(groupByFile && groupKey === NO_FILE_KEY) || undefined}
+                            title={groupLabel}
                           >
                             {groupLabel}
                           </span>
-                          <Badge variant="secondary" className="text-xs ml-auto">
-                            {rows.length}
-                          </Badge>
+                          <span className={classes.count}>
+                            <Badge variant="secondary">{rows.length}</Badge>
+                          </span>
                         </div>
                         {rows.map(c => renderListRow(c))}
                       </div>
@@ -1222,15 +1182,10 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
                   })
                 : pagedFlatConcepts.map(c => renderListRow(c))}
 
-              {visibleFlatConcepts.length === 0 && (
-                <div className="text-center text-muted-foreground py-12">
-                  <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>{t('semantic-models:messages.noConceptsFound')}</p>
-                </div>
-              )}
+              {visibleFlatConcepts.length === 0 && noConcepts}
 
               {visibleFlatConcepts.length > 0 && (
-                <div className="px-3 py-2">
+                <div className={classes.pager}>
                   <PaginationControls
                     page={listPage}
                     pageCount={listPageCount}
@@ -1244,17 +1199,11 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({
           ) : (
             <>
               {rootConcepts.map(id => renderTreeItem(id, 0))}
-
-              {rootConcepts.length === 0 && (
-                <div className="text-center text-muted-foreground py-12">
-                  <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>{t('semantic-models:messages.noConceptsFound')}</p>
-                </div>
-              )}
+              {rootConcepts.length === 0 && noConcepts}
             </>
           )}
         </div>
       </div>
     </div>
   );
-};
+}

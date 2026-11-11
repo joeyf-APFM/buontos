@@ -429,7 +429,10 @@
     "selectSuperclass": "Select Superclass",
     "selectParentConcept": "Select Parent Concept",
     "searchClasses": "Search classes...",
-    "searchConceptsInScheme": "Search concepts in this scheme..."
+    "searchConceptsInScheme": "Search concepts in this scheme...",
+    "removeValue": "Remove {{name}}",
+    "addSynonym": "Add synonym",
+    "addExample": "Add example"
   },
   "collectionEditor": {
     "editTitle": "Edit Scheme",
@@ -633,7 +636,10 @@
   "explore": {
     "emptyTitle": "Nothing to explore yet",
     "emptyBody": "Import files or create concepts on the Define page.",
-    "emptyCta": "Go to Define"
+    "emptyCta": "Go to Define",
+    "conceptsPane": "Concepts",
+    "filtersPane": "Filters",
+    "loadFailed": "Could not load the concepts."
   },
   "define": {
     "requiresWrite": "Requires write access",

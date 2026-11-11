@@ -42,9 +42,11 @@ type Props = {
    */
   flush?: boolean;
   /**
-   * The user may write on the host page: shows Add, Edit and Delete. Off by
-   * default, so a caller that doesn't say gets a read-only panel. Each caller
-   * passes its page's write permission.
+   * The user may write here: shows Add, Edit and Delete. Off by default, so
+   * a caller that doesn't say gets a read-only panel. A caller passes its host
+   * page's write permission AND data-domains READ_WRITE, because the quality
+   * routes check data-domains (quality_routes.py), whatever page hosts the
+   * panel (ruling R45).
    */
   canEdit?: boolean;
 };

@@ -1,0 +1,458 @@
+/*
+ * Explore's List and Tree (concepts-tab.tsx) on Mantine, wave 2 Task 13a,
+ * inside the views pane (views/explore.tsx): the search over a scrolling
+ * body. The list is a grid of 28px+ rows under a header row, with the bulk
+ * bar and the Status filter above it; the tree is indented rows. Long names
+ * end in an ellipsis, with the full text in their title.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* The list scrolls inside the pane, not the page */
+  max-height: max(360px, calc(100vh - 300px));
+}
+
+.toolbar {
+  flex: none;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.search {
+  width: 100%;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.body {
+  padding: 6px 8px;
+}
+
+/* The list keeps its columns readable and scrolls sideways inside the pane */
+.body[data-view='list'] {
+  min-width: 760px;
+}
+
+.truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.secondary {
+  color: var(--aura-text-secondary);
+}
+
+/* The type icon, in the type's tone (concept-tones.ts) */
+.typeIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+.typeIcon[data-type='concept'],
+.typeIcon[data-type='term'] {
+  color: #0f6144;
+}
+
+.typeIcon[data-type='class'] {
+  color: var(--aura-info);
+}
+
+.typeIcon[data-type='property'] {
+  color: var(--aura-accent);
+}
+
+.typeIcon[data-type='individual'] {
+  color: #0c566e;
+}
+
+.groupIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-warning);
+}
+
+.name {
+  font-weight: 500;
+  color: var(--aura-text-body);
+}
+
+.name[data-absent] {
+  font-style: italic;
+  color: var(--aura-text-secondary);
+}
+
+.nameStack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sub {
+  flex: none;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--aura-text-secondary);
+}
+
+.nameStack > .sub {
+  flex: initial;
+}
+
+.definition {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The raw IRI: an identifier, in mono */
+.iri {
+  font-family: var(--aura-font-mono);
+  font-size: 10px;
+  color: var(--aura-text-muted);
+}
+
+/* Tree rows */
+.treeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 6px 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.treeRow:hover {
+  background: var(--aura-surface-strong);
+}
+
+.treeRow:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.treeRow[data-selected] {
+  background: var(--aura-accent-subtle);
+  color: var(--aura-accent-pressed);
+}
+
+.treeRow[data-group] {
+  font-weight: 600;
+  background: var(--aura-surface-strong);
+}
+
+.treeRow[data-inactive],
+.listRow[data-inactive] {
+  opacity: 0.6;
+}
+
+.treeRow[data-inactive]:hover,
+.listRow[data-inactive]:hover {
+  opacity: 1;
+}
+
+.treeRow > .name,
+.treeRow > .nameStack {
+  flex: 0 1 auto;
+}
+
+.toggleSlot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--aura-border);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 0;
+}
+
+.toggle > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.children {
+  margin-left: 8px;
+}
+
+/* The row's metadata at its end: it keeps its size, the name gives way */
+.meta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.domainRange {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  overflow: hidden;
+  font-family: var(--aura-font-mono);
+  font-size: 10px;
+  color: var(--aura-text-secondary);
+}
+
+.arrow {
+  opacity: 0.6;
+}
+
+.schemeBadge {
+  display: inline-flex;
+  max-width: 200px;
+  min-width: 0;
+}
+
+.schemeBadge > * {
+  max-width: 100%;
+}
+
+/* A narrow pane keeps the badges that matter */
+@media (max-width: 1023.98px) {
+  .schemeBadge,
+  .domainRange {
+    display: none;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .statusBadge {
+    display: none;
+  }
+}
+
+.count {
+  flex: none;
+  margin-left: auto;
+}
+
+.edit {
+  color: var(--aura-text-secondary);
+}
+
+.edit:hover {
+  color: var(--aura-text-body);
+}
+
+.edit > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.replacedBy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 10px;
+  color: var(--aura-accent);
+  cursor: pointer;
+}
+
+.replacedBy:hover {
+  text-decoration: underline;
+}
+
+.replacedBy:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.replacedBy > svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+/* The list: a header row and rows on one grid (columns set inline) */
+.listHeader,
+.listRow {
+  display: grid;
+  gap: 16px;
+  align-items: center;
+  padding: 4px 12px;
+}
+
+.listHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 28px;
+  border-bottom: 1px solid var(--aura-border);
+  background: var(--aura-surface-strong);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+}
+
+.listRow {
+  min-height: 28px;
+  border-bottom: 1px solid var(--aura-border);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.listRow:last-child {
+  border-bottom: 0;
+}
+
+.listRow:hover {
+  background: var(--aura-surface-strong);
+}
+
+.listRow[data-checked] {
+  background: var(--aura-accent-subtle);
+}
+
+.cellCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+[data-unmapped] {
+  color: var(--aura-text-body);
+}
+
+.statusCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--aura-border);
+  background: var(--aura-surface-strong);
+  font-weight: 600;
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--aura-accent-subtle);
+  border-radius: 4px;
+  background: var(--aura-accent-subtle);
+}
+
+.bulkCount {
+  font-weight: 600;
+}
+
+.bulkActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 6px;
+}
+
+.statusDropdown {
+  padding: 8px 10px;
+}
+
+.statusOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statusLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+}
+
+.pager {
+  padding: 6px 12px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 0;
+  color: var(--aura-text-secondary);
+}
+
+.empty > svg {
+  width: 28px;
+  height: 28px;
+  opacity: 0.5;
+}
+
+.empty > p {
+  margin: 0;
+}

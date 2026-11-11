@@ -31,9 +31,11 @@ interface Props {
    */
   flush?: boolean;
   /**
-   * The user may write on the host page: shows the add, attach, edit and
-   * delete controls. Off by default, so a caller that doesn't say gets a
-   * read-only panel. Each caller passes its page's write permission.
+   * The user may write here: shows the add, attach, edit and delete
+   * controls. Off by default, so a caller that doesn't say gets a read-only
+   * panel. A caller passes its host page's write permission AND data-domains
+   * READ_WRITE, because the metadata routes check data-domains
+   * (metadata_routes.py), whatever page hosts the panel (ruling R45).
    */
   canEdit?: boolean;
 }

@@ -295,7 +295,10 @@
     "selectSuperclass": "Oberklasse auswählen",
     "selectParentConcept": "Übergeordnetes Konzept auswählen",
     "searchClasses": "Klassen suchen...",
-    "searchConceptsInScheme": "Konzepte in diesem Konzeptschema suchen..."
+    "searchConceptsInScheme": "Konzepte in diesem Konzeptschema suchen...",
+    "removeValue": "{{name}} entfernen",
+    "addSynonym": "Synonym hinzufügen",
+    "addExample": "Beispiel hinzufügen"
   },
   "collectionEditor": {
     "editTitle": "Konzeptschema bearbeiten",
@@ -499,7 +502,10 @@
   "explore": {
     "emptyTitle": "Noch nichts zu entdecken",
     "emptyBody": "Importieren Sie Dateien oder erstellen Sie Konzepte auf dem Tab „Define“.",
-    "emptyCta": "Zu Define wechseln"
+    "emptyCta": "Zu Define wechseln",
+    "conceptsPane": "Konzepte",
+    "filtersPane": "Filter",
+    "loadFailed": "Die Konzepte konnten nicht geladen werden."
   },
   "define": {
     "requiresWrite": "Schreibzugriff erforderlich",

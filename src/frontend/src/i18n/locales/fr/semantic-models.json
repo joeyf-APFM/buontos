@@ -295,7 +295,10 @@
     "selectSuperclass": "Sélectionner une super-classe",
     "selectParentConcept": "Sélectionner un concept parent",
     "searchClasses": "Rechercher des classes...",
-    "searchConceptsInScheme": "Rechercher des concepts dans ce schéma de concepts..."
+    "searchConceptsInScheme": "Rechercher des concepts dans ce schéma de concepts...",
+    "removeValue": "Retirer {{name}}",
+    "addSynonym": "Ajouter un synonyme",
+    "addExample": "Ajouter un exemple"
   },
   "collectionEditor": {
     "editTitle": "Modifier le schéma de concepts",
@@ -499,7 +502,10 @@
   "explore": {
     "emptyTitle": "Rien à explorer pour l'instant",
     "emptyBody": "Importez des fichiers ou créez des concepts dans l'onglet Define.",
-    "emptyCta": "Aller à Define"
+    "emptyCta": "Aller à Define",
+    "conceptsPane": "Concepts",
+    "filtersPane": "Filtres",
+    "loadFailed": "Impossible de charger les concepts."
   },
   "define": {
     "requiresWrite": "Nécessite un accès en écriture",

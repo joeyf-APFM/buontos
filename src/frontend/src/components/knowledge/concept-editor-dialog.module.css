@@ -1,0 +1,132 @@
+/*
+ * The concept editor (concept-editor-dialog.tsx) on the kit Dialog, wave 2
+ * Task 13a: the shared dialog form (components/common/dialog-form.module.css)
+ * with the editor's own parts: chips with a remove button, an input with its
+ * Add button, the examples list and the footer's entry actions.
+ */
+
+/* A labelled block of chips and its Add button */
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 6px;
+}
+
+/* A long value is truncated, with its full text in the title */
+.chip {
+  max-width: 100%;
+  gap: 4px;
+}
+
+.remove {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--aura-critical);
+}
+
+.remove:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.remove > svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* An input and its Add button */
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.addInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.example {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+.exampleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The no-fitting-scheme notice: its text, then New Concept Scheme */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px dashed var(--aura-border-strong);
+  border-radius: 4px;
+}
+
+/* A Property Type option: its name over its meaning */
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: normal;
+}
+
+.optionHint {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.certified {
+  color: var(--aura-accent);
+}
+
+/* History, Submit for Review and Promote, at the start of the footer row */
+.footerStart {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-right: auto;
+}

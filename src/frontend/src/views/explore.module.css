@@ -1,0 +1,78 @@
+/*
+ * Explore (/concepts/browser) on the page kit (wave 2 Task 13a), inside the
+ * Concepts layout, which keeps the shell's padding: the kit header with
+ * SPARQL and Create, its description, then a stack of panes: the SPARQL
+ * search (Advanced), the filters (components/knowledge/glossary-filter-panel)
+ * and the views, List / Tree / Graph, in one flush pane.
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The SPARQL search keeps room for its results */
+.sparql {
+  min-height: 420px;
+  min-width: 0;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert {
+  composes: alert from '../components/common/list-page.module.css';
+  align-self: stretch;
+}
+
+/* A failed load: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* No concepts at all yet: a centred note and the way to Define */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.emptyBody {
+  margin: 0;
+}
+
+/* The view tabs, ruled off from the view under them across the pane
+   (doubled to outrank the kit's inline-flex list) */
+.tabs.tabs {
+  display: flex;
+  padding: 0 6px;
+}
+
+.tabIcon {
+  display: inline-flex;
+  margin-right: 6px;
+}
+
+/* The active view: the list or tree scrolls inside it; the graph fills it */
+.view {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}

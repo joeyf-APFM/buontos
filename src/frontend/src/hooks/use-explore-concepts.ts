@@ -63,6 +63,12 @@ export function systemSourcesQuery(includeSystem: boolean): string {
 
 export interface UseExploreConceptsResult {
   isLoading: boolean;
+  /**
+   * The last full load failed (the schemes or the concepts answered with an
+   * error, or the request threw): the backend's detail, or '' without one.
+   * null once a load succeeds. Quiet reloads don't touch it.
+   */
+  loadError: string | null;
   collections: KnowledgeCollection[];
   groupedConcepts: GroupedConcepts;
   groupedProperties: Record<string, OntologyConcept[]>;
@@ -80,6 +86,7 @@ export interface UseExploreConceptsResult {
 
 export function useExploreConcepts(): UseExploreConceptsResult {
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [allGroupedConcepts, setGroupedConcepts] = useState<GroupedConcepts>({});
   const [allGroupedProperties, setGroupedProperties] = useState<Record<string, OntologyConcept[]>>({});
@@ -182,7 +189,10 @@ export function useExploreConcepts(): UseExploreConceptsResult {
     [groupedConcepts, groupedProperties, hiddenSources]
   );
 
+  // A newer load wins: an older answer that arrives later is dropped
+  const loadId = useRef(0);
   const fetchData = useCallback(async () => {
+    const id = ++loadId.current;
     setIsLoading(true);
     try {
       const [collectionsRes, conceptsRes, statsRes] = await Promise.all([
@@ -190,24 +200,29 @@ export function useExploreConcepts(): UseExploreConceptsResult {
         fetch(`/api/semantic-models/concepts-grouped${systemSourcesQuery(includeSystemRef.current)}`),
         fetch('/api/semantic-models/stats'),
       ]);
+      if (id !== loadId.current) return;
 
-      if (collectionsRes.ok) {
-        const data = await collectionsRes.json();
-        setCollections(data.collections || []);
+      const failed = [collectionsRes, conceptsRes].find((res) => !res.ok);
+      if (failed) {
+        const body = await failed.json().catch(() => ({}));
+        throw new Error(typeof body?.detail === 'string' ? body.detail : '');
       }
-      if (conceptsRes.ok) {
-        const data = await conceptsRes.json();
-        setGroupedConcepts(data.grouped_concepts || {});
-        setSystemSources(data.system_sources || []);
-      }
+      const [collectionsData, conceptsData] = await Promise.all([collectionsRes.json(), conceptsRes.json()]);
+      if (id !== loadId.current) return;
+      setCollections(Array.isArray(collectionsData?.collections) ? collectionsData.collections : []);
+      setGroupedConcepts(conceptsData?.grouped_concepts || {});
+      setSystemSources(Array.isArray(conceptsData?.system_sources) ? conceptsData.system_sources : []);
+      setLoadError(null);
       if (statsRes.ok) {
         const data = await statsRes.json();
-        setStats(data.stats);
+        if (id === loadId.current) setStats(data.stats);
       }
     } catch (error) {
+      if (id !== loadId.current) return;
       console.error('Failed to fetch explore concepts:', error);
+      setLoadError(error instanceof Error ? error.message : '');
     } finally {
-      setIsLoading(false);
+      if (id === loadId.current) setIsLoading(false);
     }
   }, []);
 
@@ -305,6 +320,7 @@ export function useExploreConcepts(): UseExploreConceptsResult {
 
   return {
     isLoading,
+    loadError,
     collections,
     groupedConcepts,
     groupedProperties,
