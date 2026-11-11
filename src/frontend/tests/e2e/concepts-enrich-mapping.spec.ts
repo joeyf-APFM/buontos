@@ -190,6 +190,36 @@ test.describe('concepts-mapping', () => {
     expect(await noPageScroll(page)).toBe(true);
   });
 
+  // Ruling R65: a busy action keeps its focus (aria-disabled), and looks it
+  test('Undo looks unavailable while it runs, and keeps its focus', async ({ page }) => {
+    await setUp(page, '/concepts/mapping');
+    let release: () => void = () => {};
+    await page.route((url) => url.pathname === '/api/term-mappings/runs/2bbbbbbb-0000-0000/undo', async (route) => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      await route.fulfill({ json: { links_removed: 4, suggestions_reverted: 0 } });
+    });
+    page.on('dialog', (dialog) => void dialog.accept());
+    await main(page).getByRole('region', { name: 'Recent runs' }).getByRole('button', { name: /2bbbbbbb/ }).click();
+    const undo = main(page).getByRole('region', { name: 'Run detail' }).getByRole('button', { name: 'Undo', exact: true });
+    await expect(undo).toBeVisible();
+    const idle = await style(undo, ['opacity', 'cursor', 'pointer-events']);
+    expect(idle).toEqual({ opacity: '1', cursor: 'pointer', 'pointer-events': 'auto' });
+
+    await undo.focus();
+    await page.keyboard.press('Enter');
+    await expect(undo).toHaveAttribute('aria-disabled', 'true');
+    expect(await style(undo, ['opacity', 'cursor', 'pointer-events'])).toEqual({
+      opacity: '0.5', cursor: 'not-allowed', 'pointer-events': 'none',
+    });
+    await expect(undo).toBeFocused();
+    // Not natively disabled (Playwright's toBeDisabled counts aria-disabled too)
+    expect(await undo.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(false);
+
+    release();
+    await expect(undo).not.toHaveAttribute('aria-disabled');
+    expect(await style(undo, ['opacity', 'pointer-events'])).toEqual({ opacity: '1', 'pointer-events': 'auto' });
+  });
+
   test('a failed runs list shows an Alert with Retry, which loads them', async ({ page }) => {
     let failing = true;
     await page.setViewportSize({ width: 1280, height: 800 });
