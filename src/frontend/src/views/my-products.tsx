@@ -1,23 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ActionIcon, Alert, CloseButton, HoverCard, Select, Skeleton, Switch, TextInput } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { Package, ExternalLink, ShoppingBag, Search, X, LayoutList, Network, Database, Grid2X2 } from 'lucide-react';
-import { CardSkeleton, SkeletonBlock } from '@/components/common/list-view-skeleton';
+import { AlertCircle, Package, ExternalLink, ShoppingBag, Search, LayoutList, Network, Database, Grid2X2 } from 'lucide-react';
+import { CardSkeleton } from '@/components/common/list-view-skeleton';
 import { DataDomainMiniGraph } from '@/components/data-domains/data-domain-mini-graph';
 import { useDomains } from '@/hooks/use-domains';
-import { useViewModeStore } from '@/stores/view-mode-store';
+import { useViewModeStore, type TilesPerRow } from '@/stores/view-mode-store';
 import { type DataProduct } from '@/types/data-product';
 import { type DataDomain } from '@/types/data-domain';
 import { useApi } from '@/hooks/use-api';
-import { cn } from '@/lib/utils';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
+import { FilterBar, PageHeader, PageLayout, Pane, PaneStack } from '@/mantine/page';
+import classes from './my-products.module.css';
 
 export default function MyProducts() {
   const { t } = useTranslation(['home', 'data-products', 'common']);
@@ -26,7 +22,6 @@ export default function MyProducts() {
   const { domains, loading: domainsLoading, getDomainName } = useDomains();
   const { domainBrowserStyle, setDomainBrowserStyle, tilesPerRow, setTilesPerRow } = useViewModeStore();
   const api = useApi();
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
 
   const [products, setProducts] = useState<DataProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,21 +34,23 @@ export default function MyProducts() {
   const [selectedDomainDetails, setSelectedDomainDetails] = useState<DataDomain | null>(null);
   const [domainDetailsLoading, setDomainDetailsLoading] = useState(false);
   const [graphFadeIn, setGraphFadeIn] = useState(false);
+  // Only the latest domain lookup may show: an earlier one that answers late is dropped
+  const domainRequest = useRef(0);
 
-  const gridClass = useMemo(() => {
-    switch (tilesPerRow) {
-      case 1: return 'grid grid-cols-1 gap-4';
-      case 2: return 'grid grid-cols-1 sm:grid-cols-2 gap-4';
-      case 3: return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
-      default: return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
-    }
-  }, [tilesPerRow]);
+  const tileOptions = useMemo(() => [
+    { value: '1', label: t('marketplace.tilesPerRow.one') },
+    { value: '2', label: t('marketplace.tilesPerRow.two') },
+    { value: '3', label: t('marketplace.tilesPerRow.three') },
+    { value: '4', label: t('marketplace.tilesPerRow.four') },
+  ], [t]);
 
   const loadSubscriptions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const resp = await api.get<DataProduct[]>('/api/data-products/my-subscriptions');
+      // A failed load shows its error, with Retry
+      if (resp.error) throw new Error(resp.error);
       const data = resp.data;
       setProducts(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -70,22 +67,20 @@ export default function MyProducts() {
     loadSubscriptions();
   }, [loadSubscriptions]);
 
-  useEffect(() => {
-    setStaticSegments([{ label: t('myProducts.title'), path: '/my-products' }]);
-    return () => setStaticSegments([]);
-  }, [setStaticSegments, t]);
+  // The shell's breadcrumb names this menu page from the menu: no titles to set
 
   const loadDomainDetails = useCallback(async (domainId: string) => {
+    const id = ++domainRequest.current;
     try {
       setDomainDetailsLoading(true);
       const resp = await fetch(`/api/data-domains/${domainId}`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data: DataDomain = await resp.json();
-      setSelectedDomainDetails(data);
+      if (id === domainRequest.current) setSelectedDomainDetails(data);
     } catch (e) {
-      setSelectedDomainDetails(null);
+      if (id === domainRequest.current) setSelectedDomainDetails(null);
     } finally {
-      setDomainDetailsLoading(false);
+      if (id === domainRequest.current) setDomainDetailsLoading(false);
     }
   }, []);
 
@@ -189,28 +184,43 @@ export default function MyProducts() {
 
   const handleBrowseMarketplace = () => navigate('/');
 
+  const title = t('myProducts.title');
+  const header = (
+    <>
+      <PageHeader title={title} />
+      <p className={classes.subtitle}>{t('myProducts.description')}</p>
+    </>
+  );
+  const productsPaneLabel = t('data-products:myProductsView.productsPane');
+
   if (loading) {
     return (
-      <div className="flex flex-col gap-4 p-4">
-        <div>
-          <div className="h-8 w-48 rounded-md bg-muted animate-pulse mb-2" />
-          <div className="h-4 w-96 rounded-md bg-muted animate-pulse" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <CardSkeleton key={i} titleWidth="w-36" descriptionWidth="w-48" contentRows={2} />
-          ))}
-        </div>
-      </div>
+      <PageLayout header={header}>
+        <PaneStack>
+          <Pane title={productsPaneLabel}>
+            <div className={classes.grid} data-tiles={4}>
+              {[...Array(8)].map((_, i) => (
+                <CardSkeleton key={i} titleWidth="w-36" descriptionWidth="w-48" contentRows={2} />
+              ))}
+            </div>
+          </Pane>
+        </PaneStack>
+      </PageLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col gap-4 p-4">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={loadSubscriptions}>{t('data-products:myProductsView.retry')}</Button>
-      </div>
+      <PageLayout header={header}>
+        <PaneStack>
+          <Pane title={productsPaneLabel}>
+            <div className={classes.errorState}>
+              <Alert color="red" variant="light" icon={<AlertCircle />}>{error}</Alert>
+              <Button variant="outline" onClick={loadSubscriptions}>{t('data-products:myProductsView.retry')}</Button>
+            </div>
+          </Pane>
+        </PaneStack>
+      </PageLayout>
     );
   }
 
@@ -218,184 +228,185 @@ export default function MyProducts() {
   const emptyNoSubscriptions = !hasProducts;
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('myProducts.title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('myProducts.description')}</p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder={t('marketplace.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-12 text-base"
-        />
-        {searchQuery && (
-          <Button variant="ghost" size="sm" className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0" onClick={() => setSearchQuery('')}>
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Browse Data Domains */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-medium">{t('marketplace.browseDataDomains')}</div>
-          <div className="flex items-center gap-4">
-            {selectedDomainId && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{t('marketplace.exactMatchOnly')}</span>
-                <Switch checked={exactMatchesOnly} onCheckedChange={(v) => setExactMatchesOnly(!!v)} />
+    <PageLayout
+      header={header}
+      filters={
+        <FilterBar>
+          <TextInput
+            type="search"
+            placeholder={t('marketplace.searchPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+            leftSection={<Search aria-hidden className={classes.searchIcon} />}
+            rightSection={searchQuery ? (
+              <CloseButton size="sm" aria-label={t('common:actions.clear')} onClick={() => setSearchQuery('')} />
+            ) : null}
+            className={classes.search}
+          />
+        </FilterBar>
+      }
+    >
+      {/* Under the filter bar's rule, the panes start 12px down */}
+      <div className={classes.stack}>
+      <PaneStack>
+        {/* Browse Data Domains */}
+        <Pane
+          title={t('marketplace.browseDataDomains')}
+          actions={
+            <>
+              {selectedDomainId && (
+                <Switch
+                  size="xs"
+                  label={t('marketplace.exactMatchOnly')}
+                  labelPosition="left"
+                  checked={exactMatchesOnly}
+                  onChange={(e) => setExactMatchesOnly(e.currentTarget.checked)}
+                  classNames={{ label: classes.switchLabel }}
+                />
+              )}
+              <div className={classes.segmented}>
+                <Button variant={domainBrowserStyle === 'pills' ? 'default' : 'ghost'} size="sm" onClick={() => setDomainBrowserStyle('pills')} title={t('marketplace.domainView.pills')}>
+                  <LayoutList />
+                  {t('marketplace.domainView.pills')}
+                </Button>
+                <Button variant={domainBrowserStyle === 'graph' ? 'default' : 'ghost'} size="sm" onClick={() => setDomainBrowserStyle('graph')} title={t('marketplace.domainView.graph')}>
+                  <Network />
+                  {t('marketplace.domainView.graph')}
+                </Button>
               </div>
-            )}
-            <div className="inline-flex items-center gap-1 p-0.5 bg-muted rounded-md">
-              <Button variant={domainBrowserStyle === 'pills' ? 'default' : 'ghost'} size="sm" onClick={() => setDomainBrowserStyle('pills')} className="h-7 px-2 gap-1" title={t('marketplace.domainView.pills')}>
-                <LayoutList className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:inline text-xs">{t('marketplace.domainView.pills')}</span>
+            </>
+          }
+        >
+          {domainsLoading || domainDetailsLoading ? (
+            <Skeleton height={220} radius={6} />
+          ) : domainBrowserStyle === 'pills' ? (
+            <div className={classes.pills}>
+              <Button variant={selectedDomainId === null ? 'default' : 'outline'} size="sm" onClick={() => setSelectedDomainId(null)} className={classes.pill}>
+                {t('marketplace.allDomains')}
               </Button>
-              <Button variant={domainBrowserStyle === 'graph' ? 'default' : 'ghost'} size="sm" onClick={() => setDomainBrowserStyle('graph')} className="h-7 px-2 gap-1" title={t('marketplace.domainView.graph')}>
-                <Network className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:inline text-xs">{t('marketplace.domainView.graph')}</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-        {domainsLoading || domainDetailsLoading ? (
-          <SkeletonBlock height="h-[220px]" className="rounded-lg" />
-        ) : domainBrowserStyle === 'pills' ? (
-          <div className="flex flex-wrap gap-2">
-            <Button variant={selectedDomainId === null ? 'default' : 'outline'} size="sm" onClick={() => setSelectedDomainId(null)} className="rounded-full">
-              {t('marketplace.allDomains')}
-            </Button>
-            {sortedDomains.map(domain => {
-              const parentDomain = domain.parent_id ? domains.find(d => d.id === domain.parent_id) : null;
-              return (
-                <HoverCard key={domain.id} openDelay={300} closeDelay={100}>
-                  <HoverCardTrigger asChild>
-                    <Button variant={selectedDomainId === domain.id ? 'default' : 'outline'} size="sm" onClick={() => setSelectedDomainId(domain.id)} className="rounded-full">
-                      {domain.name}
-                    </Button>
-                  </HoverCardTrigger>
-                  <HoverCardContent side="bottom" align="start" className="w-72">
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <Database className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+              {sortedDomains.map(domain => {
+                const parentDomain = domain.parent_id ? domains.find(d => d.id === domain.parent_id) : null;
+                return (
+                  <HoverCard key={domain.id} openDelay={300} closeDelay={100} position="bottom-start" width={288} shadow="md">
+                    <HoverCard.Target>
+                      <Button variant={selectedDomainId === domain.id ? 'default' : 'outline'} size="sm" onClick={() => setSelectedDomainId(domain.id)} className={classes.pill}>
+                        {domain.name}
+                      </Button>
+                    </HoverCard.Target>
+                    <HoverCard.Dropdown className={classes.domainCard}>
+                      <div className={classes.domainHead}>
+                        <Database aria-hidden className={classes.domainIcon} />
                         <div>
-                          <h4 className="text-sm font-semibold">{domain.name}</h4>
-                          {parentDomain && <p className="text-xs text-muted-foreground">{t('marketplace.domainInfo.parentDomain')}: {parentDomain.name}</p>}
+                          <h4 className={classes.domainName}>{domain.name}</h4>
+                          {parentDomain && <p className={classes.muted}>{t('marketplace.domainInfo.parentDomain')}: {parentDomain.name}</p>}
                         </div>
                       </div>
-                      {domain.description && <p className="text-xs text-muted-foreground line-clamp-3">{domain.description}</p>}
+                      {domain.description && <p className={`${classes.muted} ${classes.clamp3}`}>{domain.description}</p>}
                       {domain.children_count !== undefined && domain.children_count > 0 && (
-                        <p className="text-xs text-muted-foreground">{t('marketplace.domainInfo.childDomains', { count: domain.children_count })}</p>
+                        <p className={classes.muted}>{t('marketplace.domainInfo.childDomains', { count: domain.children_count })}</p>
                       )}
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-              );
-            })}
-          </div>
-        ) : selectedDomainDetails ? (
-          <div className={cn('transition-opacity duration-300', graphFadeIn ? 'opacity-100' : 'opacity-0')}>
-            <DataDomainMiniGraph currentDomain={selectedDomainDetails} onNodeClick={(id) => setSelectedDomainId(id)} />
-          </div>
-        ) : (
-          <div className="h-[220px] border rounded-lg overflow-hidden bg-muted/20 w-full flex items-center justify-center text-muted-foreground">
-            {t('marketplace.selectDomainForGraph')}
-          </div>
-        )}
-      </div>
+                    </HoverCard.Dropdown>
+                  </HoverCard>
+                );
+              })}
+            </div>
+          ) : selectedDomainDetails ? (
+            <div className={classes.fade} data-shown={graphFadeIn || undefined}>
+              <DataDomainMiniGraph currentDomain={selectedDomainDetails} onNodeClick={(id) => setSelectedDomainId(id)} />
+            </div>
+          ) : (
+            <div className={classes.graphPlaceholder}>
+              {t('marketplace.selectDomainForGraph')}
+            </div>
+          )}
+        </Pane>
 
-      {/* Tiles per row */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div />
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Grid2X2 className="h-4 w-4 text-muted-foreground" />
-            <Select value={String(tilesPerRow)} onValueChange={(v) => setTilesPerRow(Number(v) as 1 | 2 | 3 | 4)}>
-              <SelectTrigger className="w-[100px] h-7 text-xs">
-                <SelectValue placeholder={t('marketplace.tilesPerRow.placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">{t('marketplace.tilesPerRow.one')}</SelectItem>
-                <SelectItem value="2">{t('marketplace.tilesPerRow.two')}</SelectItem>
-                <SelectItem value="3">{t('marketplace.tilesPerRow.three')}</SelectItem>
-                <SelectItem value="4">{t('marketplace.tilesPerRow.four')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+        {/* The subscribed products, with tiles per row */}
+        <Pane
+          title={productsPaneLabel}
+          actions={
+            <>
+              {filteredProducts.length > 0 && (
+                <span className={classes.count}>
+                  {t('data-products:myProductsView.productsAvailable', { count: filteredProducts.length })}
+                </span>
+              )}
+              <Grid2X2 aria-hidden className={classes.tilesIcon} />
+              <Select
+                size="xs"
+                w={100}
+                data={tileOptions}
+                value={String(tilesPerRow)}
+                onChange={(v) => v && setTilesPerRow(Number(v) as TilesPerRow)}
+                allowDeselect={false}
+                classNames={{ option: classes.option }}
+              />
+            </>
+          }
+        >
+          {/* Empty state - no subscriptions at all */}
+          {showEmpty && emptyNoSubscriptions && (
+            <div className={classes.empty} data-dashed="">
+              <ShoppingBag aria-hidden className={classes.emptyIcon} />
+              <p>{t('myProducts.empty')}</p>
+              <Button onClick={handleBrowseMarketplace}>{t('myProducts.browseMarketplace')}</Button>
+            </div>
+          )}
 
-      {/* Empty state - no subscriptions at all */}
-      {showEmpty && emptyNoSubscriptions && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">{t('myProducts.empty')}</p>
-            <Button className="mt-4" onClick={handleBrowseMarketplace}>{t('myProducts.browseMarketplace')}</Button>
-          </CardContent>
-        </Card>
-      )}
+          {/* Empty state - filters returned no results */}
+          {showEmpty && !emptyNoSubscriptions && (
+            <div className={classes.empty}>
+              <Package aria-hidden className={classes.emptyIcon} data-faint="" />
+              <p>{t('marketplace.products.noProducts')}</p>
+              <p className={classes.muted}>{t('marketplace.products.adjustFilters')}</p>
+            </div>
+          )}
 
-      {/* Empty state - filters returned no results */}
-      {showEmpty && !emptyNoSubscriptions && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
-          <p>{t('marketplace.products.noProducts')}</p>
-          <p className="text-sm mt-1">{t('marketplace.products.adjustFilters')}</p>
-        </div>
-      )}
-
-      {/* Products list */}
-      {filteredProducts.length > 0 && (
-        <>
-          <div className="text-sm text-muted-foreground">
-            {t('data-products:myProductsView.productsAvailable', { count: filteredProducts.length })}
-          </div>
-          <div className={gridClass}>
-            {filteredProducts.map((product) => {
-              const domainStr = product?.domain != null ? String(product.domain) : '';
-              const domainLabel = getDomainName(domainStr) || domainStr || t('marketplace.products.unknown');
-              const description = product.description?.purpose || product.description?.usage || '';
-              const owner = product.team?.members?.[0]?.username || product.team?.name || t('marketplace.products.unknown');
-              return (
-                <Card
-                  key={product.id || product.name}
-                  className={cn('cursor-pointer transition-all hover:shadow-md hover:border-primary/30 border-primary/20 bg-primary/5')}
-                  onClick={() => product.id && navigate(`${pathname}/${product.id}`)}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Package className="h-4 w-4 text-primary flex-shrink-0" />
-                        <CardTitle className="text-base truncate">{product.name || t('data-products:myProductsView.untitled')}</CardTitle>
-                      </div>
+          {/* Products list */}
+          {filteredProducts.length > 0 && (
+            <div className={classes.grid} data-tiles={tilesPerRow}>
+              {filteredProducts.map((product) => {
+                const domainStr = product?.domain != null ? String(product.domain) : '';
+                const domainLabel = getDomainName(domainStr) || domainStr || t('marketplace.products.unknown');
+                const description = product.description?.purpose || product.description?.usage || '';
+                const owner = product.team?.members?.[0]?.username || product.team?.name || t('marketplace.products.unknown');
+                const name = product.name || t('data-products:myProductsView.untitled');
+                return (
+                  <div
+                    key={product.id || product.name}
+                    className={classes.card}
+                    onClick={() => product.id && navigate(`${pathname}/${product.id}`)}
+                  >
+                    <div className={classes.cardHead}>
+                      <Package aria-hidden className={classes.cardIcon} />
+                      <span className={classes.cardTitle} title={name}>{name}</span>
                       {product.id && (
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-primary/10" onClick={(e) => handleOpenProduct(e, product.id!)} title={t('marketplace.openInDetails')}>
-                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-                        </Button>
+                        <ActionIcon
+                          variant="subtle"
+                          color="gray"
+                          size="sm"
+                          className={classes.open}
+                          onClick={(e) => handleOpenProduct(e, product.id!)}
+                          title={t('marketplace.openInDetails')}
+                        >
+                          <ExternalLink aria-hidden />
+                        </ActionIcon>
                       )}
                     </div>
-                    {description && <CardDescription className="line-clamp-2 text-sm">{description}</CardDescription>}
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="text-xs">{domainLabel}</Badge>
-                      {product.status && <Badge variant="outline" className="text-xs">{product.status}</Badge>}
+                    {description && <p className={`${classes.muted} ${classes.clamp2}`}>{description}</p>}
+                    <div className={classes.cardBadges}>
+                      <Badge variant="secondary">{domainLabel}</Badge>
+                      {product.status && <Badge variant="outline">{product.status}</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2 truncate">{t('marketplace.products.owner')}: {owner}</p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
+                    <p className={classes.owner} title={owner}>{t('marketplace.products.owner')}: {owner}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Pane>
+      </PaneStack>
+      </div>
+    </PageLayout>
   );
 }

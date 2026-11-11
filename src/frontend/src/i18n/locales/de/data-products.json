@@ -1,6 +1,7 @@
 {
   "title": "Datenprodukte",
   "subtitle": "Verwalten Sie Ihre Datenprodukte",
+  "listPane": "Liste der Datenprodukte",
   "newProduct": "Neues Datenprodukt",
   "importProduct": "Importieren",
   "searchPlaceholder": "Datenprodukte suchen...",
@@ -1163,7 +1164,8 @@
     "retry": "Erneut versuchen",
     "untitled": "Ohne Titel",
     "productsAvailable_one": "{{count}} Produkt verfügbar",
-    "productsAvailable_other": "{{count}} Produkte verfügbar"
+    "productsAvailable_other": "{{count}} Produkte verfügbar",
+    "productsPane": "Abonnierte Produkte"
   },
   "ownerConsumers": {
     "breadcrumb": "Verbraucher",

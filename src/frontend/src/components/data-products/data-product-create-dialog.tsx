@@ -1,34 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Input, Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Dialog } from '@/mantine/page';
 import { ConsumerPrincipal, DataProduct, DataProductStatus } from '@/types/data-product';
 import DomainMultiSelector from '@/components/ui/domain-multi-selector';
 import { useTeams } from '@/hooks/use-teams';
@@ -36,6 +15,7 @@ import TagSelector from '@/components/ui/tag-selector';
 import { ConsumerGroupsPicker } from '@/components/data-products/consumer-groups-picker';
 import { useProjectContext } from '@/stores/project-store';
 import { apiErrorOf, statusChangeErrorText } from '@/lib/status-change-error';
+import classes from './data-product-create-dialog.module.css';
 
 /**
  * ODPS v1.0.0 Data Product Creation Dialog
@@ -70,6 +50,15 @@ const buildDataProductCreateSchema = (t: TFunction) => z.object({
 
 type FormData = z.infer<ReturnType<typeof buildDataProductCreateSchema>>;
 
+/** The project field's "None": sent as no project. */
+const NO_PROJECT = '__none__';
+
+/** One option per value, first one kept: Mantine's Select throws on a repeated value. */
+const unique = (options: { value: string; label: string; disabled?: boolean }[]) =>
+  options.filter((o, i) => options.findIndex((p) => p.value === o.value) === i);
+
+const productTypeLabel = (type: string) => type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
 interface DataProductCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -91,6 +80,7 @@ export default function DataProductCreateDialog({
   const { currentProject, availableProjects, isLoading: projectsLoading, fetchUserProjects } = useProjectContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const formId = useId();
 
   const dataProductCreateSchema = useMemo(() => buildDataProductCreateSchema(t), [t]);
 
@@ -336,173 +326,157 @@ export default function DataProductCreateDialog({
     }
   };
 
+
+  const statusOptions = useMemo(
+    () => Object.values(DataProductStatus).map((status) => ({
+      value: status,
+      label: t(`data-products:status.${status}`, status.charAt(0).toUpperCase() + status.slice(1)),
+    })),
+    [t],
+  );
+  const typeOptions = useMemo(() => productTypes.map((type) => ({ value: type, label: productTypeLabel(type) })), []);
+  const teamOptions = useMemo(() => unique(teams.map((team) => ({ value: team.id, label: team.name }))), [teams]);
+  const projectOptions = useMemo(
+    () => unique([
+      { value: NO_PROJECT, label: t('common:states.none') },
+      ...availableProjects.map((project) => ({
+        value: project.id,
+        label: t('data-products:createDialog.projectOption', { name: project.name, count: project.team_count }),
+      })),
+    ]),
+    [availableProjects, t],
+  );
+
+  const { errors } = form.formState;
+  const fieldClassNames = { label: classes.label, error: classes.error, description: classes.hint };
+  const selectClassNames = { ...fieldClassNames, option: classes.option };
+  // Hints sit under their field, as before
+  const hintBelow = ['label', 'input', 'description', 'error'] as ('label' | 'input' | 'description' | 'error')[];
+
   return (
     <>
-      <Dialog open={open} onOpenChange={handleCloseAttempt}>
-        <DialogContent 
-          className="max-w-2xl max-h-[90vh] overflow-y-auto"
-          onEscapeKeyDown={(e) => {
-            // Prevent closing on Escape key
-            e.preventDefault();
-            handleCloseAttempt();
-          }}
-        >
-        <DialogHeader>
-          <DialogTitle>
-            {mode === 'edit' ? t('data-products:createDialog.editTitle') : t('data-products:createDialog.createTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === 'edit'
-              ? t('data-products:createDialog.editDescription')
-              : t('data-products:createDialog.createDescription')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <Dialog
+        opened={open}
+        onClose={handleCloseAttempt}
+        // A click outside asks first too, as the Radix dialog's did
+        closeOnClickOutside
+        size="lg"
+        title={mode === 'edit' ? t('data-products:createDialog.editTitle') : t('data-products:createDialog.createTitle')}
+        description={mode === 'edit'
+          ? t('data-products:createDialog.editDescription')
+          : t('data-products:createDialog.createDescription')}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseAttempt}
+              disabled={isSubmitting}
+            >
+              {t('common:actions.cancel')}
+            </Button>
+            {/* In the footer, outside the form: it submits the form by its id */}
+            <Button type="submit" form={formId} disabled={isSubmitting}>
+              {isSubmitting && <Loader size={12} color="currentColor" />}
+              {mode === 'edit' ? t('common:actions.saveChanges') : t('data-products:createDialog.createProductButton')}
+            </Button>
+          </>
+        }
+      >
+        <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className={classes.form}>
           {/* Required Fields */}
-          <div className="space-y-2">
-            <Label htmlFor="name">
-              {t('data-products:createDialog.productNameLabel')} <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="name"
-              {...form.register('name')}
-              placeholder={t('data-products:createDialog.productNamePlaceholder')}
+          <TextInput
+            id="name"
+            {...form.register('name')}
+            label={t('data-products:createDialog.productNameLabel')}
+            withAsterisk
+            placeholder={t('data-products:createDialog.productNamePlaceholder')}
+            error={errors.name?.message}
+            classNames={fieldClassNames}
+            data-autofocus
+          />
+
+          <div className={classes.row}>
+            <TextInput
+              id="version"
+              {...form.register('version')}
+              label={t('data-products:form.version')}
+              withAsterisk
+              placeholder={t('data-products:createDialog.versionPlaceholder')}
+              error={errors.version?.message}
+              classNames={fieldClassNames}
             />
-            {form.formState.errors.name && (
-              <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
-            )}
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="version">
-                {t('data-products:form.version')} <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="version"
-                {...form.register('version')}
-                placeholder={t('data-products:createDialog.versionPlaceholder')}
-              />
-              {form.formState.errors.version && (
-                <p className="text-sm text-red-500">{form.formState.errors.version.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">
-                {t('data-products:form.status')} <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={form.watch('status')}
-                onValueChange={(value) => form.setValue('status', value)}
-                disabled={mode === 'edit'}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(DataProductStatus).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {t(`data-products:status.${status}`, status.charAt(0).toUpperCase() + status.slice(1))}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {mode === 'edit' && (
-                <p className="text-xs text-muted-foreground">
-                  {t('data-products:form.statusChangeHint')}
-                </p>
-              )}
-              {form.formState.errors.status && (
-                <p className="text-sm text-red-500">{form.formState.errors.status.message}</p>
-              )}
-            </div>
+            <Select
+              id="status"
+              label={t('data-products:form.status')}
+              withAsterisk
+              data={statusOptions}
+              value={form.watch('status')}
+              onChange={(value) => value && form.setValue('status', value)}
+              allowDeselect={false}
+              disabled={mode === 'edit'}
+              description={mode === 'edit' ? t('data-products:form.statusChangeHint') : undefined}
+              inputWrapperOrder={hintBelow}
+              error={errors.status?.message}
+              classNames={selectClassNames}
+            />
           </div>
 
           {/* Product Type & Owner Team */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="productType">{t('data-products:createDialog.productTypeLabel')}</Label>
-              <Select
-                value={form.watch('productType') || undefined}
-                onValueChange={(value) => form.setValue('productType', value as any)}
-              >
-                <SelectTrigger id="productType">
-                  <SelectValue placeholder={t('data-products:createDialog.productTypePlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {productTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t('data-products:createDialog.productTypeHint')}
-              </p>
-            </div>
+          <div className={classes.row}>
+            <Select
+              id="productType"
+              label={t('data-products:createDialog.productTypeLabel')}
+              placeholder={t('data-products:createDialog.productTypePlaceholder')}
+              data={typeOptions}
+              value={form.watch('productType') ?? null}
+              onChange={(value) => value && form.setValue('productType', value as FormData['productType'])}
+              allowDeselect={false}
+              description={t('data-products:createDialog.productTypeHint')}
+              inputWrapperOrder={hintBelow}
+              classNames={selectClassNames}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="ownerTeamId">{t('data-products:form.ownerTeam')}</Label>
-              <Select
-                value={form.watch('ownerTeamId') || undefined}
-                onValueChange={(value) => form.setValue('ownerTeamId', value)}
-                disabled={teamsLoading}
-              >
-                <SelectTrigger id="ownerTeamId">
-                  <SelectValue placeholder={t('data-products:createDialog.selectTeamPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamsLoading ? (
-                    <SelectItem value="loading" disabled>
-                      {t('data-products:createDialog.loadingTeams')}
-                    </SelectItem>
-                  ) : (
-                    teams.map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t('data-products:createDialog.ownerTeamHint')}
-              </p>
-            </div>
+            <Select
+              id="ownerTeamId"
+              label={t('data-products:form.ownerTeam')}
+              placeholder={teamsLoading
+                ? t('data-products:createDialog.loadingTeams')
+                : t('data-products:createDialog.selectTeamPlaceholder')}
+              data={teamsLoading ? [] : teamOptions}
+              value={form.watch('ownerTeamId') || null}
+              onChange={(value) => value && form.setValue('ownerTeamId', value)}
+              allowDeselect={false}
+              disabled={teamsLoading}
+              description={t('data-products:createDialog.ownerTeamHint')}
+              inputWrapperOrder={hintBelow}
+              classNames={selectClassNames}
+            />
           </div>
 
           {/* Project Field */}
-          <div className="space-y-2">
-            <Label htmlFor="projectId">{t('data-products:createDialog.projectLabel')}</Label>
-            <Select
-              value={form.watch('projectId') || '__none__'}
-              onValueChange={(value) => form.setValue('projectId', value === '__none__' ? '' : value)}
-              disabled={projectsLoading}
-            >
-              <SelectTrigger id="projectId">
-                <SelectValue placeholder={t('data-products:createDialog.selectProjectPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">{t('common:states.none')}</SelectItem>
-                {availableProjects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {t('data-products:createDialog.projectOption', { name: project.name, count: project.team_count })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {t('data-products:createDialog.projectMemberHint')}
-            </p>
-          </div>
+          <Select
+            id="projectId"
+            label={t('data-products:createDialog.projectLabel')}
+            placeholder={t('data-products:createDialog.selectProjectPlaceholder')}
+            data={projectOptions}
+            value={form.watch('projectId') || NO_PROJECT}
+            onChange={(value) => value && form.setValue('projectId', value === NO_PROJECT ? '' : value)}
+            allowDeselect={false}
+            disabled={projectsLoading}
+            description={t('data-products:createDialog.projectMemberHint')}
+            inputWrapperOrder={hintBelow}
+            classNames={selectClassNames}
+          />
 
           {/* Optional Fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="domain">{t('data-products:createDialog.domainsLabel')}</Label>
+          <div className={classes.row}>
+            <Input.Wrapper
+              label={t('data-products:createDialog.domainsLabel')}
+              labelElement="div"
+              classNames={fieldClassNames}
+            >
               <DomainMultiSelector
                 value={form.watch('domain_ids') || []}
                 primaryDomainId={form.watch('primary_domain_id')}
@@ -512,123 +486,122 @@ export default function DataProductCreateDialog({
                 }}
                 placeholder={t('data-products:createDialog.domainsPlaceholder')}
               />
-            </div>
+            </Input.Wrapper>
 
-            <div className="space-y-2">
-              <Label htmlFor="tenant">{t('data-products:createDialog.tenantLabel')}</Label>
-              <Input
-                id="tenant"
-                {...form.register('tenant')}
-                placeholder={t('data-products:createDialog.tenantPlaceholder')}
-              />
-            </div>
+            <TextInput
+              id="tenant"
+              {...form.register('tenant')}
+              label={t('data-products:createDialog.tenantLabel')}
+              placeholder={t('data-products:createDialog.tenantPlaceholder')}
+              classNames={fieldClassNames}
+            />
           </div>
 
           {/* Structured Description */}
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="font-medium">{t('data-products:createDialog.descriptionSectionTitle')}</h3>
+          <section className={classes.section}>
+            <h3 className={classes.sectionTitle}>{t('data-products:createDialog.descriptionSectionTitle')}</h3>
 
-            <div className="space-y-2">
-              <Label htmlFor="purpose">{t('data-products:form.purpose')}</Label>
-              <Textarea
-                id="purpose"
-                {...form.register('purpose')}
-                placeholder={t('data-products:createDialog.purposePlaceholder')}
-                rows={2}
-              />
-            </div>
+            <Textarea
+              id="purpose"
+              {...form.register('purpose')}
+              label={t('data-products:form.purpose')}
+              placeholder={t('data-products:createDialog.purposePlaceholder')}
+              autosize
+              minRows={2}
+              maxRows={8}
+              classNames={fieldClassNames}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="limitations">{t('data-products:createDialog.limitationsLabel')}</Label>
-              <Textarea
-                id="limitations"
-                {...form.register('limitations')}
-                placeholder={t('data-products:createDialog.limitationsPlaceholder')}
-                rows={2}
-              />
-            </div>
+            <Textarea
+              id="limitations"
+              {...form.register('limitations')}
+              label={t('data-products:createDialog.limitationsLabel')}
+              placeholder={t('data-products:createDialog.limitationsPlaceholder')}
+              autosize
+              minRows={2}
+              maxRows={8}
+              classNames={fieldClassNames}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="usage">{t('data-products:form.usage')}</Label>
-              <Textarea
-                id="usage"
-                {...form.register('usage')}
-                placeholder={t('data-products:createDialog.usagePlaceholder')}
-                rows={2}
-              />
-            </div>
-          </div>
+            <Textarea
+              id="usage"
+              {...form.register('usage')}
+              label={t('data-products:form.usage')}
+              placeholder={t('data-products:createDialog.usagePlaceholder')}
+              autosize
+              minRows={2}
+              maxRows={8}
+              classNames={fieldClassNames}
+            />
+          </section>
 
           {/* Tags Section */}
-          <div className="space-y-2 border-t pt-4">
-            <Label>{t('data-products:form.tags')}</Label>
-            <Controller
-              name="tags"
-              control={form.control}
-              render={({ field }) => (
-                <TagSelector
-                  value={field.value || []}
-                  onChange={field.onChange}
-                  placeholder={t('data-products:createDialog.tagsPlaceholder')}
-                  allowCreate={true}
-                />
-              )}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('data-products:createDialog.tagsHint')}
-            </p>
-          </div>
+          <section className={classes.section}>
+            <Input.Wrapper
+              label={t('data-products:form.tags')}
+              labelElement="div"
+              description={t('data-products:createDialog.tagsHint')}
+              inputWrapperOrder={hintBelow}
+              classNames={fieldClassNames}
+            >
+              <Controller
+                name="tags"
+                control={form.control}
+                render={({ field }) => (
+                  <TagSelector
+                    value={field.value || []}
+                    onChange={field.onChange}
+                    placeholder={t('data-products:createDialog.tagsPlaceholder')}
+                    allowCreate={true}
+                  />
+                )}
+              />
+            </Input.Wrapper>
+          </section>
 
           {/* Consumer Groups Section */}
-          <div className="space-y-2 border-t pt-4">
-            <Label>{t('data-products:createDialog.consumerGroupsLabel')}</Label>
-            <p className="text-xs text-muted-foreground">
-              {t('data-products:form.sections.consumerGroupsDescriptionPart1')}<code className="text-xs">{'{'}type: "group", value: "..."{'}'}</code>{t('data-products:form.sections.consumerGroupsDescriptionPart2')}<code className="text-xs">${'{'}entity.consumer_principals{'}'}</code>.
-            </p>
-            <Controller
-              name="consumer_principals"
-              control={form.control}
-              render={({ field }) => (
-                <ConsumerGroupsPicker
-                  value={field.value || []}
-                  onChange={(next: ConsumerPrincipal[]) => field.onChange(next)}
-                />
-              )}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCloseAttempt}
-              disabled={isSubmitting}
+          <section className={classes.section}>
+            <Input.Wrapper
+              label={t('data-products:createDialog.consumerGroupsLabel')}
+              labelElement="div"
+              description={
+                <>
+                  {t('data-products:form.sections.consumerGroupsDescriptionPart1')}<code className={classes.code}>{'{'}type: "group", value: "..."{'}'}</code>{t('data-products:form.sections.consumerGroupsDescriptionPart2')}<code className={classes.code}>${'{'}entity.consumer_principals{'}'}</code>.
+                </>
+              }
+              classNames={fieldClassNames}
             >
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === 'edit' ? t('common:actions.saveChanges') : t('data-products:createDialog.createProductButton')}
-            </Button>
-          </DialogFooter>
+              <Controller
+                name="consumer_principals"
+                control={form.control}
+                render={({ field }) => (
+                  <ConsumerGroupsPicker
+                    value={field.value || []}
+                    onChange={(next: ConsumerPrincipal[]) => field.onChange(next)}
+                  />
+                )}
+              />
+            </Input.Wrapper>
+          </section>
         </form>
-      </DialogContent>
-    </Dialog>
+      </Dialog>
 
-    <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t('common:confirmations.discardChanges')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('data-products:createDialog.discardDescription')}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{t('data-products:createDialog.continueEditing')}</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirmDiscard}>{t('data-products:createDialog.discardChanges')}</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <Dialog
+        role="alertdialog"
+        size="sm"
+        opened={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        title={t('common:confirmations.discardChanges')}
+        description={t('data-products:createDialog.discardDescription')}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDiscardConfirm(false)}>
+              {t('data-products:createDialog.continueEditing')}
+            </Button>
+            <Button onClick={handleConfirmDiscard}>{t('data-products:createDialog.discardChanges')}</Button>
+          </>
+        }
+      />
     </>
   );
 }

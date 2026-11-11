@@ -1,6 +1,7 @@
 {
   "title": "Productos de Datos",
   "subtitle": "Gestiona tus productos de datos",
+  "listPane": "Lista de productos de datos",
   "newProduct": "Nuevo Producto de Datos",
   "importProduct": "Importar",
   "searchPlaceholder": "Buscar productos de datos...",
@@ -1163,7 +1164,8 @@
     "retry": "Reintentar",
     "untitled": "Sin título",
     "productsAvailable_one": "{{count}} producto disponible",
-    "productsAvailable_other": "{{count}} productos disponibles"
+    "productsAvailable_other": "{{count}} productos disponibles",
+    "productsPane": "Productos suscritos"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumidores",

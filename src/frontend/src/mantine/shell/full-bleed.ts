@@ -24,6 +24,10 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   // (its panes stacked at their own height, scrolling with the page)
   '/data-asset-reviews',
   '/data-asset-reviews/:requestId',
+  // Build: the product list (full bleed: one pane fills the area) and the
+  // user's subscriptions (its panes stacked at their own height)
+  '/data-products',
+  '/my-products',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

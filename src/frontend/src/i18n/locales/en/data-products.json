@@ -1,6 +1,7 @@
 {
   "title": "Data Products",
   "subtitle": "Manage your data products",
+  "listPane": "Data product list",
   "newProduct": "New Data Product",
   "importProduct": "Import",
   "searchPlaceholder": "Search data products...",
@@ -1163,7 +1164,8 @@
     "retry": "Retry",
     "untitled": "Untitled",
     "productsAvailable_one": "{{count}} product available",
-    "productsAvailable_other": "{{count}} products available"
+    "productsAvailable_other": "{{count}} products available",
+    "productsPane": "Subscribed products"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumers",

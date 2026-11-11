@@ -1,0 +1,147 @@
+/*
+ * Data Products (/data-products) on the page kit (wave 2 Task 4): full bleed,
+ * the shell's breadcrumb, the kit header with the view switch, then one flush
+ * pane holding the shared DataTable (components/ui/data-table.tsx) or the
+ * product graph, 14px in from the page's edges. The sort headers are Settings
+ * → Asset Types' (asset-types.module.css).
+ */
+
+/* The pane's body: the table and its toolbar, in the kit's 14px margin; the
+   pane scrolls a long list */
+.body {
+  padding: 4px 14px 14px;
+}
+
+/* The graph fills the pane under the header */
+.body[data-view='graph'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding-top: 12px;
+}
+
+.alert {
+  margin: 4px 0 8px;
+}
+
+/* An upload error lists its issues line by line */
+.alertMessage {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Sortable headers: the grid's header label with a sort mark */
+.sort {
+  composes: sort from './asset-types.module.css';
+}
+
+.sortIcon {
+  composes: sortIcon from './asset-types.module.css';
+}
+
+/* The name over its domains */
+.titleCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+/* A long name wraps, so it reads in full; table cells ignore max-width, so
+   the text's own box sets the measure */
+.title {
+  display: block;
+  min-width: 160px;
+  max-width: 420px;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.person {
+  overflow-wrap: anywhere;
+}
+
+/* Version, status and tag badges, wrapping in their cell */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+/* The row's icon buttons: 24px, so the row stays 28px; `button.` outranks
+   Mantine's ActionIcon colour (R10) */
+button.action {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-text-secondary);
+}
+
+.action svg {
+  width: 14px;
+  height: 14px;
+}
+
+button.delete {
+  color: var(--aura-critical);
+}
+
+button.delete:hover:not(:disabled) {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+button.action:disabled {
+  background: transparent;
+  opacity: 0.5;
+}
+
+/* Show all versions, ruled off from the toolbar's buttons */
+.history {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding-right: 8px;
+  border-right: 1px solid var(--aura-border);
+}
+
+.historyLabel {
+  padding-left: 6px;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+/* The upload button's help mark */
+svg.help {
+  width: 12px;
+  height: 12px;
+  opacity: 0.5;
+}
+
+/* The upload tooltip: a title, then two muted lines */
+.tip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.tip p {
+  margin: 0;
+}
+
+.tipTitle {
+  font-weight: 600;
+}

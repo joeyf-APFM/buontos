@@ -1,6 +1,7 @@
 {
   "title": "Dataproducten",
   "subtitle": "Beheer je dataproducten",
+  "listPane": "Lijst met dataproducten",
   "newProduct": "Nieuw Dataproduct",
   "importProduct": "Importeren",
   "searchPlaceholder": "Zoek dataproducten...",
@@ -1163,7 +1164,8 @@
     "retry": "Opnieuw proberen",
     "untitled": "Naamloos",
     "productsAvailable_one": "{{count}} product beschikbaar",
-    "productsAvailable_other": "{{count}} producten beschikbaar"
+    "productsAvailable_other": "{{count}} producten beschikbaar",
+    "productsPane": "Geabonneerde producten"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumenten",

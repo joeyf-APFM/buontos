@@ -27,8 +27,9 @@
   flex: none;
 }
 
-/* Not sticky (Mantine's is, over the content): it scrolls with the content,
-   as Radix's did, so it never covers the corner close that follows the body */
+/* Not sticky (Mantine's is, over the content): the header stays in view
+   because only the body scrolls (above), so it needs no stickiness, and as a
+   plain flex item it never covers the corner close that follows the body */
 .header {
   position: static;
   /* A flex item honours Mantine's z-index even when static: drop it, so the

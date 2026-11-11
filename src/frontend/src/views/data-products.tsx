@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { deleteOrThrow } from '@/lib/delete-or-throw';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Alert, Loader, Switch, Tooltip, UnstyledButton } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import TagChip from '@/components/ui/tag-chip';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Pencil, Trash2, AlertCircle, Package, ChevronDown, Upload, Loader2, Sparkles, KeyRound, Table as TableIcon, Workflow, Bell, BellOff, HelpCircle, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, ArrowUpDown, Upload, Sparkles, KeyRound, Table as TableIcon, Workflow, Bell, BellOff, HelpCircle, Eye } from 'lucide-react';
 import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewModeToggle } from '@/components/common/view-mode-toggle';
 import {
   Column,
@@ -29,16 +28,15 @@ import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { useNotificationsStore } from '@/stores/notifications-store';
 import DataProductGraphView from '@/components/data-products/data-product-graph-view';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { useDomains } from '@/hooks/use-domains';
 import DomainBadgeList from '@/components/ui/domain-badge-list';
 import { useProjectContext } from '@/stores/project-store';
 import CertificationBadge from '@/components/common/certification-badge';
 import PublicationBadge from '@/components/common/publication-badge';
 import VersionCountBadge from '@/components/common/version-count-badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import type { CertificationLevel } from '@/types/lifecycle';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import classes from './data-products.module.css';
 
 // --- Helper Function Type Definition --- 
 type CheckApiResponseFn = <T>(
@@ -61,6 +59,26 @@ const checkApiResponse: CheckApiResponseFn = (response, name) => {
     }
     // Type assertion after checks - implicit from signature
     return response.data as any; // Use 'as any' temporarily if needed, but the signature defines T
+};
+
+/** A header label that sorts its column, in the grid's header-label look. */
+function SortButton({ column, label }: { column: Column<DataProduct, unknown>; label: string }) {
+  return (
+    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      {label}
+      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+    </UnstyledButton>
+  );
+}
+
+// Status Color Helper (used by the status column)
+const getStatusColor = (status: string | undefined): "default" | "secondary" | "destructive" | "outline" => {
+  const lowerStatus = status?.toLowerCase() || '';
+  if (lowerStatus.includes('active')) return 'default';
+  if (lowerStatus.includes('development')) return 'secondary';
+  if (lowerStatus.includes('retired') || lowerStatus.includes('deprecated')) return 'outline';
+  if (lowerStatus.includes('deleted') || lowerStatus.includes('archived')) return 'destructive';
+  return 'default';
 };
 
 // --- Component Code ---
@@ -89,6 +107,9 @@ export default function DataProducts() {
   const [importingProductPaste, setImportingProductPaste] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Only the latest load may set the list: an earlier one that answers late
+  // (such as one from before a project switch) is dropped
+  const loadId = useRef(0);
 
   // Use the imported types for state (values loaded but not directly consumed by UI)
   const [_statuses, setStatuses] = useState<DataProductStatus[]>([]);
@@ -115,8 +136,6 @@ export default function DataProducts() {
   const [searchParams] = useSearchParams();
   const { getDomainIdByName } = useDomains();
   const refreshNotifications = useNotificationsStore((state) => state.refreshNotifications);
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
 
   // Get permissions
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
@@ -131,12 +150,10 @@ export default function DataProducts() {
   const canAdmin = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.ADMIN);
 
   // Fetch initial data for the table and dropdowns
+  // The shell's breadcrumb names this menu page from the menu: no titles to set
   useEffect(() => {
-    // Set breadcrumbs for this top-level view
-    setStaticSegments([]); // No static parents other than Home
-    setDynamicTitle(t('title'));
-
     const loadInitialData = async () => {
+      const id = ++loadId.current;
       setLoading(true);
       setError(null);
       try {
@@ -158,6 +175,7 @@ export default function DataProducts() {
           get<DataProductOwner[]>('/api/data-products/owners'),
           // get<string[]>('/api/data-products/types'), // Fetch product types (reserved for future use)
         ]);
+        if (id !== loadId.current) return;
 
         // Check responses using the helper
         const productsData = checkApiResponse(productsResp, 'Products');
@@ -171,6 +189,7 @@ export default function DataProducts() {
         // setProductTypes(Array.isArray(typesData) ? typesData : []); // Set product types (reserved for future use)
 
       } catch (err: any) {
+        if (id !== loadId.current) return;
         console.error('Error fetching initial data:', err);
         setError(err.message || t('messages.loadInitialError'));
         // Reset state on error
@@ -179,7 +198,7 @@ export default function DataProducts() {
         // setProductTypes([]); // Reset types on error (reserved for future use)
         setOwners([]);
       } finally {
-        setLoading(false);
+        if (id === loadId.current) setLoading(false);
       }
     };
     // Only load initial data if the user has permission and permissions are loaded
@@ -189,19 +208,10 @@ export default function DataProducts() {
         // Ensure loading is stopped if permissions are loaded but access denied.
         // The permission denied message is handled by the render logic.
         setLoading(false);
-        // Clear breadcrumbs if no permission
-        setStaticSegments([]);
-        setDynamicTitle(null);
     }
-
-    // Cleanup breadcrumbs on unmount
-    return () => {
-        setStaticSegments([]);
-        setDynamicTitle(null);
-    };
     // includeHistory in deps so toggling re-runs the initial fetch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [get, canRead, permissionsLoading, setStaticSegments, setDynamicTitle, hasProjectContext, currentProject, includeHistory]);
+  }, [get, canRead, permissionsLoading, hasProjectContext, currentProject, includeHistory]);
 
   // Fetch user's subscriptions
   useEffect(() => {
@@ -272,6 +282,7 @@ export default function DataProducts() {
   // Function to refetch products list
   const fetchProducts = async () => {
     if (!canRead) return;
+    const id = ++loadId.current;
     try {
       // Mirror loadInitialData so a refetch after a create/delete keeps the
       // same view mode (collapsed vs expanded) the user already had selected.
@@ -286,12 +297,17 @@ export default function DataProducts() {
       const endpoint = qs ? `/api/data-products?${qs}` : '/api/data-products';
 
       const response = await get<DataProduct[]>(endpoint);
+      if (id !== loadId.current) return;
       const productsData = checkApiResponse(response, 'Products Refetch');
       setProducts(Array.isArray(productsData) ? productsData : []);
     } catch (err: any) {
+      if (id !== loadId.current) return;
       console.error('Error refetching products:', err);
       setError(err.message || t('messages.refreshError'));
       toast({ title: t('messages.error'), description: `${t('messages.fetchError')}: ${err.message}`, variant: 'destructive' });
+    } finally {
+      // It may have replaced a first load, whose skeleton is still up
+      if (id === loadId.current) setLoading(false);
     }
   };
 
@@ -582,33 +598,27 @@ export default function DataProducts() {
        }
   };
 
-  // Keep Status Color Helper (used by table column)
-  const getStatusColor = (status: string | undefined): "default" | "secondary" | "destructive" | "outline" => {
-    const lowerStatus = status?.toLowerCase() || '';
-    if (lowerStatus.includes('active')) return 'default';
-    if (lowerStatus.includes('development')) return 'secondary';
-    if (lowerStatus.includes('retired') || lowerStatus.includes('deprecated')) return 'outline';
-    if (lowerStatus.includes('deleted') || lowerStatus.includes('archived')) return 'destructive';
-    return 'default';
-  };
 
-  // --- Column Definitions (Keep as they are for the DataTable) ---
+  // The columns read the row handlers through a ref, so the definitions stay
+  // the same across renders and the cells keep their focus
+  const rowActions = useRef({ edit: handleEditClick, remove: handleDeleteClick });
+  useEffect(() => {
+    rowActions.current = { edit: handleEditClick, remove: handleDeleteClick };
+  });
+
+  // --- Column Definitions (memoised for the DataTable) ---
   const columns = useMemo<ColumnDef<DataProduct>[]>(() => [
     {
       accessorKey: "info.title",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.title')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.title')} />,
       cell: ({ row }) => {
         const product = row.original;
         // Multi-domain (#520): render each assigned domain as a badge (primary starred).
         const domainIds = product.domain_ids ?? [];
         const primaryId = product.primary_domain_id || getDomainIdByName(product.domain) || domainIds[0] || null;
         return (
-          <div className="space-y-1">
-            <div className="font-medium">{product.name || t('table.unnamedProduct')}</div>
+          <div className={classes.titleCell}>
+            <span className={classes.title}>{product.name || t('table.unnamedProduct')}</span>
             <DomainBadgeList
               domains={product.domains}
               domainIds={domainIds}
@@ -621,27 +631,19 @@ export default function DataProducts() {
     },
     {
       accessorKey: "team.members",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.owner')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => {
         const owner = row.original.team?.members?.find(m => m.role === 'owner');
-        return <div>{owner?.name || owner?.username || t('common:states.notAvailable')}</div>;
+        return <span className={classes.person}>{owner?.name || owner?.username || t('common:states.notAvailable')}</span>;
       },
     },
     {
       accessorKey: "version",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.version')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.version')} />,
       cell: ({ row }) => {
         const id = row.original.id
         return (
-          <div className="flex items-center gap-1.5">
+          <div className={classes.badges}>
             <Badge variant="secondary">{row.original.version}</Badge>
             {/* Family badge — same UX as on contracts. Click routes into
                 the detail view where VersionNavigator handles version
@@ -656,31 +658,23 @@ export default function DataProducts() {
     },
     {
       accessorKey: "outputPorts",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.type')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.type')} />,
       cell: ({ row }) => {
         const firstOutputPort = row.original.outputPorts?.[0];
         const productType = firstOutputPort?.type;
-        return productType ? 
+        return productType ?
           <Badge variant="outline">{productType}</Badge> : t('common:states.notAvailable');
       },
     },
     {
       accessorKey: "status",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.status')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.status')} />,
       cell: ({ row }) => (
         row.original.status ? (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className={classes.badges}>
             <Badge variant={getStatusColor(row.original.status)}>{row.original.status}</Badge>
             {row.original.draftOwnerId && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">{t('data-products:status.personalDraft')}</Badge>
+              <Badge variant="info">{t('data-products:status.personalDraft')}</Badge>
             )}
             <CertificationBadge
               certificationLevel={row.original.certification_level}
@@ -705,7 +699,7 @@ export default function DataProducts() {
       cell: ({ row }) => {
         const tags = row.original.tags || [];
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className={classes.badges}>
             {tags.map((tag, index) => (
               <TagChip key={index} tag={tag} size="sm" />
             ))}
@@ -716,20 +710,12 @@ export default function DataProducts() {
     },
     {
       accessorKey: "created_at",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.created')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.created')} />,
       cell: ({ row }) => row.original.created_at ? <RelativeDate date={row.original.created_at} /> : t('common:states.notAvailable'),
     },
     {
       accessorKey: "updated_at",
-      header: ({ column }: { column: Column<DataProduct, unknown> }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          {t('table.updated')} <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortButton column={column} label={t('table.updated')} />,
       cell: ({ row }) => <RelativeDate date={row.original.updated_at} />,
     },
     {
@@ -738,270 +724,260 @@ export default function DataProducts() {
       cell: ({ row }) => {
         const product = row.original;
         return (
-          <div className="flex space-x-1 justify-end">
-            <Button
-                variant="ghost"
-                size="icon"
+          <div className={classes.actions}>
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                className={classes.action}
                 onClick={(e) => { e.stopPropagation(); setPreviewProductId(product.id ?? null); setPreviewProductTitle(product.name ?? ''); }}
                 title={t('data-products:table.previewMetadata')}
             >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleEditClick(product)}
+              <Eye aria-hidden />
+            </ActionIcon>
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                className={classes.action}
+                onClick={() => rowActions.current.edit(product)}
                 disabled={!canWrite || permissionsLoading}
                 title={canWrite ? t('common:actions.edit') : t('table.editDenied')}
             >
-              <Pencil className="h-4 w-4" />
-            </Button>
+              <Pencil aria-hidden />
+            </ActionIcon>
             {product.id && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive"
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                className={`${classes.action} ${classes.delete}`}
                 onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteClick(product);
+                    rowActions.current.remove(product);
                 }}
                 disabled={!canAdmin || permissionsLoading}
                 title={canAdmin ? t('common:actions.delete') : t('table.deleteDenied')}
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                <Trash2 aria-hidden />
+              </ActionIcon>
             )}
           </div>
         );
       },
     },
-  ], [handleOpenCreateDialog, handleDeleteProduct, getStatusColor, canWrite, canAdmin, permissionsLoading, navigate, certificationLevels, getDomainIdByName, t]);
+  ], [canWrite, canAdmin, permissionsLoading, navigate, pathname, certificationLevels, getDomainIdByName, t]);
 
-  // --- Button Variant Logic (Moved outside) ---
+  const showList = !permissionsLoading && canRead && !loading;
+
   // --- Render Logic ---
   return (
-    <div className="py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Package className="w-8 h-8" />
-          {t('title')}
-        </h1>
-      </div>
-
-      {/* 1. Check Permissions Loading */}
-      {permissionsLoading ? (
-        <ListViewSkeleton columns={9} rows={5} toolbarButtons={3} />
-      ) : !canRead ? (
-        // 2. Check Read Permission (if permissions loaded)
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{t('permissions.noView')}</AlertDescription>
-        </Alert>
-      ) : loading ? (
-        // 3. Check Data Loading (if permissions OK)
-        <ListViewSkeleton columns={9} rows={5} toolbarButtons={3} />
-      ) : (
-        // 5. Render Content (if permissions OK and data loaded)
-        <div className="space-y-4">
-          {/* Show dismissible error alert if there's an error (e.g., upload failure) */}
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <AlertDescription className="whitespace-pre-wrap flex-1">{error}</AlertDescription>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 ml-2 hover:bg-destructive/20"
-                onClick={() => setError(null)}
-                title={t('common:tooltips.dismiss')}
-              >
-                <span className="sr-only">{t('common:actions.dismiss')}</span>
-                ×
-              </Button>
-            </Alert>
-          )}
-          <div className="flex items-center justify-end">
-            <ViewModeToggle
-              currentView={viewMode}
-              onViewChange={setViewMode}
-              tableViewIcon={<TableIcon className="h-4 w-4" />}
-              graphViewIcon={<Workflow className="h-4 w-4" />}
-            />
-          </div>
-
-          {viewMode === 'table' ? (
-            <DataTable
-              columns={columns}
-              data={displayedProducts}
-              searchColumn="info.title"
-              storageKey="data-products-sort"
-              toolbarActions={
-                <>
-                  {/* Family-collapse toggle. Mirrors the contracts list view.
-                      See PRD #442. */}
-                  <div className="flex items-center gap-2 h-9 pr-2 border-r border-border">
-                    <Switch
-                      id="products-include-history"
-                      checked={includeHistory}
-                      onCheckedChange={setIncludeHistory}
-                      aria-label={t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
-                    />
-                    <Label htmlFor="products-include-history" className="text-xs text-muted-foreground cursor-pointer">
-                      {t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
-                    </Label>
-                  </div>
-                  {/* My Subscriptions Filter Toggle */}
-                  <Button
-                    onClick={handleToggleMySubscriptions}
-                    className="gap-2 h-9"
-                    variant={showMySubscriptions ? "default" : "outline"}
-                    title={showMySubscriptions ? t('toolbar.showAll') : t('toolbar.showSubscriptions')}
+    <>
+      <PageLayout
+        fullBleed
+        header={
+          <PageHeader
+            title={t('title')}
+            actions={showList && (
+              <ViewModeToggle
+                currentView={viewMode}
+                onViewChange={setViewMode}
+                tableViewIcon={<TableIcon />}
+                graphViewIcon={<Workflow />}
+              />
+            )}
+          />
+        }
+      >
+        <Pane flush aria-label={t('listPane')}>
+          <div className={classes.body} data-view={showList ? viewMode : undefined}>
+            {/* 1. Check Permissions Loading */}
+            {permissionsLoading ? (
+              <ListViewSkeleton columns={9} rows={5} toolbarButtons={3} />
+            ) : !canRead ? (
+              // 2. Check Read Permission (if permissions loaded)
+              <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.alert}>
+                {t('permissions.noView')}
+              </Alert>
+            ) : loading ? (
+              // 3. Check Data Loading (if permissions OK)
+              <ListViewSkeleton columns={9} rows={5} toolbarButtons={3} />
+            ) : (
+              // 4. Render Content (if permissions OK and data loaded)
+              <>
+                {/* A dismissible error (such as an upload failure) */}
+                {error && (
+                  <Alert
+                    color="red"
+                    variant="light"
+                    icon={<AlertCircle />}
+                    className={classes.alert}
+                    classNames={{ message: classes.alertMessage }}
+                    withCloseButton
+                    closeButtonLabel={t('common:actions.dismiss')}
+                    onClose={() => setError(null)}
                   >
-                    {showMySubscriptions ? (
-                      <Bell className="h-4 w-4" />
-                    ) : (
-                      <BellOff className="h-4 w-4" />
-                    )}
-                    {showMySubscriptions ? t('toolbar.mySubscriptionsCount', { count: mySubscribedProductIds.size }) : t('filters.mySubscriptions')}
-                  </Button>
-                  {/* Create Button - Conditionally enabled */}
-                  <Button
-                      onClick={() => handleOpenCreateDialog()}
-                      className="gap-2 h-9"
-                      disabled={!canWrite || permissionsLoading}
-                      title={canWrite ? t('toolbar.createProduct') : t('permissions.denied')}
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t('toolbar.createProduct')}
-                  </Button>
-                  {/* Upload Button - Conditionally enabled */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
+                    {error}
+                  </Alert>
+                )}
+
+                {viewMode === 'table' ? (
+                  <DataTable
+                    columns={columns}
+                    data={displayedProducts}
+                    searchColumn="info.title"
+                    storageKey="data-products-sort"
+                    toolbarActions={
+                      <>
+                        {/* Family-collapse toggle. Mirrors the contracts list view.
+                            See PRD #442. */}
+                        <Switch
+                          id="products-include-history"
+                          size="xs"
+                          className={classes.history}
+                          classNames={{ label: classes.historyLabel }}
+                          checked={includeHistory}
+                          onChange={(e) => setIncludeHistory(e.currentTarget.checked)}
+                          label={t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
+                        />
+                        {/* My Subscriptions Filter Toggle */}
                         <Button
-                            onClick={() => setUploadDialogOpen(true)}
-                            className="gap-2 h-9"
-                            variant="outline"
-                            disabled={isUploading || !canWrite || permissionsLoading}
+                          onClick={handleToggleMySubscriptions}
+                          variant={showMySubscriptions ? "default" : "outline"}
+                          title={showMySubscriptions ? t('toolbar.showAll') : t('toolbar.showSubscriptions')}
                         >
-                          <Upload className="h-4 w-4" />
-                          {isUploading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('upload.uploading')}</>) : t('toolbar.uploadFile')}
-                          <HelpCircle className="h-3 w-3 ml-1 opacity-50" />
+                          {showMySubscriptions ? <Bell /> : <BellOff />}
+                          {showMySubscriptions ? t('toolbar.mySubscriptionsCount', { count: mySubscribedProductIds.size }) : t('filters.mySubscriptions')}
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs">
-                        <p className="font-medium">{t('upload.tooltipTitle')}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {t('upload.tooltipDescription')}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {t('upload.tooltipHint')}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  {/* Upload dialog (shared with Data Contracts via ImportEntityDialog) */}
-                  <ImportEntityDialog
-                    open={uploadDialogOpen}
-                    onOpenChange={setUploadDialogOpen}
-                    uploading={isUploading}
-                    disabled={importingProductPaste}
-                    accept={{
-                      'application/json': ['.json'],
-                      'application/x-yaml': ['.yaml', '.yml'],
-                      'text/yaml': ['.yaml', '.yml'],
-                    }}
-                    onFiles={uploadProductFiles}
-                    toggles={{
-                      createMissingDomains, setCreateMissingDomains,
-                      adoptIds, setAdoptIds,
-                      duplicatesAsNew, setDuplicatesAsNew,
-                    }}
-                    paste={{
-                      value: odpsPaste,
-                      onChange: setOdpsPaste,
-                      onSubmit: importPastedOdps,
-                      submitting: importingProductPaste,
-                    }}
-                    labels={{
-                      title: t('upload.dialogTitle', 'Upload Data Products'),
-                      description: t('upload.dialogDescription', 'Select one or more ODPS files (YAML/JSON). Each file may contain a single product or an array.'),
-                      createMissingDomains: t('upload.createMissingDomains', 'Create missing domains'),
-                      createMissingDomainsHint: t('upload.createMissingDomainsHint', "Auto-create domains that don't already exist. Off: unmatched domains are left unassigned (the original is preserved)."),
-                      adoptIds: t('upload.adoptIds', 'Adopt IDs from file'),
-                      adoptIdsHint: t('upload.adoptIdsHint', 'Reuse a valid, non-colliding UUID from the file as the primary key so links between entities survive import.'),
-                      duplicatesAsNew: t('upload.duplicatesAsNew', 'Import duplicate IDs as new copies'),
-                      duplicatesAsNewHint: t('upload.duplicatesAsNewHint', 'Off (default): a product whose ID already exists is skipped. On: it is imported as a new copy with a fresh ID.'),
-                      dropActive: t('upload.dropActive', 'Drop the file(s) here'),
-                      dropInactive: t('upload.dropInactive', 'Drag and drop product file(s) here, or click to select'),
-                      supportedFormats: t('upload.supportedFormats', 'Supported formats: JSON or YAML (ODPS)'),
-                      pasteLabel: t('upload.orPasteOdps', 'Or paste ODPS JSON'),
-                      pastePlaceholder: t('upload.pasteOdpsPlaceholder', 'Paste ODPS product JSON here'),
-                      pasteButton: t('upload.importJsonButton', 'Import JSON'),
+                        {/* Create Button - Conditionally enabled */}
+                        <Button
+                            onClick={() => handleOpenCreateDialog()}
+                            disabled={!canWrite || permissionsLoading}
+                            title={canWrite ? t('toolbar.createProduct') : t('permissions.denied')}
+                        >
+                          <Plus />
+                          {t('toolbar.createProduct')}
+                        </Button>
+                        {/* Upload Button - Conditionally enabled */}
+                        <Tooltip
+                          multiline
+                          w={280}
+                          position="bottom"
+                          withinPortal
+                          label={
+                            <div className={classes.tip}>
+                              <p className={classes.tipTitle}>{t('upload.tooltipTitle')}</p>
+                              <p>{t('upload.tooltipDescription')}</p>
+                              <p>{t('upload.tooltipHint')}</p>
+                            </div>
+                          }
+                        >
+                          <Button
+                              onClick={() => setUploadDialogOpen(true)}
+                              variant="outline"
+                              disabled={isUploading || !canWrite || permissionsLoading}
+                          >
+                            <Upload />
+                            {isUploading ? (<><Loader size={12} color="currentColor" /> {t('upload.uploading')}</>) : t('toolbar.uploadFile')}
+                            <HelpCircle aria-hidden className={classes.help} />
+                          </Button>
+                        </Tooltip>
+                        {/* Upload dialog (shared with Data Contracts via ImportEntityDialog) */}
+                        <ImportEntityDialog
+                          open={uploadDialogOpen}
+                          onOpenChange={setUploadDialogOpen}
+                          uploading={isUploading}
+                          disabled={importingProductPaste}
+                          accept={{
+                            'application/json': ['.json'],
+                            'application/x-yaml': ['.yaml', '.yml'],
+                            'text/yaml': ['.yaml', '.yml'],
+                          }}
+                          onFiles={uploadProductFiles}
+                          toggles={{
+                            createMissingDomains, setCreateMissingDomains,
+                            adoptIds, setAdoptIds,
+                            duplicatesAsNew, setDuplicatesAsNew,
+                          }}
+                          paste={{
+                            value: odpsPaste,
+                            onChange: setOdpsPaste,
+                            onSubmit: importPastedOdps,
+                            submitting: importingProductPaste,
+                          }}
+                          labels={{
+                            title: t('upload.dialogTitle', 'Upload Data Products'),
+                            description: t('upload.dialogDescription', 'Select one or more ODPS files (YAML/JSON). Each file may contain a single product or an array.'),
+                            createMissingDomains: t('upload.createMissingDomains', 'Create missing domains'),
+                            createMissingDomainsHint: t('upload.createMissingDomainsHint', "Auto-create domains that don't already exist. Off: unmatched domains are left unassigned (the original is preserved)."),
+                            adoptIds: t('upload.adoptIds', 'Adopt IDs from file'),
+                            adoptIdsHint: t('upload.adoptIdsHint', 'Reuse a valid, non-colliding UUID from the file as the primary key so links between entities survive import.'),
+                            duplicatesAsNew: t('upload.duplicatesAsNew', 'Import duplicate IDs as new copies'),
+                            duplicatesAsNewHint: t('upload.duplicatesAsNewHint', 'Off (default): a product whose ID already exists is skipped. On: it is imported as a new copy with a fresh ID.'),
+                            dropActive: t('upload.dropActive', 'Drop the file(s) here'),
+                            dropInactive: t('upload.dropInactive', 'Drag and drop product file(s) here, or click to select'),
+                            supportedFormats: t('upload.supportedFormats', 'Supported formats: JSON or YAML (ODPS)'),
+                            pasteLabel: t('upload.orPasteOdps', 'Or paste ODPS JSON'),
+                            pastePlaceholder: t('upload.pasteOdpsPlaceholder', 'Paste ODPS product JSON here'),
+                            pasteButton: t('upload.importJsonButton', 'Import JSON'),
+                          }}
+                        />
+                      </>
+                    }
+                    bulkActions={(selectedRows) => (
+                      <>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleBulkRequestAccess(selectedRows)}
+                            disabled={selectedRows.length === 0}
+                            title={t('bulk.requestAccessTitle')}
+                        >
+                            <KeyRound />
+                            {t('bulk.requestAccess', { count: selectedRows.length })}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCreateGenieSpace(selectedRows)}
+                            disabled={selectedRows.length === 0 || !canWrite}
+                            title={canWrite ? t('bulk.createGenieSpaceTitle') : t('permissions.denied')}
+                        >
+                            <Sparkles />
+                            {t('bulk.createGenieSpace', { count: selectedRows.length })}
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleBulkDelete(selectedRows)}
+                            disabled={selectedRows.length === 0 || !canAdmin}
+                            title={canAdmin ? t('bulk.deleteTitle') : t('permissions.denied')}
+                        >
+                            <Trash2 />
+                            {t('bulk.deleteSelected', { count: selectedRows.length })}
+                        </Button>
+                      </>
+                    )}
+                    onRowClick={(row) => {
+                      const productId = row.original.id;
+                      if (productId) {
+                        navigate(`${pathname}/${productId}`);
+                      } else {
+                        console.warn("Cannot navigate: Product ID is missing.", row.original);
+                        toast({ title: t('navigation.error'), description: t('navigation.missingId'), variant: "default" });
+                      }
                     }}
                   />
-                </>
-              }
-            bulkActions={(selectedRows) => {
-              // Remove view toggle logic from here
-              return (
-                <>
-                  <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1"
-                      onClick={() => handleBulkRequestAccess(selectedRows)}
-                      disabled={selectedRows.length === 0}
-                      title={t('bulk.requestAccessTitle')}
-                  >
-                      <KeyRound className="w-4 h-4 mr-1" />
-                      {t('bulk.requestAccess', { count: selectedRows.length })}
-                  </Button>
-                  <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1"
-                      onClick={() => handleCreateGenieSpace(selectedRows)}
-                      disabled={selectedRows.length === 0 || !canWrite}
-                      title={canWrite ? t('bulk.createGenieSpaceTitle') : t('permissions.denied')}
-                  >
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      {t('bulk.createGenieSpace', { count: selectedRows.length })}
-                  </Button>
-                  <Button
-                      variant="destructive"
-                      size="sm"
-                      className="h-9 gap-1"
-                      onClick={() => handleBulkDelete(selectedRows)}
-                      disabled={selectedRows.length === 0 || !canAdmin}
-                      title={canAdmin ? t('bulk.deleteTitle') : t('permissions.denied')}
-                  >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      {t('bulk.deleteSelected', { count: selectedRows.length })}
-                  </Button>
-                </>
-              );
-            }}
-            onRowClick={(row) => {
-              const productId = row.original.id;
-              if (productId) {
-                navigate(`${pathname}/${productId}`);
-              } else {
-                console.warn("Cannot navigate: Product ID is missing.", row.original);
-                toast({ title: t('navigation.error'), description: t('navigation.missingId'), variant: "default" });
-              }
-            }}
-          />
-          ) : (
-            <DataProductGraphView 
-                products={displayedProducts} 
-                viewMode={viewMode}
-                setViewMode={setViewMode}
-                navigate={navigate}
-            />
-          )}
-        </div>
-      )}
+                ) : (
+                  <DataProductGraphView
+                      products={displayedProducts}
+                      viewMode={viewMode}
+                      setViewMode={setViewMode}
+                      navigate={navigate}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </Pane>
+      </PageLayout>
 
       <EntityInfoDialog
         entityType="data_product"
@@ -1022,6 +998,6 @@ export default function DataProducts() {
 
       {/* Render Toaster component (ideally place in root layout like App.tsx) */}
       <Toaster />
-    </div>
+    </>
   );
-} 
+}

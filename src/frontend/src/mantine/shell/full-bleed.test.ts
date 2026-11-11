@@ -3,7 +3,7 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId', '/data-products', '/my-products']);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);
@@ -55,6 +55,16 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/data-asset-review')).toBe(false);
     // My Requests, which lists the user's reviews, is wave 2
     expect(isFullBleed('/my-requests')).toBe(false);
+  });
+
+  it('matches the Data Products and My Products lists, but not a product under them', () => {
+    // Wave 2 Task 4; the product pages under them are later tasks
+    expect(isFullBleed('/data-products')).toBe(true);
+    expect(isFullBleed('/data-products/')).toBe(true);
+    expect(isFullBleed('/data-products/p-1')).toBe(false);
+    expect(isFullBleed('/my-products')).toBe(true);
+    expect(isFullBleed('/my-products/p-1')).toBe(false);
+    expect(isFullBleed('/Data-Products')).toBe(false);
   });
 
   it('takes route patterns, such as a detail route', () => {
