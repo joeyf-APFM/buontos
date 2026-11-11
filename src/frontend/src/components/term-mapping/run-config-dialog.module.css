@@ -1,0 +1,220 @@
+/*
+ * The term-mapping run dialog (wave 2 Task 14), on the kit Dialog: the
+ * Simple/Advanced switch at the top, then sections ruled off above (the
+ * customer ontologies, the shipped taxonomies, the target types with the
+ * asset-type picker), the limit and comment side by side, and the preview.
+ */
+.titleIcon {
+  color: var(--aura-accent);
+}
+
+.mode {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -4px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.section + .section {
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.sectionEnd {
+  margin-left: auto;
+}
+
+.alert {
+  padding: 8px 12px;
+}
+
+.alertText {
+  overflow-wrap: anywhere;
+}
+
+/* A bordered list of checkboxes; the context list scrolls past 192px */
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.box[data-scroll] {
+  max-height: 192px;
+  overflow-y: auto;
+}
+
+.nested {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 6px;
+  padding-left: 16px;
+  border-left: 1px solid var(--aura-border-subtle);
+}
+
+.strong {
+  font-weight: 600;
+}
+
+/* A checkbox whose label fills the row, so its IRI can sit at the end */
+.checkBody {
+  min-width: 0;
+}
+
+.checkLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+/* A long scheme name wraps */
+.optionName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* An IRI: mono, at the row's end, wrapping anywhere */
+.urn {
+  margin-left: auto;
+  min-width: 0;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.urn[hidden] {
+  display: none;
+}
+
+.targets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.targets > [hidden] {
+  display: none;
+}
+
+.assetTypes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 4px 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--aura-surface-strong);
+  overflow-wrap: anywhere;
+}
+
+.chipRemove {
+  display: inline-flex;
+  padding: 1px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+.chipRemove:hover {
+  color: var(--aura-text-body);
+}
+
+.chipRemove:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.pickerValue {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+.options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.check {
+  flex: none;
+  opacity: 0;
+}
+
+.check[data-picked] {
+  opacity: 1;
+}
+
+/* The limit beside the comment, a third and two thirds; a narrow window stacks them */
+.limitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+@media (max-width: 560px) {
+  .limitRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

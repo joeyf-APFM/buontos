@@ -1,18 +1,14 @@
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, CheckCircle2, SearchX } from 'lucide-react';
+import { Loader } from '@mantine/core';
+import { CheckCircle2, SearchX } from 'lucide-react';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/mantine/page';
+import form from '@/components/common/dialog-form.module.css';
 import ReviewSuggestionsDialog from '@/components/enrich/review-suggestions-dialog';
 import type { Run } from '@/types/term-mapping';
+import classes from './run-result-dialog.module.css';
 
 interface Props {
   open: boolean;
@@ -24,6 +20,12 @@ interface Props {
   loading?: boolean;
   /** Opt-in: hand the run's suggestions off to the Review Board via a request. */
   onRequestReview: () => void;
+  /**
+   * Where focus goes once the summary (or the reviewer it hands over to) has
+   * closed: the summary opens as the run dialog closes, so its own opener is
+   * that dialog's button, which is gone by then.
+   */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -33,6 +35,10 @@ interface Props {
  *   - Review matches in place (primary; opens the shared accept/reject reviewer)
  *   - Request a Review-Board handoff (secondary opt-in; onRequestReview)
  * A run with zero suggestions shows a clear "no matches" state, not a dead-end.
+ *
+ * On the kit Dialog since wave 2 Task 14. Review matches hands over: the
+ * summary closes as the reviewer opens (one dialog at a time), and closing
+ * the reviewer closes both.
  */
 export default function RunResultDialog({
   open,
@@ -41,6 +47,7 @@ export default function RunResultDialog({
   suggestionRefs,
   loading = false,
   onRequestReview,
+  returnFocusTo,
 }: Props) {
   const { t } = useTranslation(['term-mapping', 'common']);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -50,51 +57,54 @@ export default function RunResultDialog({
 
   return (
     <>
-      <Dialog open={open && !reviewOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              ) : hasSuggestions ? (
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              ) : (
-                <SearchX className="h-5 w-5 text-muted-foreground" />
-              )}
-              {t('runResult.title', 'Run complete')}
-            </DialogTitle>
-            <DialogDescription>
-              {loading
-                ? t('runResult.loading', 'Gathering suggested matches…')
-                : hasSuggestions
-                  ? t('runResult.found', {
-                      count,
-                      defaultValue: 'Found {{count}} suggested match(es) to review.',
-                    })
-                  : t(
-                      'runResult.none',
-                      'No matches were found for this run. Nothing to review.',
-                    )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+      <Dialog
+        opened={open && !reviewOpen}
+        onClose={() => onOpenChange(false)}
+        size="sm"
+        returnFocusTo={returnFocusTo}
+        title={
+          <span className={form.titleLine}>
+            {loading ? (
+              <Loader size={14} />
+            ) : hasSuggestions ? (
+              <CheckCircle2 size={16} className={classes.found} aria-hidden />
+            ) : (
+              <SearchX size={16} className={classes.none} aria-hidden />
+            )}
+            {t('runResult.title', 'Run complete')}
+          </span>
+        }
+        description={
+          loading
+            ? t('runResult.loading', 'Gathering suggested matches…')
+            : hasSuggestions
+              ? t('runResult.found', {
+                  count,
+                  defaultValue: 'Found {{count}} suggested match(es) to review.',
+                })
+              : t(
+                  'runResult.none',
+                  'No matches were found for this run. Nothing to review.',
+                )
+        }
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => onOpenChange(false)} className={classes.close}>
               {t('common:actions.close', 'Close')}
             </Button>
             {!loading && hasSuggestions && (
-              <div className="flex items-center gap-2">
+              <>
                 <Button variant="outline" onClick={onRequestReview}>
                   {t('runResult.requestReview', 'Request review')}
                 </Button>
                 <Button onClick={() => setReviewOpen(true)}>
                   {t('runResult.reviewMatches', 'Review matches')}
                 </Button>
-              </div>
+              </>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      />
 
       {/* In-place accept/reject over this run's live suggestions. */}
       <ReviewSuggestionsDialog
@@ -106,6 +116,7 @@ export default function RunResultDialog({
         schemeName={run?.comment || t('runResult.thisRun', 'this run')}
         suggestionRefs={suggestionRefs}
         reviewBoardHref="/data-asset-reviews"
+        returnFocusTo={returnFocusTo}
       />
     </>
   );

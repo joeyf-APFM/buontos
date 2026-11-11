@@ -245,6 +245,9 @@ export default function EnrichView() {
   // action reviews the matches in place; requesting a Review-Board handoff is a
   // secondary, opt-in action. reviewRun drives that opt-in delegate dialog.
   const [runConfigOpen, setRunConfigOpen] = useState(false);
+  // Suggest matches opens a chain of dialogs (run, result, review or request),
+  // each opened from the last as it closes: focus goes back here at the end
+  const suggestButton = useRef<HTMLButtonElement>(null);
   const [reviewRun, setReviewRun] = useState<Run | null>(null);
   // Result of the just-completed run: the run + its live suggestion refs for the
   // in-place reviewer. Null when no run summary is showing.
@@ -563,6 +566,7 @@ export default function EnrichView() {
             // contexts live there), runs the suggester, and routes candidates
             // to the Review Board. Requires write access on term-mapping.
             <Button
+              ref={suggestButton}
               variant="outline"
               size="sm"
               disabled={!canWrite}
@@ -660,6 +664,7 @@ export default function EnrichView() {
         run={runResult?.run ?? null}
         suggestionRefs={runResult?.refs ?? []}
         loading={runResultLoading}
+        returnFocusTo={suggestButton}
         onRequestReview={() => {
           const r = runResult?.run ?? null;
           closeRunResult();
@@ -674,6 +679,7 @@ export default function EnrichView() {
         }}
         run={reviewRun}
         currentUserEmail={currentUser?.email ?? undefined}
+        returnFocusTo={suggestButton}
       />
 
       {/* Pending tag changes — the actual list behind the "N pending" count. */}

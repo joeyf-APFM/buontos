@@ -1,18 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Check, CheckCircle2, ExternalLink, Loader2, X } from 'lucide-react';
+import { Alert, Badge, Loader } from '@mantine/core';
+import { ArrowRight, Check, CheckCircle2, ExternalLink, X } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import TermMappingSuggestionReview from '@/components/term-mapping/suggestion-review';
+import classes from './review-suggestions-dialog.module.css';
 
 // ---------------------------------------------------------------------------
 // Inline "Review suggested matches" surface for the Map lane.
@@ -87,6 +81,8 @@ interface Props {
   driftCount?: number;
   /** Optional escape hatch to the full Review Board. */
   reviewBoardHref?: string;
+  /** Where focus goes once it has closed, when its opener is gone by then (the run summary's). */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
 function confidenceBucket(c: number): PlaceholderSuggestion['confidence'] {
@@ -94,12 +90,6 @@ function confidenceBucket(c: number): PlaceholderSuggestion['confidence'] {
   if (c >= 0.5) return 'medium';
   return 'low';
 }
-
-const CONF_CLASS: Record<PlaceholderSuggestion['confidence'], string> = {
-  high: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100',
-  medium: 'bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100',
-  low: 'bg-rose-100 text-rose-900 dark:bg-rose-900/50 dark:text-rose-100',
-};
 
 export default function ReviewSuggestionsDialog({
   open,
@@ -113,6 +103,7 @@ export default function ReviewSuggestionsDialog({
   placeholders = [],
   driftCount = 0,
   reviewBoardHref,
+  returnFocusTo,
 }: Props) {
   const { t } = useTranslation(['concepts', 'term-mapping', 'common']);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -153,156 +144,55 @@ export default function ReviewSuggestionsDialog({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {t('enrich.review.title', 'Review suggested matches')}
-            <span className="text-sm font-normal text-muted-foreground">· {schemeName}</span>
-          </DialogTitle>
-          <DialogDescription>
-            {t(
-              'enrich.review.subtitle',
-              'Accept or reject each concept-to-Asset match. Nothing syncs until you accept it.',
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="max-h-[62vh] space-y-3 overflow-y-auto">
-          {hasLive && liveRef ? (
-            // Real accept/reject via the shared reviewer, in-place.
-            <TermMappingSuggestionReview
-              key={liveRef.fqn}
-              assetFqn={liveRef.fqn}
-              currentIndex={activeIndex + 1}
-              totalCount={suggestionRefs!.length}
-              hasNext={activeIndex < suggestionRefs!.length - 1}
-              onNext={() => setActiveIndex((i) => Math.min(i + 1, suggestionRefs!.length - 1))}
-            />
-          ) : loading && !hasScheme && placeholders.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t('enrich.review.loading', 'Loading suggested matches…')}
-            </div>
-          ) : hasScheme ? (
-            // Live scheme-review path: list the scheme's pending suggestions and
-            // accept-and-apply them all in one action.
-            <>
-              {done ? (
-                <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-100">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  {t('enrich.review.applied', {
-                    count: scheme.length,
-                    defaultValue: 'Applied {{count}} match(es). They will sync on next delivery.',
-                  })}
-                </div>
-              ) : (
-                applyError && (
-                  <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900 dark:border-rose-900/50 dark:bg-rose-900/30 dark:text-rose-100">
-                    {t('enrich.review.applyError', 'Could not apply matches: ')}
-                    {applyError}
-                  </div>
-                )
-              )}
-              {scheme.map((s) => {
-                const conf = confidenceBucket(s.confidence);
-                return (
-                  <div
-                    key={s.id}
-                    className="flex items-center gap-3 rounded-md border px-3 py-2.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <span className="font-medium">{s.concept}</span>
-                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate font-mono text-xs text-muted-foreground">
-                          {s.target}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{s.reason}</p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${CONF_CLASS[conf]}`}
-                    >
-                      {conf}
-                    </span>
-                  </div>
-                );
-              })}
-            </>
-          ) : (
-            <>
-              <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                {t(
-                  'enrich.review.placeholderNote',
-                  'Sample matches shown for illustration.',
-                )}
-              </p>
-              {placeholders.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center gap-3 rounded-md border px-3 py-2.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <span className="font-medium">{s.concept}</span>
-                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate font-mono text-xs text-muted-foreground">
-                        {s.target}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{s.reason}</p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${CONF_CLASS[s.confidence]}`}
-                  >
-                    {s.confidence}
-                  </span>
-                  <div className="flex shrink-0 gap-1.5">
-                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled>
-                      <X className="mr-1 h-3.5 w-3.5" />
-                      {t('enrich.review.reject', 'Reject')}
-                    </Button>
-                    <Button size="sm" className="h-7 px-2 text-xs" disabled>
-                      <Check className="mr-1 h-3.5 w-3.5" />
-                      {t('enrich.review.accept', 'Accept')}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {driftCount > 0 && (
-                <div className="flex items-center justify-between rounded-md border px-3 py-2.5 text-sm">
-                  <span>{t('enrich.review.drift', 'Schema drift to resolve')}</span>
-                  <Badge variant="outline">{driftCount}</Badge>
-                </div>
-              )}
-            </>
-          )}
+  const row = (s: { id: string; concept: string; target: string; reason: string }, conf: PlaceholderSuggestion['confidence'], actions?: ReactNode) => (
+    <li key={s.id} className={classes.row}>
+      <div className={classes.main}>
+        <div className={classes.mapping}>
+          <span className={classes.concept}>{s.concept}</span>
+          <ArrowRight size={14} className={classes.arrow} aria-hidden />
+          <span className={classes.target} title={s.target}>
+            {s.target}
+          </span>
         </div>
+        <p className={classes.reason}>{s.reason}</p>
+      </div>
+      <span className={classes.confidence} data-confidence={conf}>
+        {conf}
+      </span>
+      {actions}
+    </li>
+  );
 
-        <DialogFooter className="items-center justify-between sm:justify-between">
-          {reviewBoardHref ? (
-            <a
-              href={reviewBoardHref}
-              className="mr-auto inline-flex items-center gap-1 text-xs text-sky-700 hover:underline dark:text-sky-400"
-            >
+  return (
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="lg"
+      returnFocusTo={returnFocusTo}
+      title={
+        <>
+          {t('enrich.review.title', 'Review suggested matches')}
+          <span className={classes.scheme}> · {schemeName}</span>
+        </>
+      }
+      description={t(
+        'enrich.review.subtitle',
+        'Accept or reject each concept-to-Asset match. Nothing syncs until you accept it.',
+      )}
+      footer={
+        <>
+          {reviewBoardHref && (
+            <a href={reviewBoardHref} className={classes.boardLink}>
               {t('enrich.review.openFull', 'Open full Review Board')}
-              <ExternalLink className="h-3 w-3" />
+              <ExternalLink size={12} aria-hidden />
             </a>
-          ) : (
-            <span className="mr-auto" />
           )}
           {hasScheme && onAcceptAndApplyAll && !done && (
             <Button
               onClick={handleAcceptApply}
               disabled={submitting || done || !canWrite}
             >
-              {submitting ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-1.5 h-4 w-4" />
-              )}
+              {submitting ? <Loader size={12} color="currentColor" /> : <Check size={14} aria-hidden />}
               {submitting
                 ? t('enrich.review.applying', 'Applying…')
                 : t('enrich.review.acceptApplyAll', {
@@ -316,8 +206,81 @@ export default function ReviewSuggestionsDialog({
               ? t('common:actions.done', 'Done')
               : t('common:actions.close', 'Close')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      {hasLive && liveRef ? (
+        // Real accept/reject via the shared reviewer, in-place.
+        <TermMappingSuggestionReview
+          key={liveRef.fqn}
+          assetFqn={liveRef.fqn}
+          currentIndex={activeIndex + 1}
+          totalCount={suggestionRefs!.length}
+          hasNext={activeIndex < suggestionRefs!.length - 1}
+          onNext={() => setActiveIndex((i) => Math.min(i + 1, suggestionRefs!.length - 1))}
+        />
+      ) : loading && !hasScheme && placeholders.length === 0 ? (
+        <div className={classes.loading}>
+          <Loader size="xs" />
+          {t('enrich.review.loading', 'Loading suggested matches…')}
+        </div>
+      ) : hasScheme ? (
+        // Live scheme-review path: list the scheme's pending suggestions and
+        // accept-and-apply them all in one action.
+        <>
+          {done ? (
+            <Alert color="green" variant="light" icon={<CheckCircle2 size={16} />} className={classes.notice}>
+              {t('enrich.review.applied', {
+                count: scheme.length,
+                defaultValue: 'Applied {{count}} match(es). They will sync on next delivery.',
+              })}
+            </Alert>
+          ) : (
+            applyError && (
+              <Alert color="red" variant="light" className={classes.notice}>
+                {t('enrich.review.applyError', 'Could not apply matches: ')}
+                {applyError}
+              </Alert>
+            )
+          )}
+          <ul className={classes.list}>
+            {scheme.map((s) => row(s, confidenceBucket(s.confidence)))}
+          </ul>
+        </>
+      ) : (
+        <>
+          <p className={classes.sampleNote}>
+            {t(
+              'enrich.review.placeholderNote',
+              'Sample matches shown for illustration.',
+            )}
+          </p>
+          <ul className={classes.list}>
+            {placeholders.map((s) =>
+              row(
+                s,
+                s.confidence,
+                <div className={classes.actions}>
+                  <Button variant="outline" size="sm" disabled>
+                    <X size={14} aria-hidden />
+                    {t('enrich.review.reject', 'Reject')}
+                  </Button>
+                  <Button size="sm" disabled>
+                    <Check size={14} aria-hidden />
+                    {t('enrich.review.accept', 'Accept')}
+                  </Button>
+                </div>,
+              ),
+            )}
+            {driftCount > 0 && (
+              <li className={classes.row}>
+                <span className={classes.main}>{t('enrich.review.drift', 'Schema drift to resolve')}</span>
+                <Badge size="sm" radius="sm" variant="outline" color="gray">{driftCount}</Badge>
+              </li>
+            )}
+          </ul>
+        </>
+      )}
     </Dialog>
   );
 }

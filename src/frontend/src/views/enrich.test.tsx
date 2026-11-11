@@ -51,10 +51,19 @@ vi.mock('@/components/term-mapping/suggestion-review', () => ({
 
 import EnrichView from './enrich';
 import { ConceptModeSwitch } from '@/components/concepts/mode-switch';
+import { AppMantineProvider } from '@/mantine/provider';
 
 // EnrichView mounts dialogs that use useNavigate (Suggest matches routes to the
 // Review Board), so it needs a Router in tests even when those dialogs are closed.
-const renderEnrich = () => render(<EnrichView />, { wrapper: MemoryRouter });
+// The review dialog is on the kit Dialog (a Mantine Modal) since wave 2 Task 14
+const renderEnrich = () =>
+  render(<EnrichView />, {
+    wrapper: ({ children }) => (
+      <MemoryRouter>
+        <AppMantineProvider>{children}</AppMantineProvider>
+      </MemoryRouter>
+    ),
+  });
 
 describe('EnrichView', () => {
   beforeEach(() => {
@@ -85,12 +94,12 @@ describe('EnrichView', () => {
     expect(screen.getByText('Coming')).toBeInTheDocument();
   });
 
-  it('opens the inline review modal without navigating', () => {
+  it('opens the inline review modal without navigating', async () => {
     renderEnrich();
     const reviewButtons = screen.getAllByRole('button', { name: 'Review' });
     fireEvent.click(reviewButtons[0]);
     // Dialog title is the inline review header.
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Review suggested matches')).toBeInTheDocument();
     // A placeholder suggestion from the Finance scheme is shown in-place.
     expect(within(dialog).getByText('Payment Term')).toBeInTheDocument();
