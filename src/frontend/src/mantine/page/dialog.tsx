@@ -1,13 +1,30 @@
-import { useCallback, useRef, type ReactNode, type RefObject } from 'react';
+import { useCallback, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@mantine/core';
 import { alertDialogRole } from '@/mantine/alert-dialog-role';
-import { focusIsFree } from '@/mantine/focus-free';
+import { dropdownTarget, focusIsFree } from '@/mantine/focus-free';
 import { useLayeredEscape } from '@/mantine/use-layered-escape';
 import { Z_INDEX } from '@/mantine/z-index';
 import classes from './dialog.module.css';
 
 const WIDTHS = { sm: 420, md: 560, lg: 720, xl: 960 } as const;
+
+/**
+ * The element to give focus back to: the one that had it when the dialog
+ * opened, or, for a control in a floating dropdown (a Menu item, a Popover's
+ * button), which goes with the dropdown, the dropdown's target. None for the
+ * body, or for focus already inside this dialog.
+ */
+function openerOf(active: Element | null, own: HTMLElement | null): HTMLElement | null {
+  if (!(active instanceof HTMLElement) || active === document.body) return null;
+  if (own?.contains(active)) return null;
+  return dropdownTarget(active) ?? active;
+}
+
+/** Whether a kit dialog other than `own` is open now (a newer one took over, as on a 409). */
+function otherDialogOpen(own: HTMLElement | null): boolean {
+  return [...document.querySelectorAll(`.${classes.content}`)].some((node) => node !== own && node.isConnected);
+}
 
 export interface DialogProps {
   opened: boolean;
@@ -25,7 +42,11 @@ export interface DialogProps {
   height?: string;
   /** `alertdialog` for confirms: no corner close, a response is needed. @default 'dialog' */
   role?: 'dialog' | 'alertdialog';
-  /** Focus goes here once the dialog has closed, if `focusIsFree` says it may. */
+  /**
+   * Focus goes here once the dialog has closed, if `focusIsFree` says it may.
+   * Only for an opener that unmounts: by default the kit gives focus back to
+   * the element that opened the dialog.
+   */
   returnFocusTo?: RefObject<HTMLElement | null>;
   /** The right-aligned action row, under the body. */
   footer?: ReactNode;
@@ -34,8 +55,7 @@ export interface DialogProps {
   /**
    * Called once the dialog has closed and its exit transition has ended,
    * with its content element, for a caller that puts focus back itself
-   * (such as after a reload). With it, or with `returnFocusTo`, Mantine's
-   * own focus return is off.
+   * (such as after a reload). With it, the kit gives no focus back.
    */
   onExited?: (content: HTMLElement | null) => void;
   /**
@@ -58,6 +78,13 @@ export interface DialogProps {
  *   content (or on its `data-autofocus` element).
  * - The title and the footer stay in view: content taller than the window
  *   scrolls inside the body.
+ * - Focus goes back to the opener once the dialog has closed (ruling R41),
+ *   never through Mantine's own return, which ignores where focus is: only
+ *   if the opener is still there, focus is free (`focusIsFree`), the page
+ *   hasn't moved on (the location at open), and no other kit dialog took
+ *   over (one is open and the opener isn't inside a kit dialog: the version
+ *   prompt a 409 opens). It's checked a frame after the exit, so a dialog
+ *   that took over with no transition has its focus by then.
  */
 export function Dialog({
   opened,
@@ -88,10 +115,30 @@ export function Dialog({
     [role],
   );
 
+  // The opener and the location, recorded as the dialog opens (also when it
+  // mounts open): before the Modal mounts its content, a render later
+  const opener = useRef<HTMLElement | null>(null);
+  const openedAt = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!opened) return;
+    opener.current = openerOf(document.activeElement, content.current);
+    openedAt.current = window.location.href;
+  }, [opened]);
+
   const exited = () => {
     onExited?.(content.current);
-    const target = returnFocusTo?.current;
-    if (target?.isConnected && focusIsFree(content.current)) target.focus();
+    // A caller that puts focus back itself owns it
+    if (onExited) return;
+    const target = returnFocusTo?.current ?? opener.current;
+    const closed = content.current;
+    const at = openedAt.current;
+    window.requestAnimationFrame(() => {
+      if (!target?.isConnected || window.location.href !== at) return;
+      // Another kit dialog is open, and the opener isn't in one: that dialog
+      // took over (the version prompt on a 409) and keeps focus
+      if (otherDialogOpen(closed) && !target.closest(`.${classes.content}`)) return;
+      if (focusIsFree(closed)) target.focus({ preventScroll: true });
+    });
   };
 
   const name = closeLabel === null ? undefined : closeLabel ?? t('actions.close');
@@ -105,7 +152,8 @@ export function Dialog({
       zIndex={Z_INDEX.modal}
       closeOnClickOutside={closeOnClickOutside}
       closeOnEscape={false}
-      returnFocus={!returnFocusTo && !onExited}
+      // The kit gives focus back itself (exited, above)
+      returnFocus={false}
       onExitTransitionEnd={exited}
       // On the content alone: Modal.Content's className would also land on
       // the full-window layer that centres it (Mantine 8.3.18)

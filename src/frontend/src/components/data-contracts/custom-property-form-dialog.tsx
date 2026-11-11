@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/mantine/page'
-import { useOpenerRef } from '@/components/common/use-opener-ref'
 import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
 import form from '@/components/common/dialog-form.module.css'
 import classes from './contract-form-dialogs.module.css'
@@ -30,8 +29,6 @@ export default function CustomPropertyFormDialog({
   const [value, setValue] = useState('')
   const [valueType, setValueType] = useState<ValueType>('string')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
-  const opener = useOpenerRef(isOpen)
   const [error, setError] = useState<string | null>(null)
 
   const isEditing = !!initial
@@ -120,7 +117,6 @@ export default function CustomPropertyFormDialog({
     <Dialog
       opened={isOpen}
       onClose={() => onOpenChange(false)}
-      returnFocusTo={opener}
       size="md"
       title={isEditing ? t('data-contracts:customProperty.editTitle', 'Edit Custom Property') : t('data-contracts:customProperty.addTitle', 'Add Custom Property')}
       footer={

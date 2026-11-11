@@ -3,7 +3,6 @@ import { TextInput } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Dialog } from '@/mantine/page'
-import { useOpenerRef } from '@/components/common/use-opener-ref'
 import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form'
 import form from '@/components/common/dialog-form.module.css'
 import { useTranslation } from 'react-i18next'
@@ -32,8 +31,6 @@ export default function AuthoritativeDefinitionFormDialog({
   const { toast } = useToast()
   const { t } = useTranslation(['data-contracts', 'common'])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
-  const opener = useOpenerRef(isOpen)
   const [url, setUrl] = useState('')
   const [type, setType] = useState('')
 
@@ -99,7 +96,6 @@ export default function AuthoritativeDefinitionFormDialog({
     <Dialog
       opened={isOpen}
       onClose={() => onOpenChange(false)}
-      returnFocusTo={opener}
       size="md"
       title={initial ? t('data-contracts:authoritativeDefinition.editTitle', 'Edit Authoritative Definition') : t('data-contracts:authoritativeDefinition.addTitle', 'Add Authoritative Definition')}
       description={t('data-contracts:authoritativeDefinition.description', '{{level}}-level authoritative source (ODCS compliant)', { level: levelLabels[level] })}

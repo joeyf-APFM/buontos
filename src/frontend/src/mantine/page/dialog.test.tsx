@@ -6,6 +6,7 @@
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Menu } from '@mantine/core';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { Dialog, type DialogProps } from '.';
 import classes from './dialog.module.css';
@@ -179,5 +180,162 @@ describe('kit Dialog', () => {
     rerender(<Harness onClose={onClose} closeOnClickOutside />);
     fireEvent.click(overlay());
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Wave 2 Task 11 fix round 1 (ruling R41): the kit puts focus back itself,
+ * never Mantine. It records the opener when the dialog opens (also when it
+ * mounts open), and after the exit gives focus back only if the opener is
+ * still there, focus is free, no newer kit dialog holds it, and the page
+ * hasn't moved on.
+ */
+describe('kit Dialog focus return (R41)', () => {
+  /** A dialog that mounts already open, from a button that both mounts and opens it. */
+  function MountOpen() {
+    const [shown, setShown] = useState(false);
+    const [opened, setOpened] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => { setShown(true); setOpened(true); }}>Open</button>
+        {shown && (
+          <Dialog opened={opened} onClose={() => setOpened(false)} title="Rename">
+            <input aria-label="Name" />
+          </Dialog>
+        )}
+      </>
+    );
+  }
+
+  /** A form that hands over to a prompt as it closes (the 409 path). */
+  function Handover() {
+    const [form, setForm] = useState(false);
+    const [prompt, setPrompt] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setForm(true)}>Open</button>
+        <Dialog opened={form} onClose={() => setForm(false)} title="Edit SLA">
+          <button type="button" onClick={() => { setPrompt(true); setForm(false); }}>Save</button>
+        </Dialog>
+        <Dialog opened={prompt} onClose={() => setPrompt(false)} title="Version prompt">
+          <button type="button">Keep</button>
+        </Dialog>
+      </>
+    );
+  }
+
+  /** A dialog opened from a Menu item: the item goes with the menu. */
+  function FromMenu() {
+    const [opened, setOpened] = useState(false);
+    return (
+      <>
+        <Menu>
+          <Menu.Target>
+            <button type="button">Actions</button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item onClick={() => setOpened(true)}>Rename…</Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+        <Dialog opened={opened} onClose={() => setOpened(false)} title="Rename">
+          <input aria-label="Name" />
+        </Dialog>
+      </>
+    );
+  }
+
+  const pastExit = () => new Promise((r) => setTimeout(r, 400));
+
+  it('Dialog gives focus back to the element that opened it, without scrolling', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await open(user);
+    const focus = vi.spyOn(opener, 'focus');
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(opener).toHaveFocus());
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
+  it('Dialog records its opener when it mounts already open', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<MountOpen />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  it('Dialog leaves focus in the dialog it handed over to', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Handover />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const form = await screen.findByRole('dialog', { name: 'Edit SLA' });
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    const prompt = await screen.findByRole('dialog', { name: 'Version prompt' });
+    await waitFor(() => expect(prompt.contains(document.activeElement)).toBe(true));
+    await pastExit();
+    expect(screen.queryByRole('dialog', { name: 'Edit SLA' })).toBeNull();
+    expect(prompt.contains(document.activeElement)).toBe(true);
+    expect(opener).not.toHaveFocus();
+  });
+
+  it('Dialog opened from a Menu item gives focus back to the menu\'s target', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<FromMenu />);
+    const target = screen.getByRole('button', { name: 'Actions' });
+    await user.click(target);
+    await user.click(await screen.findByRole('menuitem', { name: 'Rename…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(target).toHaveFocus());
+  });
+
+  it('Dialog leaves focus alone once the page has moved on', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await open(user);
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    window.history.pushState({}, '', '/elsewhere');
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await pastExit();
+    expect(opener).not.toHaveFocus();
+  });
+
+  it('Dialog leaves focus alone when its opener has gone', async () => {
+    function GoneOpener() {
+      const [opened, setOpened] = useState(false);
+      const [hidden, setHidden] = useState(false);
+      return (
+        <>
+          {!hidden && <button type="button" onClick={() => setOpened(true)}>Open</button>}
+          <Dialog opened={opened} onClose={() => setOpened(false)} title="Rename">
+            <button type="button" onClick={() => setHidden(true)}>Remove the opener</button>
+          </Dialog>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    renderWithMantine(<GoneOpener />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const focus = vi.spyOn(opener, 'focus');
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove the opener' }));
+    expect(opener.isConnected).toBe(false);
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await pastExit();
+    expect(focus).not.toHaveBeenCalled();
   });
 });

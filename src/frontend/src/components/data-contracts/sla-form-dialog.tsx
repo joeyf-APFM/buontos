@@ -4,7 +4,6 @@ import { TextInput } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Dialog } from '@/mantine/page'
-import { useOpenerRef } from '@/components/common/use-opener-ref'
 import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form'
 import form from '@/components/common/dialog-form.module.css'
 import type { SLARequirements } from '@/types/data-contract'
@@ -20,8 +19,6 @@ export default function SLAFormDialog({ isOpen, onOpenChange, onSubmit, initial 
   const { t } = useTranslation(['data-contracts', 'common'])
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
-  const opener = useOpenerRef(isOpen)
 
   const [uptimeTarget, setUptimeTarget] = useState('')
   const [maxDowntimeMinutes, setMaxDowntimeMinutes] = useState('')
@@ -69,7 +66,6 @@ export default function SLAFormDialog({ isOpen, onOpenChange, onSubmit, initial 
     <Dialog
       opened={isOpen}
       onClose={() => onOpenChange(false)}
-      returnFocusTo={opener}
       size="sm"
       title={t('data-contracts:sla.editTitle', 'Edit SLA Requirements')}
       description={t('data-contracts:sla.description', 'Define service level agreement requirements for this contract.')}

@@ -4,7 +4,6 @@ import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Dialog } from '@/mantine/page'
-import { useOpenerRef } from '@/components/common/use-opener-ref'
 import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
 import form from '@/components/common/dialog-form.module.css'
 import classes from './contract-form-dialogs.module.css'
@@ -39,8 +38,6 @@ export default function ServerConfigFormDialog({ isOpen, onOpenChange, onSubmit,
   const { t } = useTranslation(['data-contracts', 'common'])
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
-  const opener = useOpenerRef(isOpen)
   const propertiesLabelId = useId()
 
   const [server, setServer] = useState('')
@@ -120,7 +117,6 @@ export default function ServerConfigFormDialog({ isOpen, onOpenChange, onSubmit,
     <Dialog
       opened={isOpen}
       onClose={() => onOpenChange(false)}
-      returnFocusTo={opener}
       size="lg"
       title={initial ? t('data-contracts:serverConfig.editTitle', 'Edit Server Configuration') : t('data-contracts:serverConfig.addTitle', 'Add Server Configuration')}
       description={t('data-contracts:serverConfig.description', 'Define server/connection details for this data contract.')}

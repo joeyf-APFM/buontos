@@ -3,7 +3,6 @@ import { Select, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog } from '@/mantine/page'
-import { useOpenerRef } from '@/components/common/use-opener-ref'
 import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form'
 import form from '@/components/common/dialog-form.module.css'
 import classes from './contract-form-dialogs.module.css'
@@ -31,8 +30,6 @@ export default function SchemaFormDialog({ isOpen, onOpenChange, onSubmit, initi
   const { toast } = useToast()
   const { t } = useTranslation(['data-contracts', 'common'])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Focus goes back to the opener only if free: a 409 hands it to the version prompt
-  const opener = useOpenerRef(isOpen)
   const propertyEditorRef = useRef<SchemaPropertyEditorHandle | null>(null)
   const conceptsLabelId = useId()
   const infoLabelId = useId()
@@ -148,7 +145,6 @@ export default function SchemaFormDialog({ isOpen, onOpenChange, onSubmit, initi
     <Dialog
       opened={isOpen}
       onClose={() => onOpenChange(false)}
-      returnFocusTo={opener}
       size="xl"
       title={initial ? t('data-contracts:schema.editTitle', 'Edit Schema') : t('data-contracts:schema.addTitle', 'Add New Schema')}
       description={t('data-contracts:schema.description', 'Define a schema object (table/view) and its properties (columns).')}
