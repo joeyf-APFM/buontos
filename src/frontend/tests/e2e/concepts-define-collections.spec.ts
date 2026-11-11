@@ -199,6 +199,11 @@ test.describe('collections', () => {
     await menu.getByRole('menuitem', { name: 'Edit' }).click();
     const editor = page.getByRole('dialog', { name: 'Edit Scheme' });
     await expect(editor.getByRole('textbox', { name: 'Name' })).toHaveValue('Product Taxonomy');
+    // R51: focus is in the editor, and the menu doesn't take it back
+    const focusInEditor = () => editor.evaluate((el) => el.contains(document.activeElement));
+    await expect.poll(focusInEditor).toBe(true);
+    await page.waitForTimeout(400);
+    expect(await focusInEditor()).toBe(true);
     await expect(editor.getByRole('textbox', { name: 'Scope' })).toHaveValue('Domain');
     await editor.getByRole('button', { name: 'Cancel' }).click();
     await expect(editor).toHaveCount(0);

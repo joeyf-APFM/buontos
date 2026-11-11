@@ -511,7 +511,6 @@
       "conceptCount_other": "{{count}} concepts"
     },
     "fullscreen": {
-      "description": "Fullscreen view of the concept graph visualization",
       "hint": "Click on nodes to select concepts. Use scroll to zoom, drag to pan."
     }
   },

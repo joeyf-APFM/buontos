@@ -439,7 +439,6 @@
       "conceptCount_other": "{{count}} conceitos"
     },
     "fullscreen": {
-      "description": "Visualização em tela cheia do grafo de conceitos",
       "hint": "Clique nos nós para selecionar conceitos. Use a rolagem para ampliar e arraste para mover."
     }
   },

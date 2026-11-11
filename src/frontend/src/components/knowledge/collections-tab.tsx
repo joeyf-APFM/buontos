@@ -25,6 +25,7 @@ import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status';
 import { DetailsGrid, Pane } from '@/mantine/page';
+import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
 import type { KnowledgeCollection, CollectionType, ScopeLevel } from '@/types/ontology';
 import classes from './collections-tab.module.css';
 
@@ -105,6 +106,60 @@ function ScopeLine({ scope, focusable = false }: { scope: ScopeLevel; focusable?
  * shared DataTable in a flush kit pane, and beside it, once a row is chosen,
  * a pane with the scheme's details. Both are panes of the page's content row.
  */
+type RowHandlers = Pick<CollectionsTabProps, 'onEditCollection' | 'onDeleteCollection' | 'onExportCollection'>;
+
+interface RowActionsProps {
+  collection: KnowledgeCollection;
+  editable: boolean;
+  label: string;
+  handlers: React.MutableRefObject<RowHandlers>;
+}
+
+/**
+ * A row's actions menu. Edit opens the kit scheme editor, which keeps focus:
+ * one useMenuItemFocus per menu (R51). Delete asks with the browser's confirm
+ * and the page puts focus back after the reload (views/collections.tsx), so
+ * it keeps the menu's own return, as the exports do.
+ */
+function RowActions({ collection, editable, label, handlers }: RowActionsProps) {
+  const { t } = useTranslation(['semantic-models', 'common']);
+  const { menuProps, opensDialog } = useMenuItemFocus();
+  return (
+    <Menu position="bottom-end" withinPortal {...menuProps}>
+      <Menu.Target>
+        <ActionIcon variant="subtle" className={classes.action} aria-label={label} onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal aria-hidden />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+        <Menu.Label>{t('common:labels.actions')}</Menu.Label>
+        {editable && (
+          <>
+            <Menu.Item leftSection={<Pencil aria-hidden />} onClick={opensDialog(() => handlers.current.onEditCollection(collection))}>
+              {t('common:actions.edit')}
+            </Menu.Item>
+            <Menu.Divider />
+          </>
+        )}
+        <Menu.Item leftSection={<Download aria-hidden />} onClick={() => handlers.current.onExportCollection(collection, 'turtle')}>
+          {t('common:actions.exportTurtle')}
+        </Menu.Item>
+        <Menu.Item leftSection={<Download aria-hidden />} onClick={() => handlers.current.onExportCollection(collection, 'rdfxml')}>
+          {t('common:actions.exportRdfXml')}
+        </Menu.Item>
+        {editable && (
+          <>
+            <Menu.Divider />
+            <Menu.Item color="red" leftSection={<Trash2 aria-hidden />} onClick={() => handlers.current.onDeleteCollection(collection)}>
+              {t('common:actions.delete')}
+            </Menu.Item>
+          </>
+        )}
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
+
 export const CollectionsTab: React.FC<CollectionsTabProps> = ({
   collections,
   selectedCollection,
@@ -185,50 +240,15 @@ export const CollectionsTab: React.FC<CollectionsTabProps> = ({
         const editable = canEdit && collection.is_editable;
         return (
           <div className={classes.actions}>
-            <Menu position="bottom-end" withinPortal>
-              <Menu.Target>
-                <ActionIcon
-                  variant="subtle"
-                  className={classes.action}
-                  aria-label={t('semantic-models:collections.actionsFor', {
-                    defaultValue: 'Actions for {{name}}',
-                    name: collection.label || collection.iri,
-                  })}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal aria-hidden />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
-                <Menu.Label>{t('common:labels.actions')}</Menu.Label>
-                {editable && (
-                  <>
-                    <Menu.Item leftSection={<Pencil aria-hidden />} onClick={() => handlers.current.onEditCollection(collection)}>
-                      {t('common:actions.edit')}
-                    </Menu.Item>
-                    <Menu.Divider />
-                  </>
-                )}
-                <Menu.Item leftSection={<Download aria-hidden />} onClick={() => handlers.current.onExportCollection(collection, 'turtle')}>
-                  {t('common:actions.exportTurtle')}
-                </Menu.Item>
-                <Menu.Item leftSection={<Download aria-hidden />} onClick={() => handlers.current.onExportCollection(collection, 'rdfxml')}>
-                  {t('common:actions.exportRdfXml')}
-                </Menu.Item>
-                {editable && (
-                  <>
-                    <Menu.Divider />
-                    <Menu.Item
-                      color="red"
-                      leftSection={<Trash2 aria-hidden />}
-                      onClick={() => handlers.current.onDeleteCollection(collection)}
-                    >
-                      {t('common:actions.delete')}
-                    </Menu.Item>
-                  </>
-                )}
-              </Menu.Dropdown>
-            </Menu>
+            <RowActions
+              collection={collection}
+              editable={editable}
+              label={t('semantic-models:collections.actionsFor', {
+                defaultValue: 'Actions for {{name}}',
+                name: collection.label || collection.iri,
+              })}
+              handlers={handlers}
+            />
           </div>
         );
       },

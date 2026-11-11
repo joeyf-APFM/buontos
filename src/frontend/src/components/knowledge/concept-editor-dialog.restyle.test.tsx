@@ -146,4 +146,21 @@ describe('concept editor on the kit Dialog', () => {
     const returnFocusTo = picker.props?.returnFocusTo as React.RefObject<HTMLElement> | undefined;
     expect(returnFocusTo?.current).toBe(addParent);
   });
+
+  it('concept editor: with no preset scheme, a concept gets the first fitting scheme', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(async () => {});
+    // No `collection`, and the type (concept) is the dialog's default, so the
+    // fitting schemes don't change while it settles
+    renderEditor({ collection: undefined, onSave });
+    const dialog = await screen.findByRole('dialog', { name: 'Create Entry' });
+    await waitFor(() => expect(selectField(dialog, 'Scheme')).toHaveValue('Product Taxonomy'));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Label' }), 'Doohickeys');
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]).toEqual([
+      expect.objectContaining({ collection_iri: 'urn:taxonomy:products', concept_type: 'concept' }),
+      true,
+    ]);
+  });
 });

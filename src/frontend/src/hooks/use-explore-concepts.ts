@@ -66,7 +66,8 @@ export interface UseExploreConceptsResult {
   /**
    * The last full load failed (the schemes or the concepts answered with an
    * error, or the request threw): the backend's detail, or '' without one.
-   * null once a load succeeds. Quiet reloads don't touch it.
+   * null once a load succeeds, quiet reloads included; a failed quiet reload
+   * leaves it as it was.
    */
   loadError: string | null;
   collections: KnowledgeCollection[];
@@ -250,6 +251,8 @@ export function useExploreConcepts(): UseExploreConceptsResult {
         const data = await statsRes.json();
         setStats(data.stats);
       }
+      // Fresh schemes and concepts: an earlier failed load no longer stands
+      if (collectionsRes.ok && conceptsRes.ok) setLoadError(null);
     } catch (error) {
       console.error('Failed to quietly refetch explore concepts:', error);
     }

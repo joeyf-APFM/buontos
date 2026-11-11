@@ -377,7 +377,6 @@
       "conceptCount_other": "{{count}} concepts"
     },
     "fullscreen": {
-      "description": "Vue plein écran de la visualisation du graphe de concepts",
       "hint": "Cliquez sur les nœuds pour sélectionner des concepts. Utilisez la molette pour zoomer, glissez pour déplacer."
     }
   },

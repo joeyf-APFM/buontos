@@ -377,7 +377,6 @@
       "conceptCount_other": "{{count}} Konzepte"
     },
     "fullscreen": {
-      "description": "Vollbildansicht der Konzeptgraph-Visualisierung",
       "hint": "Klicken Sie auf Knoten, um Konzepte auszuwählen. Zum Zoomen scrollen, zum Verschieben ziehen."
     }
   },

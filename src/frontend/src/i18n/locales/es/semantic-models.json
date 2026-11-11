@@ -377,7 +377,6 @@
       "conceptCount_other": "{{count}} conceptos"
     },
     "fullscreen": {
-      "description": "Vista a pantalla completa de la visualización del grafo de conceptos",
       "hint": "Haz clic en los nodos para seleccionar conceptos. Usa el desplazamiento para hacer zoom y arrastra para mover la vista."
     }
   },

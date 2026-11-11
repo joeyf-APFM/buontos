@@ -274,12 +274,23 @@ test.describe('explore', () => {
     await page.getByRole('menuitem', { name: 'Delete' }).click();
     const confirm = page.getByRole('alertdialog', { name: 'Delete Scheme' });
     await expect(confirm).toBeVisible();
+    // R51: focus is in the confirm, and the menu doesn't take it back
+    await expect.poll(() => focusInside(confirm)).toBe(true);
+    await page.waitForTimeout(400);
+    expect(await focusInside(confirm)).toBe(true);
     await confirm.getByRole('button', { name: 'Cancel' }).click();
     await expect(confirm).toHaveCount(0);
+    await expect(actions).toBeFocused();
     await actions.click();
     await page.getByRole('menuitem', { name: 'Rename' }).click();
     const editor = page.getByRole('dialog', { name: 'Edit Scheme' });
     await expect(editor.getByRole('textbox', { name: 'Name' })).toHaveValue('Product Taxonomy');
+    await expect.poll(() => focusInside(editor)).toBe(true);
+    await page.waitForTimeout(400);
+    expect(await focusInside(editor)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(editor).toHaveCount(0);
+    await expect(actions).toBeFocused();
   });
 
   test('the graph\'s fullscreen view is a kit Dialog; Escape closes it and focus goes back', async ({ page }) => {

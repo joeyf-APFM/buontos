@@ -17,6 +17,7 @@ import kit from '@/mantine/page/page.module.css';
 import usePermissionsStore from '@/stores/permissions-store';
 import { useGlossaryPreferencesStore } from '@/stores/glossary-preferences-store';
 import { useExploreSessionStore } from '@/hooks/use-explore-concepts';
+import { useKnowledgeGraphStore } from '@/stores/knowledge-graph-store';
 import { useConceptMode } from '@/components/concepts/mode-switch';
 import { FeatureAccessLevel } from '@/types/feature-access-levels';
 import ExploreView from './explore';
@@ -395,5 +396,19 @@ describe('explore empty and error states', () => {
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Widgets')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('explore: a successful quiet reload clears the error', async () => {
+    conceptsStatus = 500;
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the concepts.');
+    // A save elsewhere (the header's Create still works) bumps the shared
+    // nonce: the quiet reload succeeds, and the list replaces the error
+    conceptsStatus = 200;
+    act(() => useKnowledgeGraphStore.getState().bumpRefreshNonce('concept-create'));
+    expect(await screen.findByText('Widgets')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    consoleError.mockRestore();
   });
 });

@@ -20,7 +20,7 @@ import {
   ListFilter,
 } from 'lucide-react';
 import { usePagination, PaginationControls } from '@/components/common/paginated-list';
-import { badgeToneStyle } from '@/components/common/aura-status';
+import { AURA_STATUS, badgeToneStyle } from '@/components/common/aura-status';
 import type {
   OntologyConcept,
   KnowledgeCollection,
@@ -82,7 +82,7 @@ const BULK_STATUS_ACTIONS: { action: string; labelKey: string; defaultLabel: str
 // "No source file" group rather than vanishing.
 const NO_FILE_KEY = '__no_file__';
 
-// The type's icon, in the type's tone (concepts-tab.module.css)
+// The type's icon, in the mark colour of the type's tone (concept-tones.ts)
 const TYPE_ICONS: Record<string, typeof Layers> = {
   concept: Layers,
   class: BookOpen,
@@ -93,7 +93,7 @@ const TYPE_ICONS: Record<string, typeof Layers> = {
 
 function TypeIcon({ type }: { type: string }) {
   const Icon = TYPE_ICONS[type] || Layers;
-  return <Icon aria-hidden className={classes.typeIcon} data-type={type} />;
+  return <Icon aria-hidden className={classes.typeIcon} style={{ color: AURA_STATUS[typeTone(type)].mark }} />;
 }
 
 /** A concept's status or type, as a badge in its Aura tone. */

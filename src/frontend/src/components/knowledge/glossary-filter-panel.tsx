@@ -5,6 +5,7 @@ import { ActionIcon, Checkbox, Collapse, Menu, Select, Switch, TextInput, Toolti
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, Pane } from '@/mantine/page';
+import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
 import {
   ChevronRight,
   ChevronDown,
@@ -34,6 +35,58 @@ const TYPE_ICONS: Record<string, typeof Filter> = {
 };
 
 const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
+
+interface SchemeActionsProps {
+  collection: KnowledgeCollection;
+  label: string;
+  deletable: boolean;
+  onRename: (collection: KnowledgeCollection) => void;
+  /** Asks first: opens the delete confirm */
+  onDelete: (collection: KnowledgeCollection) => void;
+}
+
+/**
+ * A scheme's Rename / Delete menu. Both items open a kit Dialog (the scheme
+ * editor, the confirm), which keeps focus: one useMenuItemFocus per menu (R51).
+ */
+function SchemeActions({ collection, label, deletable, onRename, onDelete }: SchemeActionsProps) {
+  const { t } = useTranslation(['semantic-models', 'common']);
+  const { menuProps, opensDialog } = useMenuItemFocus();
+  return (
+    <Menu position="bottom-end" withinPortal {...menuProps}>
+      <Menu.Target>
+        <ActionIcon
+          variant="subtle"
+          size={20}
+          className={classes.chipAction}
+          aria-label={t('semantic-models:collections.actionsFor', { defaultValue: 'Actions for {{name}}', name: label })}
+        >
+          <MoreHorizontal aria-hidden />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Item onClick={opensDialog(() => onRename(collection))}>
+          {t('common:actions.rename', 'Rename')}
+        </Menu.Item>
+        {deletable ? (
+          <Menu.Item color="red" onClick={opensDialog(() => onDelete(collection))}>
+            {t('common:actions.delete', 'Delete')}
+          </Menu.Item>
+        ) : (
+          // Off, with the reason under it
+          <Menu.Item disabled>
+            <span className={classes.disabledItem}>
+              {t('common:actions.delete', 'Delete')}
+              <span className={classes.disabledReason}>
+                {t('semantic-models:filters.importedDisable', 'Imported — cannot delete')}
+              </span>
+            </span>
+          </Menu.Item>
+        )}
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
 
 interface GlossaryFilterPanelProps {
   // Data for computing counts
@@ -302,41 +355,13 @@ export function GlossaryFilterPanel({
 
                           {/* Actions for schemes with a collection record (only if callbacks provided) */}
                           {collection && onRenameScheme && onDeleteScheme && (
-                            <Menu position="bottom-end" withinPortal>
-                              <Menu.Target>
-                                <ActionIcon
-                                  variant="subtle"
-                                  size={20}
-                                  className={classes.chipAction}
-                                  aria-label={t('semantic-models:collections.actionsFor', {
-                                    defaultValue: 'Actions for {{name}}',
-                                    name: label,
-                                  })}
-                                >
-                                  <MoreHorizontal aria-hidden />
-                                </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Item onClick={() => onRenameScheme(collection)}>
-                                  {t('common:actions.rename', 'Rename')}
-                                </Menu.Item>
-                                {isDeletable ? (
-                                  <Menu.Item color="red" onClick={() => setDeleteConfirmScheme(collection)}>
-                                    {t('common:actions.delete', 'Delete')}
-                                  </Menu.Item>
-                                ) : (
-                                  // Off, with the reason under it
-                                  <Menu.Item disabled>
-                                    <span className={classes.disabledItem}>
-                                      {t('common:actions.delete', 'Delete')}
-                                      <span className={classes.disabledReason}>
-                                        {t('semantic-models:filters.importedDisable', 'Imported — cannot delete')}
-                                      </span>
-                                    </span>
-                                  </Menu.Item>
-                                )}
-                              </Menu.Dropdown>
-                            </Menu>
+                            <SchemeActions
+                              collection={collection}
+                              label={label}
+                              deletable={!!isDeletable}
+                              onRename={onRenameScheme}
+                              onDelete={setDeleteConfirmScheme}
+                            />
                           )}
                         </div>
                       );

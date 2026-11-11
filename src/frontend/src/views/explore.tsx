@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ActionIcon, Alert, Menu } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { PageHeader, PageLayout, Pane, PaneStack, Tabs } from '@/mantine/page';
+import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
 import { useConceptMode } from '@/components/concepts/mode-switch';
 import KGSearch from '@/components/search/kg-search';
 import { collectionSourceKey, stripSourcePrefix } from '@/lib/collection-source-key';
@@ -121,14 +122,8 @@ export default function ExploreView() {
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
   const canCertify = hasPermission('semantic-models', FeatureAccessLevel.ADMIN);
   const viewsId = useId();
-  // The Create menu gives focus back to its button when it closes, 10ms
-  // later (Mantine), except after an item opened an editor: the editor has
-  // focus by then, and the kit Dialog gives it back to Create on closing
-  const [createReturnsFocus, setCreateReturnsFocus] = useState(true);
-  const fromCreateMenu = (open: () => void) => () => {
-    setCreateReturnsFocus(false);
-    open();
-  };
+  // The Create menu's items open editors, which keep focus (R51)
+  const createMenu = useMenuItemFocus();
 
   // SPARQL / knowledge-graph search panel: Advanced view only, session-only
   // open state (not persisted, not in the URL).
@@ -454,12 +449,7 @@ export default function ExploreView() {
                   </Button>
                 )}
                 {canWrite && (
-                  <Menu
-                    position="bottom-end"
-                    withinPortal
-                    returnFocus={createReturnsFocus}
-                    onOpen={() => setCreateReturnsFocus(true)}
-                  >
+                  <Menu position="bottom-end" withinPortal {...createMenu.menuProps}>
                     <Menu.Target>
                       <Button>
                         <Plus aria-hidden />
@@ -469,12 +459,12 @@ export default function ExploreView() {
                     </Menu.Target>
                     <Menu.Dropdown>
                       {createTypes.map((ct) => (
-                        <Menu.Item key={ct} leftSection={<Plus aria-hidden />} onClick={fromCreateMenu(() => handleCreateConcept(ct))}>
+                        <Menu.Item key={ct} leftSection={<Plus aria-hidden />} onClick={createMenu.opensDialog(() => handleCreateConcept(ct))}>
                           {t(CREATE_ITEMS[ct].labelKey, CREATE_ITEMS[ct].defaultLabel)}
                         </Menu.Item>
                       ))}
                       <Menu.Divider />
-                      <Menu.Item leftSection={<FolderTree aria-hidden />} onClick={fromCreateMenu(handleCreateCollection)}>
+                      <Menu.Item leftSection={<FolderTree aria-hidden />} onClick={createMenu.opensDialog(handleCreateCollection)}>
                         {t('concepts:explore.createScheme', 'New Concept Scheme')}
                       </Menu.Item>
                     </Menu.Dropdown>

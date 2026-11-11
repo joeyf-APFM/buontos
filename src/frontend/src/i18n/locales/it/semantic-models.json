@@ -377,7 +377,6 @@
       "conceptCount_other": "{{count}} concetti"
     },
     "fullscreen": {
-      "description": "Vista a schermo intero della visualizzazione del grafo dei concetti",
       "hint": "Clicca sui nodi per selezionare i concetti. Usa lo scorrimento per lo zoom, trascina per spostarti."
     }
   },

@@ -50,29 +50,11 @@
   color: var(--aura-text-secondary);
 }
 
-/* The type icon, in the type's tone (concept-tones.ts) */
+/* The type icon; its colour is its tone's mark (concepts-tab.tsx TypeIcon) */
 .typeIcon {
   flex: none;
   width: 14px;
   height: 14px;
-  color: var(--aura-text-secondary);
-}
-
-.typeIcon[data-type='concept'],
-.typeIcon[data-type='term'] {
-  color: #0f6144;
-}
-
-.typeIcon[data-type='class'] {
-  color: var(--aura-info);
-}
-
-.typeIcon[data-type='property'] {
-  color: var(--aura-accent);
-}
-
-.typeIcon[data-type='individual'] {
-  color: #0c566e;
 }
 
 .groupIcon {
@@ -365,8 +347,17 @@
   min-width: 0;
 }
 
-[data-unmapped] {
-  color: var(--aura-text-body);
+/* "Not mapped": body text after a warning dot (warning amber is 3.25:1,
+   enough for a mark but not for text; aura-status.ts) */
+.listRow [data-unmapped]::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--aura-warning);
+  vertical-align: middle;
 }
 
 .statusCell {
