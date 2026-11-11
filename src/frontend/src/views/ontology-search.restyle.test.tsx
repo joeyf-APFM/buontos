@@ -256,6 +256,7 @@ describe('concepts-search on the page kit', () => {
     expect(within(again).queryByRole('button', { name: 'Assign' })).toBeNull();
     await user.click(within(again).getByRole('button', { name: 'Browse UC Table...' }));
     const lookup = await screen.findByRole('dialog', { name: 'Select UC Table' });
+    expectKitDialog(lookup);
     expect(await within(lookup).findByText('main')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Select UC Table' })).toBeNull());
@@ -323,7 +324,7 @@ describe('concepts-search on the page kit', () => {
     const again = await screen.findByRole('dialog', { name: 'Assign Object to Property' });
     await pick(user, selectField(again, 'Target Type'), 'UC Column');
     await user.click(within(again).getByRole('button', { name: 'Browse UC table and select column...' }));
-    expect(await screen.findByRole('dialog', { name: 'Select UC Column' })).toBeInTheDocument();
+    expectKitDialog(await screen.findByRole('dialog', { name: 'Select UC Column' }));
   });
 
   it('concepts-search keeps every control on the Knowledge Graph tab', async () => {

@@ -1,0 +1,112 @@
+/*
+ * The UC asset lookup (uc-asset-lookup-dialog.tsx) on the kit Dialog (wave 2
+ * Task 13b): the search and Refresh, the hint, then the tree, which takes the
+ * rest of the dialog's fixed height and scrolls inside its 1px frame.
+ */
+.searchRow {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+}
+
+.hint {
+  flex: none;
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.state {
+  padding: 10px;
+  color: var(--aura-text-secondary);
+}
+
+.alert {
+  margin: 4px;
+}
+
+/* A node: 28px, its toggle, its icon, its name truncated with a title */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--aura-surface-strong);
+}
+
+.row[data-highlighted] {
+  background: var(--aura-accent-subtle);
+  box-shadow: inset 0 0 0 1px var(--aura-accent);
+}
+
+.toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+button.expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  color: var(--aura-text-secondary);
+}
+
+button.expand:hover {
+  background: var(--aura-border);
+}
+
+button.expand:focus-visible,
+button.name:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.icon {
+  flex: none;
+  display: flex;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--aura-text-body);
+  text-align: left;
+  border-radius: 2px;
+}

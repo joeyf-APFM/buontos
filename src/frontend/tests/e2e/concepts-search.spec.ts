@@ -225,6 +225,47 @@ test.describe('concepts-search', () => {
     await expect(assign).toBeFocused();
   });
 
+  test('the UC lookup opens on top of the Assign dialog, keeps focus, and Escape closes only it', async ({ page }) => {
+    await setUp(page);
+    await selectConcept(page, 'Widg', 'Widgets - urn:e2e:widgets');
+    await page.getByRole('button', { name: 'Assign to Concept' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Assign Object to Concept' });
+    const type = dialog.getByRole('textbox', { name: 'Entity Type' });
+    await type.click();
+    await page.getByRole('option', { name: 'UC Table' }).click();
+    await expect(type).toHaveValue('UC Table');
+    const browse = dialog.getByRole('button', { name: 'Browse UC Table...' });
+    await browse.click();
+
+    const lookup = page.getByRole('dialog', { name: 'Select UC Table' });
+    await expect(lookup).toBeVisible();
+    await expect(lookup).toHaveClass(/mantine-Modal-content/);
+    const search = lookup.getByRole('textbox', { name: 'Search: t:catalog.schema.table' });
+    expect(await onTop(search)).toBe(true);
+    await expect.poll(() => focusInside(lookup)).toBe(true);
+    await page.waitForTimeout(400);
+    expect(await focusInside(lookup)).toBe(true);
+
+    // The tree: a long name truncates with its title, inside the frame
+    await lookup.getByRole('button', { name: 'Expand main' }).click();
+    await lookup.getByRole('button', { name: 'Expand sales' }).click();
+    const long = lookup.getByRole('button', { name: 'q'.repeat(200) });
+    await expect(long).toHaveAttribute('title', 'q'.repeat(200));
+    expect(await style(long, ['text-overflow', 'white-space'])).toEqual({ 'text-overflow': 'ellipsis', 'white-space': 'nowrap' });
+    expect((await long.boundingBox())!.x + (await long.boundingBox())!.width).toBeLessThanOrEqual(
+      (await lookup.boundingBox())!.x + (await lookup.boundingBox())!.width,
+    );
+    await search.fill('main.sales.ord');
+    await expect(search).toHaveValue('main.sales.ord');
+
+    // Escape closes only the lookup; the Assign dialog keeps its type, and focus goes back to Browse
+    await page.keyboard.press('Escape');
+    await expect(lookup).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    await expect(type).toHaveValue('UC Table');
+    await expect(browse).toBeFocused();
+  });
+
   test('a reader sees no Assign', async ({ page }) => {
     await setUp(page, PERSONAS.consumer);
     await selectConcept(page, 'Widg', 'Widgets - urn:e2e:widgets');

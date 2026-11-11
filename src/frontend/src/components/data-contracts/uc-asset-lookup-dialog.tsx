@@ -12,10 +12,13 @@
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { Alert, TextInput, UnstyledButton } from '@mantine/core'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Dialog } from '@/mantine/page'
+import { AURA_STATUS, type StatusTone } from '@/components/common/aura-status'
+import form from '@/components/common/dialog-form.module.css'
+import common from '@/components/common/detail-page.module.css'
 import { 
   Folder, 
   FolderOpen, 
@@ -30,9 +33,10 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-  Columns2
+  Columns2,
+  AlertCircle,
+  type LucideIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { 
   UCAssetInfo, 
   UCAssetType, 
@@ -44,6 +48,7 @@ import {
   parseSearchQuery, 
   getTypeFilterDisplayName
 } from '@/lib/uc-search-parser'
+import classes from './uc-asset-lookup-dialog.module.css'
 
 // ============================================================================
 // Props and Types
@@ -71,46 +76,31 @@ export interface UCAssetLookupDialogProps {
 // ============================================================================
 
 /**
+ * Each asset type's icon and its Aura tone (wave 2 Task 13b; they were
+ * Tailwind colour classes)
+ */
+const ICONS: Record<string, [LucideIcon, StatusTone]> = {
+  [UCAssetType.CATALOG]: [Folder, 'info'],
+  [UCAssetType.SCHEMA]: [FolderOpen, 'good'],
+  [UCAssetType.TABLE]: [Table, 'gold'],
+  [UCAssetType.VIEW]: [Layout, 'accent'],
+  [UCAssetType.MATERIALIZED_VIEW]: [Layers, 'accent'],
+  [UCAssetType.STREAMING_TABLE]: [Radio, 'gold'],
+  [UCAssetType.FUNCTION]: [Code, 'cyan'],
+  [UCAssetType.MODEL]: [Brain, 'critical'],
+  [UCAssetType.VOLUME]: [HardDrive, 'neutral'],
+  [UCAssetType.METRIC]: [BarChart3, 'warning'],
+  [UCAssetType.COLUMN]: [Columns2, 'neutral'],
+}
+
+/**
  * Get the appropriate icon for an asset type
  */
 function getIcon(type: UCAssetType | string): React.ReactNode {
-  switch (type) {
-    case UCAssetType.CATALOG:
-    case 'catalog':
-      return <Folder className="h-4 w-4 text-blue-500" />
-    case UCAssetType.SCHEMA:
-    case 'schema':
-      return <FolderOpen className="h-4 w-4 text-green-500" />
-    case UCAssetType.TABLE:
-    case 'table':
-      return <Table className="h-4 w-4 text-orange-500" />
-    case UCAssetType.VIEW:
-    case 'view':
-      return <Layout className="h-4 w-4 text-purple-500" />
-    case UCAssetType.MATERIALIZED_VIEW:
-    case 'materialized_view':
-      return <Layers className="h-4 w-4 text-purple-600" />
-    case UCAssetType.STREAMING_TABLE:
-    case 'streaming_table':
-      return <Radio className="h-4 w-4 text-orange-600" />
-    case UCAssetType.FUNCTION:
-    case 'function':
-      return <Code className="h-4 w-4 text-cyan-500" />
-    case UCAssetType.MODEL:
-    case 'model':
-      return <Brain className="h-4 w-4 text-pink-500" />
-    case UCAssetType.VOLUME:
-    case 'volume':
-      return <HardDrive className="h-4 w-4 text-gray-500" />
-    case UCAssetType.METRIC:
-    case 'metric':
-      return <BarChart3 className="h-4 w-4 text-amber-500" />
-    case UCAssetType.COLUMN:
-    case 'column':
-      return <Columns2 className="h-4 w-4 text-slate-500" />
-    default:
-      return null
-  }
+  const entry = ICONS[String(type)]
+  if (!entry) return null
+  const [Icon, tone] = entry
+  return <Icon aria-hidden size={14} color={AURA_STATUS[tone].mark} />
 }
 
 /**
@@ -165,7 +155,7 @@ export default function UCAssetLookupDialog({
   includeColumns = false,
   selectableTypes: selectableTypesProp
 }: UCAssetLookupDialogProps) {
-  const { t } = useTranslation(['data-contracts', 'common'])
+  const { t } = useTranslation(['data-contracts', 'common', 'semantic-models'])
   const isNodeSelectable = useCallback((type: UCAssetType | string) => {
     if (selectableTypesProp && selectableTypesProp.length > 0) {
       return selectableTypesProp.includes(type as UCAssetType)
@@ -794,8 +784,18 @@ export default function UCAssetLookupDialog({
       filteredChildren = filterNodes(node.children, level + 1)
     }
     
+    const toggle = () => {
+      if (isExpanded) {
+        handleCollapse(node.id)
+      } else {
+        handleExpand(node)
+      }
+    }
+
     return (
       <div key={node.id}>
+        {/* The row selects a selectable node, else opens or closes it; its
+            name is a button for the keyboard (a press bubbles to the row) */}
         <div
           ref={(el) => {
             if (el) {
@@ -804,59 +804,56 @@ export default function UCAssetLookupDialog({
               itemRefs.current.delete(node.id)
             }
           }}
-          className={cn(
-            "flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer text-sm",
-            "hover:bg-muted/50 transition-colors",
-            isHighlighted && "bg-primary/10 ring-1 ring-primary/30",
-            isSelectable && "hover:bg-muted"
-          )}
+          className={classes.row}
+          data-highlighted={isHighlighted || undefined}
+          data-selectable={isSelectable || undefined}
           style={{ marginLeft: `${level * 20}px` }}
           onClick={() => {
             if (isSelectable) {
               handleSelectItem(node)
             } else if (hasChildren) {
-              if (isExpanded) {
-                handleCollapse(node.id)
-              } else {
-                handleExpand(node)
-              }
+              toggle()
             }
           }}
         >
           {/* Expand/collapse icon */}
-          <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+          <div className={classes.toggle}>
             {hasChildren ? (
               isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <Loader2 aria-hidden size={14} className={`${classes.muted} ${common.spin}`} />
               ) : (
-                <button
-                  className="hover:bg-muted rounded p-0.5"
+                <UnstyledButton
+                  className={classes.expand}
+                  aria-expanded={isExpanded}
+                  aria-label={
+                    isExpanded
+                      ? t('semantic-models:collectionTree.collapse', { name: node.name, defaultValue: 'Collapse {{name}}' })
+                      : t('semantic-models:collectionTree.expand', { name: node.name, defaultValue: 'Expand {{name}}' })
+                  }
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (isExpanded) {
-                      handleCollapse(node.id)
-                    } else {
-                      handleExpand(node)
-                    }
+                    toggle()
                   }}
                 >
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown aria-hidden size={14} />
                   ) : (
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight aria-hidden size={14} />
                   )}
-                </button>
+                </UnstyledButton>
               )
-            ) : (
-              <span className="w-4" /> 
-            )}
+            ) : null}
           </div>
           
           {/* Type icon */}
-          <span className="flex-shrink-0">{getIcon(node.type)}</span>
+          <span className={classes.icon}>{getIcon(node.type)}</span>
           
           {/* Name */}
-          <span className="truncate flex-1" title={node.name}>{node.name}</span>
+          {isSelectable || hasChildren ? (
+            <UnstyledButton className={classes.name} title={node.name}>{node.name}</UnstyledButton>
+          ) : (
+            <span className={classes.name} title={node.name}>{node.name}</span>
+          )}
         </div>
         
         {/* Children */}
@@ -867,7 +864,7 @@ export default function UCAssetLookupDialog({
         )}
       </div>
     )
-  }, [parsedSearch, expanded, loadingNodes, highlightedId, filterNodes, handleExpand, handleCollapse, handleSelectItem, isNodeSelectable])
+  }, [parsedSearch, expanded, loadingNodes, highlightedId, filterNodes, handleExpand, handleCollapse, handleSelectItem, isNodeSelectable, t])
 
   // ============================================================================
   // Get filtered root items
@@ -881,68 +878,18 @@ export default function UCAssetLookupDialog({
   // Render
   // ============================================================================
 
+  const searchLabel = t('data-contracts:ucLookup.searchPlaceholder', 'Search: t:catalog.schema.table')
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[80vw] max-w-4xl h-[80vh] max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{title ?? t('data-contracts:ucLookup.defaultTitle', 'Find UC Asset')}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex-1 flex flex-col min-h-0 space-y-3 text-sm">
-          {/* Search Input */}
-          <div className="flex gap-2 flex-shrink-0">
-            <Input
-              className="h-9 text-sm"
-              placeholder={t('data-contracts:ucLookup.searchPlaceholder', 'Search: t:catalog.schema.table')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <Button
-              className="h-9 px-3"
-              type="button"
-              variant="outline"
-              onClick={fetchCatalogs}
-              disabled={loading}
-            >
-              {t('common:actions.refresh')}
-            </Button>
-          </div>
-          
-          {/* Type filter indicator */}
-          {parsedSearch.typeFilter && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs text-muted-foreground">{t('data-contracts:ucLookup.filtering', 'Filtering:')}</span>
-              <Badge variant="secondary" className="text-xs">
-                {getTypeFilterDisplayName(parsedSearch.typeFilter)}
-              </Badge>
-            </div>
-          )}
-          
-          {/* Search hint */}
-          <div className="text-xs text-muted-foreground flex-shrink-0">
-            {t('data-contracts:ucLookup.typePrefixHint', 'Type prefix for filtering: t:table, v:view, f:function, m:model, vol:volume')}
-          </div>
-          
-          {/* Error display */}
-          {error && <div className="text-sm text-destructive flex-shrink-0">{error}</div>}
-          
-          {/* Tree view - takes remaining space */}
-          <div 
-            ref={treeContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden border rounded p-2"
-          >
-            {loading ? (
-              <div className="p-3 text-sm text-muted-foreground">{t('data-contracts:ucLookup.loadingCatalogs', 'Loading catalogs...')}</div>
-            ) : filteredRootItems.length === 0 ? (
-              <div className="p-3 text-sm text-muted-foreground">{t('data-contracts:ucLookup.noMatchingItems', 'No matching items found')}</div>
-            ) : (
-              filteredRootItems.map((item) => renderTreeItem(item, 0))
-            )}
-          </div>
-        </div>
-        
-        <DialogFooter className="flex-shrink-0">
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      title={title ?? t('data-contracts:ucLookup.defaultTitle', 'Find UC Asset')}
+      size="xl"
+      // A fixed height: the tree loads after opening
+      height="80vh"
+      footer={
+        <>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {t('common:actions.close')}
           </Button>
@@ -953,8 +900,62 @@ export default function UCAssetLookupDialog({
           >
             {t('common:actions.select')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      {/* Search Input */}
+      <div className={classes.searchRow}>
+        <TextInput
+          className={classes.search}
+          placeholder={searchLabel}
+          aria-label={searchLabel}
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          onKeyDown={handleKeyDown}
+          data-autofocus
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={fetchCatalogs}
+          disabled={loading}
+        >
+          {t('common:actions.refresh')}
+        </Button>
+      </div>
+
+      {/* Type filter indicator */}
+      {parsedSearch.typeFilter && (
+        <div className={form.inline}>
+          <span className={classes.muted}>{t('data-contracts:ucLookup.filtering', 'Filtering:')}</span>
+          <Badge variant="secondary">
+            {getTypeFilterDisplayName(parsedSearch.typeFilter)}
+          </Badge>
+        </div>
+      )}
+
+      {/* Search hint */}
+      <p className={classes.hint}>
+        {t('data-contracts:ucLookup.typePrefixHint', 'Type prefix for filtering: t:table, v:view, f:function, m:model, vol:volume')}
+      </p>
+
+      {/* Tree view - takes remaining space */}
+      <div ref={treeContainerRef} className={classes.tree}>
+        {loading ? (
+          <div className={classes.state}>{t('data-contracts:ucLookup.loadingCatalogs', 'Loading catalogs...')}</div>
+        ) : error ? (
+          // A failed load says so, with Retry; it isn't "no matching items"
+          <Alert color="red" variant="light" icon={<AlertCircle />} title={error} className={classes.alert}>
+            <div className={form.alertActions}>
+              <Button type="button" variant="outline" onClick={fetchCatalogs}>{t('common:retry')}</Button>
+            </div>
+          </Alert>
+        ) : filteredRootItems.length === 0 ? (
+          <div className={classes.state}>{t('data-contracts:ucLookup.noMatchingItems', 'No matching items found')}</div>
+        ) : (
+          filteredRootItems.map((item) => renderTreeItem(item, 0))
+        )}
+      </div>
     </Dialog>
   )
 }
