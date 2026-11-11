@@ -452,7 +452,8 @@
     "selectTypeToBrowse": "Select an asset type to browse",
     "linkEmpty": "Link Assets",
     "linkCount_one": "Link {{count}} Asset",
-    "linkCount_other": "Link {{count}} Assets"
+    "linkCount_other": "Link {{count}} Assets",
+    "removeSelected": "Remove {{name}}"
   },
   "addRelationship": {
     "title": "Add Relationship",

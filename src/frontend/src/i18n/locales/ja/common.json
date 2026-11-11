@@ -448,7 +448,8 @@
     "selectTypeToBrowse": "参照するアセット種別を選択してください",
     "linkEmpty": "アセットをリンク",
     "linkCount_one": "{{count}} 件のアセットをリンク",
-    "linkCount_other": "{{count}} 件のアセットをリンク"
+    "linkCount_other": "{{count}} 件のアセットをリンク",
+    "removeSelected": "{{name}} を外す"
   },
   "addRelationship": {
     "title": "関係を追加",

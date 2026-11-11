@@ -101,5 +101,7 @@ describe('AssetSelector targetAssetTypes filter', () => {
     );
 
     expect(screen.getByText(helperText)).toBeInTheDocument();
+    // Let the asset-type lookup finish inside the test
+    await screen.findByText('Table');
   });
 });

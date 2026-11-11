@@ -1,24 +1,17 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
-  Search, Loader2, Check, X, Database, Table2, Eye, Radio,
+  Search, Check, X, Database, Table2, Eye, Radio,
   LayoutDashboard, BookOpen, BrainCircuit, Globe, Zap,
   Box, Server, Shapes, FolderTree, Columns2, FileCode, Brain,
   Activity, Shield, FolderOpen,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Checkbox, Loader, TextInput } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
+import { Dialog, Tabs } from '@/mantine/page';
 import { useApi } from '@/hooks/use-api';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
+import classes from './asset-selector.module.css';
 import { AssetTypeRead } from '@/types/asset';
 
 export interface AssetSearchResult {
@@ -98,25 +91,20 @@ function AssetResultRow({ asset, isSelected, onToggle }: {
   const { t } = useTranslation('common');
   const Icon = getAssetIcon(asset.asset_type_name);
   return (
-    <button
-      onClick={onToggle}
-      className={cn(
-        'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors overflow-hidden',
-        isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted'
-      )}
-    >
-      <Checkbox checked={isSelected} className="pointer-events-none" />
-      <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{asset.name}</div>
+    // The row is the control: pressed while the asset is chosen. Its checkbox only shows that
+    <button type="button" onClick={onToggle} aria-pressed={isSelected} className={classes.row}>
+      <Checkbox checked={isSelected} readOnly tabIndex={-1} aria-hidden size="xs" className={classes.check} />
+      <Icon size={16} className={classes.icon} aria-hidden />
+      <div className={classes.rowText}>
+        <div className={classes.name} title={asset.name}>{asset.name}</div>
         {asset.location && (
-          <div className="text-xs text-muted-foreground truncate">{asset.location}</div>
+          <div className={classes.location} title={asset.location}>{asset.location}</div>
         )}
       </div>
-      <Badge variant="outline" className="text-xs flex-shrink-0">
+      <Badge variant="outline">
         {asset.asset_type_name || t('common:assetSelector.assetFallback')}
       </Badge>
-      {isSelected && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
+      {isSelected && <Check size={16} className={classes.tick} aria-hidden />}
     </button>
   );
 }
@@ -130,16 +118,16 @@ function AssetResultsList({ results, loading, selected, onToggle, emptyMessage }
 }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className={classes.loading}>
+        <Loader size={18} />
       </div>
     );
   }
   if (results.length === 0 && emptyMessage) {
-    return <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>;
+    return <p className={classes.empty}>{emptyMessage}</p>;
   }
   return (
-    <div className="space-y-0.5">
+    <div className={classes.list}>
       {results.map(asset => (
         <AssetResultRow
           key={asset.id}
@@ -368,196 +356,167 @@ export function AssetSelector({
   const selectedTypeName = assetTypes.find(t => t.id === selectedTypeId)?.name;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { onOpenChange(open); if (!open) resetState(); }}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden">
-        <div className="flex flex-col max-h-[80vh] overflow-hidden">
-          {/* Header */}
-          <div className="px-6 pt-6 pb-2">
-            <DialogHeader>
-              <DialogTitle>{title || t('common:assetSelector.title')}</DialogTitle>
-              <DialogDescription>{descText}</DialogDescription>
-            </DialogHeader>
-          </div>
+    <Dialog
+      opened={isOpen}
+      onClose={() => { onOpenChange(false); resetState(); }}
+      size="lg"
+      title={title || t('common:assetSelector.title')}
+      description={descText}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common:actions.cancel')}</Button>
+          <Button onClick={handleConfirm} disabled={selected.size === 0 || confirmDisabled}>
+            {confirmLabel || (selected.size > 0 ? t('common:assetSelector.linkCount', { count: selected.size }) : t('common:assetSelector.linkEmpty'))}
+          </Button>
+        </>
+      }
+    >
+      <div className={classes.body}>
+        {/* Mode toggle */}
+        <Tabs value={mode} onChange={(v) => v && setMode(v as 'search' | 'browse')}>
+          <Tabs.List>
+            <Tabs.Tab value="search" leftSection={<Search size={14} aria-hidden />}>
+              {t('common:actions.search')}
+            </Tabs.Tab>
+            <Tabs.Tab value="browse" leftSection={<FolderTree size={14} aria-hidden />}>
+              {t('common:actions.browse')}
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
 
-          {/* Mode toggle */}
-          <div className="px-6 pb-3">
-            <Tabs value={mode} onValueChange={(v) => setMode(v as 'search' | 'browse')}>
-              <TabsList className="w-fit">
-                <TabsTrigger value="search" className="gap-1.5">
-                  <Search className="h-3.5 w-3.5" />
-                  {t('common:actions.search')}
-                </TabsTrigger>
-                <TabsTrigger value="browse" className="gap-1.5">
-                  <FolderTree className="h-3.5 w-3.5" />
-                  {t('common:actions.browse')}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+        {mode === 'search' ? (
+          <div className={classes.search}>
+            <TextInput
+              ref={searchInputRef}
+              aria-label={t('common:assetSelector.searchPlaceholder')}
+              placeholder={t('common:assetSelector.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => handleSearchQueryChange(e.currentTarget.value)}
+              leftSection={<Search size={16} aria-hidden />}
+              leftSectionPointerEvents="none"
+              rightSection={searchLoading ? <Loader size={14} /> : undefined}
+            />
+            <div className={classes.scroll}>
+              <AssetResultsList
+                results={searchResults}
+                loading={false}
+                selected={selected}
+                onToggle={toggleSelect}
+                emptyMessage={
+                  searchQuery.length >= 2
+                    ? (searchLoading ? undefined : t('common:assetSelector.noAssetsFound'))
+                    : t('common:assetSelector.typeToSearchHint')
+                }
+              />
+            </div>
           </div>
-
-          {/* Content area */}
-          <div className="flex-1 min-h-0 px-6 overflow-hidden">
-            {mode === 'search' ? (
-              <div className="flex flex-col h-full min-h-[250px] overflow-hidden">
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    ref={searchInputRef}
-                    placeholder={t('common:assetSelector.searchPlaceholder')}
-                    value={searchQuery}
-                    onChange={(e) => handleSearchQueryChange(e.target.value)}
-                    className="pl-9"
-                  />
-                  {searchLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
+        ) : (
+          <div className={classes.browse}>
+            {/* Type sidebar */}
+            <div className={classes.sidebar}>
+              {typesLoading ? (
+                <div className={classes.loading}>
+                  <Loader size={16} />
                 </div>
-                <ScrollArea className="flex-1 min-h-0">
-                  <AssetResultsList
-                    results={searchResults}
-                    loading={false}
-                    selected={selected}
-                    onToggle={toggleSelect}
-                    emptyMessage={
-                      searchQuery.length >= 2
-                        ? (searchLoading ? undefined : t('common:assetSelector.noAssetsFound'))
-                        : t('common:assetSelector.typeToSearchHint')
-                    }
-                  />
-                </ScrollArea>
-              </div>
-            ) : (
-              <div className="flex gap-3 h-full min-h-[300px] overflow-hidden">
-                {/* Type sidebar */}
-                <ScrollArea className="w-48 flex-shrink-0 border rounded-md">
-                  <div className="p-1">
-                    {typesLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : groupedTypes.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-4">{t('common:assetSelector.noAssetTypes')}</p>
-                    ) : (
-                      groupedTypes.map(group => (
-                        <div key={group.category} className="mb-2">
-                          <div className="flex items-center gap-1.5 px-2 py-1">
-                            <group.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              {group.label}
-                            </span>
-                          </div>
-                          {group.types.map(t => {
-                            const TypeIcon = getIconComponent(t.icon);
-                            return (
-                              <button
-                                key={t.id}
-                                onClick={() => handleTypeSelect(t.id)}
-                                className={cn(
-                                  'w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-left text-sm transition-colors',
-                                  selectedTypeId === t.id
-                                    ? 'bg-primary/10 text-primary font-medium'
-                                    : 'hover:bg-muted text-foreground'
-                                )}
-                              >
-                                <TypeIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                                <span className="truncate flex-1">{t.name}</span>
-                                <span className="text-xs text-muted-foreground flex-shrink-0">
-                                  {t.asset_count}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ))
+              ) : groupedTypes.length === 0 ? (
+                <p className={classes.empty}>{t('common:assetSelector.noAssetTypes')}</p>
+              ) : (
+                groupedTypes.map(group => (
+                  <div key={group.category} className={classes.group}>
+                    <div className={classes.groupHead}>
+                      <group.icon size={14} aria-hidden />
+                      <span>{group.label}</span>
+                    </div>
+                    {group.types.map(t => {
+                      const TypeIcon = getIconComponent(t.icon);
+                      return (
+                        <button
+                          type="button"
+                          key={t.id}
+                          onClick={() => handleTypeSelect(t.id)}
+                          aria-pressed={selectedTypeId === t.id}
+                          className={classes.type}
+                        >
+                          <TypeIcon size={14} aria-hidden />
+                          <span className={classes.typeName} title={t.name}>{t.name}</span>
+                          <span className={classes.count}>
+                            {t.asset_count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Results panel */}
+            <div className={classes.panel}>
+              {selectedTypeId ? (
+                <>
+                  <div className={classes.filter}>
+                    <TextInput
+                      ref={browseFilterRef}
+                      aria-label={t('common:assetSelector.filterPlaceholder', { type: selectedTypeName || t('common:assetSelector.assetsFallback') })}
+                      placeholder={t('common:assetSelector.filterPlaceholder', { type: selectedTypeName || t('common:assetSelector.assetsFallback') })}
+                      value={browseFilter}
+                      onChange={(e) => handleBrowseFilterChange(e.currentTarget.value)}
+                      leftSection={<Search size={14} aria-hidden />}
+                      leftSectionPointerEvents="none"
+                    />
+                  </div>
+                  <div className={classes.panelScroll}>
+                    <AssetResultsList
+                      results={browseResults}
+                      loading={browseLoading}
+                      selected={selected}
+                      onToggle={toggleSelect}
+                      emptyMessage={
+                        browseFilter.length >= 2
+                          ? t('common:assetSelector.noMatchingAssets')
+                          : t('common:assetSelector.noAssetsOfType')
+                      }
+                    />
+                    {browseTotal > 50 && !browseLoading && (
+                      <p className={classes.limit}>
+                        {t('common:assetSelector.showingLimit', { total: browseTotal })}
+                      </p>
                     )}
                   </div>
-                </ScrollArea>
-
-                {/* Results panel */}
-                <div className="flex-1 min-w-0 flex flex-col border rounded-md overflow-hidden">
-                  {selectedTypeId ? (
-                    <>
-                      <div className="relative px-3 py-2 border-b">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
-                          ref={browseFilterRef}
-                          placeholder={t('common:assetSelector.filterPlaceholder', { type: selectedTypeName || t('common:assetSelector.assetsFallback') })}
-                          value={browseFilter}
-                          onChange={(e) => handleBrowseFilterChange(e.target.value)}
-                          className="pl-8 h-8 text-sm"
-                        />
-                      </div>
-                      <ScrollArea className="flex-1">
-                        <div className="p-1">
-                          <AssetResultsList
-                            results={browseResults}
-                            loading={browseLoading}
-                            selected={selected}
-                            onToggle={toggleSelect}
-                            emptyMessage={
-                              browseFilter.length >= 2
-                                ? t('common:assetSelector.noMatchingAssets')
-                                : t('common:assetSelector.noAssetsOfType')
-                            }
-                          />
-                        </div>
-                        {browseTotal > 50 && !browseLoading && (
-                          <p className="text-xs text-muted-foreground text-center py-2">
-                            {t('common:assetSelector.showingLimit', { total: browseTotal })}
-                          </p>
-                        )}
-                      </ScrollArea>
-                    </>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center text-muted-foreground">
-                        <FolderTree className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                        <p className="text-sm">{t('common:assetSelector.selectTypeToBrowse')}</p>
-                      </div>
-                    </div>
-                  )}
+                </>
+              ) : (
+                <div className={classes.placeholder}>
+                  <FolderTree size={32} aria-hidden />
+                  <p className={classes.empty}>{t('common:assetSelector.selectTypeToBrowse')}</p>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Selected items bar */}
-          {selected.size > 0 && (
-            <div className="px-6 pt-2">
-              <Separator className="mb-2" />
-              <div className="max-h-16 overflow-y-auto">
-                <div className="flex flex-wrap gap-1.5">
-                  {Array.from(selected.values()).map(a => {
-                    const Icon = getAssetIcon(a.asset_type_name);
-                    return (
-                      <Badge key={a.id} variant="secondary" className="gap-1 pr-1">
-                        <Icon className="h-3 w-3" />
-                        <span className="text-xs max-w-32 truncate">{a.name}</span>
-                        <button
-                          onClick={() => toggleSelect(a)}
-                          className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
             </div>
-          )}
-
-          {/* Footer */}
-          <div className="px-6 pb-6 pt-3">
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common:actions.cancel')}</Button>
-              <Button onClick={handleConfirm} disabled={selected.size === 0 || confirmDisabled}>
-                {confirmLabel || (selected.size > 0 ? t('common:assetSelector.linkCount', { count: selected.size }) : t('common:assetSelector.linkEmpty'))}
-              </Button>
-            </DialogFooter>
           </div>
-        </div>
-      </DialogContent>
+        )}
+
+        {/* Selected items bar */}
+        {selected.size > 0 && (
+          <div className={classes.chosen}>
+            {Array.from(selected.values()).map(a => {
+              const Icon = getAssetIcon(a.asset_type_name);
+              return (
+                <Badge key={a.id} variant="secondary" className={classes.chip}>
+                  <Icon size={12} aria-hidden />
+                  <span className={classes.chipName} title={a.name}>{a.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleSelect(a)}
+                    aria-label={t('common:assetSelector.removeSelected', { name: a.name })}
+                    className={classes.remove}
+                  >
+                    <X size={12} aria-hidden />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </Dialog>
   );
 }

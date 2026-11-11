@@ -452,7 +452,8 @@
     "selectTypeToBrowse": "Selecteer een assettype om te bladeren",
     "linkEmpty": "Assets koppelen",
     "linkCount_one": "{{count}} asset koppelen",
-    "linkCount_other": "{{count}} assets koppelen"
+    "linkCount_other": "{{count}} assets koppelen",
+    "removeSelected": "{{name}} verwijderen"
   },
   "addRelationship": {
     "title": "Relatie toevoegen",

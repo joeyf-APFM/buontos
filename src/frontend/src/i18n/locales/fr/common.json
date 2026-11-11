@@ -448,7 +448,8 @@
     "selectTypeToBrowse": "Sélectionnez un type d'actif à parcourir",
     "linkEmpty": "Lier des actifs",
     "linkCount_one": "Lier {{count}} actif",
-    "linkCount_other": "Lier {{count}} actifs"
+    "linkCount_other": "Lier {{count}} actifs",
+    "removeSelected": "Retirer {{name}}"
   },
   "addRelationship": {
     "title": "Ajouter une relation",
