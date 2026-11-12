@@ -246,6 +246,26 @@ describe('page kit', () => {
     expect(details).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('controlled tabs call onChange only for a new value, as Radix Tabs do (R71)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithMantine(
+      <Tabs value="details" onChange={onChange}>
+        <Tabs.List>
+          <Tabs.Tab value="details">Details</Tabs.Tab>
+          <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+        </Tabs.List>
+      </Tabs>,
+    );
+    // Clicking the active tab is quiet
+    await user.click(screen.getByRole('tab', { name: 'Details' }));
+    expect(onChange).not.toHaveBeenCalled();
+    // Another tab still reports its value
+    await user.click(screen.getByRole('tab', { name: 'Lineage' }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('lineage');
+  });
+
   it('tabs unmount inactive panels, as Radix Tabs do, unless kept mounted', () => {
     const { unmount } = renderWithMantine(
       <Tabs defaultValue="details">
