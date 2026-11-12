@@ -220,7 +220,11 @@
       "modeDisabled": "Debug-Modus deaktiviert",
       "modeEnabledDesc": "LLM-Zwischenschritte werden angezeigt",
       "clickToDisable": "Klicken, um den Debug-Modus zu deaktivieren"
-    }
+    },
+    "you": "Sie",
+    "messagesLabel": "Nachrichten",
+    "send": "Senden",
+    "deleteSession": "Unterhaltung löschen: {{title}}"
   },
   "copilot": {
     "title": "{{shortName}} fragen",

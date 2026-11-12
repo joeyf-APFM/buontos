@@ -1,0 +1,106 @@
+/*
+ * Index Search (/search/index) on the page kit (wave 2 Task 16): the pane's
+ * description, the field, then the results as links, each a 28px+ row with
+ * its icon, a title that wraps and a description that keeps to one line.
+ */
+
+.intro {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+}
+
+.fieldIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+a.result {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 6px 8px;
+  color: var(--aura-text-body);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+a.result:hover {
+  background: var(--aura-surface-strong);
+}
+
+a.result:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  color: var(--aura-text-secondary);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* A long title wraps, so it reads in full */
+.title {
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* The description keeps to one line; its title has the whole text */
+.description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* A quiet line: loading, no results */
+.note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.alert {
+  composes: alert from '../common/list-page.module.css';
+}
+
+.alertMessage {
+  composes: alertMessage from '../common/list-page.module.css';
+}
+
+/* A failed search: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.state > .alert {
+  align-self: stretch;
+  margin-top: 0;
+}

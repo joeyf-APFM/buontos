@@ -220,7 +220,11 @@
       "modeDisabled": "Mode débogage désactivé",
       "modeEnabledDesc": "Les étapes intermédiaires du LLM seront affichées",
       "clickToDisable": "Cliquez pour désactiver le mode débogage"
-    }
+    },
+    "you": "Vous",
+    "messagesLabel": "Messages",
+    "send": "Envoyer",
+    "deleteSession": "Supprimer la conversation : {{title}}"
   },
   "copilot": {
     "title": "Demander à {{shortName}}",

@@ -220,7 +220,11 @@
       "modeDisabled": "デバッグモードを無効にしました",
       "modeEnabledDesc": "LLM の中間ステップが表示されます",
       "clickToDisable": "クリックしてデバッグモードを無効にする"
-    }
+    },
+    "you": "あなた",
+    "messagesLabel": "メッセージ",
+    "send": "送信",
+    "deleteSession": "会話を削除: {{title}}"
   },
   "copilot": {
     "title": "{{shortName}}に聞く",

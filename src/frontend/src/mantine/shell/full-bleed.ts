@@ -42,6 +42,11 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   '/owner-consumers',
   // Marketplace (its panes stacked at their own height)
   '/marketplace',
+  // Search: Ask Ontos fills the area (its messages scroll inside its pane);
+  // Index Search draws the kit's margin itself (PageLayout)
+  '/search',
+  '/search/llm',
+  '/search/index',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

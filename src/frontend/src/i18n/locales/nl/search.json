@@ -220,7 +220,11 @@
       "modeDisabled": "Debugmodus uitgeschakeld",
       "modeEnabledDesc": "Tussenstappen van de LLM worden getoond",
       "clickToDisable": "Klik om debugmodus uit te schakelen"
-    }
+    },
+    "you": "U",
+    "messagesLabel": "Berichten",
+    "send": "Verzenden",
+    "deleteSession": "Gesprek verwijderen: {{title}}"
   },
   "copilot": {
     "title": "Vraag {{shortName}}",

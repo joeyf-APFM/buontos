@@ -220,7 +220,11 @@
       "modeDisabled": "Debug mode disabled",
       "modeEnabledDesc": "LLM intermediate steps will be shown",
       "clickToDisable": "Click to disable debug mode"
-    }
+    },
+    "you": "You",
+    "messagesLabel": "Messages",
+    "send": "Send",
+    "deleteSession": "Delete conversation: {{title}}"
   },
   "copilot": {
     "title": "Ask {{shortName}}",

@@ -1,27 +1,22 @@
 /**
  * LLM Search Component
- * 
+ *
  * Conversational AI interface for querying data products, costs,
  * glossary terms, and executing analytics queries.
+ *
+ * On the page kit (wave 2 Task 16): one kit pane with the History popover
+ * in its head, the messages in a log that scrolls inside the pane, and the
+ * composer under it, always in view. The debug and tool-result details fold
+ * with Mantine Collapse. The LLM-disabled state is a pane of its own.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Bot, User, Loader2, AlertCircle, Trash2, MessageSquare, Plus, ChevronDown, Sparkles, RefreshCw, Pencil, Bug, ChevronRight, Clock, Wrench, CheckCircle2, XCircle } from 'lucide-react';
+import { ActionIcon, Alert, Collapse, Loader, Popover, Textarea, UnstyledButton } from '@mantine/core';
+import { Send, User, AlertCircle, Trash2, MessageSquare, Plus, ChevronDown, Sparkles, RefreshCw, Pencil, Bug, ChevronRight, Clock, Wrench, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Pane } from '@/mantine/page';
 import { useToast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -35,8 +30,10 @@ import type {
   SessionSummary,
 } from '@/types/llm-search';
 import { fetchLLMStatus, fetchSessions, sendMessage, deleteSession } from './llm-search-api';
+import { LoadError } from './search-pane';
 import { chatMessageText } from '@/lib/chat-message-text';
 import { useUICustomizationStore } from '@/stores/ui-customization-store';
+import classes from './llm-search.module.css';
 
 
 // ============================================================================
@@ -52,115 +49,81 @@ interface MessageProps {
 
 function Message({ message, debugInfo, onRerun, onCopyToInput }: MessageProps) {
   const { t } = useTranslation(['search']);
+  const shortName = useUICustomizationStore((s) => s.getShortName());
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
-  
+
   // Don't render tool messages (they're internal)
   if (message.role === 'tool' || message.role === 'system') {
     return null;
   }
-  
+
   // Don't render assistant messages that are just tool calls (no content)
   if (isAssistant && !message.content && message.tool_calls) {
     return null;
   }
 
   return (
-    <div className="space-y-1">
-      <div className={`group flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+    <div className={classes.message}>
+      <div className={classes.row} data-role={isUser ? 'user' : 'assistant'}>
         {/* Avatar */}
-        <div className={`
-          flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-          ${isUser 
-            ? 'bg-sky-500 dark:bg-sky-600 text-white' 
-            : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white'
-          }
-        `}>
-          {isUser ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+        <div className={classes.avatar} role="img" aria-label={isUser ? t('search:llm.you') : shortName}>
+          {isUser ? <User aria-hidden /> : <Sparkles aria-hidden />}
         </div>
-        
+
         {/* Message Content */}
-        <div className={`
-          flex-1 max-w-[80%] rounded-lg px-4 py-3 relative
-          ${isUser 
-            ? 'bg-sky-100 dark:bg-sky-900/50 text-sky-900 dark:text-sky-100' 
-            : 'bg-muted'
-          }
-        `}>
+        <div className={classes.bubble}>
           {isUser ? (
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <p className={classes.userText}>{message.content}</p>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown 
+            <div className={classes.markdown}>
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Custom table styling
+                  // A wide table scrolls inside the message
                   table: ({ children }) => (
-                    <div className="overflow-x-auto my-2">
-                      <table className="min-w-full border-collapse text-sm">
-                        {children}
-                      </table>
+                    <div className={classes.tableWrap}>
+                      <table>{children}</table>
                     </div>
                   ),
-                  th: ({ children }) => (
-                    <th className="border border-border bg-muted px-3 py-2 text-left font-medium">
-                      {children}
-                    </th>
-                  ),
-                  td: ({ children }) => (
-                    <td className="border border-border px-3 py-2">
-                      {children}
-                    </td>
-                  ),
-                  // Code blocks
-                  code: ({ className, children, ...props }) => {
-                    const isInline = !className;
-                    return isInline ? (
-                      <code className="bg-muted-foreground/20 px-1 py-0.5 rounded text-sm" {...props}>
-                        {children}
-                      </code>
-                    ) : (
-                      <code className={`${className} block bg-zinc-900 text-zinc-100 p-3 rounded-md overflow-x-auto`} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
                 }}
               >
                 {chatMessageText(message, t)}
               </ReactMarkdown>
             </div>
           )}
-          
+
           {/* Timestamp */}
-          <div className={`text-xs mt-2 opacity-60 ${isUser ? 'text-right' : ''}`}>
+          <div className={classes.time}>
             {new Date(message.timestamp).toLocaleTimeString()}
           </div>
-
-          {/* Hover actions for user messages */}
-          {isUser && message.content && (
-            <div className="absolute -left-2 top-1/2 -translate-y-1/2 -translate-x-full flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => onCopyToInput?.(message.content || '')}
-                title={t('search:llm.copyToInput')}
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => onRerun?.(message.content || '')}
-                title={t('search:llm.rerun')}
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          )}
         </div>
+
+        {/* A question's actions, shown on hover and on focus */}
+        {isUser && message.content && (
+          <div className={classes.actions}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              onClick={() => onCopyToInput?.(message.content || '')}
+              aria-label={t('search:llm.copyToInput')}
+              title={t('search:llm.copyToInput')}
+            >
+              <Pencil aria-hidden />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              onClick={() => onRerun?.(message.content || '')}
+              aria-label={t('search:llm.rerun')}
+              title={t('search:llm.rerun')}
+            >
+              <RefreshCw aria-hidden />
+            </ActionIcon>
+          </div>
+        )}
       </div>
 
       {/* Debug panel below assistant messages */}
@@ -184,94 +147,80 @@ function DebugPanel({ debug }: DebugPanelProps) {
   const hasSessionContext = debug.session_context?.is_follow_up && debug.session_context.prior_tool_results > 0;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="ml-11">
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs text-muted-foreground hover:text-foreground px-2">
-          <Bug className="w-3 h-3" />
-          <span>{t('search:llm.debug.title')}</span>
-          <ChevronRight className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-          <span className="opacity-60">
-            {t('search:llm.debug.toolCallCount', { count: debug.total_tool_calls })}
-            {hasSessionContext && ` ${t('search:llm.debug.priorResults', { count: debug.session_context!.prior_tool_results })}`}
-            {' '}&middot; {debug.total_elapsed_ms}ms
-          </span>
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-1 rounded-md border border-border bg-muted/50 p-3 text-xs space-y-3 font-mono">
+    <div className={classes.debug}>
+      <UnstyledButton className={classes.fold} aria-expanded={isOpen} onClick={() => setIsOpen((o) => !o)}>
+        <Bug aria-hidden />
+        <span>{t('search:llm.debug.title')}</span>
+        <ChevronRight aria-hidden className={classes.chevron} data-open={isOpen || undefined} />
+        <span className={classes.faint}>
+          {t('search:llm.debug.toolCallCount', { count: debug.total_tool_calls })}
+          {hasSessionContext && ` ${t('search:llm.debug.priorResults', { count: debug.session_context!.prior_tool_results })}`}
+          {' '}&middot; {debug.total_elapsed_ms}ms
+        </span>
+      </UnstyledButton>
+      <Collapse in={isOpen}>
+        <div className={classes.debugBody}>
           {/* Session Context */}
           {hasSessionContext && (
-            <>
-              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                <MessageSquare className="w-3 h-3" />
-                <span>{t('search:llm.debug.followUp', { messages: debug.session_context!.prior_messages, results: debug.session_context!.prior_tool_results })}</span>
-              </div>
-              <Separator />
-            </>
+            <div className={classes.followUp}>
+              <MessageSquare aria-hidden />
+              <span>{t('search:llm.debug.followUp', { messages: debug.session_context!.prior_messages, results: debug.session_context!.prior_tool_results })}</span>
+            </div>
           )}
 
           {/* Query Classification */}
-          <div>
-            <div className="font-semibold text-muted-foreground mb-1">{t('search:llm.debug.queryClassification')}</div>
-            <div className="space-y-1">
-              <div><span className="text-muted-foreground">{t('search:llm.debug.query')}</span> {debug.query_classification.user_query}</div>
-              <div className="flex flex-wrap gap-1 items-center">
-                <span className="text-muted-foreground">{t('search:llm.debug.categories')}</span>
-                {debug.query_classification.categories.map((cat) => (
-                  <Badge key={cat} variant="secondary" className="text-[10px] px-1.5 py-0">{cat}</Badge>
-                ))}
-              </div>
-              <div><span className="text-muted-foreground">{t('search:llm.debug.toolsProvided')}</span> {debug.query_classification.tools_count} ({debug.query_classification.tools_provided.join(', ')})</div>
+          <div className={classes.debugSection}>
+            <div className={classes.debugTitle}>{t('search:llm.debug.queryClassification')}</div>
+            <div><span className={classes.label}>{t('search:llm.debug.query')}</span> {debug.query_classification.user_query}</div>
+            <div className={classes.inline}>
+              <span className={classes.label}>{t('search:llm.debug.categories')}</span>
+              {debug.query_classification.categories.map((cat) => (
+                <Badge key={cat} variant="secondary">{cat}</Badge>
+              ))}
+            </div>
+            <div>
+              <span className={classes.label}>{t('search:llm.debug.toolsProvided')}</span>{' '}
+              {debug.query_classification.tools_count} (<code className={classes.code}>{debug.query_classification.tools_provided.join(', ')}</code>)
             </div>
           </div>
 
-          <Separator />
-
           {/* Model Info */}
-          <div className="flex flex-wrap gap-4">
-            <div><span className="text-muted-foreground">{t('search:llm.debug.model')}</span> {debug.model}</div>
-            <div><span className="text-muted-foreground">{t('search:llm.debug.iterations')}</span> {debug.total_iterations}</div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-muted-foreground" />
+          <div className={`${classes.debugSection} ${classes.inline}`}>
+            <div><span className={classes.label}>{t('search:llm.debug.model')}</span> <code className={classes.code}>{debug.model}</code></div>
+            <div><span className={classes.label}>{t('search:llm.debug.iterations')}</span> {debug.total_iterations}</div>
+            <div className={classes.inline}>
+              <Clock aria-hidden className={classes.labelIcon} />
               <span>{debug.total_elapsed_ms}ms {t('search:llm.debug.total')}</span>
             </div>
           </div>
 
           {/* Tool Executions */}
           {debug.tool_executions.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <div className="font-semibold text-muted-foreground mb-2">{t('search:llm.debug.toolExecutions')}</div>
-                <div className="space-y-2">
-                  {debug.tool_executions.map((exec, idx) => (
-                    <ToolExecutionDetail key={idx} exec={exec} />
-                  ))}
-                </div>
-              </div>
-            </>
+            <div className={classes.debugSection}>
+              <div className={classes.debugTitle}>{t('search:llm.debug.toolExecutions')}</div>
+              {debug.tool_executions.map((exec, idx) => (
+                <ToolExecutionDetail key={idx} exec={exec} />
+              ))}
+            </div>
           )}
 
           {/* Iterations */}
           {debug.iterations.length > 1 && (
-            <>
-              <Separator />
-              <div>
-                <div className="font-semibold text-muted-foreground mb-1">{t('search:llm.debug.llmIterations')}</div>
-                {debug.iterations.map((iter, idx) => (
-                  <div key={idx} className="flex gap-3 text-muted-foreground">
-                    <span>#{iter.iteration}</span>
-                    <span>{iter.llm_call_ms}ms</span>
-                    <span>{t('search:llm.debug.messagesSent', { count: iter.messages_sent })}</span>
-                    {iter.has_tool_calls && <span>{t('search:llm.debug.toolCallsShort', { count: iter.tool_calls.length })}</span>}
-                  </div>
-                ))}
-              </div>
-            </>
+            <div className={classes.debugSection}>
+              <div className={classes.debugTitle}>{t('search:llm.debug.llmIterations')}</div>
+              {debug.iterations.map((iter, idx) => (
+                <div key={idx} className={`${classes.inline} ${classes.label}`}>
+                  <span>#{iter.iteration}</span>
+                  <span>{iter.llm_call_ms}ms</span>
+                  <span>{t('search:llm.debug.messagesSent', { count: iter.messages_sent })}</span>
+                  {iter.has_tool_calls && <span>{t('search:llm.debug.toolCallsShort', { count: iter.tool_calls.length })}</span>}
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </Collapse>
+    </div>
   );
 }
 
@@ -280,38 +229,36 @@ function ToolExecutionDetail({ exec }: { exec: DebugInfo['tool_executions'][0] }
   const [showResult, setShowResult] = useState(false);
 
   return (
-    <div className="rounded border border-border bg-background p-2 space-y-1">
-      <div className="flex items-center gap-2">
-        <Wrench className="w-3 h-3 text-muted-foreground" />
-        <span className="font-semibold">{exec.tool}</span>
+    <div className={classes.tool}>
+      <div className={classes.inline}>
+        <Wrench aria-hidden className={classes.labelIcon} />
+        <code className={classes.code} data-strong="">{exec.tool}</code>
         {exec.success ? (
-          <CheckCircle2 className="w-3 h-3 text-green-500" />
+          <CheckCircle2 aria-hidden className={classes.ok} />
         ) : (
-          <XCircle className="w-3 h-3 text-red-500" />
+          <XCircle aria-hidden className={classes.failed} />
         )}
-        <span className="text-muted-foreground ml-auto">{exec.execution_ms}ms</span>
+        <span className={`${classes.label} ${classes.end}`}>{exec.execution_ms}ms</span>
       </div>
-      <div className="text-muted-foreground">
+      <div className={classes.label}>
         <span>{t('search:llm.debug.args')} </span>
-        <code className="text-[10px] break-all">{JSON.stringify(exec.arguments)}</code>
+        <code className={classes.code} data-wrap="">{JSON.stringify(exec.arguments)}</code>
       </div>
       {exec.error && (
-        <div className="text-red-500">{t('common:states.error')}: {exec.error}</div>
+        <div className={classes.failed}>{t('common:states.error')}: {exec.error}</div>
       )}
       {exec.result && (
-        <Collapsible open={showResult} onOpenChange={setShowResult}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1 text-muted-foreground">
-              <ChevronRight className={`w-2.5 h-2.5 mr-0.5 transition-transform ${showResult ? 'rotate-90' : ''}`} />
-              {showResult ? t('search:llm.debug.hideResult') : t('search:llm.debug.showResult')}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <pre className="mt-1 p-2 rounded bg-zinc-900 text-zinc-100 text-[10px] overflow-x-auto max-h-48 overflow-y-auto">
+        <>
+          <UnstyledButton className={classes.fold} data-small="" aria-expanded={showResult} onClick={() => setShowResult((o) => !o)}>
+            <ChevronRight aria-hidden className={classes.chevron} data-open={showResult || undefined} />
+            {showResult ? t('search:llm.debug.hideResult') : t('search:llm.debug.showResult')}
+          </UnstyledButton>
+          <Collapse in={showResult}>
+            <pre className={classes.result}>
               {JSON.stringify(exec.result, null, 2)}
             </pre>
-          </CollapsibleContent>
-        </Collapsible>
+          </Collapse>
+        </>
       )}
     </div>
   );
@@ -330,60 +277,75 @@ interface SessionListProps {
   onNewSession: () => void;
 }
 
-function SessionList({ 
-  sessions, 
-  currentSessionId, 
-  onSelectSession, 
+function SessionList({
+  sessions,
+  currentSessionId,
+  onSelectSession,
   onDeleteSession,
-  onNewSession 
+  onNewSession
 }: SessionListProps) {
   const { t } = useTranslation(['search', 'common']);
+  const [opened, setOpened] = useState(false);
 
   if (sessions.length === 0) {
     return null;
   }
 
+  const history = t('search:llm.history');
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <MessageSquare className="w-4 h-4" />
-          {t('search:llm.history')}
-          <ChevronDown className="w-3 h-3" />
+    // hideDetached off, as the Ontos window's: the pane head never scrolls away
+    <Popover opened={opened} onChange={setOpened} hideDetached={false} position="bottom-end" width={300} shadow="md" trapFocus returnFocus>
+      <Popover.Target>
+        {/* Controlled, so the target toggles it; Popover.Target adds aria-expanded */}
+        <Button variant="outline" size="sm" type="button" onClick={() => setOpened((o) => !o)}>
+          <MessageSquare aria-hidden />
+          {history}
+          <ChevronDown aria-hidden />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuItem onClick={onNewSession} className="gap-2">
-          <Plus className="w-4 h-4" />
+      </Popover.Target>
+      <Popover.Dropdown aria-label={history} className={classes.history}>
+        <UnstyledButton
+          className={classes.session}
+          onClick={() => {
+            setOpened(false);
+            onNewSession();
+          }}
+        >
+          <Plus aria-hidden className={classes.labelIcon} />
           {t('search:llm.newConversation')}
-        </DropdownMenuItem>
-        <Separator className="my-1" />
-        {sessions.map((session) => (
-          <DropdownMenuItem
-            key={session.id}
-            className={`flex justify-between items-center gap-2 ${
-              session.id === currentSessionId ? 'bg-accent' : ''
-            }`}
-            onClick={() => onSelectSession(session.id)}
-          >
-            <span className="truncate flex-1">
-              {session.title || t('search:llm.untitled')}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-60 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteSession(session.id);
-              }}
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </UnstyledButton>
+        <div className={classes.divider} />
+        <div className={classes.sessions}>
+          {sessions.map((session) => {
+            const title = session.title || t('search:llm.untitled');
+            return (
+              <div key={session.id} className={classes.sessionRow} data-current={session.id === currentSessionId || undefined}>
+                <UnstyledButton
+                  className={classes.session}
+                  onClick={() => {
+                    setOpened(false);
+                    onSelectSession(session.id);
+                  }}
+                >
+                  {title}
+                </UnstyledButton>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  aria-label={t('search:llm.deleteSession', { title })}
+                  title={t('search:llm.deleteSession', { title })}
+                  onClick={() => onDeleteSession(session.id)}
+                >
+                  <Trash2 aria-hidden />
+                </ActionIcon>
+              </div>
+            );
+          })}
+        </div>
+      </Popover.Dropdown>
+    </Popover>
   );
 }
 
@@ -420,15 +382,16 @@ function ExampleQuestions({ onSelectQuestion, adoptionMode }: ExampleQuestionsPr
         ];
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-muted-foreground">{t('search:llm.tryAsking')}</p>
-      <div className="flex flex-wrap gap-2">
+    <div className={classes.examples}>
+      <p className={classes.muted}>{t('search:llm.tryAsking')}</p>
+      <div className={classes.exampleList}>
         {examples.map((question, idx) => (
           <Button
             key={idx}
             variant="outline"
             size="sm"
-            className="text-sm"
+            type="button"
+            className={classes.example}
             onClick={() => onSelectQuestion(question)}
           >
             {question}
@@ -448,8 +411,13 @@ export default function LLMSearch() {
   const { t } = useTranslation(['search', 'common']);
   const shortName = useUICustomizationStore((s) => s.getShortName());
   const [status, setStatus] = useState<LLMSearchStatus | null>(null);
+  // The status and the sessions failed to load (Retry loads them again)
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>();
+  // A session whose messages failed to load (Retry loads it again)
+  const [failedSessionId, setFailedSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -457,9 +425,11 @@ export default function LLMSearch() {
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [debugInfoMap, setDebugInfoMap] = useState<Record<string, DebugInfo>>({});
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Only the latest session pick may show: an earlier one that answers late is dropped
+  const sessionRequest = useRef(0);
   const { toast } = useToast();
 
   // Hidden keyboard shortcut: Ctrl+Shift+D to toggle debug mode
@@ -477,7 +447,7 @@ export default function LLMSearch() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toast]);
-  
+
   // Build LLMConfig from status for consent dialog
   const llmConfig: LLMConfig = {
     enabled: status?.enabled ?? false,
@@ -486,32 +456,38 @@ export default function LLMSearch() {
     disclaimer_text: status?.disclaimer ?? '',
   };
 
-  // Scroll to bottom when messages change
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
+  // Scroll the log (not the page) to its end when messages change
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    const log = logRef.current;
+    if (!log) return;
+    if (typeof log.scrollTo === 'function') log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' });
+    else log.scrollTop = log.scrollHeight;
+  }, [messages, isLoading]);
 
-  // Load status and sessions on mount
+  // Load status and sessions on mount, and again on Retry; an answer after
+  // unmount or after a newer attempt is dropped
   useEffect(() => {
+    let cancelled = false;
     async function loadInitialData() {
       try {
         const [statusData, sessionsData] = await Promise.all([
           fetchLLMStatus(),
           fetchSessions(),
         ]);
+        if (cancelled) return;
         setStatus(statusData);
-        setSessions(sessionsData);
+        setSessions(Array.isArray(sessionsData) ? sessionsData : []);
       } catch (err) {
+        if (cancelled) return;
         console.error('Failed to load LLM search data:', err);
-        setError(t('search:llm.messages.loadFailed'));
+        setLoadFailed(true);
       }
     }
     loadInitialData();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAttempt]);
 
   // Handle sending a message
   const handleSend = async () => {
@@ -535,6 +511,7 @@ export default function LLMSearch() {
     setInput('');
     setIsLoading(true);
     setError(null);
+    setFailedSessionId(null);
 
     try {
       const response = await sendMessage(messageContent, currentSessionId, debugMode);
@@ -552,7 +529,7 @@ export default function LLMSearch() {
 
       // Refresh sessions list
       const updatedSessions = await fetchSessions();
-      setSessions(updatedSessions);
+      setSessions(Array.isArray(updatedSessions) ? updatedSessions : []);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('search:copilot.messageSendFailed');
@@ -566,7 +543,8 @@ export default function LLMSearch() {
       setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
-      inputRef.current?.focus();
+      // After the composer is enabled again
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
@@ -608,7 +586,7 @@ export default function LLMSearch() {
         setDebugInfoMap((prev) => ({ ...prev, [response.message.id]: response.debug! }));
       }
       const updatedSessions = await fetchSessions();
-      setSessions(updatedSessions);
+      setSessions(Array.isArray(updatedSessions) ? updatedSessions : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('search:copilot.messageSendFailed');
       setError(errorMessage);
@@ -620,7 +598,7 @@ export default function LLMSearch() {
       setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [isLoading, llmConfig, currentSessionId, debugMode, toast]);
 
@@ -630,17 +608,23 @@ export default function LLMSearch() {
     inputRef.current?.focus();
   }, []);
 
-  // Handle session selection
+  // Handle session selection; a slower answer for an earlier pick is dropped
   const handleSelectSession = async (sessionId: string) => {
+    const id = ++sessionRequest.current;
+    setFailedSessionId(null);
     try {
       const response = await fetch(`/api/llm-search/sessions/${sessionId}`);
       if (!response.ok) throw new Error('Failed to load session');
       const session = await response.json();
+      if (id !== sessionRequest.current) return;
       setCurrentSessionId(session.id);
-      setMessages(session.messages.filter((m: ChatMessage) => 
+      const loaded: ChatMessage[] = Array.isArray(session.messages) ? session.messages : [];
+      setMessages(loaded.filter((m: ChatMessage) =>
         m.role === 'user' || (m.role === 'assistant' && m.content)
       ));
     } catch (err) {
+      if (id !== sessionRequest.current) return;
+      setFailedSessionId(sessionId);
       toast({
         title: t('common:toast.error'),
         description: t('search:llm.messages.loadSessionFailed'),
@@ -673,6 +657,8 @@ export default function LLMSearch() {
 
   // Start new session
   const handleNewSession = () => {
+    sessionRequest.current += 1;
+    setFailedSessionId(null);
     setCurrentSessionId(undefined);
     setMessages([]);
     setDebugInfoMap({});
@@ -689,25 +675,12 @@ export default function LLMSearch() {
   // Render disabled state if LLM is not enabled
   if (status && !status.enabled) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5" />
-            {t('search:llm.disabledTitle')}
-          </CardTitle>
-          <CardDescription>
-            {t('search:llm.disabledSubtitle')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {t('search:llm.disabledMessage')}
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <Pane title={t('search:llm.disabledTitle')} className={classes.disabledPane}>
+        <p className={classes.intro}>{t('search:llm.disabledSubtitle')}</p>
+        <Alert color="gray" variant="light" icon={<AlertCircle />} className={classes.disabled}>
+          {t('search:llm.disabledMessage')}
+        </Alert>
+      </Pane>
     );
   }
 
@@ -722,6 +695,8 @@ export default function LLMSearch() {
     }
   };
 
+  const placeholder = t('search:llm.inputPlaceholder');
+
   return (
     <>
       {/* LLM Consent Dialog */}
@@ -731,21 +706,10 @@ export default function LLMSearch() {
         onAccept={handleConsentAccepted}
         llmConfig={llmConfig}
       />
-      
-      <Card className="flex flex-col h-[calc(100vh-16rem)]">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              {t('search:llm.title', { shortName })}
-            </CardTitle>
-            <CardDescription className="mt-1">
-              {t('search:llm.subtitle')}
-            </CardDescription>
-          </div>
+
+      <Pane
+        title={t('search:llm.title', { shortName })}
+        actions={
           <SessionList
             sessions={sessions}
             currentSessionId={currentSessionId}
@@ -753,111 +717,110 @@ export default function LLMSearch() {
             onDeleteSession={handleDeleteSession}
             onNewSession={handleNewSession}
           />
-        </div>
-      </CardHeader>
+        }
+        flush
+        className={classes.chat}
+      >
+        <div className={classes.chatBody}>
+          <p className={classes.subtitle}>{t('search:llm.subtitle')}</p>
 
-      <Separator />
-
-      {/* Messages Area */}
-      <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full p-4">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-8">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-violet-500" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">{t('search:llm.welcomeTitle')}</h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  {t('search:llm.welcomeMessage')}
-                </p>
-              </div>
-              <ExampleQuestions
-                onSelectQuestion={handleSelectQuestion}
-                adoptionMode={status?.adoption_mode ?? null}
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <Message
-                  key={message.id}
-                  message={message}
-                  debugInfo={debugInfoMap[message.id]}
-                  onRerun={handleRerun}
-                  onCopyToInput={handleCopyToInput}
-                />
-              ))}
-              
-              {/* Loading indicator */}
-              {isLoading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">{t('search:llm.thinking')}</span>
-                  </div>
+          {/* Messages: they scroll here, so the composer and the page header stay in view */}
+          <div ref={logRef} role="log" aria-label={t('search:llm.messagesLabel')} className={classes.log} tabIndex={0}>
+            {loadFailed ? (
+              <LoadError error={t('search:llm.messages.loadFailed')} onRetry={() => { setLoadFailed(false); setLoadAttempt((n) => n + 1); }} />
+            ) : failedSessionId ? (
+              <LoadError error={t('search:llm.messages.loadSessionFailed')} onRetry={() => handleSelectSession(failedSessionId)} />
+            ) : messages.length === 0 ? (
+              <div className={classes.welcome}>
+                <div className={classes.welcomeIcon}>
+                  <Sparkles aria-hidden />
                 </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-
-      <Separator />
-
-      {/* Input Area */}
-      <div className="p-4">
-        {error && (
-          <Alert variant="destructive" className="mb-3">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="flex gap-2">
-          <Textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t('search:llm.inputPlaceholder')}
-            className="min-h-[44px] max-h-32 resize-none"
-            disabled={isLoading}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            size="icon"
-            className="h-11 w-11 shrink-0"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+                <h3 className={classes.welcomeTitle}>{t('search:llm.welcomeTitle')}</h3>
+                <p className={classes.muted}>{t('search:llm.welcomeMessage')}</p>
+                <ExampleQuestions
+                  onSelectQuestion={handleSelectQuestion}
+                  adoptionMode={status?.adoption_mode ?? null}
+                />
+              </div>
             ) : (
-              <Send className="w-4 h-4" />
+              <div className={classes.messages}>
+                {messages.map((message) => (
+                  <Message
+                    key={message.id}
+                    message={message}
+                    debugInfo={debugInfoMap[message.id]}
+                    onRerun={handleRerun}
+                    onCopyToInput={handleCopyToInput}
+                  />
+                ))}
+
+                {/* Loading indicator */}
+                {isLoading && (
+                  <div className={classes.row} data-role="assistant">
+                    <div className={classes.avatar} aria-hidden>
+                      <Sparkles aria-hidden />
+                    </div>
+                    <div className={`${classes.bubble} ${classes.thinking}`}>
+                      <Loader size={14} />
+                      <span className={classes.muted}>{t('search:llm.thinking')}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
-          </Button>
+          </div>
+
+          {/* Input Area */}
+          <div className={classes.composer}>
+            {error && (
+              <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.error}>
+                <span className={classes.errorMessage}>{error}</span>
+              </Alert>
+            )}
+
+            <div className={classes.composerRow}>
+              <Textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.currentTarget.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                // The field was named by its placeholder; it keeps that name
+                aria-label={placeholder}
+                autosize
+                minRows={2}
+                maxRows={6}
+                disabled={isLoading}
+                className={classes.input}
+              />
+              <ActionIcon
+                variant="filled"
+                size={36}
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                aria-label={t('search:llm.send')}
+                title={t('search:llm.send')}
+                className={classes.send}
+              >
+                {isLoading ? <Loader size={14} color="currentColor" /> : <Send aria-hidden />}
+              </ActionIcon>
+            </div>
+
+            <p className={classes.hint}>
+              {t('search:llm.inputHint')}
+              {status?.model_name && (
+                <span className={classes.faint}>• {t('search:llm.model')}: {status.model_name}</span>
+              )}
+              {debugMode && (
+                <UnstyledButton className={classes.debugOn} onClick={() => setDebugMode(false)} title={t('search:llm.debug.clickToDisable')} aria-label={t('search:llm.debug.clickToDisable')}>
+                  <Bug aria-hidden />
+                  {t('search:llm.debug.title')}
+                </UnstyledButton>
+              )}
+            </p>
+          </div>
         </div>
-        
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          {t('search:llm.inputHint')}
-          {status?.model_name && (
-            <span className="ml-2 opacity-60">• {t('search:llm.model')}: {status.model_name}</span>
-          )}
-          {debugMode && (
-            <span className="ml-2 inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 cursor-pointer" onClick={() => setDebugMode(false)} title={t('search:llm.debug.clickToDisable')}>
-              <Bug className="w-3 h-3 inline" />
-              {t('search:llm.debug.title')}
-            </span>
-          )}
-        </p>
-      </div>
-    </Card>
+      </Pane>
     </>
   );
 }
-

@@ -220,7 +220,11 @@
       "modeDisabled": "Modo de depuração desativado",
       "modeEnabledDesc": "As etapas intermediárias do LLM serão exibidas",
       "clickToDisable": "Clique para desativar o modo de depuração"
-    }
+    },
+    "you": "Você",
+    "messagesLabel": "Mensagens",
+    "send": "Enviar",
+    "deleteSession": "Excluir conversa: {{title}}"
   },
   "copilot": {
     "title": "Pergunte ao {{shortName}}",
