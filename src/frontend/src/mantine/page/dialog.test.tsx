@@ -3,7 +3,7 @@
  * focus. Its look and stacking are measured in a real browser in
  * tests/e2e/page-kit.spec.ts (ruling R10).
  */
-import { useRef, useState } from 'react';
+import { StrictMode, useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Menu } from '@mantine/core';
@@ -402,5 +402,113 @@ describe('kit Dialog focus return (R41)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await pastExit();
     expect(focus).not.toHaveBeenCalled();
+  });
+});
+
+// The final review's Minor 1: a caller that unmounts the Dialog as it closes
+// (`{subject && <Dialog opened …>}`) never sees its exit transition end
+describe('kit Dialog focus return when its caller unmounts it open', () => {
+  const pastExit = () => act(() => new Promise<void>((r) => setTimeout(r, 400)));
+
+  /** Opens by mounting the Dialog open, and closes by unmounting it, as Marketplace's info dialog. */
+  function Unmounts({ onExited }: { onExited?: (content: HTMLElement | null) => void }) {
+    const [subject, setSubject] = useState<string | null>(null);
+    return (
+      <>
+        <button type="button" onClick={() => setSubject('Orders')}>Open</button>
+        <input aria-label="Elsewhere" />
+        {subject && (
+          <Dialog opened onClose={() => setSubject(null)} title={subject} onExited={onExited}>
+            <button type="button" onClick={() => setSubject(null)}>Done</button>
+          </Dialog>
+        )}
+      </>
+    );
+  }
+
+  it('Dialog gives focus back to its opener once when its caller unmounts it open', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Unmounts />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const focus = vi.spyOn(opener, 'focus');
+    const dialog = await screen.findByRole('dialog', { name: 'Orders' });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(opener).toHaveFocus());
+    await pastExit();
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
+  it('Dialog unmounted open leaves focus alone when the user has moved it', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<Unmounts />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Orders' });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    const elsewhere = screen.getByRole('textbox', { name: 'Elsewhere' });
+    // Focus moves out, then the caller unmounts the dialog (as a toast's action would)
+    act(() => {
+      elsewhere.focus();
+    });
+    expect(elsewhere).toHaveFocus();
+    // A click with no focus move
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await pastExit();
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it('Dialog unmounted open calls onExited once, and StrictMode\'s remount calls nothing', async () => {
+    const user = userEvent.setup();
+    const onExited = vi.fn();
+    renderWithMantine(<StrictMode><Unmounts onExited={onExited} /></StrictMode>);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Orders' });
+    await pastExit();
+    // Mounting open (StrictMode unmounts and remounts it) is no exit
+    expect(onExited).not.toHaveBeenCalled();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+    await pastExit();
+    expect(onExited).toHaveBeenCalledTimes(1);
+    // A caller with onExited puts focus back itself
+    expect(opener).not.toHaveFocus();
+  });
+
+  it('Dialog that closed normally gives no second focus return when its caller unmounts it later', async () => {
+    function ClosesThenUnmounts() {
+      const [shown, setShown] = useState(true);
+      const [opened, setOpened] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpened(true)}>Open</button>
+          <button type="button" onClick={() => setShown(false)}>Unmount</button>
+          {shown && (
+            <Dialog opened={opened} onClose={() => setOpened(false)} title="Rename">
+              <input aria-label="Name" />
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    renderWithMantine(<ClosesThenUnmounts />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    const focus = vi.spyOn(opener, 'focus');
+    const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(opener).toHaveFocus());
+    await pastExit();
+    const unmount = screen.getByRole('button', { name: 'Unmount' });
+    await user.click(unmount);
+    await pastExit();
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(unmount).toHaveFocus();
   });
 });

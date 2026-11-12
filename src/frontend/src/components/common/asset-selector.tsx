@@ -169,6 +169,8 @@ export function AssetSelector({
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  // The latest search: an answer to an older one is dropped
+  const searchSeq = useRef(0);
 
   // Browse mode state
   const [assetTypes, setAssetTypes] = useState<AssetTypeRead[]>([]);
@@ -180,6 +182,8 @@ export function AssetSelector({
   const [browseFilter, setBrowseFilter] = useState('');
   const browseFilterRef = useRef<HTMLInputElement>(null);
   const browseDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  // The latest browse request (a type switch or a filter): an older answer is dropped
+  const browseSeq = useRef(0);
 
   const groupedTypes = useMemo(() => {
     const filtered = targetAssetTypes && targetAssetTypes.length > 0
@@ -205,8 +209,10 @@ export function AssetSelector({
   // --- Search mode ---
 
   const doSearch = useCallback(async (query: string) => {
+    const seq = ++searchSeq.current;
     if (query.length < 2) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
     setSearchLoading(true);
@@ -216,6 +222,7 @@ export function AssetSelector({
         url += `&asset_type_names=${encodeURIComponent(targetAssetTypes.join(','))}`;
       }
       const response = await apiGet<{ items: AssetSearchResult[]; total: number }>(url);
+      if (seq !== searchSeq.current) return;
       const items = response.data?.items;
       if (!response.error && Array.isArray(items)) {
         setSearchResults(items.filter(a => !excludeAssetIds.includes(a.id)));
@@ -223,9 +230,9 @@ export function AssetSelector({
         setSearchResults([]);
       }
     } catch {
-      setSearchResults([]);
+      if (seq === searchSeq.current) setSearchResults([]);
     } finally {
-      setSearchLoading(false);
+      if (seq === searchSeq.current) setSearchLoading(false);
     }
   }, [apiGet, targetAssetTypes, excludeAssetIds]);
 
@@ -252,6 +259,7 @@ export function AssetSelector({
   }, [apiGet]);
 
   const fetchBrowseAssets = useCallback(async (typeId: string, nameFilter?: string) => {
+    const seq = ++browseSeq.current;
     setBrowseLoading(true);
     try {
       let url = `/api/assets?asset_type_id=${typeId}&limit=50`;
@@ -259,6 +267,7 @@ export function AssetSelector({
         url += `&name=${encodeURIComponent(nameFilter)}`;
       }
       const response = await apiGet<{ items: AssetSearchResult[]; total: number }>(url);
+      if (seq !== browseSeq.current) return;
       const items = response.data?.items;
       if (!response.error && Array.isArray(items)) {
         setBrowseResults(items.filter(a => !excludeAssetIds.includes(a.id)));
@@ -268,14 +277,18 @@ export function AssetSelector({
         setBrowseTotal(0);
       }
     } catch {
-      setBrowseResults([]);
-      setBrowseTotal(0);
+      if (seq === browseSeq.current) {
+        setBrowseResults([]);
+        setBrowseTotal(0);
+      }
     } finally {
-      setBrowseLoading(false);
+      if (seq === browseSeq.current) setBrowseLoading(false);
     }
   }, [apiGet, excludeAssetIds]);
 
   const handleTypeSelect = (typeId: string) => {
+    // A filter still waiting for the previous type's debounce is that type's
+    if (browseDebounceRef.current) clearTimeout(browseDebounceRef.current);
     setSelectedTypeId(typeId);
     setBrowseFilter('');
     fetchBrowseAssets(typeId);
@@ -319,6 +332,13 @@ export function AssetSelector({
   };
 
   const resetState = () => {
+    // Drop any answer still on its way, and any search still waiting
+    searchSeq.current++;
+    browseSeq.current++;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (browseDebounceRef.current) clearTimeout(browseDebounceRef.current);
+    setSearchLoading(false);
+    setBrowseLoading(false);
     setSearchQuery('');
     setSearchResults([]);
     setSelected(new Map());

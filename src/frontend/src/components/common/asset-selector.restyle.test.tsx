@@ -6,7 +6,7 @@
  * dialog's.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { expectKitDialog, expectNoOldMarkup } from '@/test/kit-dialog';
 import { AssetSelector } from './asset-selector';
@@ -118,5 +118,63 @@ describe('infer from asset dialog', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/assets/a-1/infer-schema');
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     vi.unstubAllGlobals();
+  });
+});
+
+// The final review's Minor 3: a slower answer to an older request is dropped
+describe('asset selector drops stale answers', () => {
+  const deferred = () => {
+    let resolve!: (value: unknown) => void;
+    const promise = new Promise((r) => { resolve = r; });
+    return { promise, resolve };
+  };
+  const STALE = { id: 'a-9', name: 'ordinals', asset_type_name: 'Table', location: 'main.sales.ordinals' };
+  const DASH = { id: 'a-3', name: 'revenue', asset_type_name: 'Dashboard', location: 'dash/revenue' };
+
+  it('asset selector keeps the latest search when an older one answers last', async () => {
+    const slow = deferred();
+    apiGet.mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/asset-types')) return { data: TYPES, error: null };
+      if (url.includes('name=or&')) return slow.promise;
+      if (url.includes('name=orders&')) return { data: { items: [ORDERS], total: 1 }, error: null };
+      return { data: { items: [], total: 0 }, error: null };
+    });
+    const user = userEvent.setup();
+    renderWithMantine(<AssetSelector isOpen onOpenChange={vi.fn()} onConfirm={vi.fn()} targetAssetTypes={['Table']} />);
+    const dialog = await screen.findByRole('dialog', { name: 'Link Assets' });
+    const search = within(dialog).getByRole('textbox', { name: 'Search assets by name...' });
+    await user.type(search, 'or');
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('name=or&')));
+    await user.type(search, 'ders');
+    expect(await within(dialog).findByRole('button', { name: /main\.sales\.orders/ })).toBeInTheDocument();
+    // The first search answers now, after the second
+    await act(async () => {
+      slow.resolve({ data: { items: [STALE], total: 1 }, error: null });
+      await slow.promise;
+    });
+    expect(within(dialog).queryByRole('button', { name: /ordinals/ })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: /main\.sales\.orders/ })).toBeInTheDocument();
+  });
+
+  it('asset selector keeps the latest type\'s assets when the previous type answers last', async () => {
+    const slow = deferred();
+    apiGet.mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/asset-types')) return { data: TYPES, error: null };
+      if (url.includes('asset_type_id=t-1')) return slow.promise;
+      if (url.includes('asset_type_id=t-2')) return { data: { items: [DASH], total: 1 }, error: null };
+      return { data: { items: [], total: 0 }, error: null };
+    });
+    const user = userEvent.setup();
+    renderWithMantine(<AssetSelector isOpen onOpenChange={vi.fn()} onConfirm={vi.fn()} />);
+    const dialog = await screen.findByRole('dialog', { name: 'Link Assets' });
+    await user.click(await within(dialog).findByRole('button', { name: /Table/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Dashboard/ }));
+    expect(await within(dialog).findByRole('button', { name: /revenue/ })).toBeInTheDocument();
+    await act(async () => {
+      slow.resolve({ data: { items: [ORDERS, RETURNS], total: 2 }, error: null });
+      await slow.promise;
+    });
+    expect(within(dialog).queryByRole('button', { name: /orders/ })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: /revenue/ })).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@mantine/core';
 import { alertDialogRole } from '@/mantine/alert-dialog-role';
@@ -113,6 +113,8 @@ export interface DialogProps {
  *   confirm that closed itself and its form), the check waits for it to
  *   leave. It's checked a frame after the exit, so a dialog
  *   that took over with no transition has its focus by then.
+ * - A caller that unmounts the dialog while it's open (or before its exit
+ *   has ended) gets the same, once: the exit runs as it unmounts.
  */
 export function Dialog({
   opened,
@@ -147,8 +149,11 @@ export function Dialog({
   // mounts open): before the Modal mounts its content, a render later
   const opener = useRef<HTMLElement | null>(null);
   const openedAt = useRef<string | null>(null);
+  // Opened, and its exit hasn't run yet
+  const exitPending = useRef(false);
   useLayoutEffect(() => {
     if (!opened) return;
+    exitPending.current = true;
     opener.current = openerOf(document.activeElement, content.current);
     openedAt.current = window.location.href;
     openDialogs.add(content);
@@ -158,6 +163,8 @@ export function Dialog({
   }, [opened]);
 
   const exited = () => {
+    if (!exitPending.current) return;
+    exitPending.current = false;
     onExited?.(content.current);
     // A caller that puts focus back itself owns it
     if (onExited) return;
@@ -179,6 +186,23 @@ export function Dialog({
     };
     window.requestAnimationFrame(() => check(SETTLE_FRAMES));
   };
+
+  // Unmounted open, its exit transition never ends: run the exit as it goes.
+  // After a microtask, so StrictMode's unmount and remount isn't an exit.
+  const exitedRef = useRef(exited);
+  useLayoutEffect(() => {
+    exitedRef.current = exited;
+  });
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      queueMicrotask(() => {
+        if (!mounted.current) exitedRef.current();
+      });
+    };
+  }, []);
 
   const name = closeLabel === null ? undefined : closeLabel ?? t('actions.close');
 
