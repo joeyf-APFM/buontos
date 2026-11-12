@@ -200,7 +200,7 @@ test.describe('marketplace', () => {
     }
     await expect(main.getByRole('region', { name: 'Browse Data Domains' })).toBeVisible();
     await expect(main.getByRole('region', { name: 'Data Products' })).toBeVisible();
-    // The domain chip's preview opens on hover, as a Mantine HoverCard
+    // The domain chip's preview (a controlled Mantine Popover) opens on hover
     const chip = main.getByRole('region', { name: 'Browse Data Domains' }).getByRole('button', { name: 'Orders', exact: true });
     const card = page.locator('.mantine-Popover-dropdown, .mantine-HoverCard-dropdown').filter({ hasText: 'Parent: Sales' });
     await chip.hover();
@@ -215,6 +215,14 @@ test.describe('marketplace', () => {
     await expect(card).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(card).toBeHidden();
+    // Escape closes only the preview; the chip keeps its focus
+    await page.keyboard.press('Shift+Tab');
+    await expect(chip).toBeFocused();
+    await expect(card).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(card).toBeHidden();
+    await expect(chip).toBeFocused();
+    await expect(main.getByRole('region', { name: 'Browse Data Domains' })).toBeVisible();
   });
 
   test('long names and descriptions truncate with a title in every view mode, with no page scroll', async ({ page }) => {

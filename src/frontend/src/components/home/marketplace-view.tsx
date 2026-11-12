@@ -38,9 +38,22 @@ function DomainChip({ name, selected, onToggle, children }: { name: string; sele
   useEffect(() => () => clearTimeout(timer.current), []);
   const show = () => later(true, 300);
   const hide = () => later(false, 100);
+  const dismiss = () => {
+    clearTimeout(timer.current);
+    setOpened(false);
+  };
+  // Escape on the chip closes the preview at once, as the Radix HoverCard
+  // did; focus stays on the chip, and an open preview keeps the key to
+  // itself so nothing else closes (Mantine's Popover only hears Escape
+  // inside its dropdown)
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || !opened) return;
+    e.stopPropagation();
+    dismiss();
+  };
   return (
     // withRoles off: the chip stays a plain toggle, as under the Radix HoverCard
-    <Popover opened={opened} position="bottom-start" width={288} shadow="md" withRoles={false}>
+    <Popover opened={opened} onClose={dismiss} position="bottom-start" width={288} shadow="md" withRoles={false}>
       <Popover.Target>
         <Button
           variant={selected ? 'default' : 'outline'}
@@ -52,6 +65,7 @@ function DomainChip({ name, selected, onToggle, children }: { name: string; sele
           onMouseLeave={hide}
           onFocus={show}
           onBlur={hide}
+          onKeyDown={onKeyDown}
           className={classes.pill}
         >
           {name}
