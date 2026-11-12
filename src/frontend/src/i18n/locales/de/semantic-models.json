@@ -200,6 +200,9 @@
     "linkEditor": {
       "title": "Verknüpfung erstellen",
       "description": "Definieren Sie eine Beziehung zwischen zwei Konzepten"
+    },
+    "deprecate": {
+      "removeSuccessor": "{{name}} entfernen"
     }
   },
   "rdfSources": {
@@ -510,5 +513,8 @@
     "requiresWrite": "Schreibzugriff erforderlich",
     "runsFailed": "Die laufenden Arbeiten konnten nicht geladen werden.",
     "about": "Über {{name}}"
+  },
+  "summary": {
+    "title": "Zusammenfassung"
   }
 }

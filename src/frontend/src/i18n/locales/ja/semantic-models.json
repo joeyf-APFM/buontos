@@ -200,6 +200,9 @@
     "linkEditor": {
       "title": "リンクを作成",
       "description": "2つのコンセプト間の関係を定義します"
+    },
+    "deprecate": {
+      "removeSuccessor": "{{name}} を削除"
     }
   },
   "rdfSources": {
@@ -510,5 +513,8 @@
     "requiresWrite": "書き込み権限が必要です",
     "runsFailed": "進行中の作成作業を読み込めませんでした。",
     "about": "{{name}} について"
+  },
+  "summary": {
+    "title": "概要"
   }
 }

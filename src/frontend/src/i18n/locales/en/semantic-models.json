@@ -231,7 +231,8 @@
       "description": "Optionally specify one or more successor concepts to indicate what this concept was replaced by.",
       "successors": "Successor concepts",
       "noSuccessors": "None selected",
-      "addSuccessor": "+ Add successor"
+      "addSuccessor": "+ Add successor",
+      "removeSuccessor": "Remove {{name}}"
     }
   },
   "lifecycle": {
@@ -644,5 +645,8 @@
     "requiresWrite": "Requires write access",
     "runsFailed": "Could not load the creation work in progress.",
     "about": "About {{name}}"
+  },
+  "summary": {
+    "title": "Summary"
   }
 }

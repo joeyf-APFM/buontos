@@ -200,6 +200,9 @@
     "linkEditor": {
       "title": "Crea Collegamento",
       "description": "Definisci una relazione tra due concetti"
+    },
+    "deprecate": {
+      "removeSuccessor": "Rimuovi {{name}}"
     }
   },
   "rdfSources": {
@@ -510,5 +513,8 @@
     "requiresWrite": "Richiede accesso in scrittura",
     "runsFailed": "Impossibile caricare il lavoro di creazione in corso.",
     "about": "Informazioni su {{name}}"
+  },
+  "summary": {
+    "title": "Riepilogo"
   }
 }

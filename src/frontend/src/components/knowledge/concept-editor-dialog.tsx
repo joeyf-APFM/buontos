@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId, useRef } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionIcon, Input, Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
@@ -175,8 +175,14 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
   const [newSynonym, setNewSynonym] = useState('');
   const [newExample, setNewExample] = useState('');
   const [parentPickerOpen, setParentPickerOpen] = useState(false);
-  // The picker is Radix (R38) with no trigger: it gives focus back to this
-  const parentButton = useRef<HTMLButtonElement>(null);
+  // The picker fetches on mount, so it mounts on its first open, and afresh
+  // (a new key) on each open; it stays mounted through its close, so the kit
+  // Dialog gives focus back to Add Parent itself (wave 2 Task 15)
+  const [parentPicker, setParentPicker] = useState(0);
+  const openParentPicker = () => {
+    setParentPicker((n) => n + 1);
+    setParentPickerOpen(true);
+  };
   const formId = useId();
 
   const isNew = !concept;
@@ -527,7 +533,7 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
               )}
               {canEdit && (
                 <div>
-                  <Button ref={parentButton} type="button" variant="outline" size="sm" onClick={() => setParentPickerOpen(true)}>
+                  <Button type="button" variant="outline" size="sm" onClick={openParentPicker}>
                     <Plus aria-hidden />
                     {t(parentField.addKey, parentField.defaultAdd)}
                   </Button>
@@ -726,10 +732,10 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
         </form>
       </Dialog>
 
-      {/* Mounted only while open: the picker fetches on mount. It stays Radix
-          (R38) and opens on top of the kit Dialog. */}
-      {showParent && parentPickerOpen && (
+      {/* Kit on kit: the picker opens on top of this dialog and closes alone on Escape */}
+      {showParent && parentPicker > 0 && (
         <ConceptSelectDialog
+          key={parentPicker}
           isOpen={parentPickerOpen}
           onOpenChange={setParentPickerOpen}
           entityType="class"
@@ -741,7 +747,6 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
           // Classes may subclass one from another ontology (opt-in).
           allowOtherSchemes={isClassParent}
           excludeIris={pickerExcludeIris}
-          returnFocusTo={parentButton}
           title={
             isClassParent
               ? t('semantic-models:conceptEditor.selectSuperclass', 'Select Superclass')

@@ -231,7 +231,8 @@
       "description": "Opcionalmente, especifique um ou mais conceitos sucessores para indicar o que substituiu este conceito.",
       "successors": "Conceitos sucessores",
       "noSuccessors": "Nenhum selecionado",
-      "addSuccessor": "+ Adicionar sucessor"
+      "addSuccessor": "+ Adicionar sucessor",
+      "removeSuccessor": "Remover {{name}}"
     }
   },
   "rdfSources": {
@@ -644,5 +645,8 @@
   },
   "columns": {
     "fromFile": "de {{file}}"
+  },
+  "summary": {
+    "title": "Resumo"
   }
 }

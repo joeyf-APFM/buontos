@@ -231,7 +231,8 @@
       "description": "Geef optioneel een of meer opvolgende concepten op om aan te geven waardoor dit concept is vervangen.",
       "successors": "Opvolgende concepten",
       "noSuccessors": "Niets geselecteerd",
-      "addSuccessor": "+ Opvolger toevoegen"
+      "addSuccessor": "+ Opvolger toevoegen",
+      "removeSuccessor": "{{name}} verwijderen"
     }
   },
   "rdfSources": {
@@ -644,5 +645,8 @@
   },
   "columns": {
     "fromFile": "uit {{file}}"
+  },
+  "summary": {
+    "title": "Samenvatting"
   }
 }

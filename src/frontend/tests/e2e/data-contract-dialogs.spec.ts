@@ -4,9 +4,9 @@
  *
  * - The schema form: the kit look, and Review Focus 3 (Escape in an open
  *   Select closes only the Select, and typed input survives).
- * - Ruling R38: ConceptSelectDialog stays Radix, and opens over the kit schema
- *   form (z 50 over 49): on top, it takes clicks and focus, and Escape closes
- *   only the picker.
+ * - ConceptSelectDialog (on the kit since Task 15; Radix under R38 until
+ *   then) opens over the kit schema form: on top, it takes clicks and focus,
+ *   and Escape closes only the picker.
  * - The 409 path: a section form that a save answers with 409 hands over to
  *   the version prompt, kit on kit (schema and quality rule; SLA is in
  *   data-contract-details.spec.ts).
@@ -109,7 +109,7 @@ test('a section form closed with Escape gives focus back to its opener', async (
   await expect(opener).toBeFocused();
 });
 
-test('the Radix concept picker opens over the kit schema form: on top, clickable, focused, Escape closes only it', async ({ page }) => {
+test('the kit concept picker opens over the kit schema form: on top, clickable, focused, Escape closes only it', async ({ page }) => {
   await openWide(page);
   const dialog = await openSchemaEdit(page);
   const info = dialog.getByRole('region', { name: 'Schema Information' });
@@ -120,13 +120,10 @@ test('the Radix concept picker opens over the kit schema form: on top, clickable
   const picker = page.getByRole('dialog', { name: 'Select Business Concept' });
   await expect(picker).toBeVisible();
 
-  // On top (z 50 over the kit's 49), with focus inside it
-  const pickerZ = await picker.evaluate((el) => Number(getComputedStyle(el).zIndex));
-  // The modal Radix picker hides the rest of the page from assistive tech, the
-  // kit dialog included, so it's found by its markup while the picker is open
-  const kit = page.locator('.mantine-Modal-content');
-  const kitZ = await kit.evaluate((el) => Number(getComputedStyle(el.closest('.mantine-Modal-inner')!).zIndex));
-  expect(pickerZ).toBeGreaterThan(kitZ);
+  // Kit on kit (wave 2 Task 15; it was Radix at z 50, R38): the picker is the
+  // later layer, on top, with focus inside it
+  await expect(picker).toHaveClass(/mantine-Modal-content/);
+  expect(await onTop(picker.getByPlaceholder('Search business concepts...'))).toBe(true);
   await expect.poll(() => focusInside(picker)).toBe(true);
   // The kit's focus trap doesn't pull focus back over the next frames
   await page.waitForTimeout(300);
@@ -353,7 +350,7 @@ test('the self-service dialog is a kit Dialog, and its column editor\'s quality 
   await expect(addCheck).toBeFocused();
 });
 
-test('the self-service dialog\'s Radix concept picker opens on top of it, and Escape closes only the picker', async ({ page }) => {
+test('the self-service dialog\'s kit concept picker opens on top of it, and Escape closes only the picker', async ({ page }) => {
   const dialog = await openSelfService(page);
   await dialog.getByRole('textbox', { name: 'Table name' }).fill('clicks');
   await dialog.getByRole('tab', { name: 'Semantics' }).click();

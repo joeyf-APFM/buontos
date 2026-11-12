@@ -1,17 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Loader, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { FIELD_CLASSES } from '@/components/common/dialog-form';
+import { Dialog } from '@/mantine/page';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './publish-version-dialog.module.css';
 import { useToast } from '@/hooks/use-toast';
 
 // ---------------------------------------------------------------------------
@@ -34,6 +28,12 @@ interface PublishVersionDialogProps {
   currentVersion?: number | null;
   /** Called after a successful publish so the parent can refetch. */
   onPublished: () => void | Promise<void>;
+  /**
+   * Where focus goes once the dialog has closed: for an opener that is gone
+   * by then, such as the Request dialog's confirm (the kit gives focus back
+   * to the opener otherwise).
+   */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
 interface PublishResult {
@@ -50,6 +50,7 @@ export function PublishVersionDialog({
   currentDefinition,
   currentVersion,
   onPublished,
+  returnFocusTo,
 }: PublishVersionDialogProps) {
   const { t } = useTranslation(['semantic-models', 'common']);
   const { toast } = useToast();
@@ -114,74 +115,76 @@ export function PublishVersionDialog({
     }
   };
 
+  const title = t('semantic-models:versionHistory.saveNewVersion', 'Save new version');
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {t('semantic-models:versionHistory.saveNewVersion', 'Save new version')}
-          </DialogTitle>
-          <DialogDescription>
-            {t(
-              'semantic-models:versionHistory.saveDescription',
-              'Edit the definition and save it as a new version. The previous definition is kept in the history.',
-            )}
-            {/* Advanced-only mechanic: which version integer this creates. */}
-            {typeof currentVersion === 'number' && (
-              <span className="adv-only block mt-1 font-mono text-xs">
-                {t(
-                  'semantic-models:versionHistory.willCreate',
-                  'This will create v{{next}}.',
-                  { next: currentVersion + 1 },
-                )}
-              </span>
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="version-definition">
-              {t('semantic-models:fields.definition', 'Definition')}
-            </Label>
-            <Textarea
-              id="version-definition"
-              value={definition}
-              onChange={(e) => setDefinition(e.target.value)}
-              rows={4}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="version-note">
-              {t('semantic-models:versionHistory.whatChanged', 'What changed?')}
-              <span className="ml-1 text-xs font-normal text-muted-foreground">
-                {t('common:optional', '(optional)')}
-              </span>
-            </Label>
-            <Textarea
-              id="version-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              placeholder={t(
-                'semantic-models:versionHistory.notePlaceholder',
-                'e.g. tightened the wording for clarity',
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      title={title}
+      returnFocusTo={returnFocusTo}
+      description={
+        <>
+          {t(
+            'semantic-models:versionHistory.saveDescription',
+            'Edit the definition and save it as a new version. The previous definition is kept in the history.',
+          )}
+          {/* Advanced-only mechanic: which version integer this creates. */}
+          {typeof currentVersion === 'number' && (
+            <span className={`adv-only ${classes.willCreate}`}>
+              {t(
+                'semantic-models:versionHistory.willCreate',
+                'This will create v{{next}}.',
+                { next: currentVersion + 1 },
               )}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+            </span>
+          )}
+        </>
+      }
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             {t('common:actions.cancel', 'Cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t('semantic-models:versionHistory.saveNewVersion', 'Save new version')}
+            {busy && <Loader size={12} color="currentColor" />}
+            {title}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <Textarea
+          id="version-definition"
+          label={t('semantic-models:fields.definition', 'Definition')}
+          value={definition}
+          onChange={(e) => setDefinition(e.currentTarget.value)}
+          minRows={4}
+          autosize
+          data-autofocus
+          classNames={FIELD_CLASSES}
+        />
+        <Textarea
+          id="version-note"
+          label={
+            <>
+              {t('semantic-models:versionHistory.whatChanged', 'What changed?')}{' '}
+              <span className={classes.optional}>
+                {t('common:optional', '(optional)')}
+              </span>
+            </>
+          }
+          value={note}
+          onChange={(e) => setNote(e.currentTarget.value)}
+          minRows={2}
+          autosize
+          placeholder={t(
+            'semantic-models:versionHistory.notePlaceholder',
+            'e.g. tightened the wording for clarity',
+          )}
+          classNames={FIELD_CLASSES}
+        />
+      </div>
     </Dialog>
   );
 }

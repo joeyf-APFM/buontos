@@ -1151,6 +1151,7 @@ export default function ConceptDetailView() {
         onOpenChange={setPublishOpen}
         iri={concept.iri}
         currentDefinition={conceptDefinition || ''}
+        returnFocusTo={requestButtonRef}
         onPublished={async () => {
           bumpKnowledgeGraphRefresh('concept-version');
           setVersionRefreshNonce((n) => n + 1);
@@ -1162,6 +1163,7 @@ export default function ConceptDetailView() {
         isOpen={deprecateOpen}
         onOpenChange={setDeprecateOpen}
         conceptIri={concept.iri}
+        returnFocusTo={requestButtonRef}
         onSuccess={async () => {
           toast({
             title: t('common:toast.success'),

@@ -1,0 +1,116 @@
+/*
+ * The concept picker (wave 2 Task 15, on the kit Dialog): the search, the
+ * scheme widening, then the tiers (term-mapping hints, suggested children,
+ * the rest, grouped by scheme when widened), scrolling inside past 320px.
+ * One row per concept: its type, the label (ellipsed, with its title) over
+ * the IRI (mono, wrapping), and Select.
+ */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tierHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 4px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.tierHead > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+/* The term-mapping hints and the suggested children, on a subtle tint */
+.row[data-tier='mapping'] {
+  background: var(--aura-accent-subtle);
+}
+
+.row[data-tier='suggested'] {
+  background: var(--aura-surface-strong);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type {
+  flex: none;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.iri {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.select {
+  flex: none;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  color: var(--aura-text-secondary);
+}
+
+.empty p {
+  margin: 0;
+}

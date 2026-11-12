@@ -1,9 +1,9 @@
 /**
- * Wave 2 Task 11: ConceptSelectDialog (Radix, R38) has no DialogTrigger, so
- * Radix gives focus back to nothing once it closes. `returnFocusTo` names the
- * element that should get it (BusinessConceptsDisplay's Add button), used
- * only while that element is still in the page. The kit's own focus return
- * (R41) covers kit Dialogs only, so the prop stays.
+ * ConceptSelectDialog's `returnFocusTo`: where focus goes once it has closed,
+ * for an opener that unmounts meanwhile (BusinessConceptsDisplay's Add). Wave
+ * 2 Task 11 added it for the Radix picker, which gave focus back to nothing;
+ * on the kit Dialog since Task 15, the kit gives focus back to the opener
+ * itself (R41), and the prop still names the element to use instead.
  */
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -41,7 +41,7 @@ describe('ConceptSelectDialog returnFocusTo', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Concept' })).toHaveFocus());
   });
 
-  it('falls back to Radix when that element is gone', async () => {
+  it('gives focus to nothing when that element is gone', async () => {
     render(<Opener keepOpener={false} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add Concept' }));
     const dialog = await screen.findByRole('dialog', { name: 'Select Business Concept' });
@@ -51,7 +51,7 @@ describe('ConceptSelectDialog returnFocusTo', () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await settle();
-    // Radix's own close ran: focus is on the body, and nothing threw
+    // The opener is gone too: focus is on the body, and nothing threw
     expect(document.activeElement).toBe(document.body);
   });
 });

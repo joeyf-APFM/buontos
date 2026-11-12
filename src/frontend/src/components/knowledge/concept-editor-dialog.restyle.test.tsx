@@ -6,13 +6,13 @@
  * a Select, and a failed save.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { expectKitDialog, expectNoOldMarkup, optionNames, selectField } from '@/test/kit-dialog';
 import type { KnowledgeCollection, OntologyConcept } from '@/types/ontology';
 import { ConceptEditorDialog } from './concept-editor-dialog';
 
-// The picker stays Radix (R38); it's checked in a real browser. Here it only records its props.
+// The picker (on the kit since wave 2 Task 15) is checked in a real browser. Here it only records its props.
 const picker = vi.hoisted(() => ({ props: null as null | Record<string, unknown> }));
 vi.mock('@/components/semantic/concept-select-dialog', () => ({
   default: (props: Record<string, unknown>) => {
@@ -137,14 +137,20 @@ describe('concept editor on the kit Dialog', () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
-  it('concept editor: the parent picker gives focus back to Add Parent', async () => {
+  // Wave 2 Task 15: the picker is on the kit too, and stays mounted through
+  // its close, so the kit gives focus back to Add Parent (checked in
+  // concepts-explore.spec.ts); the Radix-era returnFocusTo is gone
+  it('concept editor: the parent picker opens with no returnFocusTo, and stays mounted when it closes', async () => {
     const user = userEvent.setup();
     renderEditor();
     const dialog = await screen.findByRole('dialog', { name: 'Create Entry' });
     const addParent = within(dialog).getByRole('button', { name: 'Add Parent' });
+    expect(picker.props).toBeNull();
     await user.click(addParent);
-    const returnFocusTo = picker.props?.returnFocusTo as React.RefObject<HTMLElement> | undefined;
-    expect(returnFocusTo?.current).toBe(addParent);
+    expect(picker.props?.isOpen).toBe(true);
+    expect(picker.props?.returnFocusTo).toBeUndefined();
+    act(() => (picker.props?.onOpenChange as (open: boolean) => void)(false));
+    expect(picker.props?.isOpen).toBe(false);
   });
 
   it('concept editor: with no preset scheme, a concept gets the first fitting scheme', async () => {

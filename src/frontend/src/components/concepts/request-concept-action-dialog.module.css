@@ -1,0 +1,48 @@
+/*
+ * The concept's Request dialog (wave 2 Task 15): the action Select, then
+ * what the picked action does, in a ruled box with its icon.
+ */
+.body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--aura-text-secondary);
+}
+
+.icon > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.text p {
+  margin: 0;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.description {
+  color: var(--aura-text-secondary);
+}
+
+.reason {
+  color: var(--aura-warning);
+  font-weight: 500;
+}

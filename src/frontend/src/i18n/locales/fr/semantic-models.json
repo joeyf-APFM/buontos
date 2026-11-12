@@ -200,6 +200,9 @@
     "linkEditor": {
       "title": "Créer un lien",
       "description": "Définissez une relation entre deux concepts"
+    },
+    "deprecate": {
+      "removeSuccessor": "Retirer {{name}}"
     }
   },
   "rdfSources": {
@@ -510,5 +513,8 @@
     "requiresWrite": "Nécessite un accès en écriture",
     "runsFailed": "Impossible de charger les créations en cours.",
     "about": "À propos de {{name}}"
+  },
+  "summary": {
+    "title": "Résumé"
   }
 }

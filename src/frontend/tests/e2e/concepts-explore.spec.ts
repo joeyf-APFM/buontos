@@ -4,7 +4,8 @@
  * the knowledge-graph toggle (was SPARQL, R57) and the Create menu (a Mantine Menu), the filters pane,
  * and the List / Tree / Graph views in one pane. The concept editor
  * (ConceptEditorDialog) is a kit Dialog; its parent picker
- * (ConceptSelectDialog) stays Radix under ruling R38 and opens on top of it.
+ * (ConceptSelectDialog) opens on top of it, kit on kit since Task 15 (it was
+ * Radix under ruling R38).
  *
  * CAPTURE=before|after also saves images of the page, its views and the
  * editor to .superpowers/sdd/2026-11-10-mantine-restyle-wave-2/task-13a-images/.
@@ -223,7 +224,7 @@ test.describe('explore', () => {
     await expect(dialog).toHaveCount(0);
   });
 
-  test('the Radix parent picker opens on top of the kit editor, takes clicks and typing, and Escape closes only it', async ({ page }) => {
+  test('the kit parent picker opens on top of the kit editor, takes clicks and typing, and Escape closes only it', async ({ page }) => {
     await setUp(page);
     await openCreate(page, 'New Concept');
     const dialog = page.getByRole('dialog', { name: 'Create Entry' });

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Checkbox, TextInput } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+import { Dialog } from '@/mantine/page';
 import { useApi } from '@/hooks/use-api';
+import classes from './concept-select-dialog.module.css';
 import type {
   InlineSuggestRequest,
   InlineSuggestResponse,
@@ -63,9 +62,10 @@ interface Props {
   title?: string;
   searchPlaceholder?: string;
   /**
-   * Where focus goes once the picker has closed. With no DialogTrigger,
-   * Radix puts it nowhere (the body); inside a Radix dialog its focus scope
-   * caught that, inside a kit Dialog nothing does (wave 2 Task 11).
+   * Where focus goes once the picker has closed, for an opener that unmounts
+   * meanwhile (BusinessConceptsDisplay's empty-state Add gives way to the
+   * list's Add once a concept is picked). Otherwise the kit Dialog gives
+   * focus back to its opener itself (ruling R41).
    */
   returnFocusTo?: RefObject<HTMLElement | null>;
 }
@@ -108,6 +108,8 @@ export default function ConceptSelectDialog({
   const widened = scoped && allowOtherSchemes && includeOtherSchemes;
 
   useEffect(() => {
+    // An answer for a search the user has typed past is dropped
+    let cancelled = false;
     const run = async () => {
       const params = new URLSearchParams({
         q: q,
@@ -116,26 +118,33 @@ export default function ConceptSelectDialog({
 
       const baseEndpoint = entityType === 'property' ? '/api/semantic-models/properties' : '/api/semantic-models/concepts';
 
+      const list = (data: unknown): ConceptItem[] => (Array.isArray(data) ? data : []);
       if (typeFilter && entityType !== 'property') {
         params.set('concept_types', typeFilter);
         if (scoped && !widened) params.set('source_context', scopeSourceKey!);
         const res = await get<ConceptItem[]>(`${baseEndpoint}?${params}`);
+        if (cancelled) return;
         setSuggested([]);
-        setOther(res.data || []);
+        setOther(list(res.data));
       } else if (parentConceptIris && parentConceptIris.length > 0) {
         params.set('parent_iris', parentConceptIris.join(','));
         const res = await get<{suggested: ConceptItem[], other: ConceptItem[]}>(`${baseEndpoint}/suggestions?${params}`);
-        setSuggested(res.data?.suggested || []);
-        setOther(res.data?.other || []);
+        if (cancelled) return;
+        setSuggested(list(res.data?.suggested));
+        setOther(list(res.data?.other));
       } else {
         const res = await get<ConceptItem[]>(`${baseEndpoint}?${params}`);
+        if (cancelled) return;
         setSuggested([]);
-        setOther(res.data || []);
+        setOther(list(res.data));
       }
       setLoaded(true);
     };
     const timer = setTimeout(run, 250);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [q, parentConceptIris, entityType, typeFilter, scoped, widened, scopeSourceKey]);
 
   const excludeKey = (excludeIris || []).join('|');
@@ -195,7 +204,7 @@ export default function ConceptSelectDialog({
         };
         const res = await post<InlineSuggestResponse>('/api/term-mappings/suggestions-for', body);
         if (cancelled) return;
-        setMappingHints(res.data?.suggestions ?? []);
+        setMappingHints(Array.isArray(res.data?.suggestions) ? res.data.suggestions : []);
       } catch {
         // Mapping hints are pure value-add; never block the picker.
         if (!cancelled) setMappingHints([]);
@@ -214,142 +223,129 @@ export default function ConceptSelectDialog({
     mappingSource?.parent_name,
   ]);
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-4xl w-[90vw]"
-        onCloseAutoFocus={(event) => {
-          const target = returnFocusTo?.current;
-          if (!target?.isConnected) return;
-          event.preventDefault();
-          target.focus();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>{title ?? `Select Business ${entityType === 'property' ? 'Property' : 'Concept'}`}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <Input placeholder={searchPlaceholder ?? `Search business ${entityType === 'property' ? 'properties' : 'concepts'}...`} value={q} onChange={(e) => setQ(e.target.value)} />
-          {scoped && allowOtherSchemes && (
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="concept-select-include-other-schemes"
-                checked={includeOtherSchemes}
-                onCheckedChange={(v) => setIncludeOtherSchemes(v === true)}
-              />
-              <Label htmlFor="concept-select-include-other-schemes" className="text-sm font-normal">
-                {t('semantic-models:conceptSelect.includeOtherSchemes', 'Include other schemes')}
-              </Label>
-            </div>
-          )}
-          <div className="space-y-4 max-h-80 overflow-auto">
-            {mappingHints.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground border-b pb-1 flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5" /> Suggested by term mapping
-                </div>
-                {mappingHints.map((h) => (
-                  <div key={h.target_concept_iri} className="flex items-center justify-between gap-3 bg-purple-50 dark:bg-purple-950/40 p-2 rounded-lg">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Badge variant="secondary" className="shrink-0">
-                        {Math.round(h.confidence * 100)}%
-                      </Badge>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold truncate text-foreground" title={h.target_concept_label ?? h.target_concept_iri}>
-                          {h.target_concept_label ?? h.target_concept_iri}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate" title={h.reason}>
-                          {h.reason}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono break-all" title={h.target_concept_iri}>
-                          {h.target_concept_iri}
-                        </div>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="default" className="shrink-0" onClick={() => onSelect(h.target_concept_iri)}>Select</Button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {visibleSuggested.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground border-b pb-1">
-                  Suggested (child {entityType === 'property' ? 'properties' : 'concepts'})
-                </div>
-                {visibleSuggested.map(r => (
-                  <div key={r.value} className="flex items-center justify-between gap-3 bg-blue-50 dark:bg-blue-950 p-2 rounded-lg">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Badge variant="secondary" className="shrink-0">{r.type}</Badge>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold truncate text-foreground" title={r.label}>
-                          {r.label}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono break-all" title={r.value}>
-                          {r.value}
-                        </div>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="default" className="shrink-0" onClick={() => onSelect(r.value)}>Select</Button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {visibleOther.length > 0 && (
-              <div className="space-y-2">
-                {visibleSuggested.length > 0 && (
-                  <div className="text-sm font-medium text-muted-foreground border-b pb-1">
-                    Other {entityType === 'property' ? 'properties' : 'concepts'}
-                  </div>
-                )}
-                {groups.map((group) => (
-                  <div key={group.key || '_'} className="space-y-2">
-                    {showGroupHeaders && (
-                      <div className="text-sm font-medium text-muted-foreground border-b pb-1">
-                        {groupHeader(group.key)}
-                      </div>
-                    )}
-                    {group.items.map(r => (
-                      <div key={r.value} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Badge variant="secondary" className="shrink-0">{r.type}</Badge>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-semibold truncate" title={r.label}>
-                              {r.label}
-                            </div>
-                            <div className="text-xs text-muted-foreground font-mono break-all" title={r.value}>
-                              {r.value}
-                            </div>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => onSelect(r.value)}>Select</Button>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-            {scoped && !widened && loaded && visibleOther.length === 0 && (
-              <div className="text-sm text-muted-foreground py-2 space-y-1">
-                <p>
-                  {q.trim()
-                    ? t('semantic-models:conceptSelect.noMatchesInScheme', 'No matches in this scheme.')
-                    : classesOnly
-                      ? t('semantic-models:conceptSelect.noClassesInScheme', 'No classes in this scheme yet.')
-                      : t('semantic-models:conceptSelect.noConceptsInScheme', 'No concepts in this scheme yet.')}
-                </p>
-                {allowOtherSchemes && (
-                  <p>
-                    {t(
-                      'semantic-models:conceptSelect.includeOtherSchemesHint',
-                      'Tick "Include other schemes" to pick from another scheme.',
-                    )}
-                  </p>
-                )}
-              </div>
-            )}
+  const placeholder = searchPlaceholder ?? `Search business ${entityType === 'property' ? 'properties' : 'concepts'}...`;
+
+  // One concept: its type, the label over the IRI, and Select
+  const row = (r: ConceptItem, tier?: 'suggested') => (
+    <div key={r.value} className={classes.row} data-tier={tier}>
+      <div className={classes.main}>
+        <Badge variant="secondary" className={classes.type}>{r.type}</Badge>
+        <div className={classes.text}>
+          <div className={classes.label} title={r.label}>
+            {r.label}
+          </div>
+          <div className={classes.iri} title={r.value}>
+            {r.value}
           </div>
         </div>
-      </DialogContent>
+      </div>
+      <Button size="sm" variant={tier ? 'default' : 'outline'} className={classes.select} onClick={() => onSelect(r.value)}>Select</Button>
+    </div>
+  );
+
+  // On the kit Dialog: its callers open it from the page or from a kit
+  // dialog (wave 2 Task 15; the Radix ones that stacked it moved first, R38)
+  return (
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="xl"
+      title={title ?? `Select Business ${entityType === 'property' ? 'Property' : 'Concept'}`}
+      returnFocusTo={returnFocusTo}
+    >
+      <div className={classes.picker}>
+        <TextInput
+          placeholder={placeholder}
+          aria-label={placeholder}
+          value={q}
+          onChange={(e) => setQ(e.currentTarget.value)}
+          data-autofocus
+        />
+        {scoped && allowOtherSchemes && (
+          <Checkbox
+            id="concept-select-include-other-schemes"
+            checked={includeOtherSchemes}
+            onChange={(e) => setIncludeOtherSchemes(e.currentTarget.checked)}
+            label={t('semantic-models:conceptSelect.includeOtherSchemes', 'Include other schemes')}
+          />
+        )}
+        <div className={classes.results}>
+          {mappingHints.length > 0 && (
+            <div className={classes.tier}>
+              <div className={classes.tierHead}>
+                <Sparkles aria-hidden /> Suggested by term mapping
+              </div>
+              {mappingHints.map((h) => (
+                <div key={h.target_concept_iri} className={classes.row} data-tier="mapping">
+                  <div className={classes.main}>
+                    <Badge variant="secondary" className={classes.type}>
+                      {Math.round(h.confidence * 100)}%
+                    </Badge>
+                    <div className={classes.text}>
+                      <div className={classes.label} title={h.target_concept_label ?? h.target_concept_iri}>
+                        {h.target_concept_label ?? h.target_concept_iri}
+                      </div>
+                      <div className={classes.reason} title={h.reason}>
+                        {h.reason}
+                      </div>
+                      <div className={classes.iri} title={h.target_concept_iri}>
+                        {h.target_concept_iri}
+                      </div>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="default" className={classes.select} onClick={() => onSelect(h.target_concept_iri)}>Select</Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {visibleSuggested.length > 0 && (
+            <div className={classes.tier}>
+              <div className={classes.tierHead}>
+                Suggested (child {entityType === 'property' ? 'properties' : 'concepts'})
+              </div>
+              {visibleSuggested.map((r) => row(r, 'suggested'))}
+            </div>
+          )}
+          {visibleOther.length > 0 && (
+            <div className={classes.tier}>
+              {visibleSuggested.length > 0 && (
+                <div className={classes.tierHead}>
+                  Other {entityType === 'property' ? 'properties' : 'concepts'}
+                </div>
+              )}
+              {groups.map((group) => (
+                <div key={group.key || '_'} className={classes.tier}>
+                  {showGroupHeaders && (
+                    <div className={classes.tierHead}>
+                      {groupHeader(group.key)}
+                    </div>
+                  )}
+                  {group.items.map((r) => row(r))}
+                </div>
+              ))}
+            </div>
+          )}
+          {scoped && !widened && loaded && visibleOther.length === 0 && (
+            <div className={classes.empty}>
+              <p>
+                {q.trim()
+                  ? t('semantic-models:conceptSelect.noMatchesInScheme', 'No matches in this scheme.')
+                  : classesOnly
+                    ? t('semantic-models:conceptSelect.noClassesInScheme', 'No classes in this scheme yet.')
+                    : t('semantic-models:conceptSelect.noConceptsInScheme', 'No concepts in this scheme yet.')}
+              </p>
+              {allowOtherSchemes && (
+                <p>
+                  {t(
+                    'semantic-models:conceptSelect.includeOtherSchemesHint',
+                    'Tick "Include other schemes" to pick from another scheme.',
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </Dialog>
   );
 }
