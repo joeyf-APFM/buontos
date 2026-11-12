@@ -122,7 +122,9 @@
       "assignError": "Bitte wählen Sie sowohl einen Entitätstyp als auch eine spezifische Entität.",
       "assignFailed": "Konzept konnte nicht zugewiesen werden.",
       "navigationError": "Navigation zu {{entityType}} nicht möglich"
-    }
+    },
+    "searchPane": "Konzeptsuche",
+    "relationsPane": "Konzeptbeziehungen"
   },
   "properties": {
     "searchAndSelect": "Suchen und wählen Sie eine Eigenschaft:",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "Bitte wählen Sie Vertrag, Schema und Eigenschaft.",
       "linkedSuccess": "Eigenschaft erfolgreich verknüpft.",
       "assignFailed": "Eigenschaft konnte nicht zugewiesen werden."
-    }
+    },
+    "searchPane": "Eigenschaftssuche",
+    "relationsPane": "Eigenschaftsverknüpfungen"
   },
   "llm": {
     "title": "{{shortName}} fragen",
@@ -216,7 +220,11 @@
       "modeDisabled": "Debug-Modus deaktiviert",
       "modeEnabledDesc": "LLM-Zwischenschritte werden angezeigt",
       "clickToDisable": "Klicken, um den Debug-Modus zu deaktivieren"
-    }
+    },
+    "you": "Sie",
+    "messagesLabel": "Nachrichten",
+    "send": "Senden",
+    "deleteSession": "Unterhaltung löschen: {{title}}"
   },
   "copilot": {
     "title": "{{shortName}} fragen",
@@ -237,5 +245,9 @@
     "chat_timeout": "Die Anfrage hat das Zeitlimit überschritten. Versuchen Sie eine einfachere Frage oder versuchen Sie es später erneut (Fehler-ID {{errorId}}).",
     "chat_connection_failed": "Ich konnte keine Verbindung zu einem benötigten Dienst herstellen. Bitte versuchen Sie es gleich noch einmal (Fehler-ID {{errorId}}).",
     "chat_failed": "Bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte formulieren Sie Ihre Frage um oder versuchen Sie es erneut. Die Details stehen im Serverprotokoll (Fehler-ID {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "Die Suche ist fehlgeschlagen.",
+    "loadFailed": "Die Details konnten nicht geladen werden."
   }
 }

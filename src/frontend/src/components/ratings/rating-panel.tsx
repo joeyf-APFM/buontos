@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 // StarRating commented out - not currently used in panel
@@ -12,6 +12,7 @@ import { Loader2, Send, MessageSquare } from 'lucide-react';
 import { useComments } from '@/hooks/use-comments';
 import type { RatingAggregation } from '@/types/comments';
 import { Pane } from '@/mantine/page';
+import classes from '@/components/common/panel.module.css';
 
 export interface RatingPanelProps {
   /** Entity type (data_product, dataset, etc.) */
@@ -33,6 +34,12 @@ export interface RatingPanelProps {
    * of a Card, for pages on the page kit. The body is the same.
    */
   pane?: boolean;
+  /**
+   * For a page-kit Pane: no card, border or padding of its own, and a compact
+   * head (the title and "You rated"). Put it in a Pane without a title, which
+   * the panel's head would repeat.
+   */
+  flush?: boolean;
 }
 
 /**
@@ -49,6 +56,7 @@ export function RatingPanel({
   allowSubmit = true,
   className,
   pane = false,
+  flush = false,
 }: RatingPanelProps) {
   const { t } = useTranslation(['metadata', 'common']);
   const { createRating, fetchRatingAggregation, ratingAggregation, loading: _loading } = useComments();
@@ -59,6 +67,7 @@ export function RatingPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReviewInput, setShowReviewInput] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const titleId = useId();
 
   // Load rating aggregation on mount
   useEffect(() => {
@@ -125,8 +134,11 @@ export function RatingPanel({
   }
 
   const resolvedTitle = title ?? t('metadata:ratings.title');
+  // Flush (a Pane's content) on the shared panel styles; the Card and the
+  // pane mode keep their Tailwind look
+  const look = (dense: string, card: string) => (flush ? dense : card);
   const youRated = userHasRated && (
-    <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+    <span className={look(classes.muted, 'text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded')}>
       {t('metadata:ratings.youRated', { rating: localAggregation?.user_current_rating })}
     </span>
   );
@@ -138,13 +150,14 @@ export function RatingPanel({
           aggregation={localAggregation}
           loading={isLoading}
           showDistribution={showDistribution}
+          dense={flush}
         />
 
         {/* Rating input */}
         {allowSubmit && (
-          <div className="pt-3 border-t space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
+          <div className={look(classes.ruled, 'pt-3 border-t space-y-3')}>
+            <div className={look(classes.sectionHead, 'flex items-center justify-between')}>
+              <span className={look(cn(classes.grow, classes.strong), 'text-sm font-medium')}>
                 {userHasRated ? t('metadata:ratings.updateYourRating') : t('metadata:ratings.rateThisItem')}
               </span>
               <StarRatingInput
@@ -156,9 +169,9 @@ export function RatingPanel({
 
             {/* Review text input (shown after selecting stars) */}
             {showReviewInput && selectedRating > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <MessageSquare className="h-3.5 w-3.5" />
+              <div className={look(classes.stack, 'space-y-2')}>
+                <div className={look(classes.inlineLoading, 'flex items-center gap-1.5 text-sm text-muted-foreground')}>
+                  <MessageSquare size={14} aria-hidden />
                   <span>{t('metadata:ratings.addReviewOptional')}</span>
                 </div>
                 <Textarea
@@ -168,7 +181,7 @@ export function RatingPanel({
                   className="resize-none h-20"
                   disabled={isSubmitting}
                 />
-                <div className="flex justify-end gap-2">
+                <div className={look(classes.buttonsEnd, 'flex justify-end gap-2')}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -205,6 +218,18 @@ export function RatingPanel({
         )}
     </>
   );
+
+  if (flush) {
+    return (
+      <section className={cn(classes.pane, className)} aria-labelledby={titleId} data-flush>
+        <div className={classes.head}>
+          <h3 id={titleId} className={classes.title}>{resolvedTitle}</h3>
+          {youRated && <div className={classes.actions}>{youRated}</div>}
+        </div>
+        <div className={classes.body}>{body}</div>
+      </section>
+    );
+  }
 
   if (pane) {
     return (

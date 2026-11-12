@@ -1,23 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Combobox, Loader, Select, type SelectProps } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Dialog } from '@/mantine/page';
+import { SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './contract-form-dialogs.module.css';
 import { useApi } from '@/hooks/use-api';
 import SchemaBrowser from '@/components/schema-importer/schema-browser';
 import type { Connection } from '@/types/connections';
@@ -56,6 +45,7 @@ export default function InferFromCatalogDialog({
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [isInferring, setIsInferring] = useState(false);
+  const connectionLabelId = useId();
 
   const fetchConnections = useCallback(async () => {
     setIsLoadingConnections(true);
@@ -127,67 +117,26 @@ export default function InferFromCatalogDialog({
     }
   };
 
+  const connectionOptions = uniqueOptions(connections.map((c) => ({ value: c.id, label: c.name, type: c.connector_type })));
+  // An option's name and its connector type, as the Radix items showed them
+  const renderConnection: SelectProps['renderOption'] = ({ option }) => (
+    <span className={form.optionLine}>
+      <span>{option.label}</span>
+      <Badge variant="outline">{(option as typeof connectionOptions[number]).type}</Badge>
+    </span>
+  );
+  const chosen = connectionOptions.find((o) => o.value === selectedConnectionId);
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[85vw] max-w-5xl h-[80vh] max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{t('data-contracts:infer.catalogDialogTitle', 'Infer Schema from Catalog')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:infer.catalogDialogDescription', 'Browse a connected catalog and select tables or views to infer their schema into this contract.')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 flex flex-col min-h-0 gap-4">
-          {/* Connection selector */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <span className="text-sm font-medium whitespace-nowrap">{t('data-contracts:infer.connectionLabel', 'Connection:')}</span>
-            {isLoadingConnections ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t('common:states.loading')}
-              </div>
-            ) : connections.length === 0 ? (
-              <span className="text-sm text-muted-foreground">
-                {t('data-contracts:infer.noConnections', 'No connections configured. Add one in Settings > Connectors.')}
-              </span>
-            ) : (
-              <Select
-                value={selectedConnectionId || ''}
-                onValueChange={handleConnectionChange}
-              >
-                <SelectTrigger className="w-[300px]">
-                  <SelectValue placeholder={t('data-contracts:infer.chooseConnection', 'Choose connection...')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {connections.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{c.name}</span>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">
-                          {c.connector_type}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {selectedPaths.size > 0 && (
-              <Badge variant="secondary">{t('data-contracts:infer.selectedCount', '{{count}} selected', { count: selectedPaths.size })}</Badge>
-            )}
-          </div>
-
-          {/* Schema browser */}
-          <div className="flex-1 min-h-0 overflow-auto border rounded-md p-2">
-            <SchemaBrowser
-              connectionId={selectedConnectionId}
-              selectedPaths={selectedPaths}
-              onSelectionChange={setSelectedPaths}
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="flex-shrink-0">
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="xl"
+      height="80vh"
+      title={t('data-contracts:infer.catalogDialogTitle', 'Infer Schema from Catalog')}
+      description={t('data-contracts:infer.catalogDialogDescription', 'Browse a connected catalog and select tables or views to infer their schema into this contract.')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('common:actions.cancel')}
           </Button>
@@ -195,7 +144,7 @@ export default function InferFromCatalogDialog({
             onClick={handleInfer}
             disabled={selectedPaths.size === 0 || isInferring}
           >
-            {isInferring && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isInferring && <Loader size={12} color="currentColor" />}
             {selectedPaths.size > 0
               ? t('data-contracts:infer.inferSchemasButton', {
                   count: selectedPaths.size,
@@ -204,8 +153,58 @@ export default function InferFromCatalogDialog({
                 })
               : t('data-contracts:infer.inferSchema', 'Infer Schema')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      {/* Connection selector */}
+      <div className={classes.toolbar}>
+        <span id={connectionLabelId} className={classes.toolbarLabel}>{t('data-contracts:infer.connectionLabel', 'Connection:')}</span>
+        {isLoadingConnections ? (
+          <div className={form.loading}>
+            <Loader size={14} />
+            {t('common:states.loading')}
+          </div>
+        ) : connections.length === 0 ? (
+          <span className={form.muted}>
+            {t('data-contracts:infer.noConnections', 'No connections configured. Add one in Settings > Connectors.')}
+          </span>
+        ) : (
+          <Select
+            aria-labelledby={connectionLabelId}
+            className={classes.connection}
+            placeholder={t('data-contracts:infer.chooseConnection', 'Choose connection...')}
+            data={connectionOptions}
+            value={selectedConnectionId}
+            onChange={(value) => value && handleConnectionChange(value)}
+            allowDeselect={false}
+            renderOption={renderConnection}
+            // The chosen connection's type stays in the field, as the Radix SelectValue repeated the item
+            {...(chosen ? {
+              rightSection: (
+                <span className={form.fieldBadge}>
+                  <Badge variant="outline">{chosen.type}</Badge>
+                  <Combobox.Chevron />
+                </span>
+              ),
+              rightSectionWidth: 'auto' as const,
+              rightSectionPointerEvents: 'none' as const,
+            } : {})}
+            classNames={SELECT_CLASSES}
+          />
+        )}
+        {selectedPaths.size > 0 && (
+          <Badge variant="secondary">{t('data-contracts:infer.selectedCount', '{{count}} selected', { count: selectedPaths.size })}</Badge>
+        )}
+      </div>
+
+      {/* Schema browser */}
+      <div className={classes.browser}>
+        <SchemaBrowser
+          connectionId={selectedConnectionId}
+          selectedPaths={selectedPaths}
+          onSelectionChange={setSelectedPaths}
+        />
+      </div>
     </Dialog>
   );
 }

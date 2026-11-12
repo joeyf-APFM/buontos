@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
+import { ActionIcon, Menu, Tooltip, UnstyledButton } from '@mantine/core';
 import {
   KnowledgeCollection,
   CollectionType,
@@ -23,19 +23,10 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import classes from './collection-tree.module.css';
+
+// A scheme tree (wave 2 Task 12a: Mantine and collection-tree.module.css).
+// Exported from components/knowledge, though no page renders it today.
 
 interface CollectionTreeProps {
   collections: KnowledgeCollection[];
@@ -66,13 +57,15 @@ interface CollectionNodeProps {
 const getCollectionIcon = (type: CollectionType, isExpanded: boolean) => {
   switch (type) {
     case 'glossary':
-      return isExpanded ? <FolderOpen className="h-4 w-4 text-amber-500" /> : <Folder className="h-4 w-4 text-amber-500" />;
+      return isExpanded
+        ? <FolderOpen aria-hidden className={classes.icon} data-type="glossary" />
+        : <Folder aria-hidden className={classes.icon} data-type="glossary" />;
     case 'taxonomy':
-      return <GitBranch className="h-4 w-4 text-emerald-500" />;
+      return <GitBranch aria-hidden className={classes.icon} data-type="taxonomy" />;
     case 'ontology':
-      return <Network className="h-4 w-4 text-blue-500" />;
+      return <Network aria-hidden className={classes.icon} data-type="ontology" />;
     default:
-      return <Book className="h-4 w-4 text-gray-500" />;
+      return <Book aria-hidden className={classes.icon} />;
   }
 };
 
@@ -104,114 +97,94 @@ const CollectionNode: React.FC<CollectionNodeProps> = ({
   return (
     <div>
       <div
-        className={cn(
-          "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer group",
-          "hover:bg-accent hover:text-accent-foreground transition-colors",
-          isSelected && "bg-accent text-accent-foreground"
-        )}
+        className={classes.row}
+        data-selected={isSelected || undefined}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={handleClick}
       >
         {/* Expand/Collapse button */}
-        <div className="flex items-center w-5 justify-center">
+        <span className={classes.toggleSlot}>
           {hasChildren && (
-            <button
-              className="p-0.5 hover:bg-muted rounded"
+            <UnstyledButton
+              className={classes.toggle}
+              aria-label={t(isExpanded ? 'semantic-models:collectionTree.collapse' : 'semantic-models:collectionTree.expand', { name: collection.label })}
+              aria-expanded={isExpanded}
               onClick={(e) => {
                 e.stopPropagation();
                 toggleExpand(collection.iri);
               }}
             >
-              {isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-            </button>
+              {isExpanded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+            </UnstyledButton>
           )}
-        </div>
+        </span>
 
         {/* Collection Icon */}
         {getCollectionIcon(collection.collection_type, isExpanded)}
 
         {/* Label and badges */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="truncate text-sm font-medium">
+        <span className={classes.labelLine}>
+          <span className={classes.label} title={collection.label}>
             {collection.label}
           </span>
-          
+
           {/* Editable indicator */}
           {!collection.is_editable && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Lock className="h-3 w-3 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{t('semantic-models:collectionTree.readOnly')}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip label={t('semantic-models:collectionTree.readOnly')} events={{ hover: true, focus: true, touch: false }}>
+              <Lock role="img" aria-label={t('semantic-models:collectionTree.readOnly')} className={classes.lock} />
+            </Tooltip>
           )}
 
           {/* Source type badge for imported */}
           {collection.source_type === 'imported' && (
-            <Badge variant="outline" className="text-xs px-1 py-0">
-              {t('semantic-models:badges.imported')}
-            </Badge>
+            <Badge variant="outline">{t('semantic-models:badges.imported')}</Badge>
           )}
 
           {/* Concept count */}
-          <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-auto">
+          <Badge variant="secondary" className={classes.count}>
             {collection.concept_count}
           </Badge>
-        </div>
+        </span>
 
         {/* Action menu */}
         {canEdit && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+          <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+              <ActionIcon
+                variant="subtle"
+                className={classes.menuButton}
+                aria-label={t('semantic-models:collections.actionsFor', { defaultValue: 'Actions for {{name}}', name: collection.label })}
+                onClick={(e) => e.stopPropagation()}
               >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+                <MoreVertical aria-hidden />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
               {collection.is_editable && onEditCollection && (
-                <DropdownMenuItem onClick={() => onEditCollection(collection)}>
-                  <Pencil className="h-4 w-4 mr-2" />
+                <Menu.Item leftSection={<Pencil aria-hidden />} onClick={() => onEditCollection(collection)}>
                   {t('common:actions.edit')}
-                </DropdownMenuItem>
+                </Menu.Item>
               )}
               {onExportCollection && (
-                <DropdownMenuItem onClick={() => onExportCollection(collection)}>
-                  <Download className="h-4 w-4 mr-2" />
+                <Menu.Item leftSection={<Download aria-hidden />} onClick={() => onExportCollection(collection)}>
                   {t('common:actions.export')}
-                </DropdownMenuItem>
+                </Menu.Item>
               )}
               {collection.is_editable && onImportToCollection && (
-                <DropdownMenuItem onClick={() => onImportToCollection(collection)}>
-                  <Import className="h-4 w-4 mr-2" />
+                <Menu.Item leftSection={<Import aria-hidden />} onClick={() => onImportToCollection(collection)}>
                   {t('common:actions.import')}
-                </DropdownMenuItem>
+                </Menu.Item>
               )}
               {collection.is_editable && collection.source_type === 'custom' && onDeleteCollection && (
                 <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onDeleteCollection(collection)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                  <Menu.Divider />
+                  <Menu.Item color="red" leftSection={<Trash2 aria-hidden />} onClick={() => onDeleteCollection(collection)}>
                     {t('common:actions.delete')}
-                  </DropdownMenuItem>
+                  </Menu.Item>
                 </>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </Menu.Dropdown>
+          </Menu>
         )}
       </div>
 
@@ -269,38 +242,31 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   }, []);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={classes.tree}>
       {/* Header with Create button */}
       {canEdit && onCreateCollection && (
-        <div className="flex items-center justify-between px-2 py-2 border-b">
-          <span className="text-sm font-semibold text-muted-foreground">
-            {t('semantic-models:collections.title')}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
+        <div className={classes.head}>
+          <span className={classes.headTitle}>{t('semantic-models:collections.title')}</span>
+          <ActionIcon
+            variant="subtle"
+            className={classes.menuButton}
+            aria-label={t('semantic-models:actions.createCollection')}
             onClick={onCreateCollection}
           >
-            <Plus className="h-4 w-4" />
-          </Button>
+            <Plus aria-hidden />
+          </ActionIcon>
         </div>
       )}
 
       {/* Tree */}
-      <div className="flex-1 overflow-auto py-2">
+      <div className={classes.body}>
         {collections.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <Folder className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">{t('semantic-models:collectionTree.noCollectionsYet')}</p>
+          <div className={classes.empty}>
+            <Folder aria-hidden className={classes.emptyIcon} />
+            <p>{t('semantic-models:collectionTree.noCollectionsYet')}</p>
             {canEdit && onCreateCollection && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={onCreateCollection}
-              >
-                <Plus className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={onCreateCollection}>
+                <Plus aria-hidden />
                 {t('semantic-models:actions.createCollection')}
               </Button>
             )}

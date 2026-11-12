@@ -51,13 +51,13 @@ describe('StatusProgressBar', () => {
 
     it('shows amber styling for terminal states (deprecated)', () => {
       const { container } = render(<StatusProgressBar status="deprecated" />)
-      const terminal = container.querySelector('.bg-amber-50')
+      const terminal = container.querySelector('[data-terminal]')
       expect(terminal).toBeInTheDocument()
     })
 
     it('shows amber styling for terminal states (archived)', () => {
       const { container } = render(<StatusProgressBar status="archived" />)
-      const terminal = container.querySelector('.bg-amber-50')
+      const terminal = container.querySelector('[data-terminal]')
       expect(terminal).toBeInTheDocument()
     })
   })
@@ -72,14 +72,14 @@ describe('StatusProgressBar', () => {
 
     it('shows current state with primary styling (under_review)', () => {
       const { container } = render(<StatusProgressBar status="under_review" />)
-      // Current should have border-primary class
-      const current = container.querySelector('.border-primary')
+      // The current step is marked (wave 2 Task 15: data-step, not a Tailwind class)
+      const current = container.querySelector('[data-step="current"]')
       expect(current).toBeInTheDocument()
     })
 
     it('shows future states as dashed/unfilled (certified when at draft)', () => {
       const { container } = render(<StatusProgressBar status="draft" />)
-      const dashed = container.querySelector('.border-dashed')
+      const dashed = container.querySelector('[data-step="todo"]')
       expect(dashed).toBeInTheDocument()
     })
   })
@@ -87,7 +87,7 @@ describe('StatusProgressBar', () => {
   describe('arrow separators', () => {
     it('renders arrows between forward chain items', () => {
       const { container } = render(<StatusProgressBar status="draft" />)
-      const arrows = container.querySelectorAll('[class*="text-muted-foreground/40"]')
+      const arrows = container.querySelectorAll('[data-arrow]')
       // Should have 4 arrows between 5 forward items
       expect(arrows.length).toBeGreaterThanOrEqual(4)
     })
@@ -103,13 +103,13 @@ describe('StatusProgressBar', () => {
   describe('terminal state separator', () => {
     it('shows bullet separator and amber box for deprecated', () => {
       const { container } = render(<StatusProgressBar status="deprecated" />)
-      const amberBox = container.querySelector('.border-amber-300')
+      const amberBox = container.querySelector('[data-terminal]')
       expect(amberBox).toBeInTheDocument()
     })
 
     it('shows bullet separator and amber box for archived', () => {
       const { container } = render(<StatusProgressBar status="archived" />)
-      const amberBox = container.querySelector('.border-amber-300')
+      const amberBox = container.querySelector('[data-terminal]')
       expect(amberBox).toBeInTheDocument()
     })
   })

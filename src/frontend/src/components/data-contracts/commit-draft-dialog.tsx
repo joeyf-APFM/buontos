@@ -1,23 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { GitCommit, AlertCircle, CheckCircle2, Info, AlertTriangle } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Alert, Loader, Radio, TextInput, Textarea } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, Tabs } from '@/mantine/page'
+import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
+import changeCss from '@/components/common/change-analysis.module.css'
+import { ChangeList } from '@/components/common/change-list'
+import classes from './commit-draft-dialog.module.css'
 import { useToast } from '@/hooks/use-toast'
 import type { DiffFromParentResponse } from '@/types/data-contract'
 
@@ -169,7 +161,7 @@ export default function CommitDraftDialog({
       case 'major':
         return <Badge variant="destructive">{t('data-contracts:commit.bumpMajor', 'MAJOR')}</Badge>
       case 'minor':
-        return <Badge className="bg-blue-500">{t('data-contracts:commit.bumpMinor', 'MINOR')}</Badge>
+        return <Badge variant="info">{t('data-contracts:commit.bumpMinor', 'MINOR')}</Badge>
       case 'patch':
         return <Badge variant="secondary">{t('data-contracts:commit.bumpPatch', 'PATCH')}</Badge>
       default:
@@ -177,271 +169,215 @@ export default function CommitDraftDialog({
     }
   }
 
+  /** A version bump choice: its radio, label and description in a bordered row. */
+  const bumpChoice = (value: 'major' | 'minor' | 'patch', label: string, description: string) => (
+    <Radio
+      value={value}
+      id={value}
+      label={label}
+      description={description}
+      classNames={{ root: classes.choice, label: classes.choiceLabel, description: form.hint }}
+    />
+  )
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <GitCommit className="h-5 w-5" />
-            {t('data-contracts:commit.title', 'Commit Personal Draft')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:commit.description', 'Review your changes and commit to make this version visible to your team.')}
-          </DialogDescription>
-        </DialogHeader>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : error && !diffData ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{t('common:states.error')}</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : diffData ? (
-          <div className="space-y-6 py-4">
-            {/* Version Display */}
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">{t('data-contracts:commit.parentVersion', 'Parent Version')}</p>
-                <p className="text-2xl font-bold">{diffData.parent_version}</p>
-                <Badge variant="outline" className="mt-1">{diffData.parent_status}</Badge>
-              </div>
-              <div className="text-4xl text-muted-foreground">→</div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">{t('data-contracts:commit.newVersion', 'New Version')}</p>
-                <p className="text-2xl font-bold text-primary">{newVersion}</p>
-                <Badge className="mt-1">{t('data-contracts:commit.draftLabel', 'draft')}</Badge>
-              </div>
-            </div>
-
-            {/* Suggested Version Bump */}
-            {diffData.suggested_bump && (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle className="flex items-center gap-2">
-                  {t('data-contracts:commit.suggested', 'Suggested:')} {getVersionBumpBadge(diffData.suggested_bump)}
-                </AlertTitle>
-                <AlertDescription>
-                  {t('data-contracts:commit.suggestedBumpDesc', 'Based on the changes detected, we recommend a {{bump}} version bump.', { bump: diffData.suggested_bump })}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Breaking Changes Warning */}
-            {hasBreakingChanges && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{t('data-contracts:commit.breakingDetected', 'Breaking Changes Detected')}</AlertTitle>
-                <AlertDescription>
-                  {t('data-contracts:commit.breakingDesc', 'This version contains changes that may impact existing consumers. Consider a major version bump.')}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Change Analysis Tabs */}
-            {analysis && (hasBreakingChanges || hasNewFeatures || hasFixes) && (
-              <Tabs defaultValue="summary" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="summary">{t('data-contracts:commit.tabSummary', 'Summary')}</TabsTrigger>
-                  {hasBreakingChanges && (
-                    <TabsTrigger value="breaking" className="text-red-600 dark:text-red-400">
-                      {t('data-contracts:commit.tabBreaking', 'Breaking ({{count}})', { count: analysis.breaking_changes.length })}
-                    </TabsTrigger>
-                  )}
-                  {hasNewFeatures && (
-                    <TabsTrigger value="features" className="text-blue-600 dark:text-blue-400">
-                      {t('data-contracts:commit.tabFeatures', 'Features ({{count}})', { count: analysis.new_features.length })}
-                    </TabsTrigger>
-                  )}
-                  {hasFixes && (
-                    <TabsTrigger value="fixes">
-                      {t('data-contracts:commit.tabFixes', 'Fixes ({{count}})', { count: analysis.fixes.length })}
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-
-                <TabsContent value="summary" className="mt-4">
-                  <Card>
-                    <CardContent className="pt-4">
-                      <pre className="whitespace-pre-wrap text-sm">{analysis.summary}</pre>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {hasBreakingChanges && (
-                  <TabsContent value="breaking" className="mt-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                          {t('data-contracts:commit.breakingChanges', 'Breaking Changes')}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2">
-                          {analysis.breaking_changes.map((change, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
-                              <span>{change}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                )}
-
-                {hasNewFeatures && (
-                  <TabsContent value="features" className="mt-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          {t('data-contracts:commit.newFeatures', 'New Features')}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2">
-                          {analysis.new_features.map((feature, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                              <span>{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                )}
-
-                {hasFixes && (
-                  <TabsContent value="fixes" className="mt-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Info className="h-4 w-4" />
-                          {t('data-contracts:commit.improvementsFixes', 'Improvements & Fixes')}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2">
-                          {analysis.fixes.map((fix, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <span className="text-gray-600 mt-0.5">•</span>
-                              <span>{fix}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                )}
-              </Tabs>
-            )}
-
-            {/* Version Bump Selection */}
-            <div className="space-y-3">
-              <Label>{t('data-contracts:commit.versionBumpType', 'Version Bump Type')}</Label>
-              <RadioGroup
-                value={versionBumpType}
-                onValueChange={(value) => setVersionBumpType(value as 'major' | 'minor' | 'patch' | 'custom')}
-              >
-                <div className="flex items-start space-x-3 rounded-md border p-3">
-                  <RadioGroupItem value="major" id="major" />
-                  <div className="flex-1">
-                    <Label htmlFor="major" className="font-medium cursor-pointer">
-                      {t('data-contracts:commit.majorLabel', 'Major (Breaking Changes)')}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      {t('data-contracts:commit.majorDesc', 'Incompatible changes that break existing integrations')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3 rounded-md border p-3">
-                  <RadioGroupItem value="minor" id="minor" />
-                  <div className="flex-1">
-                    <Label htmlFor="minor" className="font-medium cursor-pointer">
-                      {t('data-contracts:commit.minorLabel', 'Minor (New Features)')}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      {t('data-contracts:commit.minorDesc', 'Backward-compatible new features or improvements')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3 rounded-md border p-3">
-                  <RadioGroupItem value="patch" id="patch" />
-                  <div className="flex-1">
-                    <Label htmlFor="patch" className="font-medium cursor-pointer">
-                      {t('data-contracts:commit.patchLabel', 'Patch (Bug Fixes)')}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      {t('data-contracts:commit.patchDesc', 'Backward-compatible bug fixes or minor improvements')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3 rounded-md border p-3">
-                  <RadioGroupItem value="custom" id="custom" />
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="custom" className="font-medium cursor-pointer">
-                      {t('data-contracts:commit.customLabel', 'Custom Version')}
-                    </Label>
-                    <Input
-                      placeholder={t('data-contracts:commit.customPlaceholder', 'e.g., 2.0.0')}
-                      value={customVersion}
-                      onChange={(e) => setCustomVersion(e.target.value)}
-                      disabled={versionBumpType !== 'custom'}
-                      className="h-8"
-                    />
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {/* Change Summary */}
-            <div className="space-y-2">
-              <Label htmlFor="changeSummary">
-                {t('data-contracts:commit.changeSummary', 'Change Summary')} <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="changeSummary"
-                placeholder={t('data-contracts:commit.summaryPlaceholder', 'Describe what changed in this version...')}
-                value={changeSummary}
-                onChange={(e) => setChangeSummary(e.target.value)}
-                rows={4}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('data-contracts:commit.summaryHint', 'This summary will help your team understand what changed.')}
-              </p>
-            </div>
-
-            {/* Error Display */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>{t('common:states.error')}</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-        ) : null}
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="lg"
+      title={
+        <span className={form.titleLine}>
+          <GitCommit size={16} aria-hidden />
+          {t('data-contracts:commit.title', 'Commit Personal Draft')}
+        </span>
+      }
+      description={t('data-contracts:commit.description', 'Review your changes and commit to make this version visible to your team.')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading || isSubmitting || !diffData}>
             {isSubmitting ? t('data-contracts:commit.committing', 'Committing...') : t('data-contracts:commit.commitVersionButton', 'Commit Version {{version}}', { version: newVersion })}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      {isLoading ? (
+        <div className={classes.loading}>
+          <Loader size="md" aria-label={t('common:states.loading')} />
+        </div>
+      ) : error && !diffData ? (
+        <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:states.error')} role="alert">
+          {error}
+        </Alert>
+      ) : diffData ? (
+        <div className={form.form}>
+          {/* Version Display */}
+          <div className={classes.versions}>
+            <div className={classes.version}>
+              <p className={classes.versionLabel}>{t('data-contracts:commit.parentVersion', 'Parent Version')}</p>
+              <p className={classes.versionNumber}>{diffData.parent_version}</p>
+              <Badge variant="outline">{diffData.parent_status}</Badge>
+            </div>
+            <div className={classes.arrow} aria-hidden>→</div>
+            <div className={classes.version}>
+              <p className={classes.versionLabel}>{t('data-contracts:commit.newVersion', 'New Version')}</p>
+              <p className={classes.versionNumber} data-new="">{newVersion}</p>
+              <Badge>{t('data-contracts:commit.draftLabel', 'draft')}</Badge>
+            </div>
+          </div>
+
+          {/* Suggested Version Bump */}
+          {diffData.suggested_bump && (
+            <Alert
+              color="blue"
+              variant="light"
+              icon={<Info size={16} />}
+              title={
+                <span className={form.inline}>
+                  {t('data-contracts:commit.suggested', 'Suggested:')} {getVersionBumpBadge(diffData.suggested_bump)}
+                </span>
+              }
+            >
+              {t('data-contracts:commit.suggestedBumpDesc', 'Based on the changes detected, we recommend a {{bump}} version bump.', { bump: diffData.suggested_bump })}
+            </Alert>
+          )}
+
+          {/* Breaking Changes Warning */}
+          {hasBreakingChanges && (
+            <Alert color="red" variant="light" icon={<AlertTriangle size={16} />} title={t('data-contracts:commit.breakingDetected', 'Breaking Changes Detected')} role="alert">
+              {t('data-contracts:commit.breakingDesc', 'This version contains changes that may impact existing consumers. Consider a major version bump.')}
+            </Alert>
+          )}
+
+          {/* Change Analysis Tabs */}
+          {analysis && (hasBreakingChanges || hasNewFeatures || hasFixes) && (
+            <Tabs defaultValue="summary">
+              <Tabs.List>
+                <Tabs.Tab value="summary">{t('data-contracts:commit.tabSummary', 'Summary')}</Tabs.Tab>
+                {hasBreakingChanges && (
+                  <Tabs.Tab value="breaking" className={changeCss.breakingTab}>
+                    {t('data-contracts:commit.tabBreaking', 'Breaking ({{count}})', { count: analysis.breaking_changes.length })}
+                  </Tabs.Tab>
+                )}
+                {hasNewFeatures && (
+                  <Tabs.Tab value="features" className={changeCss.featuresTab}>
+                    {t('data-contracts:commit.tabFeatures', 'Features ({{count}})', { count: analysis.new_features.length })}
+                  </Tabs.Tab>
+                )}
+                {hasFixes && (
+                  <Tabs.Tab value="fixes">
+                    {t('data-contracts:commit.tabFixes', 'Fixes ({{count}})', { count: analysis.fixes.length })}
+                  </Tabs.Tab>
+                )}
+              </Tabs.List>
+
+              <Tabs.Panel value="summary">
+                <section className={changeCss.card}>
+                  <p className={changeCss.summary}>{analysis.summary}</p>
+                </section>
+              </Tabs.Panel>
+
+              {hasBreakingChanges && (
+                <Tabs.Panel value="breaking">
+                  <ChangeList
+                    tone="critical"
+                    heading={(
+                      <>
+                        <AlertCircle size={14} className={changeCss.critical} aria-hidden />
+                        {t('data-contracts:commit.breakingChanges', 'Breaking Changes')}
+                      </>
+                    )}
+                    items={analysis.breaking_changes}
+                  />
+                </Tabs.Panel>
+              )}
+
+              {hasNewFeatures && (
+                <Tabs.Panel value="features">
+                  <ChangeList
+                    tone="info"
+                    heading={(
+                      <>
+                        <CheckCircle2 size={14} className={changeCss.info} aria-hidden />
+                        {t('data-contracts:commit.newFeatures', 'New Features')}
+                      </>
+                    )}
+                    items={analysis.new_features}
+                  />
+                </Tabs.Panel>
+              )}
+
+              {hasFixes && (
+                <Tabs.Panel value="fixes">
+                  <ChangeList
+                    tone="muted"
+                    heading={(
+                      <>
+                        <Info size={14} className={changeCss.mutedIcon} aria-hidden />
+                        {t('data-contracts:commit.improvementsFixes', 'Improvements & Fixes')}
+                      </>
+                    )}
+                    items={analysis.fixes}
+                  />
+                </Tabs.Panel>
+              )}
+            </Tabs>
+          )}
+
+          {/* Version Bump Selection */}
+          <Radio.Group
+            label={t('data-contracts:commit.versionBumpType', 'Version Bump Type')}
+            value={versionBumpType}
+            onChange={(value) => setVersionBumpType(value as 'major' | 'minor' | 'patch' | 'custom')}
+            classNames={FIELD_CLASSES}
+          >
+            <div className={form.choices}>
+              {bumpChoice('major', t('data-contracts:commit.majorLabel', 'Major (Breaking Changes)'), t('data-contracts:commit.majorDesc', 'Incompatible changes that break existing integrations'))}
+              {bumpChoice('minor', t('data-contracts:commit.minorLabel', 'Minor (New Features)'), t('data-contracts:commit.minorDesc', 'Backward-compatible new features or improvements'))}
+              {bumpChoice('patch', t('data-contracts:commit.patchLabel', 'Patch (Bug Fixes)'), t('data-contracts:commit.patchDesc', 'Backward-compatible bug fixes or minor improvements'))}
+              <div className={classes.choice}>
+                <Radio
+                  value="custom"
+                  id="custom"
+                  label={t('data-contracts:commit.customLabel', 'Custom Version')}
+                  classNames={{ label: classes.choiceLabel }}
+                />
+                <TextInput
+                  aria-label={t('data-contracts:commit.customLabel', 'Custom Version')}
+                  placeholder={t('data-contracts:commit.customPlaceholder', 'e.g., 2.0.0')}
+                  value={customVersion}
+                  onChange={(e) => setCustomVersion(e.currentTarget.value)}
+                  disabled={versionBumpType !== 'custom'}
+                  className={classes.customField}
+                />
+              </div>
+            </div>
+          </Radio.Group>
+
+          {/* Change Summary */}
+          <Textarea
+            id="changeSummary"
+            label={t('data-contracts:commit.changeSummary', 'Change Summary')}
+            withAsterisk
+            placeholder={t('data-contracts:commit.summaryPlaceholder', 'Describe what changed in this version...')}
+            value={changeSummary}
+            onChange={(e) => setChangeSummary(e.currentTarget.value)}
+            rows={4}
+            description={t('data-contracts:commit.summaryHint', 'This summary will help your team understand what changed.')}
+            inputWrapperOrder={HINT_BELOW}
+            classNames={FIELD_CLASSES}
+          />
+
+          {/* Error Display */}
+          {error && (
+            <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:states.error')} role="alert">
+              {error}
+            </Alert>
+          )}
+        </div>
+      ) : null}
     </Dialog>
   )
 }
-

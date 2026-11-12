@@ -3,12 +3,13 @@
  * (`certified_deprecation_requires_approval`): the dialog shows the error in
  * the UI language and offers to send a status change request instead.
  *
- * The Radix Select hangs in jsdom, so it is replaced by a native select.
+ * The target status is a Mantine Select (wave 2 Task 8b), picked as a user would.
  */
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import i18n from '@/i18n/config';
-import { renderWithProviders } from '@/test/utils';
+import { renderWithProviders, userEvent } from '@/test/utils';
+import { pick, selectField } from '@/test/kit-dialog';
 import RequestProductActionDialog from './request-product-action-dialog';
 
 const mockGet = vi.fn();
@@ -30,19 +31,6 @@ vi.mock('@/hooks/use-approval-wizard-trigger', async () => {
 vi.mock('@/stores/notifications-store', () => ({
   useNotificationsStore: (selector: any) => selector({ refreshNotifications: vi.fn() }),
 }));
-vi.mock('@/components/ui/select', () => ({
-  Select: ({ value, onValueChange, children }: any) => (
-    <select value={value} onChange={(e) => onValueChange(e.target.value)}>
-      <option value="" />
-      {children}
-    </select>
-  ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectContent: ({ children }: any) => <>{children}</>,
-  SelectItem: ({ value }: any) => <option value={value}>{value}</option>,
-}));
-
 const REFUSED = {
   data: {},
   error: "The data product 'Orders' is certified: deprecating it needs an approved status "
@@ -67,11 +55,10 @@ function render() {
   );
 }
 
-function chooseDeprecate() {
-  const target = screen.getAllByRole('combobox').find(
-    (select) => select.querySelector('option[value="deprecated"]'),
-  ) as HTMLSelectElement;
-  fireEvent.change(target, { target: { value: 'deprecated' } });
+async function chooseDeprecate() {
+  const dialog = screen.getByRole('dialog');
+  const target = selectField(dialog, new RegExp(i18n.t('data-products:requestAction.labels.targetStatus')));
+  await pick(userEvent.setup(), target, i18n.t('data-products:requestAction.transitions.deprecate'));
 }
 
 describe('RequestProductActionDialog certified deprecation', () => {
@@ -83,6 +70,8 @@ describe('RequestProductActionDialog certified deprecation', () => {
   });
 
   afterEach(async () => {
+    // Unmount first: a language change would update the open dialog outside act
+    cleanup();
     await i18n.changeLanguage('en');
   });
 
@@ -91,7 +80,7 @@ describe('RequestProductActionDialog certified deprecation', () => {
     mockPost.mockResolvedValueOnce(REFUSED).mockResolvedValueOnce({ data: { request_id: 'r-1' } });
     render();
 
-    chooseDeprecate();
+    await chooseDeprecate();
     fireEvent.click(screen.getByRole('button', {
       name: i18n.t('data-products:requestAction.types.statusChange.titleDirect'),
     }));
@@ -103,7 +92,9 @@ describe('RequestProductActionDialog certified deprecation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Solicitar a mudança de status' }));
 
-    const justification = await screen.findByRole('textbox');
+    const justification = await screen.findByRole('textbox', {
+      name: new RegExp(i18n.t('data-products:requestAction.labels.justification')),
+    });
     fireEvent.change(justification, {
       target: { value: 'Replaced by Orders v2; every consumer has moved.' },
     });
@@ -127,7 +118,7 @@ describe('RequestProductActionDialog certified deprecation', () => {
     });
     render();
 
-    chooseDeprecate();
+    await chooseDeprecate();
     fireEvent.click(screen.getByRole('button', {
       name: i18n.t('data-products:requestAction.types.statusChange.titleDirect'),
     }));

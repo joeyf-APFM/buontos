@@ -1,0 +1,638 @@
+/*
+ * Ask Ontos (/search/llm) on the page kit (wave 2 Task 16): one kit pane
+ * that fills the tab (the page is full bleed), with the subtitle, the
+ * messages in a log that scrolls inside the pane, and the composer under it.
+ * The messages, their markdown, the debug details and the History popover.
+ */
+
+/* The pane fills the tab panel; its flush body holds the column below */
+.chat {
+  flex: 1;
+  min-height: 0;
+}
+
+.chatBody {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.subtitle {
+  flex: none;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--aura-text-secondary);
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.intro {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The LLM-disabled state keeps its content height (`section.` outranks the kit's .pane) */
+section.disabledPane {
+  flex: none;
+}
+
+.disabled {
+  font-size: 12px;
+}
+
+/* The messages scroll here, not the page */
+.log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.log:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.muted {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.faint {
+  margin-left: 6px;
+  color: var(--aura-text-muted);
+}
+
+/* ---- The welcome: an icon, a title, a line and the example questions ---- */
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100%;
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.welcome > .muted {
+  max-width: 448px;
+}
+
+.welcomeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+  border-radius: 50%;
+}
+
+.welcomeIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.welcomeTitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.exampleList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* A long question wraps inside its button (`button.` outranks the ui Button's height) */
+button.example {
+  height: auto;
+  min-height: 26px;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
+/* ---- Messages ---- */
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* An avatar, the bubble, then a question's actions; a question sits on the right */
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.row[data-role='user'] {
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--aura-surface);
+  background: var(--aura-navy);
+  border-radius: 50%;
+}
+
+.row[data-role='user'] .avatar {
+  background: var(--aura-accent);
+}
+
+.avatar svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The bubble: 80% of the row at most; a long word wraps inside it */
+.bubble {
+  min-width: 0;
+  max-width: 80%;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--aura-text-body);
+  background: var(--aura-surface-strong);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.row[data-role='user'] .bubble {
+  background: var(--aura-accent-subtle);
+}
+
+.userText {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--aura-text-muted);
+}
+
+.row[data-role='user'] .time {
+  text-align: right;
+}
+
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A question's Edit & resend and Run again: shown on hover, and on focus */
+.actions {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  align-self: center;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.row:hover .actions,
+.actions:focus-within {
+  opacity: 1;
+}
+
+.actions svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---- An answer's markdown ---- */
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown pre {
+  margin: 0 0 8px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 20px;
+}
+
+.markdown li + li {
+  margin-top: 2px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.markdown a {
+  color: var(--aura-accent);
+}
+
+.markdown blockquote {
+  padding-left: 10px;
+  color: var(--aura-text-secondary);
+  border-left: 2px solid var(--aura-border-strong);
+}
+
+/* Code: an identifier or a query, in the mono font */
+.markdown code {
+  padding: 1px 4px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  background: var(--aura-surface);
+  border-radius: 3px;
+}
+
+.markdown pre {
+  padding: 8px 10px;
+  overflow-x: auto;
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.markdown pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}
+
+/* A wide table scrolls inside the bubble */
+.tableWrap {
+  max-width: 100%;
+  margin: 0 0 8px;
+  overflow-x: auto;
+}
+
+.tableWrap table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 4px 8px;
+  text-align: left;
+  border: 1px solid var(--aura-border);
+  overflow-wrap: normal;
+}
+
+.tableWrap th {
+  font-weight: 600;
+  background: var(--aura-surface);
+}
+
+/* ---- The debug details ---- */
+
+.debug {
+  margin-left: 38px;
+  min-width: 0;
+}
+
+/* A fold's button: its icon, its label and a chevron that turns open */
+button.fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  border-radius: 4px;
+}
+
+button.fold:hover {
+  color: var(--aura-text-body);
+  background: var(--aura-surface-strong);
+}
+
+button.fold:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+button.fold svg {
+  width: 12px;
+  height: 12px;
+}
+
+button.fold[data-small] {
+  min-height: 20px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
+.chevron {
+  transition: transform 150ms ease;
+}
+
+.chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.debugBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  font-size: 11px;
+  background: var(--aura-canvas);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.debugSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.debugSection + .debugSection {
+  padding-top: 10px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.debugSection.inline {
+  flex-direction: row;
+  gap: 16px;
+}
+
+.debugTitle {
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+}
+
+.followUp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--aura-warning);
+}
+
+.followUp svg {
+  width: 12px;
+  height: 12px;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--aura-text-secondary);
+}
+
+.labelIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.end {
+  margin-left: auto;
+}
+
+/* Tool names, arguments and models: identifiers, in the mono font */
+.code {
+  font-family: var(--aura-font-mono);
+  font-size: 10.5px;
+}
+
+.code[data-strong] {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.code[data-wrap] {
+  overflow-wrap: anywhere;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.ok {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--aura-good);
+}
+
+.failed {
+  color: var(--aura-critical);
+}
+
+svg.failed {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.result {
+  max-height: 192px;
+  margin: 4px 0 0;
+  padding: 8px;
+  overflow: auto;
+  font-family: var(--aura-font-mono);
+  font-size: 10px;
+  white-space: pre;
+  background: var(--aura-surface-strong);
+  border-radius: 4px;
+}
+
+/* ---- The composer, always under the log ---- */
+
+.composer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.error {
+  font-size: 12px;
+}
+
+.errorMessage {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.composerRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+}
+
+.send {
+  flex: none;
+}
+
+.send svg {
+  width: 14px;
+  height: 14px;
+}
+
+.hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+button.debugOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--aura-warning);
+  border-radius: 2px;
+}
+
+button.debugOn:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+button.debugOn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---- The History popover: New Conversation, then each session with its delete ---- */
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+}
+
+.divider {
+  height: 1px;
+  margin: 2px 0;
+  background: var(--aura-border);
+}
+
+/* The sessions scroll past 320px */
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.sessionRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  border-radius: 4px;
+}
+
+.sessionRow[data-current] {
+  background: var(--aura-accent-subtle);
+}
+
+/* A long title wraps, so it reads in full */
+button.session {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+  text-align: left;
+  overflow-wrap: anywhere;
+  border-radius: 4px;
+}
+
+button.session:hover {
+  background: var(--aura-surface-strong);
+}
+
+button.session:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.sessionRow svg {
+  width: 13px;
+  height: 13px;
+}

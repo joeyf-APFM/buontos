@@ -1,0 +1,33 @@
+/*
+ * The ODPS import/export dialog (wave 2 Task 8a) in the kit Dialog
+ * (mantine/page/dialog.tsx): kit Tabs across the width, the JSON box in the
+ * code font, and the validation errors as a list.
+ */
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The two tabs share the width (doubled, over the kit's inline tab list) */
+.tabList.tabList {
+  display: flex;
+  width: 100%;
+}
+
+.tab {
+  flex: 1 1 0;
+  gap: 6px;
+}
+
+/* The pasted JSON is code */
+.json {
+  font-family: var(--aura-font-mono);
+  font-size: 12px;
+}
+
+.errors {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}

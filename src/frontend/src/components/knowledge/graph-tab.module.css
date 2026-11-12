@@ -1,0 +1,16 @@
+/*
+ * Explore's Graph view (graph-tab.tsx), wave 2 Task 13a: the concept graph
+ * (components/semantic-models/knowledge-graph) at a fixed 800px height in
+ * the views pane.
+ */
+.tab {
+  display: flex;
+  flex-direction: column;
+  height: 800px;
+  min-width: 0;
+}
+
+.graph {
+  flex: 1;
+  min-height: 0;
+}

@@ -1,6 +1,7 @@
 {
   "title": "Produits de Données",
   "subtitle": "Gérez vos produits de données",
+  "listPane": "Liste des produits de données",
   "newProduct": "Nouveau Produit de Données",
   "importProduct": "Importer",
   "searchPlaceholder": "Rechercher des produits de données...",
@@ -148,6 +149,7 @@
   "details": {
     "backToList": "Retour à la Liste",
     "edit": "Modifier",
+    "editDescription": "Modifier la description",
     "delete": "Supprimer",
     "subscribe": "S'abonner",
     "unsubscribe": "Se désabonner",
@@ -271,6 +273,7 @@
       "assetsLinkedTitle": "Actifs liés",
       "assetsLinked": "{{count}} actif(s) lié(s) à {{portName}}",
       "assetUnlinked": "Actif délié",
+      "unlinkAsset": "Dissocier {{name}}",
       "linkAssetsFailed": "Échec de la liaison des actifs",
       "unlinkAssetFailed": "Échec de la dissociation de l'actif"
     },
@@ -1163,11 +1166,14 @@
     "retry": "Réessayer",
     "untitled": "Sans titre",
     "productsAvailable_one": "{{count}} produit disponible",
-    "productsAvailable_other": "{{count}} produits disponibles"
+    "productsAvailable_other": "{{count}} produits disponibles",
+    "productsPane": "Produits abonnés",
+    "tilesPerRow": "Vignettes par ligne"
   },
   "ownerConsumers": {
     "breadcrumb": "Consommateurs",
     "totalProducts": "Total des produits",
+    "summary": "Résumé",
     "activeProducts": "Produits actifs",
     "totalSubscribers": "Total des abonnés",
     "products": "Produits",

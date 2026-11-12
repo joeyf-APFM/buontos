@@ -82,13 +82,13 @@ describe('shared panels restyle', () => {
     await within(panel).findByText('Alice Doe');
     // One label/value row per owner: the role in the label column
     // (jsdom's ARIA tables give dt and dd no roles, so they are found by tag)
-    const terms = [...panel.querySelectorAll('dl > dt')].map((t) => t.textContent);
+    const terms = [...panel.querySelectorAll('dl > div > dt')].map((t) => t.textContent);
     expect(terms).toEqual(['Data Owner', 'Steward']);
-    const values = [...panel.querySelectorAll<HTMLElement>('dl > dd')];
+    const values = [...panel.querySelectorAll<HTMLElement>('dl > div > dd')];
     expect(values[0]).toHaveTextContent('Alice Doe');
     expect(values[1]).toHaveTextContent('Bob Roe');
     // The remove control stays on each row, and Assign Owner in the header
-    expect(within(values[0]).getByRole('button')).toBeInTheDocument();
+    expect(within(values[0]).getByRole('button', { name: 'Remove Alice Doe' })).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Assign Owner' })).toBeInTheDocument();
     // A pane, not a Card: no Mantine Paper
     expect(panel.closest('.mantine-Paper-root')).toBeNull();
@@ -104,7 +104,7 @@ describe('shared panels restyle', () => {
       return json([]);
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<EntityMetadataPanel entityId="e1" entityType="data_product" />);
+    renderWithProviders(<EntityMetadataPanel entityId="e1" entityType="data_product" canEdit />);
 
     const panel = await screen.findByRole('region', { name: 'Metadata' });
     await within(panel).findByText('Read me');

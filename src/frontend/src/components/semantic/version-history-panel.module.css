@@ -1,0 +1,106 @@
+/*
+ * A concept's version history (wave 2 Task 15): a flush panel
+ * (components/common/panel.module.css) of one row per version, newest first:
+ * a dot (green for the current one), "Edited by … on …", the Advanced-only
+ * mechanics, and a Current / Previous chip. An older row opens its frozen
+ * definition under it.
+ */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  text-align: left;
+  border-radius: 4px;
+}
+
+.entry:not(:disabled):hover {
+  background: var(--aura-surface-strong);
+}
+
+.entry:disabled {
+  cursor: default;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--aura-text-muted);
+}
+
+.dot[data-current] {
+  background: var(--aura-good);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+
+.mechanics {
+  font-family: var(--aura-font-mono);
+  font-size: 10.5px;
+  color: var(--aura-text-secondary);
+}
+
+.frozen {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+.frozenText {
+  white-space: pre-line;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.chip {
+  flex: none;
+}
+
+.note,
+.muted {
+  margin: 0 0 6px;
+  color: var(--aura-text-secondary);
+}
+
+.note {
+  font-style: italic;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--aura-text-secondary);
+}
+
+.alertMessage {
+  overflow-wrap: anywhere;
+}
+
+.alertActions {
+  margin-top: 8px;
+}

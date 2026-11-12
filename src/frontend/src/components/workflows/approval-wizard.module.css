@@ -1,26 +1,23 @@
 /*
- * The approval wizard at Aura density: 12px text, 28px controls, the step's
+ * The approval wizard at Aura density, in the kit Dialog
+ * (mantine/page/dialog.tsx, wave 2 Task 8b), which draws its title, its
+ * description and the state's actions: 12px text, 28px controls, the step's
  * parts divided by border-subtle rules, and only the document in a 1px pane.
  * Captions and notes are text-secondary (ruling R11); statements the user
  * checks or picks are body text.
  */
-.content {
-  max-width: 512px;
-  font-size: 12px;
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
   line-height: 1.45;
-  color: var(--aura-text-body);
 }
 
 .titleRow {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-/* Beats the DialogDescription's text-muted-foreground utility (one class
-   each, so order would decide) */
-.content .description {
-  color: var(--aura-text-secondary);
 }
 
 /* Progress: a dot per visual step, then "Step n: name" */
@@ -185,20 +182,7 @@
   color: var(--aura-text-body);
 }
 
-/* A checkbox or radio with its statement */
-.check {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-height: 20px;
-}
-
-.check > button,
-.check > input {
-  flex: none;
-  margin-top: 1px;
-}
-
+/* A checkbox's or radio's statement */
 .checkLabel {
   font-size: 12px;
   font-weight: 400;
@@ -340,6 +324,19 @@
   height: 12px;
 }
 
+/* A workflow in the chooser: its name on the left, the chevron on the
+   right (doubled, over the Button's centring) */
+.choice.choice {
+  width: 100%;
+  justify-content: space-between;
+}
+
+/* A long option wraps instead of running out of the list */
+.option {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* The select's empty or error line */
 .optionsEmpty {
   padding: 4px 8px;
@@ -357,13 +354,4 @@
   width: 24px;
   height: 24px;
   color: var(--aura-text-secondary);
-}
-
-.footer {
-  padding-top: 4px;
-}
-
-/* The completion footer spans the left-aligned stack */
-.stretch {
-  align-self: stretch;
 }

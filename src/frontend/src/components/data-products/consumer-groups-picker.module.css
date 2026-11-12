@@ -1,0 +1,78 @@
+/*
+ * The consumer groups picker (wave 2 Task 4): the chosen groups as chips,
+ * the search field with Add, and the workspace's groups as a short list to
+ * pick from.
+ */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  gap: 4px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+button.remove {
+  display: inline-flex;
+  color: inherit;
+  border-radius: 2px;
+}
+
+button.remove:hover {
+  color: var(--aura-critical);
+}
+
+.remove svg {
+  width: 12px;
+  height: 12px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Up to 20 groups, in a 160px list that scrolls */
+.suggestions {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+button.suggestion {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--aura-text-body);
+  overflow-wrap: anywhere;
+}
+
+button.suggestion:hover,
+button.suggestion:focus-visible {
+  background: var(--aura-canvas);
+}
+
+.error {
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}

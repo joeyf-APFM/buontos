@@ -26,7 +26,8 @@
     "shippedTaxonomies": "Tassonomie incluse",
     "reviewsLinkPrefix": "Le revisioni dei steward vivono nell'area",
     "reviewsLinkText": "Revisioni degli asset",
-    "reviewsLinkSuffix": "Ogni suggerimento diventa un ReviewedAsset lì; le decisioni tornano automaticamente in questa esecuzione."
+    "reviewsLinkSuffix": "Ogni suggerimento diventa un ReviewedAsset lì; le decisioni tornano automaticamente in questa esecuzione.",
+    "paneLabel": "Dettaglio esecuzione"
   },
   "stats": {
     "targets": "Bersagli",

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ExternalLink } from 'lucide-react';
+import classes from './delivery-modes.module.css';
 
 // ---------------------------------------------------------------------------
 // Deliver lane — Direct / Indirect / Manual mode cards (ADVANCED-ONLY).
@@ -54,39 +55,25 @@ export default function DeliveryModes({
   ];
 
   return (
-    <div className="mb-3.5 flex flex-wrap items-stretch gap-2.5">
+    <div className={classes.modes}>
       {modes.map((mode) => {
         const active = activeModes.includes(mode.id);
         return (
-          <div
-            key={mode.id}
-            className={`min-w-[180px] flex-1 rounded-lg border px-3.5 py-3 ${
-              active
-                ? 'border-emerald-500/50 bg-emerald-500/5'
-                : 'border-border bg-card'
-            }`}
-          >
-            <div className="mb-1 flex items-center gap-2 text-sm">
-              <span
-                className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-500' : 'bg-border'}`}
-              />
+          <div key={mode.id} className={classes.mode} data-mode={mode.id} data-active={active || undefined}>
+            <div className={classes.head}>
+              <span className={classes.dot} aria-hidden />
               <b>{mode.label}</b>
               {active && (
-                <span className="ml-auto rounded-full bg-emerald-500/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                  {t('enrich.modes.active', 'active')}
-                </span>
+                <span className={classes.active}>{t('enrich.modes.active', 'active')}</span>
               )}
             </div>
-            <p className="text-xs leading-snug text-muted-foreground">{mode.desc}</p>
+            <p className={classes.description}>{mode.desc}</p>
           </div>
         );
       })}
-      <a
-        href={settingsHref}
-        className="inline-flex basis-full items-center gap-1 text-xs text-sky-700 hover:underline dark:text-sky-400"
-      >
+      <a href={settingsHref} className={classes.link}>
         {t('enrich.modes.manageLink', 'Delivery mode is set per site in Settings, Delivery')}
-        <ExternalLink className="h-3 w-3" />
+        <ExternalLink size={12} aria-hidden />
       </a>
     </div>
   );

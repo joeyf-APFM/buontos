@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { asyncRunProgressText, asyncRunStatusLabel } from '@/lib/schema-import-run-text';
 import {
@@ -18,7 +18,7 @@ import {
   Link2,
   Unlink,
 } from 'lucide-react';
-import { Loader, Modal, Tooltip } from '@mantine/core';
+import { Loader, Tooltip } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,7 +34,7 @@ import type {
   StartImportRunResponse,
   SchemaImportRunDetail,
 } from '@/types/schema-import';
-import { Z_INDEX } from '@/mantine/z-index';
+import { Dialog } from '@/mantine/page';
 import classes from './import-preview-dialog.module.css';
 
 // ---------------------------------------------------------------------------
@@ -166,32 +166,6 @@ export default function ImportPreviewDialog({
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(new Set());
   const [pathMappings, setPathMappings] = useState<Record<string, MappedAsset>>({});
   const [selectorOpenForPath, setSelectorOpenForPath] = useState<string | null>(null);
-  // The button that opened the asset selector, to take focus back when it closes
-  const selectorOpener = useRef<HTMLElement | null>(null);
-
-  // The selector (a Radix Dialog without a Trigger) leaves focus on <body>
-  // once its content unmounts, after its exit animation, and Mantine's focus
-  // trap doesn't recover it. Wait for that, then focus the opener again.
-  useEffect(() => {
-    const opener = selectorOpener.current;
-    if (selectorOpenForPath || !opener) return;
-    let frame = 0;
-    let frames = 0;
-    const settle = () => {
-      const active = document.activeElement;
-      if (!active || active === document.body) {
-        if (opener.isConnected) opener.focus();
-        selectorOpener.current = null;
-      } else if (active.closest('.mantine-Modal-content') || frames++ > 90) {
-        // Focus is back in this dialog (or went elsewhere on purpose)
-        selectorOpener.current = null;
-      } else {
-        frame = requestAnimationFrame(settle);
-      }
-    };
-    frame = requestAnimationFrame(settle);
-    return () => cancelAnimationFrame(frame);
-  }, [selectorOpenForPath]);
 
   const loadPreview = async () => {
     setIsLoadingPreview(true);
@@ -518,8 +492,9 @@ export default function ImportPreviewDialog({
 
           {/* Link / unlink icon for ancestors that would be created. One
               button for both, so it stays mounted when a mapping swaps Link
-              for Unlink: the asset selector returns focus to it, and focus
-              stays in this dialog (a new button would leave it on <body>). */}
+              for Unlink: the kit gives focus back to it as the asset selector
+              closes, and focus stays in this dialog (a new button would leave
+              it on <body>). */}
           {(canLink || isMapped) && (
             <Tooltip
               label={isMapped ? t('database-schema:preview.unlinkCreateNew') : t('database-schema:preview.linkToExisting')}
@@ -527,11 +502,10 @@ export default function ImportPreviewDialog({
               withArrow
             >
               <button
-                onClick={(e) => {
+                onClick={() => {
                   if (isMapped) {
                     clearMapping(item.path);
                   } else {
-                    selectorOpener.current = e.currentTarget;
                     setSelectorOpenForPath(item.path);
                   }
                 }}
@@ -615,117 +589,99 @@ export default function ImportPreviewDialog({
 
   return (
     <>
-      <Modal.Root
+      {/* As the Radix dialog: a click outside leaves it open; Escape closes
+          it, unless the asset selector above it took the key (a Radix layer) */}
+      <Dialog
         opened={open}
         onClose={() => handleOpenChange(false)}
-        size={672}
-        centered
-        zIndex={Z_INDEX.modalUnderRadix}
-        // As the Radix dialog: a click outside leaves it open; Escape closes
-        // it, unless the asset selector above it is open (Escape is its own)
-        closeOnClickOutside={false}
-        closeOnEscape={!selectorOpenForPath}
-      >
-        <Modal.Overlay />
-        <Modal.Content className={classes.content}>
-          <Modal.Header className={classes.header}>
-            <Modal.Title className={classes.title}>
-              {importResult ? t('database-schema:preview.resultsTitle') : t('database-schema:preview.previewTitle')}
-            </Modal.Title>
-            <Modal.CloseButton aria-label={t('common:actions.close')} />
-          </Modal.Header>
-          {/* The Modal's body is only the summary: the dialog's
-              aria-describedby points at the body, as Radix's did at its
-              DialogDescription. The rest follows it. */}
-          <Modal.Body className={classes.description}>
-            {importResult
-              ? t('database-schema:preview.resultSummary', {
-                  created: importResult.created,
-                  skipped: importResult.skipped,
-                  errors: importResult.errors,
-                })
-              : t('database-schema:preview.previewSummary', { toCreate, toSkip })}
-          </Modal.Body>
-          <div className={classes.body}>
-            {isLoadingPreview ? (
-              <div className={classes.loading}>
-                <Loader size={18} />
-                <span>{t('database-schema:preview.analyzing')}</span>
-              </div>
-            ) : importResult ? (
-              <div className={classes.tree}>
-                {resultTree.map(renderResultNode)}
-                {resultTree.length === 0 && (
-                  <div className={classes.empty}>{t('database-schema:preview.noResultItems')}</div>
-                )}
-              </div>
-            ) : (
-              <div className={classes.tree}>
-                {previewTree.map(renderPreviewNode)}
-                {previewTree.length === 0 && (
-                  <div className={classes.empty}>{t('database-schema:preview.noImportable')}</div>
-                )}
-              </div>
-            )}
-
-            {/* Background-run progress (while an async import is in flight) */}
-            {asyncRun && !importResult && (
-              <div className={classes.run}>
-                <div className={classes.runLine}>
-                  {asyncRunning && <Loader size={14} />}
-                  <span className={classes.runStatus}>{asyncRunStatusLabel(asyncRun.status, t)}</span>
-                  <span className={classes.runText}>
-                    {asyncRun.total_items
-                      ? asyncRunProgressText(asyncRun, t)
-                      : asyncRun.progress_message || t('database-schema:preview.async.starting')}
-                  </span>
-                </div>
-                <p className={classes.runHint}>{t('database-schema:preview.async.closeHint')}</p>
-              </div>
-            )}
-
-            <div className={classes.footer}>
-              {importResult ? (
-                <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                  {t('common:actions.close')}
+        size="lg"
+        title={importResult ? t('database-schema:preview.resultsTitle') : t('database-schema:preview.previewTitle')}
+        description={
+          importResult
+            ? t('database-schema:preview.resultSummary', {
+                created: importResult.created,
+                skipped: importResult.skipped,
+                errors: importResult.errors,
+              })
+            : t('database-schema:preview.previewSummary', { toCreate, toSkip })
+        }
+        footer={
+          importResult ? (
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
+              {t('common:actions.close')}
+            </Button>
+          ) : asyncRunning ? (
+            <>
+              <Button variant="outline" onClick={cancelAsyncImport}>
+                {t('database-schema:preview.async.cancel')}
+              </Button>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                {t('database-schema:preview.async.closeKeepRunning')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                {t('common:actions.cancel')}
+              </Button>
+              {toCreate >= asyncThreshold && (
+                <Button
+                  variant="secondary"
+                  onClick={startAsyncImport}
+                  disabled={isStartingAsync || isImporting || toCreate === 0}
+                >
+                  {isStartingAsync && <Loader size={12} color="currentColor" />}
+                  {t('database-schema:preview.async.runInBackground')}
                 </Button>
-              ) : asyncRunning ? (
-                <>
-                  <Button variant="outline" onClick={cancelAsyncImport}>
-                    {t('database-schema:preview.async.cancel')}
-                  </Button>
-                  <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                    {t('database-schema:preview.async.closeKeepRunning')}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                    {t('common:actions.cancel')}
-                  </Button>
-                  {toCreate >= asyncThreshold && (
-                    <Button
-                      variant="secondary"
-                      onClick={startAsyncImport}
-                      disabled={isStartingAsync || isImporting || toCreate === 0}
-                    >
-                      {isStartingAsync && <Loader size={12} color="currentColor" />}
-                      {t('database-schema:preview.async.runInBackground')}
-                    </Button>
-                  )}
-                  <Button
-                    onClick={executeImport}
-                    disabled={isImporting || isStartingAsync || toCreate === 0}
-                  >
-                    {isImporting && <Loader size={12} color="currentColor" />}
-                    {t('database-schema:preview.importAssets', { count: toCreate })}
-                  </Button>
-                </>
               )}
-            </div>
+              <Button
+                onClick={executeImport}
+                disabled={isImporting || isStartingAsync || toCreate === 0}
+              >
+                {isImporting && <Loader size={12} color="currentColor" />}
+                {t('database-schema:preview.importAssets', { count: toCreate })}
+              </Button>
+            </>
+          )
+        }
+      >
+        {isLoadingPreview ? (
+          <div className={classes.loading}>
+            <Loader size={18} />
+            <span>{t('database-schema:preview.analyzing')}</span>
           </div>
-        </Modal.Content>
-      </Modal.Root>
+        ) : importResult ? (
+          <div className={classes.tree}>
+            {resultTree.map(renderResultNode)}
+            {resultTree.length === 0 && (
+              <div className={classes.empty}>{t('database-schema:preview.noResultItems')}</div>
+            )}
+          </div>
+        ) : (
+          <div className={classes.tree}>
+            {previewTree.map(renderPreviewNode)}
+            {previewTree.length === 0 && (
+              <div className={classes.empty}>{t('database-schema:preview.noImportable')}</div>
+            )}
+          </div>
+        )}
+
+        {/* Background-run progress (while an async import is in flight) */}
+        {asyncRun && !importResult && (
+          <div className={classes.run}>
+            <div className={classes.runLine}>
+              {asyncRunning && <Loader size={14} />}
+              <span className={classes.runStatus}>{asyncRunStatusLabel(asyncRun.status, t)}</span>
+              <span className={classes.runText}>
+                {asyncRun.total_items
+                  ? asyncRunProgressText(asyncRun, t)
+                  : asyncRun.progress_message || t('database-schema:preview.async.starting')}
+              </span>
+            </div>
+            <p className={classes.runHint}>{t('database-schema:preview.async.closeHint')}</p>
+          </div>
+        )}
+      </Dialog>
 
       {/* Asset selector opened from a link icon */}
       <AssetSelector

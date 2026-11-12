@@ -1,0 +1,40 @@
+/*
+ * Small rules the detail pages and their owned panels share (wave 2, from
+ * Task 7: Data Product details, AccessGrantsPanel, MaturityInline): the
+ * critical colour, secondary text, a button's spinner and the 24px icon-only
+ * button. Each module keeps only its own rules.
+ */
+
+/* Destructive actions, such as Delete and Revoke */
+.danger {
+  color: var(--aura-critical);
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+/* A button's spinner while it works */
+.spin {
+  animation: detail-page-spin 1s linear infinite;
+}
+
+@keyframes detail-page-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* An icon-only button in a row or a pane head: 24px, with a 14px icon;
+   `button.` outranks the Button's own size (R10) */
+button.iconButton {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+button.iconButton svg {
+  width: 14px;
+  height: 14px;
+}

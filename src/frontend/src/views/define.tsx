@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback, useId, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -7,22 +7,17 @@ import {
   Upload,
   Zap,
   ArrowUpFromLine,
-  Loader2,
   List,
   ListTree,
   Share2,
   Layers,
 } from 'lucide-react';
 import { usePagination, PaginationControls } from '@/components/common/paginated-list';
+import { Alert, Loader, Tooltip } from '@mantine/core';
+import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { PageHeader, PageLayout, Pane, PaneStack } from '@/mantine/page';
 import { ImportConceptsDialog, CollectionEditorDialog } from '@/components/knowledge';
 import type {
   KnowledgeCollection,
@@ -34,6 +29,10 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/feature-access-levels';
 import { GuidedGenerateDialog } from '@/components/concepts/guided-generate-dialog';
+import classes from './define.module.css';
+
+// Tooltips open on hover and on keyboard focus
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
 
 // A recent creation-work item shown in the "In progress" list. Sourced from the
 // ontology generator runs endpoint (real data). Imports do not yet have a
@@ -112,44 +111,90 @@ type BuildsMap = Partial<Record<RungKey, 'yes' | 'file'>>;
 // user reads them as the shared vocabulary from the legend above.
 function BuildsRow({ builds, note }: { builds: BuildsMap; note?: string }) {
   return (
-    <div className="mt-3 pt-2.5 border-t">
-      <div className="text-[11px] font-medium text-muted-foreground mb-1.5">Builds</div>
-      <div className="flex items-center gap-2.5">
+    <div className={classes.builds}>
+      <div className={classes.buildsLabel}>Builds</div>
+      <div className={classes.buildsRungs}>
         {RUNGS.map((r) => {
           const state = builds[r.key];
           const active = state === 'yes';
           const fileDep = state === 'file';
           return (
-            <Tooltip key={r.key}>
-              <TooltipTrigger asChild>
-                <span
-                  className={
-                    'flex items-center gap-1 text-xs whitespace-nowrap ' +
-                    (active
-                      ? 'text-foreground'
-                      : fileDep
-                      ? 'text-muted-foreground'
-                      : 'text-muted-foreground/30')
-                  }
-                >
-                  <r.Icon className="h-4 w-4" />
-                  <span>{r.label}</span>
-                  {fileDep && <span className="text-[10px]">*</span>}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[220px] text-xs">
-                <span className="font-medium">{r.label}</span> — {r.blurb}.{' '}
-                {active
-                  ? 'This path builds it.'
-                  : fileDep
-                  ? 'Produced if the uploaded file contains it.'
-                  : 'Not produced by this path.'}
-              </TooltipContent>
+            <Tooltip
+              key={r.key}
+              multiline
+              w={220}
+              events={TOOLTIP_EVENTS}
+              label={
+                <>
+                  <span className={classes.strong}>{r.label}</span> — {r.blurb}.{' '}
+                  {active
+                    ? 'This path builds it.'
+                    : fileDep
+                    ? 'Produced if the uploaded file contains it.'
+                    : 'Not produced by this path.'}
+                </>
+              }
+            >
+              <span className={classes.rung} data-state={active ? 'yes' : fileDep ? 'file' : 'no'}>
+                <r.Icon aria-hidden />
+                <span>{r.label}</span>
+                {fileDep && <span className={classes.fileMark}>*</span>}
+              </span>
             </Tooltip>
           );
         })}
       </div>
-      {note && <p className="text-[11px] text-muted-foreground/80 mt-1.5">{note}</p>}
+      {note && <p className={classes.buildsNote}>{note}</p>}
+    </div>
+  );
+}
+
+/**
+ * The ring-and-"i" mark whose tooltip explains the thing beside it: an image
+ * with a short name; the tooltip, which opens on hover and on focus, is its
+ * description while it shows (Mantine's Tooltip sets aria-describedby).
+ */
+function InfoMark({ tip, label, width = 240, testId }: { tip: ReactNode; label: string; width?: number; testId?: string }) {
+  return (
+    <Tooltip label={tip} multiline w={width} events={TOOLTIP_EVENTS}>
+      <span role="img" className={classes.info} tabIndex={0} aria-label={label} data-testid={testId}>
+        i
+      </span>
+    </Tooltip>
+  );
+}
+
+/** One creation path: its icon, title and tip, what it does, its button and what it builds. */
+function PathCard({
+  icon,
+  title,
+  tip,
+  description,
+  action,
+  builds,
+}: {
+  icon: ReactNode;
+  title: string;
+  tip: string;
+  description: string;
+  action: ReactNode;
+  builds: ReactNode;
+}) {
+  const { t } = useTranslation('semantic-models');
+  const titleId = useId();
+  const aboutLabel = t('semantic-models:define.about', { defaultValue: 'About {{name}}', name: title });
+  return (
+    <div role="group" aria-labelledby={titleId} className={classes.card}>
+      <div className={classes.cardIcon}>{icon}</div>
+      <div className={classes.cardTitleLine}>
+        <h3 id={titleId} className={classes.cardTitle}>{title}</h3>
+        <InfoMark tip={tip} label={aboutLabel} />
+      </div>
+      <p className={classes.cardDescription}>{description}</p>
+      <div className={classes.cardFoot}>
+        {action}
+        {builds}
+      </div>
     </div>
   );
 }
@@ -186,6 +231,9 @@ export default function DefineView() {
   const requiresWriteTitle = canWrite
     ? undefined
     : t('semantic-models:define.requiresWrite', 'Requires write access');
+  // Generate leads to the generator's run, which needs ontology write (the
+  // backend's check); Author and Import write schemes (semantic-models)
+  const canGenerate = hasPermission('ontology', FeatureAccessLevel.READ_WRITE);
 
   const { toast } = useToast();
 
@@ -200,6 +248,9 @@ export default function DefineView() {
   const wants = (name: OpenParam) => openParam === name;
   const wantsDialog = wants('author') || wants('generate') || wants('import');
   const canOpenFromUrl = !permissionsLoading && canWrite;
+  const canOpenGenerateFromUrl = !permissionsLoading && canGenerate;
+  // The dialog ?open= names, if any, and whether this user may open it
+  const allowedFromUrl = wants('generate') ? canGenerate : canWrite;
   const clearOpenParam = useCallback(
     () =>
       setSearchParams((prev) => {
@@ -210,15 +261,16 @@ export default function DefineView() {
     [setSearchParams],
   );
   const [authorOpen, setAuthorOpen] = useUrlDialog('author', openParam, canOpenFromUrl, clearOpenParam);
-  const [guidedOpen, setGuidedOpen] = useUrlDialog('generate', openParam, canOpenFromUrl, clearOpenParam);
+  const [guidedOpen, setGuidedOpen] = useUrlDialog('generate', openParam, canOpenGenerateFromUrl, clearOpenParam);
   const [importOpen, setImportOpen] = useUrlDialog('import', openParam, canOpenFromUrl, clearOpenParam);
   // Without write access, the param is dropped and nothing opens
   useEffect(() => {
-    if (wantsDialog && !permissionsLoading && !canWrite) clearOpenParam();
-  }, [wantsDialog, permissionsLoading, canWrite, clearOpenParam]);
+    if (wantsDialog && !permissionsLoading && !allowedFromUrl) clearOpenParam();
+  }, [wantsDialog, permissionsLoading, allowedFromUrl, clearOpenParam]);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [runs, setRuns] = useState<GenerationRunSummary[]>([]);
   const [runsLoading, setRunsLoading] = useState(true);
+  const [runsError, setRunsError] = useState(false);
 
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
 
@@ -235,26 +287,32 @@ export default function DefineView() {
       const res = await fetch('/api/knowledge/collections?hierarchical=true');
       if (res.ok) {
         const data = await res.json();
-        setCollections(data.collections || []);
+        setCollections(Array.isArray(data?.collections) ? data.collections : []);
       }
     } catch (err) {
       console.error('Failed to fetch collections:', err);
     }
   }, []);
 
-  // In-progress list: recent generator runs (real endpoint).
+  // In-progress list: recent generator runs (real endpoint). A failed load
+  // says so, with Retry; a reload that a newer one overtook drops its answer.
+  const runsLoadId = useRef(0);
   const fetchRuns = useCallback(async () => {
+    const id = ++runsLoadId.current;
     setRunsLoading(true);
     try {
       const res = await fetch('/api/ontology/runs?limit=10');
-      if (res.ok) {
-        const data = await res.json();
-        setRuns(data.runs || []);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (id !== runsLoadId.current) return;
+      setRuns(Array.isArray(data?.runs) ? data.runs : []);
+      setRunsError(false);
     } catch (err) {
+      if (id !== runsLoadId.current) return;
       console.error('Failed to fetch generation runs:', err);
+      setRunsError(true);
     } finally {
-      setRunsLoading(false);
+      if (id === runsLoadId.current) setRunsLoading(false);
     }
   }, []);
 
@@ -274,7 +332,10 @@ export default function DefineView() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.detail || 'Failed to create concept scheme');
+        const message = err?.detail || 'Failed to create concept scheme';
+        // Say so; the editor stays open (it catches the throw)
+        toast({ title: t('common:toast.error', 'Error'), description: message, variant: 'destructive' });
+        throw new Error(message);
       }
       const created = await res.json();
       toast({
@@ -320,267 +381,207 @@ export default function DefineView() {
     }
   };
 
+  const requiresWrite = { disabled: !canWrite, title: requiresWriteTitle };
+  const requiresGenerate = {
+    disabled: !canGenerate,
+    title: canGenerate ? undefined : t('semantic-models:define.requiresWrite', 'Requires write access'),
+  };
+
   return (
-    <TooltipProvider>
-    <div className="flex flex-col pt-3 pb-6 max-w-[1180px]">
-      {/* Header — description only (Simple/Advanced switch lives in the tab row). */}
-      <div className="mb-4">
-        <p className="text-sm text-muted-foreground">
-          {t('concepts:define.description', 'Author, generate, or import your business concept schemes.')}
-        </p>
-      </div>
-
-      {/* Slim education legend: the three output rungs, each with a reused icon +
-          one-line "what it is". The SAME three icons reappear inside every path
-          card below (the "Builds" row), lit for what that path produces. Teach the
-          vocabulary once here, then show it per card. Glossary -> taxonomy ->
-          ontology is a maturity progression: start simple, harden where needed. */}
-      <div className="mb-6 rounded-lg border bg-muted/30 px-3.5 py-2.5 text-xs">
-        <div className="mb-1.5 font-medium text-foreground">What you can build</div>
-        <div className="flex flex-col gap-y-2 sm:flex-row sm:items-start sm:gap-x-3">
-          {RUNGS.map((r, i) => (
-            <Fragment key={r.key}>
-            {/* Progression separator between rungs: decoupled from the
-                rung info icon, never after the last rung, and hidden
-                when the columns stack. */}
-            {i > 0 && (
-              <span
-                className="hidden shrink-0 self-center text-muted-foreground/40 sm:inline"
-                aria-hidden
-                data-testid="rung-separator"
-              >
-                →
-              </span>
-            )}
-            <div className="flex min-w-0 flex-1 items-start gap-2">
-              <r.Icon className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">{r.label}</span>
-                  {/* The RDF vocabulary this rung is written in (shown in both modes). */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        className="cursor-help text-xs text-muted-foreground border rounded-full h-4 w-4 inline-flex items-center justify-center"
-                        aria-label={`${r.label} vocabulary`}
-                        data-testid={`rung-vocab-${r.key}`}
-                      >
-                        i
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[280px] text-xs">
-                      <span className="font-mono">{r.vocab}</span>
-                      <span className="block mt-1 text-muted-foreground">Every scheme is a skos:ConceptScheme.</span>
-                    </TooltipContent>
-                  </Tooltip>
+    <PageLayout
+      header={
+        <>
+          <PageHeader title={t('semantic-models:tabs.define', 'Define')} />
+          <p className={classes.subtitle}>
+            {t('concepts:define.description', 'Author, generate, or import your business concept schemes.')}
+          </p>
+        </>
+      }
+    >
+      <PaneStack>
+        {/* Slim education legend: the three output rungs, each with a reused
+            icon + one-line "what it is". The SAME three icons reappear inside
+            every path card below (the "Builds" row), lit for what that path
+            produces. Glossary -> taxonomy -> ontology is a maturity
+            progression: start simple, harden where needed. */}
+        <Pane title="What you can build">
+          <div className={classes.rungs}>
+            {RUNGS.map((r, i) => (
+              <Fragment key={r.key}>
+                {/* Progression separator between rungs: decoupled from the
+                    rung info icon, never after the last rung, and hidden
+                    when the columns stack. */}
+                {i > 0 && (
+                  <span className={classes.separator} aria-hidden data-testid="rung-separator">
+                    →
+                  </span>
+                )}
+                <div className={classes.legendRung}>
+                  <r.Icon aria-hidden className={classes.legendIcon} />
+                  <div className={classes.legendText}>
+                    <div className={classes.legendTitle}>
+                      <span className={classes.strong}>{r.label}</span>
+                      {/* The RDF vocabulary this rung is written in (shown in both modes). */}
+                      <InfoMark
+                        width={280}
+                        label={`${r.label} vocabulary`}
+                        testId={`rung-vocab-${r.key}`}
+                        tip={
+                          <>
+                            <span className={classes.vocab}>{r.vocab}</span>
+                            <span className={classes.vocabNote}>Every scheme is a skos:ConceptScheme.</span>
+                          </>
+                        }
+                      />
+                    </div>
+                    <div className={classes.blurb} title={r.blurb}>
+                      {r.blurb}
+                    </div>
+                  </div>
                 </div>
-                <div className="truncate text-muted-foreground" title={r.blurb}>
-                  {r.blurb}
-                </div>
-              </div>
-            </div>
-            </Fragment>
-          ))}
-        </div>
-      </div>
+              </Fragment>
+            ))}
+          </div>
+        </Pane>
 
-      {/* Path cards */}
-      <h2 className="text-base font-semibold mb-3">
-        {t('semantic-models:define.startWith', 'Start with…')}
-      </h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-9">
-        {/* Author */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary mb-2">
-              <PencilLine className="h-4 w-4" />
-            </div>
-            <CardTitle className="flex items-center gap-1.5 text-base">
-              {t('semantic-models:define.author.title', 'Author')}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help text-xs text-muted-foreground border rounded-full h-4 w-4 inline-flex items-center justify-center">i</span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[240px]">
-                  {t(
-                    'semantic-models:define.author.tip',
-                    'Creates skos:Concept entries in a new concept scheme (skos:ConceptScheme). Entries can later be typed as owl:Class or an OWL property as the scheme matures.'
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </CardTitle>
-            <CardDescription>
-              {t('semantic-models:define.author.desc', 'Write terms yourself.')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Button
-              className="w-full"
-              disabled={!canWrite}
-              title={requiresWriteTitle}
-              onClick={() => setAuthorOpen(true)}
-            >
-              {t('semantic-models:define.author.cta', 'New Concept Scheme')}
-            </Button>
-            <BuildsRow
-              builds={{ glossary: 'yes', taxonomy: 'yes', ontology: 'yes' }}
-              note="Start as a glossary, harden over time."
-            />
-          </CardContent>
-        </Card>
-
-        {/* Generate */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary mb-2">
-              <Sparkles className="h-4 w-4" />
-            </div>
-            <CardTitle className="flex items-center gap-1.5 text-base">
-              {t('semantic-models:define.generate.title', 'Generate')}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help text-xs text-muted-foreground border rounded-full h-4 w-4 inline-flex items-center justify-center">i</span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[240px]">
-                  {t(
-                    'semantic-models:define.generate.tip',
-                    'A guided interview drafts an OWL ontology from your tables: classes (owl:Class, hierarchy via rdfs:subClassOf) and properties (owl:ObjectProperty / owl:DatatypeProperty). Every candidate carries its source and is saved as Draft for review.'
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </CardTitle>
-            <CardDescription>
-              {t('semantic-models:define.generate.desc', 'Answer a few questions; Ontos drafts the scheme.')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Button
-              className="w-full"
-              disabled={!canWrite}
-              title={requiresWriteTitle}
-              onClick={() => setGuidedOpen(true)}
-            >
-              {t('semantic-models:define.generate.cta', 'Start guided build')}
-            </Button>
-            <BuildsRow
-              builds={{ ontology: 'yes' }}
-              note="Saved as Draft for review."
-            />
-          </CardContent>
-        </Card>
-
-        {/* Import */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary mb-2">
-              <ArrowUpFromLine className="h-4 w-4" />
-            </div>
-            <CardTitle className="flex items-center gap-1.5 text-base">
-              {t('semantic-models:define.import.title', 'Import')}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help text-xs text-muted-foreground border rounded-full h-4 w-4 inline-flex items-center justify-center">i</span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[240px]">
-                  {t(
-                    'semantic-models:define.import.tip',
-                    'Parses .ttl / .rdf / .owl / .n3 / .jsonld. Several files can merge into one scheme or land one scheme per file. The source graph is preserved for round-trip export.'
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </CardTitle>
-            <CardDescription>
-              {t('semantic-models:define.import.desc', 'Upload RDF files into a scheme.')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Button
-              className="w-full"
-              variant="outline"
-              disabled={!canWrite}
-              title={requiresWriteTitle}
-              onClick={() => setImportOpen(true)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {t('semantic-models:define.import.cta', 'Upload files')}
-            </Button>
-            <BuildsRow
-              builds={{ glossary: 'file', taxonomy: 'file', ontology: 'file' }}
-              note="* Whatever the file contains. Imported terms stay read-only."
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* In progress */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-        {t('semantic-models:define.inProgress', 'In progress')}
-      </h3>
-      {runsLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('common:status.loading', 'Loading…')}
-        </div>
-      ) : inProgress.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4">
-          {t('semantic-models:define.noInProgress', 'No creation work in progress. Start with one of the paths above.')}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          {inProgressPage.map((run) => (
-            <Card key={run.run_id}>
-              {/* Thin, single-line row: icon · name+status · message · metadata
-                  (time, steps) all on ONE line, then the Review action. The
-                  message truncates so the metadata never wraps to a new row. */}
-              <CardContent className="flex items-center gap-3 py-2 px-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary shrink-0">
-                  <Zap className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-sm font-semibold whitespace-nowrap shrink-0">
-                  {t('semantic-models:define.generatorRun', 'Generator run')}
-                </span>
-                {statusBadge(run.status)}
-                <span className="text-sm text-muted-foreground truncate min-w-0 flex-1">
-                  {run.progress_message ||
-                    t('semantic-models:define.draftPending', 'Draft not yet assigned to a concept scheme.')}
-                </span>
-                {/* Metadata (relative time + step count) lined up in the same
-                    row, right-aligned before the action. */}
-                <div className="flex items-center gap-3 text-[11px] text-muted-foreground shrink-0">
-                  {run.created_at && (
-                    <span title={new Date(run.created_at).toLocaleString()} className="whitespace-nowrap">
-                      {relativeTime(run.created_at)}
-                    </span>
-                  )}
-                  {typeof run.step_count === 'number' && run.step_count > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <Layers className="h-3 w-3" />
-                      {t('semantic-models:define.stepCount', '{{count}} steps', {
-                        count: run.step_count,
-                      })}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => navigate(`/concepts/generator?run=${encodeURIComponent(run.run_id)}`)}
-                >
-                  {t('semantic-models:define.review', 'Review')}
+        {/* Path cards */}
+        <Pane title={t('semantic-models:define.startWith', 'Start with…')}>
+          <div className={classes.cards}>
+            <PathCard
+              icon={<PencilLine aria-hidden />}
+              title={t('semantic-models:define.author.title', 'Author')}
+              tip={t(
+                'semantic-models:define.author.tip',
+                'Creates skos:Concept entries in a new concept scheme (skos:ConceptScheme). Entries can later be typed as owl:Class or an OWL property as the scheme matures.'
+              )}
+              description={t('semantic-models:define.author.desc', 'Write terms yourself.')}
+              action={
+                <Button className={classes.cta} {...requiresWrite} onClick={() => setAuthorOpen(true)}>
+                  {t('semantic-models:define.author.cta', 'New Concept Scheme')}
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
-          <PaginationControls
-            page={inProgressPageNum}
-            pageCount={inProgressPageCount}
-            onPageChange={setInProgressPage}
-            pageSize={inProgressPageSize}
-            onPageSizeChange={setInProgressPageSize}
-          />
-        </div>
-      )}
+              }
+              builds={
+                <BuildsRow
+                  builds={{ glossary: 'yes', taxonomy: 'yes', ontology: 'yes' }}
+                  note="Start as a glossary, harden over time."
+                />
+              }
+            />
+            <PathCard
+              icon={<Sparkles aria-hidden />}
+              title={t('semantic-models:define.generate.title', 'Generate')}
+              tip={t(
+                'semantic-models:define.generate.tip',
+                'A guided interview drafts an OWL ontology from your tables: classes (owl:Class, hierarchy via rdfs:subClassOf) and properties (owl:ObjectProperty / owl:DatatypeProperty). Every candidate carries its source and is saved as Draft for review.'
+              )}
+              description={t('semantic-models:define.generate.desc', 'Answer a few questions; Ontos drafts the scheme.')}
+              action={
+                <Button className={classes.cta} {...requiresGenerate} onClick={() => setGuidedOpen(true)}>
+                  {t('semantic-models:define.generate.cta', 'Start guided build')}
+                </Button>
+              }
+              builds={<BuildsRow builds={{ ontology: 'yes' }} note="Saved as Draft for review." />}
+            />
+            <PathCard
+              icon={<ArrowUpFromLine aria-hidden />}
+              title={t('semantic-models:define.import.title', 'Import')}
+              tip={t(
+                'semantic-models:define.import.tip',
+                'Parses .ttl / .rdf / .owl / .n3 / .jsonld. Several files can merge into one scheme or land one scheme per file. The source graph is preserved for round-trip export.'
+              )}
+              description={t('semantic-models:define.import.desc', 'Upload RDF files into a scheme.')}
+              action={
+                <Button className={classes.cta} variant="outline" {...requiresWrite} onClick={() => setImportOpen(true)}>
+                  <Upload aria-hidden />
+                  {t('semantic-models:define.import.cta', 'Upload files')}
+                </Button>
+              }
+              builds={
+                <BuildsRow
+                  builds={{ glossary: 'file', taxonomy: 'file', ontology: 'file' }}
+                  note="* Whatever the file contains. Imported terms stay read-only."
+                />
+              }
+            />
+          </div>
+        </Pane>
+
+        {/* In progress */}
+        <Pane title={t('semantic-models:define.inProgress', 'In progress')}>
+          {runsLoading ? (
+            <div className={classes.loading}>
+              <Loader size={14} />
+              {t('common:status.loading', 'Loading…')}
+            </div>
+          ) : runsError ? (
+            <div className={classes.state}>
+              <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.alert}>
+                {t('semantic-models:define.runsFailed', 'Could not load the creation work in progress.')}
+              </Alert>
+              <Button variant="outline" onClick={fetchRuns}>{t('common:retry')}</Button>
+            </div>
+          ) : inProgress.length === 0 ? (
+            <p className={classes.empty}>
+              {t('semantic-models:define.noInProgress', 'No creation work in progress. Start with one of the paths above.')}
+            </p>
+          ) : (
+            <>
+              <ul className={classes.runs}>
+                {inProgressPage.map((run) => {
+                  const message =
+                    run.progress_message ||
+                    t('semantic-models:define.draftPending', 'Draft not yet assigned to a concept scheme.');
+                  return (
+                    // Thin, single-line row: icon · name+status · message ·
+                    // metadata (time, steps), then the Review action. The
+                    // message truncates (its title has it in full) so the
+                    // metadata never wraps to a new row.
+                    <li key={run.run_id} className={classes.run}>
+                      <span className={classes.runIcon}>
+                        <Zap aria-hidden />
+                      </span>
+                      <span className={classes.runName}>
+                        {t('semantic-models:define.generatorRun', 'Generator run')}
+                      </span>
+                      {statusBadge(run.status)}
+                      <span className={classes.runMessage} title={message}>
+                        {message}
+                      </span>
+                      <span className={classes.runMeta}>
+                        {run.created_at && (
+                          <span title={new Date(run.created_at).toLocaleString()}>{relativeTime(run.created_at)}</span>
+                        )}
+                        {typeof run.step_count === 'number' && run.step_count > 0 && (
+                          <span className={classes.steps}>
+                            <Layers aria-hidden />
+                            {t('semantic-models:define.stepCount', '{{count}} steps', {
+                              count: run.step_count,
+                            })}
+                          </span>
+                        )}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/concepts/generator?run=${encodeURIComponent(run.run_id)}`)}
+                      >
+                        {t('semantic-models:define.review', 'Review')}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <PaginationControls
+                page={inProgressPageNum}
+                pageCount={inProgressPageCount}
+                onPageChange={setInProgressPage}
+                pageSize={inProgressPageSize}
+                onPageSizeChange={setInProgressPageSize}
+              />
+            </>
+          )}
+        </Pane>
+      </PaneStack>
 
       {/* Author: create a new concept scheme in place (reuses the collection
           editor; a collection IS a concept scheme in the domain model). */}
@@ -604,7 +605,6 @@ export default function DefineView() {
           fetchCollections();
         }}
       />
-    </div>
-    </TooltipProvider>
+    </PageLayout>
   );
 }

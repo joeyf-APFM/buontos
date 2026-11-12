@@ -4,10 +4,13 @@
  */
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Alert, Loader } from '@mantine/core';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
+import { AlertCircle, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Copy, Loader2 } from 'lucide-react';
+import panel from '@/components/common/panel.module.css';
+import classes from './turtle-serialization-panel.module.css';
 
 interface TurtleSerializationPanelProps {
   conceptIri: string;
@@ -21,8 +24,12 @@ export function TurtleSerializationPanel({ conceptIri }: TurtleSerializationPane
   const [turtleText, setTurtleText] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Retry bumps it, to fetch again
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    // An answer for a concept the page has moved on from is dropped
+    let cancelled = false;
     const fetchTriples = async () => {
       setLoading(true);
       setError(null);
@@ -32,6 +39,7 @@ export function TurtleSerializationPanel({ conceptIri }: TurtleSerializationPane
         const res = await post<Array<{ p: string; o: string | object }>>('/api/semantic-models/query', {
           sparql,
         });
+        if (cancelled) return;
 
         if (res.error) {
           throw new Error(res.error);
@@ -71,17 +79,21 @@ export function TurtleSerializationPanel({ conceptIri }: TurtleSerializationPane
           setTurtleText(lines.join('\n'));
         }
       } catch (err: any) {
+        if (cancelled) return;
         setError(err?.message || 'Failed to fetch triples');
         setTurtleText('');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (conceptIri) {
       fetchTriples();
     }
-  }, [conceptIri, post]);
+    return () => {
+      cancelled = true;
+    };
+  }, [conceptIri, post, attempt]);
 
   const handleCopy = async () => {
     try {
@@ -99,35 +111,50 @@ export function TurtleSerializationPanel({ conceptIri }: TurtleSerializationPane
     }
   };
 
+  // A flush panel (components/common/panel.module.css): the page's Pane frames it
   return (
-    <div className="rounded-lg border bg-card p-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium">
+    <div className={panel.pane} data-flush>
+      <div className={panel.head}>
+        <h3 className={panel.title}>
           {t('semantic-models:advanced.turtle', 'RDF (Turtle)')}
         </h3>
         {!loading && !error && turtleText && (
-          <Button size="sm" variant="ghost" onClick={handleCopy} className="h-6 w-6 p-0">
-            <Copy className="h-4 w-4" />
-          </Button>
+          <div className={panel.actions}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size={24}
+              onClick={handleCopy}
+              aria-label={t('common:actions.copy', 'Copy')}
+              title={t('common:actions.copy', 'Copy')}
+            >
+              <Copy size={14} />
+            </ActionIcon>
+          </div>
         )}
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {t('common:actions.loading')}
-        </div>
-      )}
+      <div className={panel.body}>
+        {loading && (
+          <p className={classes.loading}>
+            <Loader size={12} color="currentColor" />
+            {t('common:actions.loading')}
+          </p>
+        )}
 
-      {error && (
-        <p className="text-xs text-destructive py-2">{error}</p>
-      )}
+        {error && (
+          <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:toast.error')}>
+            <span className={classes.error}>{error}</span>
+            <div className={classes.alertActions}>
+              <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+                {t('common:retry')}
+              </Button>
+            </div>
+          </Alert>
+        )}
 
-      {!loading && !error && turtleText && (
-        <pre className="text-xs bg-muted p-2 rounded border overflow-x-auto max-h-64 overflow-y-auto font-mono whitespace-pre-wrap break-words">
-          {turtleText}
-        </pre>
-      )}
+        {!loading && !error && turtleText && <pre className={classes.turtle}>{turtleText}</pre>}
+      </div>
     </div>
   );
 }

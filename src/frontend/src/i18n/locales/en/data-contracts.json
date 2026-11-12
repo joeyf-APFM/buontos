@@ -1,5 +1,6 @@
 {
   "title": "Data Contracts",
+  "listPane": "Data contract list",
   "subtitle": "Manage your data contracts and specifications",
   "newContract": "New Contract",
   "uploadFile": "Upload File",
@@ -301,7 +302,8 @@
     "description": {
       "purpose": "Purpose",
       "limitations": "Limitations",
-      "usage": "Usage"
+      "usage": "Usage",
+      "edit": "Edit description"
     },
     "schemas": {
       "title": "Schemas ({{count}})",
@@ -523,6 +525,10 @@
       "startProfilingFailed": "Failed to start profiling",
       "invalidVersionFormat": "\"{{version}}\" is not a valid version: a new version uses the X.Y.Z form, for example 2.0.0.",
       "draftVersionFormat": "This contract's version \"{{version}}\" isn't in the X.Y.Z form, so a personal draft can't be made from it. Create a new version (for example 2.0.0) instead."
+    },
+    "rowActions": {
+      "edit": "Edit {{name}}",
+      "delete": "Delete {{name}}"
     }
   },
   "list": {
@@ -905,7 +911,8 @@
       "fromPlaceholder": "e.g., customer_id",
       "to": "To (target reference)",
       "toPlaceholder": "e.g., schema.table.column",
-      "add": "Add Relationship"
+      "add": "Add Relationship",
+      "remove": "Remove relationship {{from}} → {{to}}"
     },
     "toast": {
       "validationError": "Validation Error",
@@ -1530,7 +1537,9 @@
     "valuePlaceholder": "Value",
     "newPropertyPlaceholder": "New property key",
     "addProperty": "Add Property",
-    "addButton": "Add Server"
+    "addButton": "Add Server",
+    "propertyValue": "Value of {{key}}",
+    "removeProperty": "Remove {{key}}"
   },
   "tag": {
     "validationError": "Validation Error",

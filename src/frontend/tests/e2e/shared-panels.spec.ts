@@ -42,6 +42,17 @@ const PANEL_FIXTURES = {
     filter_type: 'all',
   },
   '/api/entities/asset/e2e-asset-1/timeline/count': { total_count: 2 },
+  // For the flush panels' harness
+  '/api/entities/asset/e2e-asset-1/tags': [
+    { tag_id: 't1', tag_name: 'pii', namespace_name: 'governance', fully_qualified_name: 'governance/pii', assigned_value: null },
+  ],
+  '/api/entities/asset/e2e-asset-1/ratings': { average_rating: 4, total_ratings: 2, distribution: { 4: 2 } },
+  '/api/entities/asset/e2e-asset-1/quality-items': [
+    { id: 'q1', title: 'Null keys', dimension: 'completeness', source: 'manual', score_percent: 80, measured_at: STAMP },
+  ],
+  '/api/entities/asset/e2e-asset-1/quality-items/summary': {
+    overall_score_percent: 80, items_count: 1, by_dimension: { completeness: 80 }, measured_at: STAMP,
+  },
 };
 
 const style = (loc: Locator, props: string[]) =>
@@ -86,7 +97,9 @@ test('ownership panel: owners in an 86px label column, 12px rows 5px apart with 
   await capture(page, 'ownership-panel', panel);
 
   const grid = panel.locator('dl').first();
-  expect((await style(grid, ['grid-template-columns']))['grid-template-columns']).toMatch(/^86px /);
+  // Task 13d: pairs in two columns; the 86px label column is inside each pair
+  expect((await style(grid, ['display', 'flex-wrap']))).toEqual({ display: 'flex', 'flex-wrap': 'wrap' });
+  expect((await style(grid.locator(':scope > div').first(), ['grid-template-columns']))['grid-template-columns']).toMatch(/^86px /);
   const term = grid.locator('dt').first();
   expect(await term.textContent()).toBe('Data Owner');
   expect((await term.boundingBox())!.width).toBe(86);
@@ -94,16 +107,43 @@ test('ownership panel: owners in an 86px label column, 12px rows 5px apart with 
   expect((await style(grid.locator('dd').first(), ['border-bottom-width']))['border-bottom-width']).toBe('0px');
   // The explorer details panel's density (R12): a 5px gap between rows and no
   // padding, so a text row is about 23px from the next (page-kit.spec.ts). An
-  // owner row is as tall as its 24px remove button, so these sit 29px apart.
+  // owner row is as tall as its 24px remove button.
   const [first, second] = [(await term.boundingBox())!, (await grid.locator('dt').nth(1).boundingBox())!];
   expect(await style(term, ['padding-top', 'padding-bottom'])).toEqual({ 'padding-top': '0px', 'padding-bottom': '0px' });
   expect((await style(grid, ['row-gap']))['row-gap']).toBe('5px');
   const remove = (await grid.locator('dd').first().getByRole('button').boundingBox())!;
   expect(first.height).toBe(remove.height);
-  expect(Math.abs(second.y - first.y - (remove.height + 5))).toBeLessThanOrEqual(1);
+  // Two owners share the first row (Task 13d), side by side
+  expect(Math.abs(second.y - first.y)).toBeLessThanOrEqual(0.5);
+  expect(second.x).toBeGreaterThan(first.x + first.width);
   // A pane: one 1px border, no shadow, no card inside
   expect(await style(panel, ['box-shadow', 'border-top-width'])).toEqual({ 'box-shadow': 'none', 'border-top-width': '1px' });
   await expect(panel.locator('.mantine-Paper-root')).toHaveCount(0);
+});
+
+// Fix round 1 of Task 13d: the owner row sits in half the pane's width
+test('ownership panel: a long owner name truncates in its half and the named remove button stays inside the row', async ({ page }) => {
+  const LONG = `Alexandria ${'Montgomery-Featherstonehaugh'.repeat(6)}`;
+  await page.setViewportSize({ width: 900, height: 1600 });
+  await mockApi(page, PERSONAS.admin, {
+    ...PANEL_FIXTURES,
+    '/api/business-owners/by-object/asset': [owner('o1', LONG, 'Data Owner'), owner('o2', 'Bob Roe', 'Data Steward')],
+  });
+  await page.goto('/assets/e2e-asset-1');
+  const panel = page.getByRole('region', { name: 'Owners' });
+  await expect(panel.getByText('Bob Roe')).toBeVisible();
+  const button = panel.getByRole('button', { name: `Remove ${LONG}` });
+  await expect(button).toBeVisible();
+  const pair = panel.locator('dl > div').first();
+  const [row, btn] = [(await pair.boundingBox())!, (await button.boundingBox())!];
+  expect(btn.x).toBeGreaterThanOrEqual(row.x);
+  expect(btn.x + btn.width).toBeLessThanOrEqual(row.x + row.width + 0.5);
+  // The name is cut by the ellipsis, inside the pair
+  const name = panel.getByText(LONG, { exact: true });
+  expect(await name.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  const nb = (await name.boundingBox())!;
+  expect(nb.x + nb.width).toBeLessThanOrEqual(btn.x + 0.5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('metadata panel: sections divided by border-subtle, 12px text, no nested cards', async ({ page }) => {
@@ -198,4 +238,172 @@ test('badges: the Aura status colours, with text at least 4.5:1 on the fill', as
   const hovered = (await style(chip, ['background-color']))['background-color'];
   const value = (await style(chip.getByText('4.2'), ['color']))['color'];
   expect(contrast(value, hovered)).toBeGreaterThanOrEqual(4.5);
+});
+
+test('entity metadata panel rows are 28px inside a Pane', async ({ page }) => {
+  // The panels in flush mode (wave 2 Task 3), each in a kit Pane: the Pane
+  // has the frame and padding, the panel none of its own
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await mockApi(page, PERSONAS.admin, PANEL_FIXTURES);
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => {
+    const harness = await import(/* @vite-ignore */ path);
+    harness.mountFlushPanels();
+  }, '/tests/e2e/fixtures/panels-harness.tsx');
+  const stage = page.getByTestId('stage');
+  await expect(stage.getByText('Read me')).toBeVisible();
+  await expect(stage.getByText('Alice Doe')).toBeVisible();
+  await capture(page, 'flush-panels', stage);
+
+  const host = stage.getByRole('region', { name: 'Metadata pane' });
+  const panel = host.getByRole('region', { name: 'Metadata' });
+  // No frame or padding of the panel's own, inside the Pane's 1px border
+  expect(await style(host, ['border-left-width'])).toEqual({ 'border-left-width': '1px' });
+  expect(await style(panel, ['border-top-width', 'padding-left', 'background-color', 'font-size'])).toEqual({
+    'border-top-width': '0px', 'padding-left': '0px', 'background-color': 'rgba(0, 0, 0, 0)', 'font-size': '12px',
+  });
+  const [hostBox, panelBox] = [(await host.boundingBox())!, (await panel.boundingBox())!];
+  // The Pane's 12px body padding is the only inset
+  expect(panelBox.x - hostBox.x).toBe(1 + 12);
+  const body = panel.locator(':scope > div').last();
+  expect(await style(body, ['padding-left', 'padding-top'])).toEqual({ 'padding-left': '0px', 'padding-top': '0px' });
+
+  // The table rows, with their icon buttons, are 28px; labels and headings 12px
+  for (const name of ['Additional Notes', 'Related Links']) {
+    const rows = panel.getByRole('region', { name }).getByRole('row');
+    await expect(rows).toHaveCount(2);
+    // Measured on the cells, as the explorer grid's (data-catalog.spec.ts)
+    for (const i of [0, 1]) {
+      expect((await rows.nth(i).locator('th, td').first().boundingBox())!.height, `${name} row ${i}`).toBe(28);
+    }
+    expect((await style(rows.nth(0).getByRole('columnheader').first(), ['font-size']))['font-size']).toBe('12px');
+    expect((await style(panel.getByRole('heading', { name }), ['font-size']))['font-size']).toBe('12px');
+  }
+  expect((await style(panel.getByRole('heading', { name: 'Metadata' }), ['font-size']))['font-size']).toBe('12px');
+
+  // The ownership panel's labels: the DetailsGrid's 86px column, 12px, text-secondary
+  const owners = stage.getByRole('region', { name: 'Owners pane' }).getByRole('region', { name: 'Owners' });
+  expect(await style(owners, ['border-top-width', 'padding-left'])).toEqual({ 'border-top-width': '0px', 'padding-left': '0px' });
+  const term = owners.locator('dl dt').first();
+  expect((await term.boundingBox())!.width).toBe(86);
+  expect(await style(term, ['font-size', 'color'])).toEqual({ 'font-size': '12px', color: 'rgb(86, 93, 101)' });
+});
+
+test('entity info dialog: Subscribe and Close stay in view; the height holds as the notes load', async ({ page }) => {
+  // The Marketplace's info dialog (and five other callers): a fixed 80vh, the
+  // footer always on screen, and the notes scrolling inside the body
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockApi(page, PERSONAS.admin, {
+    ...DATA_FIXTURES,
+    '/api/entities/data_product/e2e-product-1/ratings': { average_rating: 4, total_ratings: 2, distribution: { 4: 2 } },
+  });
+  const notes = Array.from({ length: 3 }, (_, i) => ({
+    id: `n${i}`, title: `Note ${i + 1}`, level: i,
+    content_markdown: Array.from({ length: 30 }, (_, j) => `Line ${j + 1} of note ${i + 1}.`).join('\n\n'),
+  }));
+  // The notes answer late, so the dialog is measured loading and loaded
+  await page.route((url) => url.pathname === '/api/entities/data_product/rich-texts', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.fulfill({ json: notes });
+  });
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountInfoDialog(), '/tests/e2e/fixtures/panels-harness.tsx');
+  const dialog = page.getByRole('dialog', { name: 'Customer 360' });
+  await expect(dialog).toBeVisible();
+  // Past the Modal's transition (the loading spinner never stops animating)
+  await page.waitForTimeout(400);
+  await expect(dialog.getByText('Loading...')).toBeVisible();
+  const loading = (await dialog.boundingBox())!;
+  await expect(dialog.getByText('Line 30 of note 3.')).toBeAttached();
+  const loaded = (await dialog.boundingBox())!;
+  expect([loading.height, loaded.height]).toEqual([640, 640]);
+  expect([Math.round(loaded.width), loaded.y]).toEqual([960, loading.y]);
+
+  for (const name of ['Close', 'Subscribe', 'Go to Details']) {
+    // (the footer's Close comes before the corner close)
+    await expect(dialog.getByRole('button', { name, exact: true }).first()).toBeInViewport({ ratio: 1 });
+  }
+  // The body is what scrolls
+  const scrolls = await dialog.evaluate((el) =>
+    [...el.querySelectorAll('*')].some((d) => getComputedStyle(d).overflowY === 'auto' && d.scrollHeight > d.clientHeight && d.contains(el.querySelector('h1'))),
+  );
+  expect(scrolls).toBe(true);
+  expect(await dialog.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(false);
+});
+
+test('tags, ratings and quality panels sit flush in their Panes: 12px titles, 28px quality rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 1400 });
+  await mockApi(page, PERSONAS.admin, PANEL_FIXTURES);
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountFlushPanels(), '/tests/e2e/fixtures/panels-harness.tsx');
+  const stage = page.getByTestId('stage');
+  await expect(stage.getByText('Null keys')).toBeVisible();
+
+  for (const [pane, name] of [['Tags pane', 'Tags'], ['Ratings pane', 'Ratings'], ['Quality pane', 'Data Quality']]) {
+    const host = stage.getByRole('region', { name: pane });
+    const panel = host.getByRole('region', { name });
+    expect(await style(panel, ['border-top-width', 'padding-left', 'background-color']), name).toEqual({
+      'border-top-width': '0px', 'padding-left': '0px', 'background-color': 'rgba(0, 0, 0, 0)',
+    });
+    expect((await panel.boundingBox())!.x - (await host.boundingBox())!.x, name).toBe(1 + 12);
+    expect((await style(panel.getByRole('heading', { name }), ['font-size']))['font-size'], name).toBe('12px');
+  }
+  const quality = stage.getByRole('region', { name: 'Quality pane' }).getByRole('region', { name: 'Data Quality' });
+  const rows = quality.getByRole('row');
+  await expect(rows).toHaveCount(2);
+  for (const i of [0, 1]) {
+    expect((await rows.nth(i).locator('th, td').first().boundingBox())!.height, `quality row ${i}`).toBe(28);
+  }
+  // The gauge shrinks to 40px in a pane
+  const gauge = quality.getByLabel('Quality score', { exact: true });
+  expect((await gauge.boundingBox())!.height).toBe(40);
+});
+
+test('copy from team: Assign hands focus to the Assign Owner dialog it opens', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await mockApi(page, PERSONAS.admin, {
+    ...PANEL_FIXTURES,
+    '/api/teams/e2e-team-1/members': [{ id: 'm1', member_identifier: 'bea@example.com', member_type: 'user', member_name: 'Bea Poe' }],
+    '/api/business-roles': [{ id: 'r1', name: 'Business Owner', status: 'active' }],
+  });
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountFlushPanels(), '/tests/e2e/fixtures/panels-harness.tsx');
+  await page.getByRole('button', { name: 'Copy from Team' }).click();
+  const copy = page.getByRole('dialog', { name: /Copy from Team/ });
+  await copy.getByRole('button', { name: 'Assign', exact: true }).click();
+  const assign = page.getByRole('dialog', { name: 'Assign Owner' });
+  await expect(assign).toBeVisible();
+  await expect(copy).toHaveCount(0);
+  // Past both transitions and Mantine's 10ms focus-return timer: focus is in
+  // the Assign dialog, not back on Copy from Team behind it
+  await page.waitForTimeout(500);
+  expect(await assign.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+});
+
+test('copy from team: closing the Assign Owner it opened returns focus to Assign Owner', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await mockApi(page, PERSONAS.admin, {
+    ...PANEL_FIXTURES,
+    '/api/teams/e2e-team-1/members': [{ id: 'm1', member_identifier: 'bea@example.com', member_type: 'user', member_name: 'Bea Poe' }],
+    '/api/business-roles': [{ id: 'r1', name: 'Business Owner', status: 'active' }],
+  });
+  await page.goto('/assets');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountFlushPanels(), '/tests/e2e/fixtures/panels-harness.tsx');
+  const owners = page.getByRole('region', { name: 'Owners' });
+  await owners.getByRole('button', { name: 'Copy from Team' }).click();
+  await page.getByRole('dialog', { name: /Copy from Team/ }).getByRole('button', { name: 'Assign', exact: true }).click();
+  const assign = page.getByRole('dialog', { name: 'Assign Owner' });
+  await expect(assign).toBeVisible();
+  await page.waitForTimeout(500);
+  await assign.getByRole('button', { name: 'Cancel' }).click();
+  await expect(assign).toHaveCount(0);
+  // Past the exit transition and Mantine's focus-return timer: on the header's
+  // Assign Owner button, never the body
+  await page.waitForTimeout(500);
+  await expect(owners.getByRole('button', { name: 'Assign Owner' })).toBeFocused();
 });

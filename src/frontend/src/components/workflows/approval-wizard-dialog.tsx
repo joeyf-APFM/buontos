@@ -3,34 +3,17 @@
  * Creates session, shows steps (user_action: fields, acceptances), submits until complete or abort.
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo, useId } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Group, Stack } from '@mantine/core';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Checkbox, Group, Radio, Select, Stack, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Loader2, Check, XCircle, ChevronRight, FileText, Eye, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Dialog } from '@/mantine/page';
 import { badgeToneStyle } from '@/components/common/aura-status';
 import badges from '@/components/common/badges.module.css';
+import detail from '@/components/common/detail-page.module.css';
+import { uniqueOptions } from '@/components/common/dialog-form';
 import { cn } from '@/lib/utils';
 import classes from './approval-wizard.module.css';
 import { useApi } from '@/hooks/use-api';
@@ -190,8 +173,10 @@ export function FetchedSelectField(props: {
   onChange: (v: string) => void;
   disabled?: boolean;
   fetcher: <T,>(url: string) => Promise<{ data?: T; error?: string | null }>;
+  /** The field's label; without one, the field's own label names the Select. */
+  label?: ReactNode;
 }) {
-  const { field, value, onChange, disabled, fetcher } = props;
+  const { field, value, onChange, disabled, fetcher, label } = props;
   const { t } = useTranslation(['workflows', 'common']);
   const [options, setOptions] = useState<Array<{ value: string; label: string }>>(field.options ?? []);
   const [isLoading, setIsLoading] = useState(false);
@@ -239,23 +224,19 @@ export function FetchedSelectField(props: {
   }, [field.options_endpoint, field.options, fetcher]);
 
   return (
-    <Select value={value} onValueChange={onChange} disabled={disabled || isLoading}>
-      <SelectTrigger id={field.id}>
-        <SelectValue placeholder={isLoading ? t('workflows:approvalWizard.loadingEllipsis') : (field.label ?? t('workflows:approvalWizard.selectEllipsis'))} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value}>
-            {opt.label}
-          </SelectItem>
-        ))}
-        {options.length === 0 && !isLoading && (
-          <div className={classes.optionsEmpty}>
-            {fetchError ?? t('workflows:approvalWizard.noOptionsAvailable')}
-          </div>
-        )}
-      </SelectContent>
-    </Select>
+    <Select
+      id={field.id}
+      label={label}
+      aria-label={label ? undefined : field.label}
+      data={uniqueOptions(options)}
+      value={value || null}
+      onChange={(v) => v && onChange(v)}
+      allowDeselect={false}
+      disabled={disabled || isLoading}
+      placeholder={isLoading ? t('workflows:approvalWizard.loadingEllipsis') : (field.label ?? t('workflows:approvalWizard.selectEllipsis'))}
+      nothingFoundMessage={isLoading ? undefined : (fetchError ?? t('workflows:approvalWizard.noOptionsAvailable'))}
+      classNames={{ label: classes.label, option: classes.option, empty: classes.optionsEmpty }}
+    />
   );
 }
 
@@ -830,26 +811,59 @@ export default function ApprovalWizardDialog({
   const stepTitle = currentStep?.config?.title as string | undefined;
   const maxCoSigners = (currentStep?.config?.max_count as number) ?? 5;
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className={classes.content}>
-        <DialogHeader>
-          <DialogTitle className={classes.titleRow}>
-            {t('workflows:approvalWizard.title')}
-            {previewMode && (
-              <Badge variant="outline" className={badges.badge} style={badgeToneStyle('warning')}>
-                <Eye size={12} className={badges.mark} />
-                {t('workflows:approvalWizard.previewBadge')}
-              </Badge>
-            )}
-          </DialogTitle>
-          <DialogDescription className={classes.description}>
-            {previewMode ? (
-              t('workflows:approvalWizard.dryRunDescription')
-            ) : !sessionId ? t('workflows:approvalWizard.chooseWorkflow') : currentStep ? t('workflows:approvalWizard.stepPrefix', { name: defaultText(currentStep.name) }) : completeResult ? t('workflows:approvalWizard.completedShort') : t('workflows:approvalWizard.loadingEllipsis')}
-          </DialogDescription>
-        </DialogHeader>
+  const isVisualStep = !!(sessionId && currentStep && !isNonVisualStep);
 
+  // The state's actions, in the kit's footer: the completion's Close, the
+  // chooser's Cancel, or a visual step's Cancel and Next (or Complete)
+  const footer = completeResult ? (
+    <Button onClick={() => {
+      if (!previewMode) {
+        onComplete?.(completeResult.agreement_id, completeResult.pdf_storage_path, { ...collectedFieldsRef.current });
+      }
+      onOpenChange(false);
+    }}>{t('common:actions.close')}</Button>
+  ) : !sessionId ? (
+    <Button variant="ghost" onClick={() => { toast({ title: t('workflows:approvalWizard.messages.cancelled'), variant: 'default' }); onOpenChange(false); }}>{t('common:actions.cancel')}</Button>
+  ) : isVisualStep ? (
+    <>
+      <Button variant="ghost" onClick={abortSession} disabled={loading}>
+        {loading ? <Loader2 className={detail.spin} /> : <XCircle />}
+        {t('common:actions.cancel')}
+      </Button>
+      <Button onClick={submitStep} disabled={loading || !isStepValid}>
+        {loading ? <Loader2 className={detail.spin} /> : <Check />}
+        {isLastVisualStep ? t('workflows:approvalWizard.completeButton') : t('common:actions.next')}
+      </Button>
+    </>
+  ) : undefined;
+
+  /** A required star, after a label. */
+  const star = <span className={classes.required}> *</span>;
+
+  return (
+    <Dialog
+      opened={isOpen}
+      onClose={() => handleDialogOpenChange(false)}
+      size="md"
+      title={
+        <span className={classes.titleRow}>
+          {t('workflows:approvalWizard.title')}
+          {previewMode && (
+            <Badge variant="outline" className={badges.badge} style={badgeToneStyle('warning')}>
+              <Eye size={12} className={badges.mark} />
+              {t('workflows:approvalWizard.previewBadge')}
+            </Badge>
+          )}
+        </span>
+      }
+      description={
+        previewMode ? (
+          t('workflows:approvalWizard.dryRunDescription')
+        ) : !sessionId ? t('workflows:approvalWizard.chooseWorkflow') : currentStep ? t('workflows:approvalWizard.stepPrefix', { name: defaultText(currentStep.name) }) : completeResult ? t('workflows:approvalWizard.completedShort') : t('workflows:approvalWizard.loadingEllipsis')
+      }
+      footer={footer}
+    >
+      <div className={classes.body}>
         {/* Progress indicator — shown when a session is active and we know the step count */}
         {sessionId && totalSteps > 0 && (
           <div className={classes.progress}>
@@ -898,14 +912,6 @@ export default function ApprovalWizardDialog({
                 {t('workflows:approvalWizard.downloadAgreement')}
               </Button>
             )}
-            <DialogFooter className={cn(classes.footer, classes.stretch)}>
-              <Button onClick={() => {
-                if (!previewMode) {
-                  onComplete?.(completeResult.agreement_id, completeResult.pdf_storage_path, { ...collectedFieldsRef.current });
-                }
-                onOpenChange(false);
-              }}>{t('common:actions.close')}</Button>
-            </DialogFooter>
           </Stack>
         )}
 
@@ -918,7 +924,7 @@ export default function ApprovalWizardDialog({
               <Button
                 key={wf.id}
                 variant="outline"
-                className="w-full justify-between"
+                className={classes.choice}
                 disabled={loading}
                 onClick={() => startSession(wf.id)}
               >
@@ -926,16 +932,13 @@ export default function ApprovalWizardDialog({
                 <ChevronRight />
               </Button>
             ))}
-            <DialogFooter className={classes.footer}>
-              <Button variant="ghost" onClick={() => { toast({ title: t('workflows:approvalWizard.messages.cancelled'), variant: 'default' }); onOpenChange(false); }}>{t('common:actions.cancel')}</Button>
-            </DialogFooter>
           </Stack>
         )}
 
         {/* Non-visual step: spinner with auto-advancing message */}
         {sessionId && currentStep && isNonVisualStep && (
           <Stack className={classes.waiting} align="center" justify="center" gap={8}>
-            <Loader2 className={cn(classes.spinner, 'animate-spin')} />
+            <Loader2 className={cn(classes.spinner, detail.spin)} />
             <p className={classes.secondary}>
               {previewMode ? (
                 t('workflows:approvalWizard.preview.skipped', {
@@ -980,40 +983,54 @@ export default function ApprovalWizardDialog({
                   - default: single-line Input */}
             {currentStep.step_type === 'user_action' && (
               <Stack gap={10}>
-                {(requiredFields as UserActionField[]).map((f) => (
-                  <Stack key={f.id} gap={4}>
-                    <Label htmlFor={f.id} className={classes.label}>
+                {(requiredFields as UserActionField[]).map((f) => {
+                  const label = (
+                    <>
                       {defaultText(f.label)}
-                      {f.required && <span className={classes.required}> *</span>}
-                    </Label>
-                    {f.type === 'text' ? (
-                      <Textarea
-                        id={f.id}
-                        value={payload[f.id] ?? ''}
-                        onChange={(e) => setPayload((p) => ({ ...p, [f.id]: e.target.value }))}
-                        placeholder={defaultText(f.label)}
-                        rows={2}
-                        disabled={loading}
-                      />
-                    ) : f.type === 'select' ? (
-                      <FetchedSelectField
-                        field={f}
-                        value={payload[f.id] ?? ''}
-                        onChange={(v) => setPayload((p) => ({ ...p, [f.id]: v }))}
-                        disabled={loading}
-                        fetcher={get}
-                      />
-                    ) : (
-                      <Input
-                        id={f.id}
-                        value={payload[f.id] ?? ''}
-                        onChange={(e) => setPayload((p) => ({ ...p, [f.id]: e.target.value }))}
-                        placeholder={defaultText(f.label)}
-                        disabled={loading}
-                      />
-                    )}
-                  </Stack>
-                ))}
+                      {f.required && star}
+                    </>
+                  );
+                  return f.type === 'text' ? (
+                    <Textarea
+                      key={f.id}
+                      id={f.id}
+                      label={label}
+                      value={payload[f.id] ?? ''}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setPayload((p) => ({ ...p, [f.id]: value }));
+                      }}
+                      placeholder={defaultText(f.label)}
+                      rows={2}
+                      disabled={loading}
+                      classNames={{ label: classes.label }}
+                    />
+                  ) : f.type === 'select' ? (
+                    <FetchedSelectField
+                      key={f.id}
+                      field={f}
+                      label={label}
+                      value={payload[f.id] ?? ''}
+                      onChange={(v) => setPayload((p) => ({ ...p, [f.id]: v }))}
+                      disabled={loading}
+                      fetcher={get}
+                    />
+                  ) : (
+                    <TextInput
+                      key={f.id}
+                      id={f.id}
+                      label={label}
+                      value={payload[f.id] ?? ''}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setPayload((p) => ({ ...p, [f.id]: value }));
+                      }}
+                      placeholder={defaultText(f.label)}
+                      disabled={loading}
+                      classNames={{ label: classes.label }}
+                    />
+                  );
+                })}
                 <ReferenceDocuments refs={refs} />
               </Stack>
             )}
@@ -1050,17 +1067,14 @@ export default function ApprovalWizardDialog({
                   </p>
                 )}
                 {(currentStep.config?.require_acknowledgement_checkbox as boolean) && (
-                  <div className={classes.check}>
-                    <Checkbox
-                      id="legal-ack"
-                      checked={acknowledged}
-                      onCheckedChange={(checked) => setAcknowledged(checked === true)}
-                      disabled={loading}
-                    />
-                    <Label htmlFor="legal-ack" className={classes.checkLabel}>
-                      {(currentStep.config?.acknowledgement_label as string) || t('workflows:approvalWizard.acknowledgeDefault')}
-                    </Label>
-                  </div>
+                  <Checkbox
+                    id="legal-ack"
+                    checked={acknowledged}
+                    onChange={(e) => setAcknowledged(e.currentTarget.checked)}
+                    disabled={loading}
+                    label={(currentStep.config?.acknowledgement_label as string) || t('workflows:approvalWizard.acknowledgeDefault')}
+                    classNames={{ label: classes.checkLabel }}
+                  />
                 )}
                 <ReferenceDocuments refs={refs} />
               </Stack>
@@ -1070,20 +1084,23 @@ export default function ApprovalWizardDialog({
             {currentStep.step_type === 'acknowledgement_checklist' && (
               <Stack gap={10}>
                 {((currentStep.config?.items as Array<{ id: string; label: string; required?: boolean }>) ?? []).map((item) => (
-                  <div key={item.id} className={classes.check}>
-                    <Checkbox
-                      id={`checklist-${item.id}`}
-                      checked={checklistState[item.id] ?? false}
-                      onCheckedChange={(checked) =>
-                        setChecklistState((prev) => ({ ...prev, [item.id]: checked === true }))
-                      }
-                      disabled={loading}
-                    />
-                    <Label htmlFor={`checklist-${item.id}`} className={classes.checkLabel}>
-                      <span className={classes.checkText} dangerouslySetInnerHTML={{ __html: simpleMarkdown(item.label || '') }} />
-                      {item.required !== false && <span className={cn(classes.required, classes.requiredAfter)}>*</span>}
-                    </Label>
-                  </div>
+                  <Checkbox
+                    key={item.id}
+                    id={`checklist-${item.id}`}
+                    checked={checklistState[item.id] ?? false}
+                    onChange={(e) => {
+                      const checked = e.currentTarget.checked;
+                      setChecklistState((prev) => ({ ...prev, [item.id]: checked }));
+                    }}
+                    disabled={loading}
+                    label={
+                      <>
+                        <span className={classes.checkText} dangerouslySetInnerHTML={{ __html: simpleMarkdown(item.label || '') }} />
+                        {item.required !== false && <span className={cn(classes.required, classes.requiredAfter)}>*</span>}
+                      </>
+                    }
+                    classNames={{ label: classes.checkLabel }}
+                  />
                 ))}
                 <ReferenceDocuments refs={refs} />
               </Stack>
@@ -1093,10 +1110,11 @@ export default function ApprovalWizardDialog({
             {currentStep.step_type === 'co_signers' && (
               <Stack gap={8}>
                 <div className={classes.inputRow}>
-                  <Input
+                  <TextInput
                     value={coSignerInput}
-                    onChange={(e) => setCoSignerInput(e.target.value)}
+                    onChange={(e) => setCoSignerInput(e.currentTarget.value)}
                     placeholder={(currentStep.config?.label as string) || t('workflows:approvalWizard.coSignerPlaceholder')}
+                    aria-label={(currentStep.config?.label as string) || t('workflows:approvalWizard.coSignerPlaceholder')}
                     disabled={loading}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && coSignerInput.trim()) {
@@ -1164,109 +1182,103 @@ export default function ApprovalWizardDialog({
               const myGroups = (userInfo?.groups ?? []).filter((g) => !!g);
               return (
                 <Stack gap={10}>
-                  <RadioGroup
-                    className={classes.options}
+                  <Radio.Group
                     value={oboMode}
-                    onValueChange={(v) => setOboMode(v as 'self' | 'my_group' | 'other')}
-                    disabled={loading}
+                    onChange={(v) => setOboMode(v as 'self' | 'my_group' | 'other')}
                   >
-                    {allowSelf && (
-                      <div className={classes.check}>
-                        <RadioGroupItem value="self" id="wizard-obo-self" />
-                        <Label htmlFor="wizard-obo-self" className={classes.checkLabel}>
-                          {t('workflows:approvalWizard.obo.forMyself')}
-                        </Label>
-                      </div>
-                    )}
+                    <div className={classes.options}>
+                      {allowSelf && (
+                        <Radio
+                          value="self"
+                          id="wizard-obo-self"
+                          disabled={loading}
+                          label={t('workflows:approvalWizard.obo.forMyself')}
+                          classNames={{ label: classes.checkLabel }}
+                        />
+                      )}
 
-                    {allowUserGroups && (
-                      <Stack gap={6}>
-                        <div className={classes.check}>
-                          <RadioGroupItem
+                      {allowUserGroups && (
+                        <Stack gap={6}>
+                          <Radio
                             value="my_group"
                             id="wizard-obo-my-group"
-                            disabled={myGroups.length === 0}
+                            disabled={loading || myGroups.length === 0}
+                            label={
+                              <>
+                                {t('workflows:approvalWizard.obo.forMyGroup')}
+                                {myGroups.length === 0 && (
+                                  <span className={classes.unavailableNote}>{t('workflows:approvalWizard.obo.noGroupsAvailable')}</span>
+                                )}
+                              </>
+                            }
+                            classNames={{ label: cn(classes.checkLabel, myGroups.length === 0 && classes.unavailable) }}
                           />
-                          <Label
-                            htmlFor="wizard-obo-my-group"
-                            className={cn(classes.checkLabel, myGroups.length === 0 && classes.unavailable)}
-                          >
-                            {t('workflows:approvalWizard.obo.forMyGroup')}
-                            {myGroups.length === 0 && (
-                              <span className={classes.unavailableNote}>{t('workflows:approvalWizard.obo.noGroupsAvailable')}</span>
-                            )}
-                          </Label>
-                        </div>
-                        {oboMode === 'my_group' && myGroups.length > 0 && (
-                          <div className={classes.nested}>
-                            <Select value={oboGroup} onValueChange={setOboGroup}>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder={t('workflows:approvalWizard.obo.selectGroup')} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {myGroups.map((g) => (
-                                  <SelectItem key={g} value={g}>
-                                    {g}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </Stack>
-                    )}
+                          {oboMode === 'my_group' && myGroups.length > 0 && (
+                            <div className={classes.nested}>
+                              <Select
+                                aria-label={t('workflows:approvalWizard.obo.selectGroup')}
+                                placeholder={t('workflows:approvalWizard.obo.selectGroup')}
+                                data={uniqueOptions(myGroups.map((g) => ({ value: g, label: g })))}
+                                value={oboGroup || null}
+                                onChange={(v) => v && setOboGroup(v)}
+                                allowDeselect={false}
+                                classNames={{ option: classes.option }}
+                              />
+                            </div>
+                          )}
+                        </Stack>
+                      )}
 
-                    {allowFreeText && (
-                      <Stack gap={6}>
-                        <div className={classes.check}>
-                          <RadioGroupItem value="other" id="wizard-obo-other" />
-                          <Label htmlFor="wizard-obo-other" className={classes.checkLabel}>
-                            {t('workflows:approvalWizard.obo.otherGroupOrSp')}
-                          </Label>
-                        </div>
-                        {oboMode === 'other' && (
-                          <Stack className={classes.nested} gap={6}>
-                            <Select
-                              value={oboOtherType}
-                              onValueChange={(v) => setOboOtherType(v as 'group' | 'service_principal')}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="group">{t('workflows:approvalWizard.obo.groupOption')}</SelectItem>
-                                <SelectItem value="service_principal">{t('workflows:approvalWizard.obo.servicePrincipalOption')}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              placeholder={oboOtherType === 'group' ? t('workflows:approvalWizard.obo.groupPlaceholder') : t('workflows:approvalWizard.obo.spPlaceholder')}
-                              value={oboOther}
-                              onChange={(e) => setOboOther(e.target.value)}
-                              disabled={loading}
-                            />
-                            <p className={classes.meta}>
-                              {t('workflows:approvalWizard.obo.validationNote')}
-                            </p>
-                          </Stack>
-                        )}
-                      </Stack>
-                    )}
-                  </RadioGroup>
+                      {allowFreeText && (
+                        <Stack gap={6}>
+                          <Radio
+                            value="other"
+                            id="wizard-obo-other"
+                            disabled={loading}
+                            label={t('workflows:approvalWizard.obo.otherGroupOrSp')}
+                            classNames={{ label: classes.checkLabel }}
+                          />
+                          {oboMode === 'other' && (
+                            <Stack className={classes.nested} gap={6}>
+                              <Select
+                                aria-label={t('workflows:approvalWizard.obo.principalType')}
+                                data={[
+                                  { value: 'group', label: t('workflows:approvalWizard.obo.groupOption') },
+                                  { value: 'service_principal', label: t('workflows:approvalWizard.obo.servicePrincipalOption') },
+                                ]}
+                                value={oboOtherType}
+                                onChange={(v) => v && setOboOtherType(v as 'group' | 'service_principal')}
+                                allowDeselect={false}
+                                classNames={{ option: classes.option }}
+                              />
+                              <TextInput
+                                aria-label={t('workflows:approvalWizard.obo.otherGroupOrSp')}
+                                placeholder={oboOtherType === 'group' ? t('workflows:approvalWizard.obo.groupPlaceholder') : t('workflows:approvalWizard.obo.spPlaceholder')}
+                                value={oboOther}
+                                onChange={(e) => setOboOther(e.currentTarget.value)}
+                                disabled={loading}
+                              />
+                              <p className={classes.meta}>
+                                {t('workflows:approvalWizard.obo.validationNote')}
+                              </p>
+                            </Stack>
+                          )}
+                        </Stack>
+                      )}
+                    </div>
+                  </Radio.Group>
 
                   {requireJustification && (
-                    <Stack gap={4}>
-                      <Label htmlFor="wizard-obo-justification" className={classes.label}>
-                        {t('workflows:approvalWizard.obo.justification')} <span className={classes.required}>*</span>
-                      </Label>
-                      <Textarea
-                        id="wizard-obo-justification"
-                        value={oboJustification}
-                        onChange={(e) => setOboJustification(e.target.value)}
-                        placeholder={t('workflows:approvalWizard.obo.justificationPlaceholder')}
-                        rows={3}
-                        disabled={loading}
-                      />
-                    </Stack>
+                    <Textarea
+                      id="wizard-obo-justification"
+                      label={<>{t('workflows:approvalWizard.obo.justification')}{star}</>}
+                      value={oboJustification}
+                      onChange={(e) => setOboJustification(e.currentTarget.value)}
+                      placeholder={t('workflows:approvalWizard.obo.justificationPlaceholder')}
+                      rows={3}
+                      disabled={loading}
+                      classNames={{ label: classes.label }}
+                    />
                   )}
                 </Stack>
               );
@@ -1286,26 +1298,15 @@ export default function ApprovalWizardDialog({
               // The fill only shows when there is a message
               return hint ? <p className={classes.hint}>{hint}</p> : null;
             })()}
-
-            <DialogFooter className={classes.footer}>
-              <Button variant="ghost" onClick={abortSession} disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : <XCircle />}
-                {t('common:actions.cancel')}
-              </Button>
-              <Button onClick={submitStep} disabled={loading || !isStepValid}>
-                {loading ? <Loader2 className="animate-spin" /> : <Check />}
-                {isLastVisualStep ? t('workflows:approvalWizard.completeButton') : t('common:actions.next')}
-              </Button>
-            </DialogFooter>
           </Stack>
         )}
 
         {sessionId && !currentStep && !completeResult && loading && (
           <Group className={classes.waiting} justify="center">
-            <Loader2 className={cn(classes.spinner, 'animate-spin')} />
+            <Loader2 className={cn(classes.spinner, detail.spin)} />
           </Group>
         )}
-      </DialogContent>
+      </div>
     </Dialog>
   );
 }

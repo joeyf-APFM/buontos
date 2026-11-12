@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -184,222 +184,222 @@ export default function EntityInfoDialog({
   const showSubscribeFooter = onSubscribe !== undefined;
   const showFooter = showSubscribeFooter || onGoToDetails !== undefined;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-5xl h-[80vh] flex flex-col p-0"
-        style={{ top: '2rem', transform: 'translateX(-50%) translateY(0)' }}
+  const footer = (
+    <>
+      <Button
+        variant="outline"
+        onClick={() => onOpenChange(false)}
       >
-        <DialogHeader className="px-6 pt-4 pb-2 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-3 text-xl">
-            {showBackButton && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 w-8 p-0"
-                onClick={() => onOpenChange(false)}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
+        {t('common:actions.close')}
+      </Button>
+      {onGoToDetails && (
+        <Button
+          variant="outline"
+          onClick={onGoToDetails}
+        >
+          <ExternalLink className="mr-2 h-4 w-4" />
+          {t('metadata:info.goToDetails')}
+        </Button>
+      )}
+      {showSubscribeFooter && (
+        isSubscribed ? (
+          <Button variant="secondary" disabled>
+            <Check className="mr-2 h-4 w-4" />
+            {t('metadata:info.alreadySubscribed')}
+          </Button>
+        ) : (
+          <Button
+            onClick={onSubscribe}
+            disabled={subscriptionLoading}
+          >
+            {subscriptionLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('common:actions.loading')}
+              </>
+            ) : (
+              <>
+                <Bell className="mr-2 h-4 w-4" />
+                {t('metadata:info.subscribe')}
+              </>
             )}
-            <span className="font-semibold">{title || t('metadata:info.entityInformation')}</span>
-            {isSubscribed && (
-              <span className="inline-flex items-center gap-1 text-xs font-normal bg-primary/10 text-primary px-2 py-1 rounded-full">
-                <Bell className="h-3 w-3" />
-                {t('metadata:info.subscribed')}
-              </span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+          </Button>
+        )
+      )}
+    </>
+  );
 
-        <div className="flex-1 overflow-y-auto px-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-32 text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              {t('common:actions.loading')}
-            </div>
-          ) : error ? (
-            <div className="text-destructive p-4">{error}</div>
-          ) : (
-            <div className="space-y-6 pb-6 [&>*:first-child]:mt-0">
-              {toc.length > 0 && (
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{t('metadata:info.tableOfContents')}</div>
-                  <ul className="text-sm space-y-1">
-                    {toc.map((h, idx) => (
-                      <li key={idx}>
-                        <a href={`#${h.id}`} className="hover:underline inline-block" style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>{h.text}</a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {concatenatedMarkdown ? (
-                <div className="max-w-none">
-                  <MarkdownViewer markdown={concatenatedMarkdown} />
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">{t('metadata:info.noNotesAvailable')}</div>
-              )}
-
-              <Separator />
-
-              <div>
-                <div className="text-base font-medium mb-2">{t('metadata:links.title')}</div>
-                {links.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">{t('metadata:info.noLinks')}</div>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr className="text-left">
-                          <th className="py-2 px-3">{t('metadata:links.table.title')}</th>
-                          <th className="py-2 px-3">{t('metadata:links.table.url')}</th>
-                          <th className="py-2 px-3">{t('metadata:links.table.description')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {links.map((l: LinkItem) => {
-                          const source = sources[l.id];
-                          const isFromContract = source?.startsWith('contract:');
-                          const isShared = source?.startsWith('shared:') || l.is_shared;
-                          return (
-                            <tr key={l.id} className="border-t">
-                              <td className="py-2 px-3 whitespace-nowrap">
-                                <span className="flex items-center gap-2">
-                                  {l.title}
-                                  {isFromContract && <Badge variant="outline" className="text-xs">{t('metadata:info.inherited')}</Badge>}
-                                  {isShared && <Badge variant="secondary" className="text-xs"><Share2 className="h-3 w-3 mr-1" />{t('metadata:info.shared')}</Badge>}
-                                </span>
-                              </td>
-                              <td className="py-2 px-3 max-w-[420px] truncate"><a className="text-primary hover:underline" href={l.url} target="_blank" rel="noreferrer">{l.url}</a></td>
-                              <td className="py-2 px-3 text-muted-foreground">{l.short_description || ''}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Ratings Section */}
-              <div>
-                <div className="text-base font-medium mb-3 flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-500" />
-                  {t('metadata:info.ratingsAndReviews')}
-                </div>
-
-                {ratingsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> {t('metadata:info.loadingRatings')}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Rating Summary */}
-                    <RatingSummary 
-                      aggregation={ratingAggregation} 
-                      loading={ratingsLoading}
-                      showDistribution={true}
-                    />
-                    
-                    {/* User Rating Input */}
-                    <div className="border rounded-lg p-4 bg-muted/30">
-                      <div className="text-sm font-medium mb-2">{t('metadata:info.yourRating')}</div>
-                      <div className="flex items-center gap-4 mb-3">
-                        <StarRatingInput
-                          value={selectedRating}
-                          onChange={setSelectedRating}
-                          size="md"
-                          disabled={submittingRating}
-                        />
-                        {selectedRating > 0 && (
-                          <span className="text-sm text-muted-foreground">
-                            {selectedRating === 1 && t('metadata:ratings.labels.poor')}
-                            {selectedRating === 2 && t('metadata:ratings.labels.fair')}
-                            {selectedRating === 3 && t('metadata:ratings.labels.good')}
-                            {selectedRating === 4 && t('metadata:ratings.labels.veryGood')}
-                            {selectedRating === 5 && t('metadata:ratings.labels.excellent')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mb-3">
-                        <Textarea
-                          placeholder={t('metadata:info.addReviewPlaceholder')}
-                          value={reviewText}
-                          onChange={(e) => setReviewText(e.target.value)}
-                          rows={2}
-                          disabled={submittingRating}
-                          className="resize-none"
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        disabled={selectedRating === 0 || submittingRating}
-                        onClick={handleSubmitRating}
-                      >
-                        {submittingRating ? (
-                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('metadata:ratings.submitting')}</>
-                        ) : (
-                          t('metadata:ratings.submitRating')
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {showFooter && (
-          <DialogFooter className="px-6 py-4 border-t flex-shrink-0 bg-background">
-            <Button
-              variant="outline"
+  return (
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="xl"
+      height="80vh"
+      title={
+        <span className="flex items-center gap-3">
+          {showBackButton && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0"
               onClick={() => onOpenChange(false)}
             >
-              {t('common:actions.close')}
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            {onGoToDetails && (
-              <Button
-                variant="outline"
-                onClick={onGoToDetails}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {t('metadata:info.goToDetails')}
-              </Button>
+          )}
+          <span className="font-semibold">{title || t('metadata:info.entityInformation')}</span>
+          {isSubscribed && (
+            <span className="inline-flex items-center gap-1 text-xs font-normal bg-primary/10 text-primary px-2 py-1 rounded-full">
+              <Bell className="h-3 w-3" />
+              {t('metadata:info.subscribed')}
+            </span>
+          )}
+        </span>
+      }
+      footer={showFooter && footer}
+    >
+      <div>
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            {t('common:actions.loading')}
+          </div>
+        ) : error ? (
+          <div className="text-destructive p-4">{error}</div>
+        ) : (
+          <div className="space-y-6 pb-6 [&>*:first-child]:mt-0">
+            {toc.length > 0 && (
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{t('metadata:info.tableOfContents')}</div>
+                <ul className="text-sm space-y-1">
+                  {toc.map((h, idx) => (
+                    <li key={idx}>
+                      <a href={`#${h.id}`} className="hover:underline inline-block" style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>{h.text}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-            {showSubscribeFooter && (
-              isSubscribed ? (
-                <Button variant="secondary" disabled>
-                  <Check className="mr-2 h-4 w-4" />
-                  {t('metadata:info.alreadySubscribed')}
-                </Button>
+
+            {concatenatedMarkdown ? (
+              <div className="max-w-none">
+                <MarkdownViewer markdown={concatenatedMarkdown} />
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">{t('metadata:info.noNotesAvailable')}</div>
+            )}
+
+            <Separator />
+
+            <div>
+              <div className="text-base font-medium mb-2">{t('metadata:links.title')}</div>
+              {links.length === 0 ? (
+                <div className="text-sm text-muted-foreground">{t('metadata:info.noLinks')}</div>
               ) : (
-                <Button
-                  onClick={onSubscribe}
-                  disabled={subscriptionLoading}
-                >
-                  {subscriptionLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('common:actions.loading')}
-                    </>
-                  ) : (
-                    <>
-                      <Bell className="mr-2 h-4 w-4" />
-                      {t('metadata:info.subscribe')}
-                    </>
-                  )}
-                </Button>
-              )
-            )}
-          </DialogFooter>
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr className="text-left">
+                        <th className="py-2 px-3">{t('metadata:links.table.title')}</th>
+                        <th className="py-2 px-3">{t('metadata:links.table.url')}</th>
+                        <th className="py-2 px-3">{t('metadata:links.table.description')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {links.map((l: LinkItem) => {
+                        const source = sources[l.id];
+                        const isFromContract = source?.startsWith('contract:');
+                        const isShared = source?.startsWith('shared:') || l.is_shared;
+                        return (
+                          <tr key={l.id} className="border-t">
+                            <td className="py-2 px-3 whitespace-nowrap">
+                              <span className="flex items-center gap-2">
+                                {l.title}
+                                {isFromContract && <Badge variant="outline" className="text-xs">{t('metadata:info.inherited')}</Badge>}
+                                {isShared && <Badge variant="secondary" className="text-xs"><Share2 className="h-3 w-3 mr-1" />{t('metadata:info.shared')}</Badge>}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 max-w-[420px] truncate"><a className="text-primary hover:underline" href={l.url} target="_blank" rel="noreferrer">{l.url}</a></td>
+                            <td className="py-2 px-3 text-muted-foreground">{l.short_description || ''}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Ratings Section */}
+            <div>
+              <div className="text-base font-medium mb-3 flex items-center gap-2">
+                <Star className="h-5 w-5 text-amber-500" />
+                {t('metadata:info.ratingsAndReviews')}
+              </div>
+
+              {ratingsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t('metadata:info.loadingRatings')}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Rating Summary */}
+                  <RatingSummary 
+                    aggregation={ratingAggregation} 
+                    loading={ratingsLoading}
+                    showDistribution={true}
+                  />
+                  
+                  {/* User Rating Input */}
+                  <div className="border rounded-lg p-4 bg-muted/30">
+                    <div className="text-sm font-medium mb-2">{t('metadata:info.yourRating')}</div>
+                    <div className="flex items-center gap-4 mb-3">
+                      <StarRatingInput
+                        value={selectedRating}
+                        onChange={setSelectedRating}
+                        size="md"
+                        disabled={submittingRating}
+                      />
+                      {selectedRating > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          {selectedRating === 1 && t('metadata:ratings.labels.poor')}
+                          {selectedRating === 2 && t('metadata:ratings.labels.fair')}
+                          {selectedRating === 3 && t('metadata:ratings.labels.good')}
+                          {selectedRating === 4 && t('metadata:ratings.labels.veryGood')}
+                          {selectedRating === 5 && t('metadata:ratings.labels.excellent')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mb-3">
+                      <Textarea
+                        placeholder={t('metadata:info.addReviewPlaceholder')}
+                        value={reviewText}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        rows={2}
+                        disabled={submittingRating}
+                        className="resize-none"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={selectedRating === 0 || submittingRating}
+                      onClick={handleSubmitRating}
+                    >
+                      {submittingRating ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('metadata:ratings.submitting')}</>
+                      ) : (
+                        t('metadata:ratings.submitRating')
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
-      </DialogContent>
+      </div>
     </Dialog>
   );
 }

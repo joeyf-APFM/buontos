@@ -1,0 +1,116 @@
+/*
+ * The DQX suggestions dialog (wave 2 Task 8a fix round 1, ruling R37) in the
+ * kit Dialog (mantine/page/dialog.tsx): the counts and Select All over the
+ * suggestions table, one table per schema in kit Tabs, and the footer's Close
+ * at the start with Reject and Accept at the end.
+ */
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sparkles {
+  flex: none;
+  color: var(--aura-accent);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.counts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.strong {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.schema {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.schemaName {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+  overflow-wrap: anywhere;
+}
+
+/* Many schemas scroll sideways in the tab list, not the page */
+.tabList.tabList {
+  display: flex;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tab {
+  flex: none;
+  gap: 6px;
+}
+
+/* A column name is an identifier */
+.code {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.tableLevel {
+  font-style: italic;
+  color: var(--aura-text-secondary);
+}
+
+/* A rule is code, truncated to one line with the whole rule in its title */
+.rule {
+  display: block;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The footer: Close at the start, Reject and Accept at the end */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

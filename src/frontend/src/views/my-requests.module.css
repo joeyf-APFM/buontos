@@ -1,0 +1,132 @@
+/*
+ * My Requests (/my-requests) on the page kit (wave 2 Task 5): the shell's
+ * breadcrumb, the kit header and its description, the summary counts, then
+ * the kit tabs, each over one flush pane holding the Asset Explorer's grid
+ * (mantine/asset-explorer/explorer.module.css .table). What is left here is
+ * the page's own.
+ */
+
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 10px;
+  color: var(--aura-text-secondary);
+}
+
+/* The tabs and their panes, in the kit's margin */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabCount {
+  margin-left: 6px;
+}
+
+.skeleton {
+  padding: 12px;
+}
+
+/* A long name wraps, so it reads in full; table cells ignore max-width, so
+   the text's own box sets the measure. Rows without one keep 28px */
+table.grid > tbody > tr > td.nameCell {
+  white-space: normal;
+}
+
+.name {
+  display: block;
+  min-width: 200px;
+  max-width: 480px;
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  font-weight: 500;
+  color: var(--aura-accent);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.strong {
+  font-weight: 500;
+}
+
+.detail {
+  margin-left: 4px;
+  color: var(--aura-text-secondary);
+}
+
+/* Rows open nothing themselves: only their links and Cancel act */
+table.grid > tbody > tr {
+  cursor: default;
+}
+
+.muted {
+  color: var(--aura-text-secondary);
+}
+
+.none {
+  color: var(--aura-text-muted);
+}
+
+.actions {
+  width: 40px;
+}
+
+/* Cancel: 24px, so the row stays 28px, in the critical colour; `button.`
+   outranks Mantine's ActionIcon colour (R10) */
+button.cancel {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-critical);
+}
+
+button.cancel:hover {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+.cancel svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Empty and error states, in the pane */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.empty svg {
+  width: 28px;
+  height: 28px;
+  color: var(--aura-text-muted);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+}
+
+.alert {
+  align-self: stretch;
+}

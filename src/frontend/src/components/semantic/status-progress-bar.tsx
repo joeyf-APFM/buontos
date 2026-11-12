@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import classes from './status-progress-bar.module.css';
 
 /**
  * Compact lifecycle progress bar for a concept. Shows the full ordered chain
@@ -27,33 +27,26 @@ export function StatusProgressBar({ status, className }: Props) {
   const label = (s: string) => t(`semantic-models:status.${s}`, s.replace(/_/g, ' '));
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-1 text-[11px]', className)}>
+    <div className={className ? `${classes.bar} ${className}` : classes.bar}>
       {FORWARD_CHAIN.map((s, i) => {
         const done = !isTerminal && currentIdx > i;
         const current = !isTerminal && currentIdx === i;
         return (
-          <div key={s} className="flex items-center gap-1">
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5',
-                current && 'border-primary bg-primary text-primary-foreground font-medium',
-                done && 'border-muted-foreground/30 bg-muted text-muted-foreground',
-                !current && !done && 'border-dashed border-muted-foreground/30 text-muted-foreground',
-              )}
-            >
-              {done && <Check className="h-3 w-3" />}
+          <div key={s} className={classes.step}>
+            <span className={classes.pill} data-step={current ? 'current' : done ? 'done' : 'todo'}>
+              {done && <Check aria-hidden />}
               {label(s)}
             </span>
             {i < FORWARD_CHAIN.length - 1 && (
-              <span className="text-muted-foreground/40">→</span>
+              <span className={classes.arrow} data-arrow aria-hidden>→</span>
             )}
           </div>
         );
       })}
       {isTerminal && (
         <>
-          <span className="text-muted-foreground/40">·</span>
-          <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-medium text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+          <span className={classes.arrow} aria-hidden>·</span>
+          <span className={classes.pill} data-terminal>
             {label(status)}
           </span>
         </>

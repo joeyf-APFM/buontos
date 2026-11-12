@@ -1,0 +1,30 @@
+/*
+ * Collections (/concepts/collections) on the page kit (wave 2 Task 12a),
+ * inside the Concepts layout, which keeps the shell's padding: the kit header
+ * with Create Scheme and the scheme count under it, then the list pane, and
+ * the chosen scheme's details beside it (components/knowledge/collections-tab).
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.body {
+  composes: body from '../components/common/list-page.module.css';
+}
+
+.alert {
+  composes: alert from '../components/common/list-page.module.css';
+}
+
+/* A failed load: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.state > .alert {
+  align-self: stretch;
+}

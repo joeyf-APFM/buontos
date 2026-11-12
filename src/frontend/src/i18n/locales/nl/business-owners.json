@@ -1,6 +1,7 @@
 {
   "title": "Business-eigenaren",
   "subtitle": "Eigenaarstoewijzingen die bijhouden wie waarvoor verantwoordelijk is.",
+  "listPane": "Lijst van bedrijfseigenaren",
   "addNew": "Eigenaar toewijzen",
   "editOwner": "Toewijzing bewerken",
   "removeOwner": "Eigenaar verwijderen",
@@ -60,6 +61,7 @@
     "previousOwners": "Vorige eigenaren",
     "noOwners": "Geen eigenaren toegewezen",
     "assignOwner": "Eigenaar toewijzen",
-    "history": "Historie tonen"
+    "history": "Historie tonen",
+    "removeOwnerNamed": "{{name}} verwijderen"
   }
 }

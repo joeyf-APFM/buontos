@@ -1,0 +1,12 @@
+/* Save new version (wave 2 Task 15): the Advanced hint under the description, and the field's "(optional)" */
+.willCreate {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--aura-text-secondary);
+}

@@ -3,12 +3,14 @@
  * (`certified_deprecation_requires_approval`): the dialog shows the error in
  * the UI language and offers to send a status change request instead.
  *
- * The Radix Select hangs in jsdom, so it is replaced by a native select.
+ * The request type and target status are Mantine Selects (wave 2 Task 11),
+ * picked as a user would.
  */
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import i18n from '@/i18n/config';
-import { renderWithProviders } from '@/test/utils';
+import { renderWithProviders, userEvent } from '@/test/utils';
+import { pick, selectField } from '@/test/kit-dialog';
 import RequestContractActionDialog from './request-contract-action-dialog';
 
 const mockGet = vi.fn();
@@ -20,19 +22,6 @@ vi.mock('@/hooks/use-api', () => ({ useApi: () => ({ get: mockGet, post: mockPos
 vi.mock('@/stores/notifications-store', () => ({
   useNotificationsStore: (selector: any) => selector({ refreshNotifications: vi.fn() }),
 }));
-vi.mock('@/components/ui/select', () => ({
-  Select: ({ value, onValueChange, children }: any) => (
-    <select value={value} onChange={(e) => onValueChange(e.target.value)}>
-      <option value="" />
-      {children}
-    </select>
-  ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectContent: ({ children }: any) => <>{children}</>,
-  SelectItem: ({ value }: any) => <option value={value}>{value}</option>,
-}));
-
 const REFUSED = {
   data: {},
   error: "The data contract 'Orders' is certified: deprecating it needs an approved status "
@@ -43,10 +32,10 @@ const REFUSED = {
   },
 };
 
-function selectWith(value: string): HTMLSelectElement {
-  return screen.getAllByRole('combobox').find(
-    (select) => select.querySelector(`option[value="${value}"]`),
-  ) as HTMLSelectElement;
+/** Picks an option by its label, in the Select of that label. */
+async function choose(label: string, option: string) {
+  const field = selectField(screen.getByRole('dialog'), label);
+  await pick(userEvent.setup(), field, option);
 }
 
 describe('RequestContractActionDialog certified deprecation', () => {
@@ -57,6 +46,8 @@ describe('RequestContractActionDialog certified deprecation', () => {
   });
 
   afterEach(async () => {
+    // Unmount first: a language change would update the open dialog outside act
+    cleanup();
     await i18n.changeLanguage('en');
   });
 
@@ -74,8 +65,8 @@ describe('RequestContractActionDialog certified deprecation', () => {
       />,
     );
 
-    fireEvent.change(selectWith('status_change'), { target: { value: 'status_change' } });
-    fireEvent.change(selectWith('deprecated'), { target: { value: 'deprecated' } });
+    await choose(i18n.t('data-contracts:requests.requestTypeLabel'), i18n.t('data-contracts:requests.statusChange.changeTitle'));
+    await choose(i18n.t('data-contracts:requests.statusChange.selectTargetLabel'), i18n.t('data-contracts:status.deprecated'));
     fireEvent.click(screen.getByRole('button', {
       name: i18n.t('data-contracts:requests.statusChange.changeTitle'),
     }));

@@ -259,7 +259,8 @@ test.describe('the create dialog', () => {
     const dialog = await openCreate(page);
     await expect(dialog).toHaveClass(/mantine-Modal-content/);
     await expect(dialog).toHaveAccessibleDescription('Select assets and assign a reviewer.');
-    expect(Math.round((await box(dialog)).width)).toBe(600);
+    // The kit Dialog's md width
+    expect(Math.round((await box(dialog)).width)).toBe(560);
     expect(await style(dialog, ['border-top-left-radius'])).toEqual({ 'border-top-left-radius': '8px' });
     await expect(dialog.getByRole('textbox', { name: 'Reviewer' })).toBeFocused();
     await expect(dialog.getByRole('textbox', { name: 'Your Email' })).toHaveValue('e2e.user@example.com');
@@ -428,23 +429,21 @@ test.describe('the detail page', () => {
     expect(Math.round((await box(assets)).y)).toBe(Math.round((await box(info)).y + (await box(info)).height));
     expect(await style(assets, ['border-top-width'])).toEqual({ 'border-top-width': '0px' });
     expect(await style(info.locator('dt').first(), ['color'])).toEqual({ color: TEXT_SECONDARY });
-    // Every label on one line, as tall as "Requester", and the labels keep at least the 86px column
-    const labelHeight = Math.round((await box(info.locator('dt').first())).height);
+    // Every label sits in the fixed 86px column (Task 13d fix round 1)
     for (const dt of await info.locator('dt').all()) {
-      if ((await dt.innerText()) === 'Notes') continue;
-      expect(Math.round((await box(dt)).height)).toBe(labelHeight);
+      expect(Math.round((await box(dt)).width)).toBe(86);
     }
-    expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBeGreaterThanOrEqual(86);
-    // A label wider than 86px in any font (Current Status is narrower in
-    // Optima): it stays on one line, the column grows past 86px for every
-    // label, and nothing is clipped
+    // A label wider than 86px in any font wraps inside its column, nothing is
+    // clipped, and the values still line up down the column: Requester,
+    // Current Status and Last Updated are the left column's pairs
     const wide = info.locator('dt', { hasText: 'Current Status' });
     await wide.evaluate((el) => { el.textContent = 'Current Status of this request for review'; });
-    expect(Math.round((await box(wide)).height)).toBe(labelHeight);
-    expect(Math.round((await box(wide)).width)).toBeGreaterThan(86);
-    expect(Math.round((await box(info.locator('dt', { hasText: 'Requester' }))).width)).toBe(
-      Math.round((await box(wide)).width));
+    expect(Math.round((await box(wide)).width)).toBe(86);
     expect(await wide.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const left = async (label: string) => Math.round((await box(info.locator('dt', { hasText: label }).locator('xpath=following-sibling::dd'))).x);
+    const requesterX = await left('Requester');
+    expect(await left('Current Status')).toBe(requesterX);
+    expect(await left('Last Updated')).toBe(requesterX);
     // The notes read in full, on at least two lines
     const notes = info.getByText(LONG_NOTES, { exact: true });
     expect(await notes.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -504,7 +503,8 @@ test.describe('the asset review editor', () => {
     await review.click();
     const editor = editorOf(page, 'main.sales.orders');
     await expect(editor).toHaveClass(/mantine-Modal-content/);
-    expect(Math.round((await box(editor)).width)).toBe(896);
+    // The kit Dialog's xl width
+    expect(Math.round((await box(editor)).width)).toBe(960);
     await expect(editor.getByText('Ada', { exact: true })).toBeVisible();
     expect(await focusInDialog(page)).toBe(true);
     const status = editor.getByLabel('Status *', { exact: true });
@@ -553,7 +553,7 @@ test.describe('the asset review editor', () => {
     const code = editor.locator('pre').first();
     await expect(code).toContainText('o.column_number_39');
     const editorWidth = Math.round((await box(editor)).width);
-    expect(editorWidth).toBe(896);
+    expect(editorWidth).toBe(960);
     expect(await code.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
     expect(Math.round((await box(code)).width)).toBeLessThan(editorWidth);
 

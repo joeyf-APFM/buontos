@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Alert, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, Tabs } from '@/mantine/page';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Upload, CheckCircle, AlertCircle, FileJson } from 'lucide-react';
 import type { DataProduct } from '@/types/data-product';
+import { FIELD_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './import-export-dialog.module.css';
 
 interface ImportExportDialogProps {
   isOpen: boolean;
@@ -232,118 +233,101 @@ export default function ImportExportDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileJson className="h-5 w-5" />
-            {t('data-products:importExport.title')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('data-products:importExport.description')}
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="xl"
+      title={
+        <span className={classes.title}>
+          <FileJson size={16} aria-hidden />
+          {t('data-products:importExport.title')}
+        </span>
+      }
+      description={t('data-products:importExport.description')}
+      footer={
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          {t('common:actions.close')}
+        </Button>
+      }
+    >
+      <Tabs defaultValue="import" classNames={{ list: classes.tabList, tab: classes.tab }}>
+        <Tabs.List>
+          <Tabs.Tab value="import" leftSection={<Upload size={14} aria-hidden />}>
+            {t('data-products:import.import')}
+          </Tabs.Tab>
+          <Tabs.Tab value="export" leftSection={<Download size={14} aria-hidden />}>
+            {t('common:actions.export')}
+          </Tabs.Tab>
+        </Tabs.List>
 
-        <Tabs defaultValue="import" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="import" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              {t('data-products:import.import')}
-            </TabsTrigger>
-            <TabsTrigger value="export" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              {t('common:actions.export')}
-            </TabsTrigger>
-          </TabsList>
+        <Tabs.Panel value="import" className={form.form}>
+          <Textarea
+            label={t('data-products:importExport.pasteLabel')}
+            value={importJson}
+            onChange={(e) => setImportJson(e.currentTarget.value)}
+            placeholder={`{\n  "apiVersion": "v1.0.0",\n  "kind": "DataProduct",\n  "id": "...",\n  "status": "draft",\n  ...\n}`}
+            rows={15}
+            classNames={{ ...FIELD_CLASSES, input: classes.json }}
+          />
 
-          <TabsContent value="import" className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {t('data-products:importExport.pasteLabel')}
-              </label>
-              <Textarea
-                value={importJson}
-                onChange={(e) => setImportJson(e.target.value)}
-                placeholder={`{\n  "apiVersion": "v1.0.0",\n  "kind": "DataProduct",\n  "id": "...",\n  "status": "draft",\n  ...\n}`}
-                rows={15}
-                className="font-mono text-sm"
-              />
-            </div>
+          {validationErrors.length > 0 && (
+            <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
+              <strong>{t('data-products:importExport.validationErrors')}</strong>
+              <ul className={classes.errors}>
+                {validationErrors.map((error, idx) => (
+                  <li key={idx}>{error}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
 
-            {validationErrors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>{t('data-products:importExport.validationErrors')}</strong>
-                  <ul className="list-disc list-inside mt-2">
-                    {validationErrors.map((error, idx) => (
-                      <li key={idx} className="text-sm">{error}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
+          <div className={form.actions}>
+            <Button
+              variant="outline"
+              onClick={handleValidate}
+              disabled={!importJson || isValidating}
+            >
+              <CheckCircle aria-hidden />
+              {t('data-products:importExport.validate')}
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={!importJson || isImporting}
+            >
+              {isImporting ? t('data-products:import.importing') : t('data-products:import.import')}
+            </Button>
+          </div>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="export" className={form.form}>
+          {currentProduct ? (
+            <>
+              <Alert color="gray" variant="light" icon={<FileJson size={16} />}>
+                <strong>{t('data-products:importExport.currentProduct')}:</strong> {currentProduct.name || t('data-products:importExport.unnamed')} (ID: {currentProduct.id})
+                <br />
+                <strong>{t('common:labels.status')}:</strong> {currentProduct.status}
+                <br />
+                <strong>{t('common:labels.version')}:</strong> {currentProduct.version || t('common:states.notAvailable')}
               </Alert>
-            )}
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleValidate}
-                disabled={!importJson || isValidating}
-              >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                {t('data-products:importExport.validate')}
-              </Button>
-              <Button
-                onClick={handleImport}
-                disabled={!importJson || isImporting}
-              >
-                {isImporting ? t('data-products:import.importing') : t('data-products:import.import')}
-              </Button>
-            </div>
-          </TabsContent>
+              <div className={form.note}>
+                <p>{t('data-products:importExport.exportDescription')}</p>
+              </div>
 
-          <TabsContent value="export" className="space-y-4">
-            {currentProduct ? (
-              <>
-                <Alert>
-                  <FileJson className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>{t('data-products:importExport.currentProduct')}:</strong> {currentProduct.name || t('data-products:importExport.unnamed')} (ID: {currentProduct.id})
-                    <br />
-                    <strong>{t('common:labels.status')}:</strong> {currentProduct.status}
-                    <br />
-                    <strong>{t('common:labels.version')}:</strong> {currentProduct.version || t('common:states.notAvailable')}
-                  </AlertDescription>
-                </Alert>
-
-                <div className="rounded-lg bg-muted/50 p-4">
-                  <p className="text-sm text-muted-foreground">
-                    {t('data-products:importExport.exportDescription')}
-                  </p>
-                </div>
-
+              <div className={form.actions}>
                 <Button onClick={handleExport}>
-                  <Download className="mr-2 h-4 w-4" />
+                  <Download aria-hidden />
                   {t('data-products:importExport.exportAsJson')}
                 </Button>
-              </>
-            ) : (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {t('data-products:importExport.noProductDesc')}
-                </AlertDescription>
-              </Alert>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t('common:actions.close')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+              </div>
+            </>
+          ) : (
+            <Alert color="gray" variant="light" icon={<AlertCircle size={16} />}>
+              {t('data-products:importExport.noProductDesc')}
+            </Alert>
+          )}
+        </Tabs.Panel>
+      </Tabs>
     </Dialog>
   );
 }

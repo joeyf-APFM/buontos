@@ -1,19 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useId, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import i18n from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Alert, Menu } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { PageHeader, PageLayout, Pane, PaneStack, Tabs } from '@/mantine/page';
+import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
 import { useConceptMode } from '@/components/concepts/mode-switch';
 import KGSearch from '@/components/search/kg-search';
 import { collectionSourceKey, stripSourcePrefix } from '@/lib/collection-source-key';
+import { SPARQL_UI_ENABLED } from '@/config/features';
 
 import {
   FolderTree,
@@ -24,6 +20,7 @@ import {
   Globe2,
   Code2,
   X,
+  AlertCircle,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -46,6 +43,7 @@ import {
   GlossaryFilterPanel,
 } from '@/components/knowledge';
 import { schemeKindsForType } from '@/components/knowledge/concept-editor-dialog';
+import classes from './explore.module.css';
 
 // ---------------------------------------------------------------------------
 // Explore — the ONE unified browse surface for concepts.
@@ -119,7 +117,14 @@ export default function ExploreView() {
   const { hasPermission } = usePermissions();
   const bumpKnowledgeGraphRefresh = useKnowledgeGraphStore((s) => s.bumpRefreshNonce);
 
+  // The backend's checks: semantic-models READ_WRITE creates, edits, moves
+  // concepts through their lifecycle, and renames or deletes schemes;
+  // certifying needs ADMIN (semantic_models_routes.py)
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
+  const canCertify = hasPermission('semantic-models', FeatureAccessLevel.ADMIN);
+  const viewsId = useId();
+  // The Create menu's items open editors, which keep focus (R51)
+  const createMenu = useMenuItemFocus();
 
   // SPARQL / knowledge-graph search panel: Advanced view only, session-only
   // open state (not persisted, not in the URL).
@@ -130,6 +135,7 @@ export default function ExploreView() {
   // Single source of concept data — fetch + filteredConcepts live here.
   const {
     isLoading,
+    loadError,
     collections,
     groupedConcepts,
     availableSources,
@@ -417,203 +423,226 @@ export default function ExploreView() {
   }, [editableCollections, hiddenSources]);
   const createTypes = createMenuTypes(focusedCollection);
 
+  const conceptsPane = t('semantic-models:explore.conceptsPane', 'Concepts');
+  // Without the SPARQL editor (R57) the panel is the knowledge-graph search only
+  const sparqlTitle = SPARQL_UI_ENABLED
+    ? t('concepts:explore.sparqlPanel', 'SPARQL and knowledge graph search')
+    : t('concepts:explore.knowledgeGraphPanel', 'Knowledge graph search');
+
   return (
-    <div className="flex flex-col pt-3 pb-6">
-      {/* Header — page description only (the section tab strip already names
-          "Concepts"/"Explore"; the Simple/Advanced switch lives up in the tab
-          row). Kept tight to the nav boundary to avoid a blank gap. */}
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              'concepts:explore.description',
-              'Author, browse, and deliver your business concept schemes.'
-            )}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {advanced && (
-            <Button
-              variant={sparqlOpen ? 'secondary' : 'outline'}
-              className="adv-only"
-              aria-pressed={sparqlOpen}
-              aria-controls="explore-sparql-panel"
-              onClick={() => setSparqlOpen((open) => !open)}
-            >
-              <Code2 className="h-4 w-4 mr-2" />
-              {t('concepts:explore.sparql', 'SPARQL')}
-            </Button>
-          )}
-          {canWrite && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('common:actions.create')}
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {createTypes.map((ct) => (
-                  <DropdownMenuItem key={ct} onClick={() => handleCreateConcept(ct)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t(CREATE_ITEMS[ct].labelKey, CREATE_ITEMS[ct].defaultLabel)}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleCreateCollection}>
-                  <FolderTree className="h-4 w-4 mr-2" />
-                  {t('concepts:explore.createScheme', 'New Concept Scheme')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
-
-      {/* SPARQL / knowledge-graph search: full-width inline panel above the
-          results (Advanced view only). Not bound to any one concept. */}
-      {advanced && sparqlOpen && (
-        <section
-          id="explore-sparql-panel"
-          data-testid="explore-sparql-panel"
-          aria-label={t('concepts:explore.sparqlPanel', 'SPARQL and knowledge graph search')}
-          className="adv-only mb-4 rounded-lg border bg-card p-4 min-h-[420px]"
-        >
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h2 className="text-sm font-medium">
-              {t('concepts:explore.sparqlPanel', 'SPARQL and knowledge graph search')}
-            </h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t('common:actions.close', 'Close')}
-              aria-label={t('common:actions.close', 'Close')}
-              onClick={() => setSparqlOpen(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <KGSearch />
-        </section>
-      )}
-
-      {isLoading ? (
-        <div className="flex-1 flex flex-col gap-4">
-          <FilterBarSkeleton filterCount={3} />
-          <HierarchyTreeSkeleton groups={4} itemsPerGroup={4} />
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col gap-4">
-          {/* Filter Panel — drives ALL view-modes (unchanged component). */}
-          <GlossaryFilterPanel
-            filteredConcepts={filteredConcepts}
-            sourceConceptCounts={sourceConceptCounts}
-            availableSources={availableSources}
-            hiddenSources={hiddenSources}
-            onToggleSource={toggleSource}
-            onSelectAllSources={selectAllSources}
-            onSelectNoneSources={selectNoneSources}
-            groupByDimension={groupByDimension}
-            onSetGroupByDimension={setGroupByDimension}
-            showProperties={showProperties}
-            onSetShowProperties={setShowProperties}
-            showSystemSources={showSystemSources}
-            onSetShowSystemSources={advanced ? setShowSystemSources : undefined}
-            selectedLanguage={selectedLanguage}
-            onSetSelectedLanguage={setSelectedLanguage}
-            isFilterExpanded={isFilterExpanded}
-            onSetFilterExpanded={setFilterExpanded}
-            collections={collections}
-            onRenameScheme={handleRenameScheme}
-            onDeleteScheme={handleDeleteScheme}
+    <PageLayout
+      header={
+        <>
+          {/* The section tab strip names "Concepts"; the Simple/Advanced
+              switch lives up in the layout's row */}
+          <PageHeader
+            title={t('semantic-models:tabs.explore', 'Explore')}
+            wrapActions
+            actions={
+              <>
+                {advanced && (
+                  <Button
+                    variant={sparqlOpen ? 'secondary' : 'outline'}
+                    className="adv-only"
+                    aria-pressed={sparqlOpen}
+                    aria-controls="explore-sparql-panel"
+                    onClick={() => setSparqlOpen((open) => !open)}
+                  >
+                    <Code2 aria-hidden />
+                    {SPARQL_UI_ENABLED
+                      ? t('concepts:explore.sparql', 'SPARQL')
+                      : t('concepts:explore.knowledgeGraph', 'Knowledge graph')}
+                  </Button>
+                )}
+                {canWrite && (
+                  <Menu position="bottom-end" withinPortal {...createMenu.menuProps}>
+                    <Menu.Target>
+                      <Button>
+                        <Plus aria-hidden />
+                        {t('common:actions.create')}
+                        <ChevronDown aria-hidden />
+                      </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      {createTypes.map((ct) => (
+                        <Menu.Item key={ct} leftSection={<Plus aria-hidden />} onClick={createMenu.opensDialog(() => handleCreateConcept(ct))}>
+                          {t(CREATE_ITEMS[ct].labelKey, CREATE_ITEMS[ct].defaultLabel)}
+                        </Menu.Item>
+                      ))}
+                      <Menu.Divider />
+                      <Menu.Item leftSection={<FolderTree aria-hidden />} onClick={createMenu.opensDialog(handleCreateCollection)}>
+                        {t('concepts:explore.createScheme', 'New Concept Scheme')}
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                )}
+              </>
+            }
           />
-
-          {workspaceEmpty ? (
-            <div
-              data-testid="explore-empty-state"
-              className="flex flex-col items-center justify-center text-center gap-2 py-16 text-muted-foreground"
-            >
-              <h2 className="text-base font-medium text-foreground">
-                {t('semantic-models:explore.emptyTitle', 'Nothing to explore yet')}
-              </h2>
-              <p className="text-sm">
-                {t('semantic-models:explore.emptyBody', 'Import files or create concepts on the Define page.')}
-              </p>
-              <Button variant="outline" className="mt-2" onClick={() => navigate('/concepts/define')}>
-                {t('semantic-models:explore.emptyCta', 'Go to Define')}
-              </Button>
-            </div>
-          ) : (
-            <>
-              {/* View-mode switch: List | Tree | Graph */}
-              <div
-                role="tablist"
-                aria-label={t('concepts:explore.viewLabel', 'Explore views')}
-                className="inline-flex items-center gap-1 rounded-lg border bg-card p-1 self-start"
+          <p className={classes.subtitle}>
+            {t('concepts:explore.description', 'Author, browse, and deliver your business concept schemes.')}
+          </p>
+        </>
+      }
+    >
+      <PaneStack>
+        {/* SPARQL / knowledge-graph search: full-width above the results
+            (Advanced view only). Not bound to any one concept. */}
+        {advanced && sparqlOpen && (
+          <Pane
+            title={sparqlTitle}
+            className="adv-only"
+            actions={
+              <ActionIcon
+                variant="subtle"
+                size={26}
+                title={t('common:actions.close', 'Close')}
+                aria-label={t('common:actions.close', 'Close')}
+                onClick={() => setSparqlOpen(false)}
               >
-                {VIEW_MODES.map((mode) => {
-                  const active = mode.id === viewMode;
-                  return (
-                    <button
-                      key={mode.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => setViewMode(mode.id)}
-                      className={cn(
-                        'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
-                        active
-                          ? 'bg-accent text-accent-foreground font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
-                      )}
-                    >
-                      <mode.icon className="h-4 w-4 shrink-0" />
-                      {t(mode.labelKey, mode.defaultLabel)}
-                    </button>
-                  );
-                })}
-              </div>
+                <X aria-hidden size={14} />
+              </ActionIcon>
+            }
+          >
+            <div id="explore-sparql-panel" data-testid="explore-sparql-panel" className={`adv-only ${classes.sparql}`}>
+              <KGSearch />
+            </div>
+          </Pane>
+        )}
 
-              {/* Surface: same filteredConcepts feeds every mode.
-                  List and Tree both render through ConceptsTab, which now honours a
-                  genuine viewMode: 'list' renders a flat alphabetical list, 'tree'
-                  renders the broader/narrower hierarchy. Graph uses GraphTab. */}
-              {viewMode === 'graph' ? (
-                <GraphTab
-                  concepts={filteredConcepts}
-                  relationships={relationshipConcepts}
-                  hiddenRoots={hiddenRoots}
-                  onToggleRoot={handleToggleRoot}
-                  onNodeClick={handleNodeClick}
-                  showRootBadges={!groupBySource && !groupByFile}
-                  selectedLanguage={selectedLanguage}
-                />
-              ) : (
-                <ConceptsTab
-                  collections={collections}
-                  groupedConcepts={groupedConcepts}
-                  filteredConcepts={filteredConcepts}
-                  selectedConcept={null}
-                  onSelectConcept={handleSelectConcept}
-                  groupBySource={groupBySource}
-                  groupByFile={groupByFile}
-                  showProperties={showProperties}
-                  groupByDomain={groupByDomain}
-                  selectedLanguage={selectedLanguage}
-                  viewMode={viewMode === 'tree' ? 'tree' : 'list'}
-                  onEditConcept={(concept) => {
-                    setEditingConcept(concept);
-                    setConceptEditorOpen(true);
-                  }}
-                  onConceptsChanged={refetch}
-                />
-              )}
-            </>
-          )}
-        </div>
-      )}
+        {isLoading ? (
+          <Pane aria-label={conceptsPane}>
+            <div className={classes.loading}>
+              <FilterBarSkeleton filterCount={3} />
+              <HierarchyTreeSkeleton groups={4} itemsPerGroup={4} />
+            </div>
+          </Pane>
+        ) : loadError !== null ? (
+          <Pane aria-label={conceptsPane}>
+            <div className={classes.state}>
+              <Alert
+                color="red"
+                variant="light"
+                icon={<AlertCircle />}
+                title={t('semantic-models:explore.loadFailed', 'Could not load the concepts.')}
+                className={classes.alert}
+              >
+                {loadError || undefined}
+              </Alert>
+              <Button variant="outline" onClick={() => refetch()}>{t('common:retry')}</Button>
+            </div>
+          </Pane>
+        ) : (
+          <>
+            {/* Filters + Group by drive ALL view-modes */}
+            <GlossaryFilterPanel
+              filteredConcepts={filteredConcepts}
+              sourceConceptCounts={sourceConceptCounts}
+              availableSources={availableSources}
+              hiddenSources={hiddenSources}
+              onToggleSource={toggleSource}
+              onSelectAllSources={selectAllSources}
+              onSelectNoneSources={selectNoneSources}
+              groupByDimension={groupByDimension}
+              onSetGroupByDimension={setGroupByDimension}
+              showProperties={showProperties}
+              onSetShowProperties={setShowProperties}
+              showSystemSources={showSystemSources}
+              onSetShowSystemSources={advanced ? setShowSystemSources : undefined}
+              selectedLanguage={selectedLanguage}
+              onSetSelectedLanguage={setSelectedLanguage}
+              isFilterExpanded={isFilterExpanded}
+              onSetFilterExpanded={setFilterExpanded}
+              collections={collections}
+              // Renaming and deleting a scheme write (semantic-models READ_WRITE)
+              onRenameScheme={canWrite ? handleRenameScheme : undefined}
+              onDeleteScheme={canWrite ? handleDeleteScheme : undefined}
+            />
+
+            {workspaceEmpty ? (
+              <Pane aria-label={conceptsPane}>
+                <div data-testid="explore-empty-state" className={classes.empty}>
+                  <h2 className={classes.emptyTitle}>
+                    {t('semantic-models:explore.emptyTitle', 'Nothing to explore yet')}
+                  </h2>
+                  <p className={classes.emptyBody}>
+                    {t('semantic-models:explore.emptyBody', 'Import files or create concepts on the Define page.')}
+                  </p>
+                  <Button variant="outline" onClick={() => navigate('/concepts/define')}>
+                    {t('semantic-models:explore.emptyCta', 'Go to Define')}
+                  </Button>
+                </div>
+              </Pane>
+            ) : (
+              <Pane flush aria-label={conceptsPane}>
+                {/* View-mode switch: List | Tree | Graph, in the URL (?view=) */}
+                <Tabs
+                  id={viewsId}
+                  value={viewMode}
+                  onChange={(value) => value && setViewMode(value as ViewMode)}
+                  classNames={{ tabSection: classes.tabIcon }}
+                >
+                  <Tabs.List aria-label={t('concepts:explore.viewLabel', 'Explore views')} className={classes.tabs}>
+                    {VIEW_MODES.map((mode) => (
+                      <Tabs.Tab key={mode.id} value={mode.id} leftSection={<mode.icon aria-hidden size={14} />}>
+                        {t(mode.labelKey, mode.defaultLabel)}
+                      </Tabs.Tab>
+                    ))}
+                  </Tabs.List>
+                </Tabs>
+                {/* One panel for the active view. List and Tree share one
+                    ConceptsTab (it keeps its state across them, as before);
+                    Graph uses GraphTab. The same filteredConcepts feeds every
+                    mode. */}
+                <div
+                  role="tabpanel"
+                  id={`${viewsId}-panel-${viewMode}`}
+                  aria-labelledby={`${viewsId}-tab-${viewMode}`}
+                  className={classes.view}
+                >
+                  {viewMode === 'graph' ? (
+                    <GraphTab
+                      concepts={filteredConcepts}
+                      relationships={relationshipConcepts}
+                      hiddenRoots={hiddenRoots}
+                      onToggleRoot={handleToggleRoot}
+                      onNodeClick={handleNodeClick}
+                      showRootBadges={!groupBySource && !groupByFile}
+                      selectedLanguage={selectedLanguage}
+                    />
+                  ) : (
+                    <ConceptsTab
+                      collections={collections}
+                      groupedConcepts={groupedConcepts}
+                      filteredConcepts={filteredConcepts}
+                      selectedConcept={null}
+                      onSelectConcept={handleSelectConcept}
+                      groupBySource={groupBySource}
+                      groupByFile={groupByFile}
+                      showProperties={showProperties}
+                      groupByDomain={groupByDomain}
+                      selectedLanguage={selectedLanguage}
+                      viewMode={viewMode === 'tree' ? 'tree' : 'list'}
+                      // Editing and the bulk status changes write
+                      onEditConcept={
+                        canWrite
+                          ? (concept) => {
+                              setEditingConcept(concept);
+                              setConceptEditorOpen(true);
+                            }
+                          : undefined
+                      }
+                      canBulkEdit={canWrite}
+                      canCertify={canCertify}
+                      onConceptsChanged={refetch}
+                    />
+                  )}
+                </div>
+              </Pane>
+            )}
+          </>
+        )}
+      </PaneStack>
 
       {/* Collection Editor Dialog */}
       <CollectionEditorDialog
@@ -639,6 +668,6 @@ export default function ExploreView() {
         onSave={handleSaveConcept}
         onCreateScheme={handleCreateSchemeFromEditor}
       />
-    </div>
+    </PageLayout>
   );
 }

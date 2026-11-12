@@ -1,20 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Alert, Switch, Tooltip, UnstyledButton } from '@mantine/core';
 import type { DataContractListItem, DataContractCreate } from '@/types/data-contract';
 import { BatchImportResult, summarizeImport } from '@/types/import-results';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import DomainBadgeList from '@/components/ui/domain-badge-list'
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import TagChip from '@/components/ui/tag-chip';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Pencil, Trash2, AlertCircle, Upload, ChevronDown, ChevronRight, KeyRound, HelpCircle, FileText, X, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, Upload, ArrowUpDown, ChevronDown, ChevronRight, KeyRound, HelpCircle, Eye } from 'lucide-react';
 import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import DataContractBasicFormDialog from '@/components/data-contracts/data-contract-basic-form-dialog'
 import ImportEntityDialog from '@/components/common/import-entity-dialog';
-import { ColumnDef } from "@tanstack/react-table"
+import type { Column, ColumnDef } from "@tanstack/react-table"
 import { useToast } from "@/hooks/use-toast"
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { useProjectContext } from '@/stores/project-store';
@@ -24,12 +22,34 @@ import EntityInfoDialog from '@/components/metadata/entity-info-dialog';
 import CertificationBadge from '@/components/common/certification-badge';
 import PublicationBadge from '@/components/common/publication-badge';
 import VersionCountBadge from '@/components/common/version-count-badge';
-import { Switch } from '@/components/ui/switch';
+import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status';
 import type { CertificationLevel } from '@/types/lifecycle';
 import { useApi } from '@/hooks/use-api';
 import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { internalErrorText } from '@/lib/server-error-text';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
+import list from '@/components/common/list-page.module.css';
+import classes from './data-contracts.module.css';
+
+/** A header label that sorts its column, in the grid's header-label look. */
+function SortButton({ column, label }: { column: Column<DataContractListItem, unknown>; label: string }) {
+  return (
+    <UnstyledButton className={list.sort} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+      {label}
+      <ArrowUpDown aria-hidden className={list.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+    </UnstyledButton>
+  );
+}
+
+// A contract's lifecycle status, in the Aura status tones (draft was yellow,
+// active green and deprecated red; the rest grey)
+const STATUS_TONES: Record<string, StatusTone> = {
+  draft: 'warning',
+  active: 'good',
+  deprecated: 'critical',
+};
+const statusTone = (status: string | undefined): StatusTone => STATUS_TONES[(status || '').toLowerCase()] ?? 'neutral';
 
 export default function DataContracts() {
   const { t } = useTranslation(['data-contracts', 'common']);
@@ -40,7 +60,13 @@ export default function DataContracts() {
   // When false (default) the list collapses to one row per version family
   // and exposes a "N versions" badge. See PRD #442.
   const [includeHistory, setIncludeHistory] = useState(false);
+  // An action's error (create, delete), dismissible
   const [error, setError] = useState<string | null>(null);
+  // The list's failed load, shown with a Retry
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Only the latest load may set the list: an earlier one that answers late
+  // (such as one from before a project switch) is dropped
+  const loadId = useRef(0);
   const [openWizard, setOpenWizard] = useState(false);
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -146,6 +172,7 @@ export default function DataContracts() {
   // Removed draft persistence for inline editor
 
   const fetchContracts = async () => {
+    const id = ++loadId.current;
     try {
       setLoading(true);
 
@@ -163,12 +190,15 @@ export default function DataContracts() {
       const response = await fetch(endpoint);
       if (!response.ok) throw new Error(t('data-contracts:messages.fetchError', 'Failed to fetch data contracts'));
       const data = await response.json();
-      setContracts(data);
+      if (id !== loadId.current) return;
+      setContracts(Array.isArray(data) ? data : []);
       setError(null);
+      setLoadError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('data-contracts:messages.fetchError', 'Failed to fetch data contracts'));
+      if (id !== loadId.current) return;
+      setLoadError(err instanceof Error ? err.message : t('data-contracts:messages.fetchError', 'Failed to fetch data contracts'));
     } finally {
-      setLoading(false);
+      if (id === loadId.current) setLoading(false);
     }
   };
 
@@ -406,19 +436,6 @@ export default function DataContracts() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'deprecated':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-    }
-  };
-
   // Filter contracts based on URL parameter
   const filteredContracts = useMemo(() => {
     const statusFilter = searchParams.get('status');
@@ -431,20 +448,17 @@ export default function DataContracts() {
     });
   }, [contracts, searchParams]);
 
-  const columns: ColumnDef<DataContractListItem>[] = [
+  // The columns read the row handlers through a ref, so the definitions stay
+  // the same across renders and the cells keep their focus
+  const rowActions = useRef({ remove: handleDeleteContract });
+  useEffect(() => {
+    rowActions.current = { remove: handleDeleteContract };
+  });
+
+  const columns = useMemo<ColumnDef<DataContractListItem>[]>(() => [
     {
       accessorKey: "name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            {t('table.name')}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('table.name')} />,
       cell: ({ row }) => {
         const contract = row.original as any;
         // Multi-domain (#520): render each assigned domain as a badge (primary starred).
@@ -452,8 +466,8 @@ export default function DataContracts() {
           ?? (contract.domainId ? [contract.domainId] : (contract.domain_id ? [contract.domain_id] : []));
         const primaryId = contract.primaryDomainId || contract.domainId || contract.domain_id || domainIds[0] || null;
         return (
-          <div className="space-y-1">
-            <div className="font-medium">{row.getValue("name")}</div>
+          <div className={list.titleCell}>
+            <span className={list.title}>{row.getValue("name")}</span>
             <DomainBadgeList
               domainIds={domainIds}
               primaryDomainId={primaryId}
@@ -465,39 +479,19 @@ export default function DataContracts() {
     },
     {
       accessorKey: "owner_team_id",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            {t('table.owner')}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => {
         const teamName = row.original.owner_team_name;
-        return <div>{teamName || t('common:states.notAvailable')}</div>;
+        return <span className={list.person}>{teamName || t('common:states.notAvailable')}</span>;
       },
     },
     {
       accessorKey: "version",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            {t('table.version')}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('table.version')} />,
       cell: ({ row }) => {
         const id = row.original.id
         return (
-          <div className="flex items-center gap-1.5">
+          <div className={list.badges}>
             <Badge variant="secondary">{row.getValue("version")}</Badge>
             {/* Family badge — only renders for families with > 1 visible version.
                 Click expands the version family for this row by routing into
@@ -512,27 +506,17 @@ export default function DataContracts() {
     },
     {
       accessorKey: "status",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            {t('table.status')}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('table.status')} />,
       cell: ({ row }) => {
         const contract = row.original;
         return (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className={list.badges}>
             {contract.draftOwnerId && (
-              <Badge variant="outline" className="text-xs bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
+              <Badge variant="outline" style={badgeToneStyle('warning')}>
                 {t('data-contracts:list.personal', 'Personal')}
               </Badge>
             )}
-            <Badge variant="outline" className={getStatusColor(row.getValue("status"))}>
+            <Badge variant="outline" style={badgeToneStyle(statusTone(row.getValue("status")))}>
               {row.getValue("status")}
             </Badge>
             <CertificationBadge
@@ -558,7 +542,7 @@ export default function DataContracts() {
       cell: ({ row }) => {
         const tags = row.original.tags || [];
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className={list.badges}>
             {tags.map((tag, index) => (
               <TagChip key={index} tag={tag} size="sm" />
             ))}
@@ -569,32 +553,12 @@ export default function DataContracts() {
     },
     {
       accessorKey: "created",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            {t('table.created')}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('table.created')} />,
       cell: ({ row }) => row.original.created ? <RelativeDate date={row.original.created} /> : t('common:states.notAvailable'),
     },
     {
       accessorKey: "updated",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            {t('table.updated')}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: ({ column }) => <SortButton column={column} label={t('table.updated')} />,
       cell: ({ row }) => row.original.updated ? <RelativeDate date={row.original.updated} /> : t('common:states.notAvailable'),
     },
     {
@@ -603,151 +567,165 @@ export default function DataContracts() {
       cell: ({ row }) => {
         const contract = row.original;
         return (
-          <div className="flex space-x-1 justify-end">
-            <Button
-              variant="ghost"
-              size="icon"
+          <div className={list.actions}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              className={list.action}
               onClick={(e) => { e.stopPropagation(); setPreviewContractId(contract.id ?? null); setPreviewContractTitle(contract.name ?? ''); }}
               title={t('data-contracts:table.previewMetadata', 'Preview Metadata')}
             >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => { e.stopPropagation(); contract.id && navigate(`${pathname}/${contract.id}`) }}
+              <Eye aria-hidden />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              className={list.action}
+              onClick={(e) => { e.stopPropagation(); if (contract.id) navigate(`${pathname}/${contract.id}`); }}
               title={t('common:tooltips.edit')}
             >
-              <Pencil className="h-4 w-4" />
-            </Button>
+              <Pencil aria-hidden />
+            </ActionIcon>
             {contract.id && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); handleDeleteContract(contract.id as string) }}
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                className={`${list.action} ${list.delete}`}
+                onClick={(e) => { e.stopPropagation(); rowActions.current.remove(contract.id as string) }}
                 title={t('common:tooltips.delete')}
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                <Trash2 aria-hidden />
+              </ActionIcon>
             )}
           </div>
         );
       },
     },
-  ];
+  ], [navigate, pathname, certificationLevels, t]);
 
   return (
-    <div className="py-6">
-      <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
-        <FileText className="w-8 h-8" />
-        {t('title')}
-      </h1>
-
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-          <AlertDescription className="whitespace-pre-wrap flex-1">{error}</AlertDescription>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 ml-2 hover:bg-destructive/20"
-            onClick={() => setError(null)}
-            title={t('common:tooltips.dismiss')}
-          >
-            <span className="sr-only">{t('common:tooltips.dismiss', 'Dismiss')}</span>
-            ×
-          </Button>
-        </Alert>
-      )}
-
-      {loading ? (
-        <ListViewSkeleton columns={8} rows={5} toolbarButtons={3} />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredContracts}
-          searchColumn="name"
-          storageKey="data-contracts-sort"
-          toolbarActions={
-            <>
-              {/* Family-collapse toggle. Off = one row per family + "N versions"
-                  badge; On = every version is its own row (legacy behavior).
-                  See PRD #442. */}
-              <div className="flex items-center gap-2 h-9 pr-2 border-r border-border">
-                <Switch
-                  id="contracts-include-history"
-                  checked={includeHistory}
-                  onCheckedChange={setIncludeHistory}
-                  aria-label={t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
-                />
-                <Label htmlFor="contracts-include-history" className="text-xs text-muted-foreground cursor-pointer">
-                  {t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
-                </Label>
-              </div>
-              {/* Create/Upload actions require write permission (POST
-                  /api/data-contracts). Hidden for read-only personas such as
-                  Data Consumer so the dialog can't be opened. See ONT-RBAC-007. */}
-              {canWrite && (
-                <Button onClick={() => setOpenWizard(true)} className="gap-2 h-9" title={t('common:tooltips.createDataContract')}>
-                  <Plus className="h-4 w-4" />
-                  {t('newContract')}
-                </Button>
-              )}
-              {canWrite && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button onClick={() => setOpenUploadDialog(true)} variant="outline" className="gap-2 h-9">
-                        <Upload className="h-4 w-4" />
-                        {t('uploadFile')}
-                        <HelpCircle className="h-3 w-3 ml-1 opacity-50" />
+    <>
+      <PageLayout fullBleed header={<PageHeader title={t('title')} />}>
+        <Pane flush aria-label={t('listPane')}>
+          <div className={list.body}>
+            {loading ? (
+              <ListViewSkeleton columns={8} rows={5} toolbarButtons={3} />
+            ) : (
+              <>
+                {/* The list's failed load, with a Retry; the toolbar stays */}
+                {loadError && (
+                  <div className={classes.state}>
+                    <Alert
+                      color="red"
+                      variant="light"
+                      icon={<AlertCircle />}
+                      className={`${list.alert} ${classes.stateAlert}`}
+                      classNames={{ message: list.alertMessage }}
+                    >
+                      {loadError}
+                    </Alert>
+                    <Button variant="outline" onClick={fetchContracts}>{t('common:retry')}</Button>
+                  </div>
+                )}
+                {/* An action's error (create, delete), dismissible */}
+                {error && (
+                  <Alert
+                    color="red"
+                    variant="light"
+                    icon={<AlertCircle />}
+                    className={list.alert}
+                    classNames={{ message: list.alertMessage }}
+                    withCloseButton
+                    closeButtonLabel={t('common:tooltips.dismiss', 'Dismiss')}
+                    onClose={() => setError(null)}
+                  >
+                    {error}
+                  </Alert>
+                )}
+                <DataTable
+                  columns={columns}
+                  data={filteredContracts}
+                  searchColumn="name"
+                  storageKey="data-contracts-sort"
+                  toolbarActions={
+                    <>
+                      {/* Family-collapse toggle. Off = one row per family + "N versions"
+                          badge; On = every version is its own row (legacy behavior).
+                          See PRD #442. */}
+                      <Switch
+                        id="contracts-include-history"
+                        size="xs"
+                        // Ruled off from the create and upload buttons, when they're there
+                        className={canWrite ? list.history : classes.historyAlone}
+                        classNames={{ label: list.historyLabel }}
+                        checked={includeHistory}
+                        onChange={(e) => setIncludeHistory(e.currentTarget.checked)}
+                        label={t('versionFamily.showAllVersions', { defaultValue: 'Show all versions' })}
+                      />
+                      {/* Create/Upload actions require write permission (POST
+                          /api/data-contracts). Hidden for read-only personas such as
+                          Data Consumer so the dialog can't be opened. See ONT-RBAC-007. */}
+                      {canWrite && (
+                        <Button onClick={() => setOpenWizard(true)} title={t('common:tooltips.createDataContract')}>
+                          <Plus />
+                          {t('newContract')}
+                        </Button>
+                      )}
+                      {canWrite && (
+                        <Tooltip
+                          multiline
+                          w={280}
+                          position="bottom"
+                          withinPortal
+                          label={
+                            <div className={list.tip}>
+                              <p className={list.tipTitle}>{t('data-contracts:import.uploadTooltipTitle', 'Upload Data Contract (ODCS format)')}</p>
+                              <p>{t('data-contracts:import.uploadTooltipFormats', 'Accepts JSON or YAML files following the ODCS (Open Data Contract Standard) schema.')}</p>
+                              <p>{t('data-contracts:import.uploadTooltipOdps', 'For Data Products (ODPS), use the Data Products page instead.')}</p>
+                            </div>
+                          }
+                        >
+                          <Button onClick={() => setOpenUploadDialog(true)} variant="outline">
+                            <Upload />
+                            {t('uploadFile')}
+                            <HelpCircle aria-hidden className={list.help} />
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </>
+                  }
+                  bulkActions={(selectedRows) => (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBulkRequestAccess(selectedRows.map(r => r.id!).filter(Boolean))}
+                        title={t('common:tooltips.requestAccessForSelected')}
+                      >
+                        <KeyRound />
+                        {t('data-contracts:list.requestAccess', 'Request Access ({{count}})', { count: selectedRows.length })}
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="font-medium">{t('data-contracts:import.uploadTooltipTitle', 'Upload Data Contract (ODCS format)')}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t('data-contracts:import.uploadTooltipFormats', 'Accepts JSON or YAML files following the ODCS (Open Data Contract Standard) schema.')}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t('data-contracts:import.uploadTooltipOdps', 'For Data Products (ODPS), use the Data Products page instead.')}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </>
-          }
-          bulkActions={(selectedRows) => (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-1"
-                onClick={() => handleBulkRequestAccess(selectedRows.map(r => r.id!).filter(Boolean))}
-                title={t('common:tooltips.requestAccessForSelected')}
-              >
-                <KeyRound className="w-4 h-4 mr-1" />
-                {t('data-contracts:list.requestAccess', 'Request Access ({{count}})', { count: selectedRows.length })}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-9 gap-1"
-                onClick={() => handleBulkDelete(selectedRows.map(r => r.id!).filter(Boolean))}
-                title={t('common:tooltips.deleteSelected')}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                {t('common:actions.deleteSelected', 'Delete Selected ({{count}})', { count: selectedRows.length })}
-              </Button>
-            </>
-          )}
-          onRowClick={(row) => {
-            const id = row.original.id;
-            if (id) navigate(`${pathname}/${id}`);
-          }}
-        />
-      )}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleBulkDelete(selectedRows.map(r => r.id!).filter(Boolean))}
+                        title={t('common:tooltips.deleteSelected')}
+                      >
+                        <Trash2 />
+                        {t('common:actions.deleteSelected', 'Delete Selected ({{count}})', { count: selectedRows.length })}
+                      </Button>
+                    </>
+                  )}
+                  onRowClick={(row) => {
+                    const id = row.original.id;
+                    if (id) navigate(`${pathname}/${id}`);
+                  }}
+                />
+              </>
+            )}
+          </div>
+        </Pane>
+      </PageLayout>
 
       {/* Upload Dialog (shared with Data Products via ImportEntityDialog) */}
       <ImportEntityDialog
@@ -785,33 +763,29 @@ export default function DataContracts() {
           pasteButton: t('data-contracts:import.importJsonButton', 'Import JSON'),
         }}
         alert={uploadError && (
-          <Alert variant="destructive" className="mb-1 relative pr-8">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <span className="whitespace-pre-wrap">{uploadError.message}</span>
-              {uploadError.detail && (
-                <button
-                  type="button"
-                  className="mt-1 flex items-center gap-1 text-xs underline opacity-80 hover:opacity-100"
-                  onClick={() => setShowErrorDetail(!showErrorDetail)}
-                >
-                  {showErrorDetail ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                  {t('data-contracts:import.technicalDetails', 'Technical details')}
-                </button>
-              )}
-              {showErrorDetail && uploadError.detail && (
-                <pre className="mt-1 text-xs bg-destructive/10 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">{uploadError.detail}</pre>
-              )}
-            </AlertDescription>
-            <button
-              type="button"
-              className="absolute top-3 right-3 rounded-sm opacity-70 hover:opacity-100"
-              onClick={() => { setUploadError(null); setShowErrorDetail(false); }}
-              title={t('common:tooltips.dismiss')}
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">{t('common:tooltips.dismiss', 'Dismiss')}</span>
-            </button>
+          <Alert
+            color="red"
+            variant="light"
+            icon={<AlertCircle />}
+            classNames={{ message: list.alertMessage }}
+            withCloseButton
+            closeButtonLabel={t('common:tooltips.dismiss', 'Dismiss')}
+            onClose={() => { setUploadError(null); setShowErrorDetail(false); }}
+          >
+            <span className={classes.alertText}>{uploadError.message}</span>
+            {uploadError.detail && (
+              <UnstyledButton
+                className={classes.detailToggle}
+                aria-expanded={showErrorDetail}
+                onClick={() => setShowErrorDetail(!showErrorDetail)}
+              >
+                {showErrorDetail ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+                {t('data-contracts:import.technicalDetails', 'Technical details')}
+              </UnstyledButton>
+            )}
+            {showErrorDetail && uploadError.detail && (
+              <pre className={classes.detail}>{uploadError.detail}</pre>
+            )}
           </Alert>
         )}
       />
@@ -830,7 +804,6 @@ export default function DataContracts() {
         onOpenChange={setWizardOpen}
         onSubmit={createContract}
       />
-
-    </div>
+    </>
   );
-} 
+}

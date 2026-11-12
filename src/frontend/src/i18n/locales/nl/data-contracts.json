@@ -1,5 +1,6 @@
 {
   "title": "Datacontracten",
+  "listPane": "Lijst met datacontracten",
   "subtitle": "Beheer je datacontracten en specificaties",
   "newContract": "Nieuw Contract",
   "uploadFile": "Bestand Uploaden",
@@ -301,7 +302,8 @@
     "description": {
       "purpose": "Doel",
       "limitations": "Beperkingen",
-      "usage": "Gebruik"
+      "usage": "Gebruik",
+      "edit": "Beschrijving bewerken"
     },
     "schemas": {
       "title": "Schema's ({{count}})",
@@ -523,6 +525,10 @@
       "startProfilingFailed": "Starten van profilering mislukt",
       "invalidVersionFormat": "\"{{version}}\" is geen geldige versie: een nieuwe versie heeft de vorm X.Y.Z, bijvoorbeeld 2.0.0.",
       "draftVersionFormat": "De versie \"{{version}}\" van dit contract heeft niet de vorm X.Y.Z, dus er kan geen persoonlijk concept van worden gemaakt. Maak in plaats daarvan een nieuwe versie (bijvoorbeeld 2.0.0)."
+    },
+    "rowActions": {
+      "edit": "{{name}} bewerken",
+      "delete": "{{name}} verwijderen"
     }
   },
   "list": {
@@ -905,7 +911,8 @@
       "fromPlaceholder": "bijv. customer_id",
       "to": "Naar (doelverwijzing)",
       "toPlaceholder": "bijv. schema.table.column",
-      "add": "Relatie toevoegen"
+      "add": "Relatie toevoegen",
+      "remove": "Relatie {{from}} → {{to}} verwijderen"
     },
     "toast": {
       "validationError": "Validatiefout",
@@ -1530,7 +1537,9 @@
     "valuePlaceholder": "Waarde",
     "newPropertyPlaceholder": "Nieuwe eigenschapssleutel",
     "addProperty": "Eigenschap toevoegen",
-    "addButton": "Server toevoegen"
+    "addButton": "Server toevoegen",
+    "propertyValue": "Waarde van {{key}}",
+    "removeProperty": "{{key}} verwijderen"
   },
   "tag": {
     "validationError": "Validatiefout",

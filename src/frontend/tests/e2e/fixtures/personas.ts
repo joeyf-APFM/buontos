@@ -14,6 +14,8 @@ export const FEATURE_IDS = [
   'settings-delivery', 'settings-workflows', 'settings-roles', 'data-domains', 'business-roles',
   'business-owners', 'delivery-methods', 'teams', 'projects', 'tags', 'jobs', 'audit', 'comments',
   'ontology', 'notifications', 'search', 'my-products', 'my-requests',
+  // Related Entities and the lineage editor check it (entity_relationship_routes.py)
+  'entity_relationships',
 ];
 
 // FeatureAccessLevel values (src/types/settings.ts)

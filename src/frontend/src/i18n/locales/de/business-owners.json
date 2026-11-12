@@ -1,6 +1,7 @@
 {
   "title": "Business Owner",
   "subtitle": "Zuständigkeitszuweisungen, die festhalten, wer wofür verantwortlich ist.",
+  "listPane": "Liste der Geschäftsverantwortlichen",
   "addNew": "Owner zuweisen",
   "editOwner": "Zuweisung bearbeiten",
   "removeOwner": "Owner entfernen",
@@ -60,6 +61,7 @@
     "previousOwners": "Frühere Owner",
     "noOwners": "Keine Owner zugewiesen",
     "assignOwner": "Owner zuweisen",
-    "history": "Verlauf anzeigen"
+    "history": "Verlauf anzeigen",
+    "removeOwnerNamed": "{{name}} entfernen"
   }
 }

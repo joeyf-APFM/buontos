@@ -1,0 +1,26 @@
+/*
+ * The Concepts layout (wave 2 Task 12a), around every /concepts/* page. It
+ * keeps the shell's padding: the Simple/Advanced switch sits at the end of a
+ * row ruled off from the page below, as before, and each page draws its own
+ * header (the page kit's, on the restyled pages).
+ */
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+/* A wide page scrolls inside its own panes, not the layout */
+.outlet {
+  min-width: 0;
+}

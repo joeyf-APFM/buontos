@@ -1,0 +1,46 @@
+/*
+ * Define's Guided Generate dialog on the kit Dialog (wave 2 Task 12b). The
+ * shared form parts come from components/common/dialog-form.module.css;
+ * these are its own: the domain field's label over its Select and text, the
+ * question rows, and the prompt preview.
+ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field > label {
+  margin-bottom: 0;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.question {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.questionInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.previewLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+}
+
+.preview {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--aura-text-body);
+}

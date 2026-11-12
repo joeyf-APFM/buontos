@@ -1,0 +1,29 @@
+/*
+ * Search (/concepts/search) on the page kit (wave 2 Task 13b), inside the
+ * Concepts layout, which keeps the shell's padding: the kit header and its
+ * description, the kit tabs, then the active tab's panes
+ * (components/search/*).
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The tabs over the panes, at the full width (doubled to outrank the kit's
+   inline-flex list) */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tabs.tabs {
+  display: flex;
+}
+
+.panel {
+  min-width: 0;
+}

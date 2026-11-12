@@ -1,0 +1,340 @@
+/*
+ * Define (/concepts/define) on the page kit (wave 2 Task 12a), inside the
+ * Concepts layout, which keeps the shell's padding: the kit header and its
+ * description, then a stack of panes: the build legend, the three path cards
+ * and the creation work in progress.
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.strong {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+/* The ring-and-"i" mark: its tooltip opens on hover and on focus */
+.info {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--aura-text-secondary);
+  border: 1px solid var(--aura-border-strong);
+  border-radius: 50%;
+  cursor: help;
+}
+
+.info:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* The legend: three rungs in a row, arrows between them; a narrow window
+   stacks them and drops the arrows */
+.rungs {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.separator {
+  flex: none;
+  align-self: center;
+  color: var(--aura-text-muted);
+}
+
+.legendRung {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+svg.legendIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: var(--aura-text-body);
+}
+
+.legendText {
+  min-width: 0;
+}
+
+.legendTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* One line; its title has it in full */
+.blurb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+/* The vocabulary tip: the RDF terms in the mono font, then a note */
+.vocab {
+  font-family: var(--aura-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.vocabNote {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+@media (max-width: 639.98px) {
+  .rungs {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .separator {
+    display: none;
+  }
+}
+
+/* The path cards: 1, 2 or 3 to a row, as the old 640/1024 grid */
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* A card: a 1px frame, no shadow */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-body);
+}
+
+.cardIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cardTitleLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--aura-font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--aura-navy);
+}
+
+.cardDescription {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+/* The button and the Builds row sit at the card's foot */
+.cardFoot {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.cta {
+  width: 100%;
+}
+
+.builds {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.buildsLabel {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+}
+
+.buildsRungs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* A rung this path builds is in the body colour; one that depends on the
+   file is muted; one it doesn't build is faint */
+.rung {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--aura-text-body);
+}
+
+.rung[data-state='file'] {
+  color: var(--aura-text-secondary);
+}
+
+.rung[data-state='no'] {
+  color: var(--aura-text-muted);
+  opacity: 0.5;
+}
+
+.rung svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fileMark {
+  font-size: 10px;
+}
+
+.buildsNote {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* In progress */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.alert {
+  align-self: stretch;
+  margin-bottom: 8px;
+}
+
+/* A failed load: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One line per run, framed */
+.run {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 6px 4px 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.runIcon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+}
+
+.runIcon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.runName {
+  flex: none;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--aura-text-body);
+}
+
+/* The message takes the rest of the line, on one line; its title has it in full */
+.runMessage {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+.runMeta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+.steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.steps svg {
+  width: 12px;
+  height: 12px;
+}

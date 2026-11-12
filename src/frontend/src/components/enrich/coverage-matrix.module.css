@@ -1,0 +1,185 @@
+/*
+ * The Enrich coverage matrix (wave 2 Task 14), in the shared DataTable: the
+ * sortable 11px headers, tabular figures with the Products/Contracts and
+ * Assets tones, the coverage bar, the totals row, and the sample-data notice.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The DataTable's own frame scrolls sideways (overflow-x: auto); this keeps
+   it inside the pane, however wide the fixed columns are */
+.matrix {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.notice {
+  padding: 8px 12px;
+}
+
+.notice :global(.mantine-Alert-message) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.retry {
+  margin-left: auto;
+}
+
+.code {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+/* A sortable header: the column's 11px uppercase label as a button */
+.sort {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 2px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+}
+
+.sort[data-align='right'] {
+  display: flex;
+  margin-left: auto;
+}
+
+.sort:hover {
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-body);
+}
+
+.sort:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.sort[data-tone='sky'],
+.num[data-tone='sky'] {
+  color: var(--aura-info);
+}
+
+.sort[data-tone='amber'],
+.num[data-tone='amber'] {
+  color: var(--aura-warning);
+}
+
+.sortIcon {
+  position: absolute;
+  top: 50%;
+  right: -14px;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
+}
+
+/* Assets' header: its sort button and the info mark */
+.headWithTip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.headWithTip .sort[data-align='right'] {
+  margin-left: 0;
+}
+
+/* The scheme cell: its name on one line, truncated with the full name in its
+   title, and the last run under it */
+.scheme {
+  min-width: 0;
+  padding: 3px 0;
+}
+
+.schemeName {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.lastRun {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.zero {
+  color: var(--aura-text-secondary);
+}
+
+.suggested {
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.track {
+  width: 48px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--aura-surface-strong);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--aura-good);
+}
+
+/* The totals row: 28px, in the DataTable's footer */
+.totals > .totalCell {
+  height: 28px;
+  padding: 0 8px;
+  vertical-align: middle;
+}
+
+.unmapped {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--aura-warning);
+}

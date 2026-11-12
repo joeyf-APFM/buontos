@@ -186,7 +186,7 @@ describe('DataProductCreateDialog — status', () => {
       />
     );
 
-    expect(screen.getByRole('combobox', { name: /Status/ })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /Status/ })).toBeDisabled();
     expect(screen.getByText(/The status changes with Change Status on the page/)).toBeInTheDocument();
   });
 
@@ -195,7 +195,7 @@ describe('DataProductCreateDialog — status', () => {
       <DataProductCreateDialog open={true} onOpenChange={vi.fn()} onSuccess={vi.fn()} mode="create" />
     );
 
-    expect(screen.getByRole('combobox', { name: /Status/ })).not.toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /Status/ })).not.toBeDisabled();
     expect(screen.queryByText(/The status changes with Change Status on the page/)).not.toBeInTheDocument();
   });
 });

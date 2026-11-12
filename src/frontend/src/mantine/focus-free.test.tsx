@@ -39,4 +39,24 @@ describe('focusIsFree', () => {
     search.focus();
     expect(focusIsFree(modal('closed').content)).toBe(false);
   });
+
+  // Wave 2 Task 11 fix round 1 (R41): a trapFocus Popover or Menu inside the
+  // Modal holds focus in its portal, outside the content
+  it('is free with focus in a floating dropdown whose target was in the Modal that closed', () => {
+    const closed = modal('closed');
+    closed.button.setAttribute('aria-controls', 'menu-1');
+    const dropdown = document.createElement('div');
+    dropdown.id = 'menu-1';
+    dropdown.className = 'mantine-Popover-dropdown';
+    const item = document.createElement('button');
+    dropdown.appendChild(item);
+    document.body.appendChild(dropdown);
+    item.focus();
+    expect(focusIsFree(closed.content)).toBe(true);
+    // A dropdown of a control elsewhere is not the closed Modal's
+    const other = modal('other');
+    closed.button.removeAttribute('aria-controls');
+    other.button.setAttribute('aria-controls', 'menu-1');
+    expect(focusIsFree(closed.content)).toBe(false);
+  });
 });

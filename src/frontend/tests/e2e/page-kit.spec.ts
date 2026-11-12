@@ -5,7 +5,7 @@
  * details grid has the shared panels' 86px label column; the kit's Mantine
  * Tabs look like the Task 7 Radix tabs (components/ui/tabs.tsx).
  */
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi } from './fixtures/api';
 import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
@@ -118,9 +118,42 @@ test('details grid: the 86px label column in text-secondary, at the explorer den
   expect((await style(dt, ['color']))['color']).toBe('rgb(86, 93, 101)');
   expect((await style(dt, ['font-size']))['font-size']).toBe('12px');
   // The explorer details panel's density (R12): rows about 23px apart, no rules
-  const next = (await grid.locator('dt').nth(1).boundingBox())!;
+  // (the third label, the first of the second row: two pairs share each row)
+  const next = (await grid.locator('dt').nth(2).boundingBox())!;
   expect(Math.abs(next.y - t.y - 23)).toBeLessThanOrEqual(1);
   for (const cell of [dt, dd]) expect((await style(cell, ['border-bottom-width']))['border-bottom-width']).toBe('0px');
+});
+
+// Task 13d: two columns at every width (owner), by flex-wrap
+test('details grid: two pairs per row, left to right then down, the same at 900px', async ({ page }) => {
+  const grid = page.getByTestId('details');
+  const pairs = grid.locator('dl > div');
+  for (const width of [1000, 900]) {
+    await page.setViewportSize({ width, height: 1600 });
+    expect(await style(grid.locator('dl'), ['display', 'flex-wrap'])).toEqual({ display: 'flex', 'flex-wrap': 'wrap' });
+    const [a, b, c] = await Promise.all([0, 1, 2].map(async (i) => (await pairs.nth(i).boundingBox())!));
+    expect(Math.abs(b.y - a.y), `${width}: pair 2 shares pair 1's top`).toBeLessThanOrEqual(0.5);
+    expect(b.x, `${width}: pair 2 is right of pair 1`).toBeGreaterThan(a.x + a.width - 1);
+    expect(c.y, `${width}: pair 3 is the next row`).toBeGreaterThan(a.y + 10);
+    expect(Math.abs(c.x - a.x), `${width}: pair 3 is back at the left`).toBeLessThanOrEqual(0.5);
+    // Each pair is half the width, less half the gap
+    expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(0.5);
+  }
+});
+
+test('details grid: a 200-character unbroken value stays in its half, with no sideways scroll', async ({ page }) => {
+  await page.evaluate(() => {
+    const dd = document.querySelector('[data-testid="details"] dd')!;
+    dd.textContent = 'x'.repeat(200);
+  });
+  const grid = page.getByTestId('details');
+  const [pair, other] = await Promise.all([0, 1].map(async (i) => (await grid.locator('dl > div').nth(i).boundingBox())!));
+  const dd = grid.locator('dd').first();
+  expect(await dd.evaluate((el) => el.scrollWidth <= el.clientWidth + 1 || getComputedStyle(el).overflowWrap === 'anywhere')).toBe(true);
+  const box = (await dd.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(pair.x + pair.width + 0.5);
+  expect(other.x).toBeGreaterThanOrEqual(pair.x + pair.width - 0.5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('tabs: the Task 7 look, and arrow keys switch them', async ({ page }) => {
@@ -152,4 +185,247 @@ test('tabs: the Task 7 look, and arrow keys switch them', async ({ page }) => {
   await expect(kit.getByRole('tab', { name: 'Lineage' })).toBeFocused();
   await expect(kit.getByRole('tab', { name: 'Lineage' })).toHaveAttribute('aria-selected', 'true');
   await expect(kit.getByRole('tabpanel')).toHaveText('B');
+});
+
+test.describe('kit Dialog', () => {
+  const harness = '/tests/e2e/fixtures/page-kit-harness.tsx';
+  const closes = (page: Page) =>
+    page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).dialogEvents.closes, harness);
+  const zIndex = (loc: Locator) => loc.evaluate((el) => Number(getComputedStyle(el).zIndex));
+
+  test.beforeEach(async ({ page }) => {
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog(), harness);
+    await expect(page.getByRole('dialog', { name: 'Rename data product' })).toBeVisible();
+  });
+
+  test('Dialog: the kit look, at the md width', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    expect(Math.round((await dialog.boundingBox())!.width)).toBe(560);
+    expect(await style(dialog, ['border-top-width', 'border-top-color', 'border-top-left-radius'])).toEqual({
+      'border-top-width': '1px', 'border-top-color': BORDER, 'border-top-left-radius': '8px',
+    });
+    expect(await style(dialog.getByRole('heading', { name: 'Rename data product' }), ['font-size', 'color'])).toEqual({
+      'font-size': '14px', color: 'rgb(31, 48, 102)',
+    });
+    const footer = dialog.getByRole('button', { name: 'Save' }).locator('..');
+    expect(await style(footer, ['border-top-width', 'justify-content'])).toEqual({
+      'border-top-width': '1px', 'justify-content': 'flex-end',
+    });
+    // Focus starts in the content, not on the corner close
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused();
+    // The look is the content's alone: the full-window layer that centres it
+    // stays fixed and unframed, and the dialog is on screen, on top
+    expect(await style(page.locator('.mantine-Modal-inner'), ['position', 'border-top-width', 'border-top-left-radius'])).toEqual({
+      position: 'fixed', 'border-top-width': '0px', 'border-top-left-radius': '0px',
+    });
+    const b = (await dialog.boundingBox())!;
+    expect(b.y + b.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[role="dialog"]'), [b.x + b.width / 2, b.y + 20])).toBe(true);
+    // The corner close, last in the content, shows at the top right, on top
+    const close = (await dialog.getByRole('button', { name: 'Close' }).boundingBox())!;
+    expect(close.x + close.width).toBeGreaterThan(b.x + b.width - 24);
+    expect(close.y).toBeLessThan(b.y + 24);
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('button')?.getAttribute('aria-label'), [close.x + close.width / 2, close.y + close.height / 2])).toBe('Close');
+  });
+
+  test('Dialog: Escape in an open Select closes only the Select', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    const name = dialog.getByRole('textbox', { name: 'Name' });
+    await name.fill('Customer 361');
+    const status = dialog.getByLabel('Status', { exact: true });
+    await status.click();
+    await expect(page.getByRole('option', { name: 'Deprecated' })).toBeVisible();
+    await expect(status).toHaveAttribute('data-expanded', 'true');
+    await page.keyboard.press('Escape');
+    // Only the list closed: the Select keeps its value and focus
+    await expect(page.getByRole('option', { name: 'Deprecated' })).toHaveCount(0);
+    await expect(status).not.toHaveAttribute('data-expanded');
+    await expect(status).toHaveValue('Active');
+    await expect(status).toBeFocused();
+    // Past the Modal's 200ms exit transition: still open, the typed input kept
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    await expect(name).toHaveValue('Customer 361');
+    expect(await closes(page)).toBe(0);
+    // With the list closed, Escape closes the dialog
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape closes it past an open Mantine Tooltip on its opener', async ({ page }) => {
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ openerTooltip: true }), harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await expect(dialog).toBeVisible();
+    // The tooltip stays open under the dialog, as under a pointer left on its button
+    await expect(page.getByRole('tooltip', { name: 'Upload a file' })).toBeVisible();
+    await dialog.getByRole('textbox', { name: 'Name' }).focus();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in an open Mantine Popover closes only the popover', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('button', { name: 'Filters' }).click();
+    const filter = page.getByRole('textbox', { name: 'Filter text' });
+    await expect(filter).toBeFocused();
+    await filter.fill('orders');
+    await page.keyboard.press('Escape');
+    await expect(filter).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    expect(await closes(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in an open Mantine Menu closes only the menu', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('button', { name: 'Actions' }).click();
+    const item = page.getByRole('menuitem', { name: 'Duplicate' });
+    await expect(item).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Escape');
+    await expect(item).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    expect(await closes(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog: Escape in a Dialog opened from a Dialog closes only the top one', async ({ page }) => {
+    const nestedCloses = () =>
+      page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).dialogEvents.nestedCloses, harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Customer 361');
+    await dialog.getByRole('button', { name: 'Discard' }).click();
+    const confirm = page.getByRole('alertdialog', { name: 'Discard changes?' });
+    await expect(confirm.getByRole('button', { name: 'Keep editing' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(confirm).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Customer 361');
+    expect([await closes(page), await nestedCloses()]).toEqual([0, 1]);
+    // Then Escape closes the dialog under it
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect([await closes(page), await nestedCloses()]).toEqual([1, 1]);
+  });
+
+  test('Dialog: long content scrolls in the body; the title and footer stay in view', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ long: true }), harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await expect(dialog.getByText('Paragraph 60', { exact: false })).toBeAttached();
+    // At most the window less 2rem above and below
+    const b = (await dialog.boundingBox())!;
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.height).toBeLessThanOrEqual(600 - 64 + 1);
+    // The title and the footer's actions are on screen, on top, without scrolling
+    const onTop = async (loc: Locator) => {
+      const r = (await loc.boundingBox())!;
+      expect(r.y).toBeGreaterThanOrEqual(b.y);
+      expect(r.y + r.height).toBeLessThanOrEqual(b.y + b.height);
+      return page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [r.x + r.width / 2, r.y + r.height / 2]);
+    };
+    expect(await onTop(dialog.getByRole('button', { name: 'Save' }))).toBe('Save');
+    expect(await onTop(dialog.getByRole('heading', { name: 'Rename data product' }))).toBe('Rename data product');
+    // The body scrolls; the dialog itself doesn't
+    const body = dialog.getByRole('textbox', { name: 'Name' }).locator('..');
+    const scroll = (loc: Locator) => loc.evaluate((el) => ({
+      overflowY: getComputedStyle(el).overflowY, scrolls: el.scrollHeight > el.clientHeight,
+    }));
+    expect(await scroll(body)).toEqual({ overflowY: 'auto', scrolls: true });
+    expect((await scroll(dialog)).scrolls).toBe(false);
+  });
+
+  test('Dialog: a fixed height holds while the content loads', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ late: true, height: '80vh' }), harness);
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await expect(dialog).toBeVisible();
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished'));
+    const before = (await dialog.boundingBox())!.height;
+    await expect(dialog.getByText('Paragraph 60', { exact: false })).toBeAttached();
+    const after = (await dialog.boundingBox())!.height;
+    expect([before, after]).toEqual([720, 720]);
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeInViewport();
+  });
+
+  test('Dialog sizes: sm 420, lg 720, xl 960', async ({ page }) => {
+    // Wide enough for xl beside Mantine's gutter
+    await page.setViewportSize({ width: 1280, height: 900 });
+    for (const [size, px] of [['sm', 420], ['lg', 720], ['xl', 960]] as const) {
+      await page.evaluate(async ([path, s]) => (await import(/* @vite-ignore */ path)).mountDialog({ size: s }), [harness, size] as const);
+      const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+      await expect(dialog).toBeVisible();
+      expect(Math.round((await dialog.boundingBox())!.width), size).toBe(px);
+    }
+  });
+
+  test('Dialog covers an open assistant window', async ({ page }) => {
+    await page.evaluate(async (path) => (await import(/* @vite-ignore */ path)).mountDialog({ assistant: true }), harness);
+    const assistant = page.locator('[role="dialog"][aria-modal="false"]', { hasText: 'Assistant body' });
+    await expect(assistant).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Rename data product' })).toBeVisible();
+    const level = await zIndex(assistant);
+    // Above the shell's top bar (40), under the Dialog's overlay
+    expect(level).toBeGreaterThan(40);
+    expect(level).toBeLessThan(await zIndex(page.locator('.mantine-Modal-overlay')));
+    const b = (await assistant.boundingBox())!;
+    expect(await page.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      return el?.classList.contains('mantine-Modal-overlay') ?? false;
+    }, [b.x + 20, b.y + b.height / 2])).toBe(true);
+  });
+
+  test('Dialog: Escape in an open Radix popover closes only the popover', async ({ page }) => {
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByRole('button', { name: 'More' }).click();
+    await expect(page.getByText('Popover body')).toBeVisible();
+    // The popover opens above the dialog
+    const body = (await page.getByText('Popover body').boundingBox())!;
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent, [body.x + 4, body.y + body.height / 2])).toBe('Popover body');
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Popover body')).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(dialog).toBeVisible();
+    expect(await closes(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect(await closes(page)).toBe(1);
+  });
+
+  test('Dialog sits above the shell and below toasts', async ({ page }) => {
+    await page.evaluate(async () => {
+      const { toast } = await import('/src/hooks/use-toast.ts');
+      toast({ title: 'Saved over a dialog', duration: Infinity });
+    });
+    const toasts = page.locator('.mantine-Notifications-root', { hasText: 'Saved over a dialog' });
+    await expect(toasts).toBeVisible();
+
+    const modal = await zIndex(page.locator('.mantine-Modal-inner'));
+    expect(await zIndex(page.locator('.mantine-Modal-overlay'))).toBe(modal);
+    const shell = await page.locator('.apfm-surface').evaluateAll((els) => els.map((el) => Number(getComputedStyle(el).zIndex) || 0));
+    expect(shell.length).toBeGreaterThanOrEqual(2);
+    for (const level of shell) expect(modal).toBeGreaterThan(level);
+    expect(await zIndex(toasts)).toBeGreaterThan(modal);
+
+    // The pickers a dialog holds open above it: a Mantine Select's list and
+    // a Radix layer (the shadcn z-50)
+    const dialog = page.getByRole('dialog', { name: 'Rename data product' });
+    await dialog.getByLabel('Status', { exact: true }).click();
+    const list = page.locator('.mantine-Select-dropdown', { has: page.getByRole('option', { name: 'Deprecated' }) });
+    await expect(list).toBeVisible();
+    expect(await zIndex(list)).toBeGreaterThan(modal);
+    await page.keyboard.press('Escape');
+    await dialog.getByRole('button', { name: 'More' }).click();
+    await expect(page.getByText('Popover body')).toBeVisible();
+    expect(await zIndex(page.locator('[data-radix-popper-content-wrapper]'))).toBeGreaterThan(modal);
+  });
 });

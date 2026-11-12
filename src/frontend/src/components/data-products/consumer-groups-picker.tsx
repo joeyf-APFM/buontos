@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input } from '@/components/ui/input';
+import { Loader, TextInput, UnstyledButton } from '@mantine/core';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { X, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { ConsumerPrincipal } from '@/types/data-product';
+import classes from './consumer-groups-picker.module.css';
 
 // Multi-select picker backed by /api/workspace/groups, surfacing workspace
 // group display names and packaging each selection as a typed
@@ -34,8 +35,11 @@ export function ConsumerGroupsPicker({ value, onChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+  // Only the latest search may set the list: an earlier one that answers late is dropped
+  const requestId = useRef(0);
 
   const fetchGroups = (q: string) => {
+    const id = ++requestId.current;
     setLoading(true);
     setError(null);
     const url = q
@@ -43,9 +47,15 @@ export function ConsumerGroupsPicker({ value, onChange }: Props) {
       : `/api/workspace/groups?limit=50`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: WorkspaceGroup[]) => setAvailable(data || []))
-      .catch((e) => setError(e.message || 'Failed to load groups'))
-      .finally(() => setLoading(false));
+      .then((data: WorkspaceGroup[]) => {
+        if (id === requestId.current) setAvailable(Array.isArray(data) ? data : []);
+      })
+      .catch((e) => {
+        if (id === requestId.current) setError(e.message || 'Failed to load groups');
+      })
+      .finally(() => {
+        if (id === requestId.current) setLoading(false);
+      });
   };
 
   // Initial load
@@ -83,32 +93,31 @@ export function ConsumerGroupsPicker({ value, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className={classes.picker}>
       {/* Selected chips */}
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className={classes.chips}>
           {value.map((p) => (
-            <Badge key={`${p.type}:${p.value}`} variant="secondary" className="flex items-center gap-1">
+            <Badge key={`${p.type}:${p.value}`} variant="secondary" className={classes.chip}>
               {p.value}
-              <button
-                type="button"
+              <UnstyledButton
                 aria-label={t('data-products:consumerGroups.removeAriaLabel', { name: p.value })}
-                className="hover:text-destructive"
+                className={classes.remove}
                 onClick={() => removeGroup(p.value)}
               >
-                <X className="h-3 w-3" />
-              </button>
+                <X aria-hidden />
+              </UnstyledButton>
             </Badge>
           ))}
         </div>
       )}
 
       {/* Search + free-text add */}
-      <div className="flex items-center gap-2">
-        <Input
+      <div className={classes.search}>
+        <TextInput
           placeholder={t('data-products:consumerGroups.searchPlaceholder')}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && search.trim()) {
               e.preventDefault();
@@ -116,9 +125,9 @@ export function ConsumerGroupsPicker({ value, onChange }: Props) {
               setSearch('');
             }
           }}
-          className="flex-1"
+          className={classes.searchField}
         />
-        {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        {loading && <Loader size={14} />}
         {search.trim() && (
           <Button
             type="button"
@@ -136,22 +145,21 @@ export function ConsumerGroupsPicker({ value, onChange }: Props) {
 
       {/* Suggestions list */}
       {candidates.length > 0 && (
-        <div className="border rounded-md max-h-40 overflow-y-auto">
+        <div className={classes.suggestions}>
           {candidates.slice(0, 20).map((g) => (
-            <button
+            <UnstyledButton
               key={`${g.id ?? ''}-${g.display_name}`}
-              type="button"
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted"
+              className={classes.suggestion}
               onClick={() => addGroup(g.display_name)}
             >
               {g.display_name}
-            </button>
+            </UnstyledButton>
           ))}
         </div>
       )}
 
       {error && (
-        <p className="text-xs text-muted-foreground">
+        <p className={classes.error}>
           {t('data-products:consumerGroups.loadError', { error })}
         </p>
       )}

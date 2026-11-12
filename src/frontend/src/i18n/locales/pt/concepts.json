@@ -23,6 +23,8 @@
     "viewTree": "Árvore",
     "viewGraph": "Grafo",
     "createConcept": "Novo conceito",
-    "createScheme": "Novo esquema de conceitos"
+    "createScheme": "Novo esquema de conceitos",
+    "knowledgeGraph": "Grafo de conhecimento",
+    "knowledgeGraphPanel": "Pesquisa no grafo de conhecimento"
   }
 }

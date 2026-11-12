@@ -1,5 +1,6 @@
 {
   "title": "Contratos de Datos",
+  "listPane": "Lista de contratos de datos",
   "subtitle": "Gestiona tus contratos de datos y especificaciones",
   "newContract": "Nuevo Contrato",
   "uploadFile": "Subir Archivo",
@@ -301,7 +302,8 @@
     "description": {
       "purpose": "Propósito",
       "limitations": "Limitaciones",
-      "usage": "Uso"
+      "usage": "Uso",
+      "edit": "Editar descripción"
     },
     "schemas": {
       "title": "Esquemas ({{count}})",
@@ -523,6 +525,10 @@
       "startProfilingFailed": "Error al iniciar el perfilado",
       "invalidVersionFormat": "\"{{version}}\" no es una versión válida: una nueva versión tiene la forma X.Y.Z, por ejemplo 2.0.0.",
       "draftVersionFormat": "La versión \"{{version}}\" de este contrato no tiene la forma X.Y.Z, así que no se puede crear un borrador personal a partir de ella. Crea una nueva versión (por ejemplo 2.0.0)."
+    },
+    "rowActions": {
+      "edit": "Editar {{name}}",
+      "delete": "Eliminar {{name}}"
     }
   },
   "list": {
@@ -905,7 +911,8 @@
       "fromPlaceholder": "p. ej., customer_id",
       "to": "Hacia (referencia de destino)",
       "toPlaceholder": "p. ej., schema.table.column",
-      "add": "Añadir relación"
+      "add": "Añadir relación",
+      "remove": "Quitar la relación {{from}} → {{to}}"
     },
     "toast": {
       "validationError": "Error de validación",
@@ -1530,7 +1537,9 @@
     "valuePlaceholder": "Valor",
     "newPropertyPlaceholder": "Clave de la nueva propiedad",
     "addProperty": "Añadir propiedad",
-    "addButton": "Añadir servidor"
+    "addButton": "Añadir servidor",
+    "propertyValue": "Valor de {{key}}",
+    "removeProperty": "Quitar {{key}}"
   },
   "tag": {
     "validationError": "Error de validación",

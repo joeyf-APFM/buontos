@@ -1,0 +1,210 @@
+/*
+ * Owner Consumers (/owner-consumers) on the page kit (wave 2 Task 5): the
+ * shell's breadcrumb, the kit header and the summary counts, then the product
+ * list beside the chosen product's subscribers (the Asset Explorer's grid,
+ * mantine/asset-explorer/explorer.module.css .table), in two kit panes that
+ * stack under 1024px. What is left here is the page's own.
+ */
+
+/* One third and two thirds; `section.` outranks the kit pane's flex */
+section.productsPane {
+  flex: 1;
+}
+
+section.subscribersPane {
+  flex: 2;
+}
+
+/* A long list scrolls inside its pane */
+.productList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.noProducts {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+/* A product: its name over its domain, and its subscriber count */
+.product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: left;
+  color: var(--aura-text-body);
+}
+
+.product:hover {
+  background: var(--aura-canvas);
+}
+
+/* The explorer's selection: a tint and an accent bar */
+.product[data-selected] {
+  background: var(--aura-accent-subtle);
+  color: var(--aura-accent-hover);
+  box-shadow: inset 2px 0 0 var(--aura-accent);
+}
+
+.product:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.productText {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Blocks, so the button's name reads "name domain count", as before */
+.productName,
+.productDomain {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productName {
+  font-weight: 500;
+}
+
+.productDomain {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.count {
+  flex: none;
+  gap: 4px;
+}
+
+.count svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The subscriber filter, in the pane head */
+.filter {
+  width: 240px;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+/* Rows open nothing */
+table.grid > tbody > tr {
+  cursor: default;
+}
+
+/* A long email wraps, so it reads in full; table cells ignore max-width, so
+   the text's own box sets the measure. Rows without one keep 28px */
+table.grid > tbody > tr > td.subscriberCell {
+  white-space: normal;
+}
+
+.subscriber {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface-strong);
+}
+
+.avatar svg {
+  width: 12px;
+  height: 12px;
+}
+
+.email {
+  display: block;
+  /* Narrow enough that the grid fits its pane at 1024px (M4) */
+  min-width: 120px;
+  max-width: 420px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.iconText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--aura-text-secondary);
+}
+
+.iconText svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+/* A long reason is cut off, with the whole of it in its title */
+.reason {
+  display: inline-block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.none {
+  color: var(--aura-text-muted);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.empty svg {
+  width: 28px;
+  height: 28px;
+  color: var(--aura-text-muted);
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* A failed load: its error, then Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+}
+
+.state > :first-child {
+  align-self: stretch;
+}

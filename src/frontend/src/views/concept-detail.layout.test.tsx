@@ -9,14 +9,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { AppMantineProvider } from '@/mantine/provider';
+import kit from '@/mantine/page/page.module.css';
 
 const get = vi.fn();
 vi.mock('@/hooks/use-api', () => ({
   useApi: () => ({ get, post: vi.fn(), put: vi.fn(), delete: vi.fn() }),
 }));
+// Every permission, unless a test denies a feature
+const { denied } = vi.hoisted(() => ({ denied: new Set<string>() }));
 vi.mock('@/stores/permissions-store', async (orig) => {
   const actual = await orig<Record<string, unknown>>();
-  return { ...actual, usePermissions: () => ({ hasPermission: () => true }) };
+  return { ...actual, usePermissions: () => ({ hasPermission: (feature: string) => !denied.has(feature) }) };
 });
 
 // Heavy child panels fetch their own data; they are irrelevant here.
@@ -26,7 +30,10 @@ vi.mock('@/components/semantic/linked-objects-panel', () => ({ default: Stub }))
 vi.mock('@/components/semantic/concept-neighborhood-graph', () => ({ default: Stub }));
 vi.mock('@/components/knowledge/concept-editor-dialog', () => ({ ConceptEditorDialog: Stub }));
 vi.mock('@/components/common/ownership-panel', () => ({ OwnershipPanel: Stub }));
-vi.mock('@/components/metadata/entity-metadata-panel', () => ({ default: Stub }));
+const { metadataProps } = vi.hoisted(() => ({ metadataProps: [] as Array<{ canEdit?: boolean }> }));
+vi.mock('@/components/metadata/entity-metadata-panel', () => ({
+  default: (props: { canEdit?: boolean }) => { metadataProps.push(props); return null; },
+}));
 vi.mock('@/components/semantic/publish-version-dialog', () => ({ PublishVersionDialog: Stub }));
 vi.mock('@/components/semantic/version-history-panel', () => ({ VersionHistoryPanel: Stub }));
 vi.mock('@/components/semantic/deprecate-concept-dialog', () => ({ DeprecateConceptDialog: Stub }));
@@ -74,11 +81,13 @@ let current = concept();
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/concepts/${encodeURIComponent(IRI)}`]}>
-      <Routes>
-        <Route path="/concepts/*" element={<ConceptDetailView />} />
-      </Routes>
-    </MemoryRouter>,
+    <AppMantineProvider>
+      <MemoryRouter initialEntries={[`/concepts/${encodeURIComponent(IRI)}`]}>
+        <Routes>
+          <Route path="/concepts/*" element={<ConceptDetailView />} />
+        </Routes>
+      </MemoryRouter>
+    </AppMantineProvider>,
   );
 }
 
@@ -105,6 +114,8 @@ describe('ConceptDetailView layout', () => {
   beforeEach(() => {
     current = concept();
     dialogProps.length = 0;
+    metadataProps.length = 0;
+    denied.clear();
     get.mockImplementation(async (url: string) => {
       if (url.startsWith('/api/semantic-models/concepts/by-iri')) {
         return { data: { concept: current } };
@@ -129,16 +140,18 @@ describe('ConceptDetailView layout', () => {
       renderPage();
       const { stack, summary, names } = await panelOrder();
 
-      // Single column: a flex column stack, no multi-column grid.
-      expect(stack.className).toContain('flex-col');
-      expect(stack.className).not.toMatch(/grid-cols-2/);
-      // Summary panel is the very first panel.
-      expect(stack.firstElementChild).toBe(summary);
+      // Single column: the kit's PaneStack (wave 2 Task 15, was a Tailwind
+      // flex column), its panes its direct children
+      const panes = stack.querySelector(`.${kit.stack}`)!;
+      expect(panes).not.toBeNull();
+      // Summary panel is in the very first pane.
+      expect(panes.firstElementChild!.contains(summary)).toBe(true);
       expect(names).toEqual(EXPECTED_ORDER);
-      // Turtle is the Advanced-only panel directly above Metadata.
-      const turtle = stack.querySelector('[data-panel="turtle"]')!;
+      // Turtle is the Advanced-only pane directly above Metadata.
+      const turtle = stack.querySelector('[data-panel="turtle"]')!.closest('section')!;
       expect(turtle.className).toContain('adv-only');
-      expect(stack.lastElementChild).toBe(stack.querySelector('[data-panel="metadata"]'));
+      expect(turtle.nextElementSibling).toBe(panes.lastElementChild);
+      expect(panes.lastElementChild!.contains(stack.querySelector('[data-panel="metadata"]'))).toBe(true);
     });
   }
 
@@ -153,8 +166,9 @@ describe('ConceptDetailView layout', () => {
       'Retail shopper',
       'Wholesale account',
     ]);
-    // Title, status chain and IRI chip are hosted by the summary too.
-    expect(within(summary).getByText('Customer')).toBeInTheDocument();
+    // The status chain and IRI chip are hosted by the summary too; the title
+    // is the kit page header's (wave 2 Task 15)
+    expect(screen.getByRole('heading', { level: 1, name: 'Customer' })).toBeInTheDocument();
     expect(within(summary).getByTestId('concept-status')).toHaveTextContent('draft');
     expect(within(summary).getByTestId('concept-summary-iri')).toHaveTextContent(IRI);
   });
@@ -182,6 +196,19 @@ describe('ConceptDetailView layout', () => {
       expect.objectContaining({ status: 'under_review', action: 'submit-review' }),
     ]);
     expect(last.newVersion).toEqual(expect.objectContaining({ disabled: true }));
+  });
+
+  // Task 11c fix round 1 (R45): the metadata routes check data-domains
+  it.each([
+    ['nothing', [], true],
+    ['data-domains', ['data-domains'], false],
+    ['semantic-models', ['semantic-models'], false],
+  ] as const)('the metadata panel edits only with semantic-models and data-domains write (denied: %s)', async (_, features, canEdit) => {
+    for (const feature of features) denied.add(feature);
+    renderPage();
+    await screen.findByTestId('concept-summary-panel');
+    expect(metadataProps.length).toBeGreaterThan(0);
+    expect(metadataProps[metadataProps.length - 1]?.canEdit).toBe(canEdit);
   });
 
   it('does not render a SPARQL button on the concept page', async () => {

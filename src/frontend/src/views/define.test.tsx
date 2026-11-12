@@ -63,11 +63,13 @@ vi.mock('@/components/concepts/mode-switch', () => ({
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
-// Write access on semantic-models, controllable per test (read-only users get
+// Write access on semantic-models (and ontology, for Generate), controllable per test (read-only users get
 // disabled actions). Readiness (usePermissionsReady) lives in a store so a change
 // re-renders the page as the real one does; not ready is a fresh load, when the
 // real store is empty and grants nothing.
 let canWriteMock = true;
+// Ontology write, which Generate needs (fix round 12b); granted with semantic-models unless a test says otherwise
+let canGenerateMock = true;
 vi.mock('@/stores/permissions-store', async () => {
   const { create } = await import('zustand');
   const { FeatureAccessLevel: Level } = await import('@/types/feature-access-levels');
@@ -75,7 +77,10 @@ vi.mock('@/stores/permissions-store', async () => {
   return {
     usePermissions: () => ({
       hasPermission: (featureId: string, level: string) =>
-        readyStore.getState().ready && featureId === 'semantic-models' && (level !== Level.READ_WRITE || canWriteMock),
+        readyStore.getState().ready && (
+          (featureId === 'semantic-models' && (level !== Level.READ_WRITE || canWriteMock)) ||
+          (featureId === 'ontology' && (level !== Level.READ_WRITE || canGenerateMock))
+        ),
       isLoading: false,
     }),
     usePermissionsReady: () => readyStore((s) => s.ready),
@@ -87,6 +92,7 @@ const setReady = (ready: boolean) =>
   act(() => (permissionsStore as unknown as { __readyStore: { setState: (s: { ready: boolean }) => void } }).__readyStore.setState({ ready }));
 
 import DefineView from './define';
+import defineClasses from './define.module.css';
 
 const RUNS = {
   runs: [
@@ -112,6 +118,7 @@ beforeEach(() => {
   authorDialogOpen = false;
   guidedDialogOpen = false;
   canWriteMock = true;
+  canGenerateMock = true;
   setReady(true);
   global.fetch = vi.fn(async (url: any) => {
     const u = String(url);
@@ -142,12 +149,16 @@ function renderDefine(entry = '/concepts/define') {
   return () => observed;
 }
 
+// The runs load settles (its state updates land inside RTL's act)
+const settled = () => screen.findByText('156 draft terms from gold.*');
+
 describe('DefineView', () => {
   it('renders the three creation-path cards', async () => {
     renderDefine();
     expect(screen.getByText('Author')).toBeInTheDocument();
     expect(screen.getByText('Generate')).toBeInTheDocument();
     expect(screen.getByText('Import')).toBeInTheDocument();
+    await settled();
   });
 
   it('Author card opens the New Concept Scheme dialog in place', async () => {
@@ -171,7 +182,7 @@ describe('DefineView', () => {
     expect(importDialogOpen).toBe(true);
   });
 
-  it('legend puts each rung vocabulary behind an info icon shown in both modes', () => {
+  it('legend puts each rung vocabulary behind an info icon shown in both modes', async () => {
     renderDefine();
     expect(screen.queryByRole('button', { name: 'What gets written' })).not.toBeInTheDocument();
     for (const key of ['glossary', 'taxonomy', 'ontology']) {
@@ -181,17 +192,18 @@ describe('DefineView', () => {
     }
     // Vocabulary text lives in tooltips, not inline under the rungs.
     expect(screen.queryByText(/skos:prefLabel \/ skos:altLabel/)).not.toBeInTheDocument();
+    await settled();
   });
 
-  it('legend arrows are separators between rungs, not coupled to the info icon', () => {
+  it('legend arrows are separators between rungs, not coupled to the info icon', async () => {
     renderDefine();
     // Two separators for three rungs: none after the last item.
     const seps = screen.getAllByTestId('rung-separator');
     expect(seps).toHaveLength(2);
     for (const sep of seps) {
       expect(sep).toHaveTextContent('→');
-      // Hidden when the columns stack; never advanced-only (no dangling arrow in Simple mode).
-      expect(sep).toHaveClass('hidden', 'sm:inline');
+      // Hidden when the columns stack (define.module.css); never advanced-only (no dangling arrow in Simple mode).
+      expect(sep).toHaveClass(defineClasses.separator);
       expect(sep).not.toHaveClass('adv-only');
     }
     // Each rung's info icon no longer has an arrow as a sibling.
@@ -199,10 +211,12 @@ describe('DefineView', () => {
       const row = screen.getByTestId(`rung-vocab-${key}`).parentElement!;
       expect(row.textContent).not.toContain('→');
     }
+    await settled();
   });
 
   it('read-only user sees the path actions disabled with a write-access hint', async () => {
     canWriteMock = false;
+    canGenerateMock = false;
     renderDefine();
     for (const label of ['New Concept Scheme', 'Start guided build', 'Upload files']) {
       const button = screen.getByRole('button', { name: label });
@@ -298,6 +312,7 @@ describe('DefineView ?open=', () => {
 
   it('waits for the permissions on a fresh load, then drops the param for a reader', async () => {
     canWriteMock = false;
+    canGenerateMock = false;
     setReady(false);
     const location = renderDefine('/concepts/define?open=import');
     await waitFor(() => expect(screen.getByText('156 draft terms from gold.*')).toBeInTheDocument());
@@ -312,6 +327,7 @@ describe('DefineView ?open=', () => {
     'opens no dialog from ?open=%s for a user without write access, and clears the param',
     async (open) => {
       canWriteMock = false;
+      canGenerateMock = false;
       const location = renderDefine(`/concepts/define?open=${open}`);
       await waitFor(() => expect(location().search).toBe(''));
       for (const testId of ['author-dialog', 'guided-dialog', 'import-dialog']) {

@@ -2,6 +2,8 @@
 // /api path. Detail routes there use these ids. Pages not listed here get the
 // router's empty-list answer.
 
+import { CONCEPT_DETAIL_RESTYLE } from './concept-detail';
+
 const CREATED = '2026-10-01T09:00:00Z';
 const UPDATED = '2026-11-02T15:30:00Z';
 
@@ -194,6 +196,26 @@ const ASSET_PAGE = {
   total: 2,
 };
 
+// A contract with one wide schema (wave 2 Task 10, Review Focus 5): 60
+// columns, served 50 at a time as the page asks (skip, limit). The first
+// column's name and description are long, unbroken text (Review Focus 1), as
+// is its quality rule's name. No restyle page uses it.
+const WIDE_COLUMNS = Array.from({ length: 60 }, (_, i) => ({
+  name: i === 0 ? `customer_${'lifetime_value_'.repeat(12)}usd` : `column_${String(i + 1).padStart(2, '0')}`,
+  logicalType: i % 3 === 0 ? 'string' : 'integer',
+  required: i % 2 === 0,
+  unique: i === 0,
+  description: i === 0 ? `${'Lifetime value of the customer across every channel '.repeat(4)}${'x'.repeat(160)}` : `Column ${i + 1}`,
+}));
+
+const WIDE_CONTRACT = {
+  apiVersion: 'v3.0.2', kind: 'DataContract', id: 'e2e-contract-wide', status: 'draft', name: 'Wide contract',
+  version: '1.0.0', owner_team_id: null, tags: [], customProperties: {}, team: [],
+  schema: [{ name: 'wide_orders', physicalName: 'main.sales.wide_orders', propertyCount: 60, properties: [] }],
+  qualityRules: [{ name: `rule_${'customer_lifetime_value_is_positive_'.repeat(8)}`, dimension: 'accuracy', severity: 'error', type: 'sql' }],
+  description: { purpose: 'A wide schema' }, created: CREATED, updated: UPDATED,
+};
+
 export const DATA_FIXTURES: Record<string, unknown> = {
   // Spot-check pages (Ruling R1)
   '/api/teams': TEAMS,
@@ -258,8 +280,39 @@ export const DATA_FIXTURES: Record<string, unknown> = {
     support: [], customProperties: [], authoritativeDefinitions: [], description: { purpose: 'Orders for reporting' },
     created_at: CREATED, updated_at: UPDATED,
   },
+  // The large view's rating panel (the router's default [] has no average to show)
+  '/api/entities/data_product/e2e-product-1/ratings': {
+    entity_type: 'data_product', entity_id: 'e2e-product-1', average_rating: 0, total_ratings: 0,
+    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, user_current_rating: null,
+  },
   '/api/data-products/e2e-product-1/maturity': {
     entity_type: 'DataProduct', entity_id: 'e2e-product-1', entity_name: 'Sales orders', achieved_level_order: null,
+    achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,
+    evaluated_by: null,
+  },
+  // A contract (wave 2 Task 9): before it, the router's [] stood in for one,
+  // so the page showed no name, version or panels
+  '/api/data-contracts/e2e-contract-1': {
+    apiVersion: 'v3.0.2', kind: 'DataContract', id: 'e2e-contract-1', status: 'active', name: 'Orders contract',
+    version: '1.0.0', domain: 'Sales', tenant: 'acme', owner_team_id: null, schema: [], tags: ['sales'],
+    customProperties: {}, team: [], description: {
+      purpose: 'Orders for reporting', limitations: 'Refreshed daily', usage: 'Dashboards and forecasts',
+    },
+    created: CREATED, updated: UPDATED,
+  },
+  '/api/data-contracts/e2e-contract-wide': WIDE_CONTRACT,
+  '/api/data-contracts/e2e-contract-wide/maturity': {
+    entity_type: 'DataContract', entity_id: 'e2e-contract-wide', entity_name: 'Wide contract', achieved_level_order: null,
+    achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,
+    evaluated_by: null,
+  },
+  '/api/data-contracts/e2e-contract-wide/schemas/wide_orders/properties': (url: URL) => {
+    const skip = Number(url.searchParams.get('skip') ?? 0);
+    const limit = Number(url.searchParams.get('limit') ?? 50);
+    return { total: WIDE_COLUMNS.length, items: limit ? WIDE_COLUMNS.slice(skip, skip + limit) : WIDE_COLUMNS };
+  },
+  '/api/data-contracts/e2e-contract-1/maturity': {
+    entity_type: 'DataContract', entity_id: 'e2e-contract-1', entity_name: 'Orders contract', achieved_level_order: null,
     achieved_level_name: null, total_levels: 0, gates_passed: 0, gates_total: 0, levels: [], evaluated_at: UPDATED,
     evaluated_by: null,
   },
@@ -282,4 +335,7 @@ export const DATA_FIXTURES: Record<string, unknown> = {
     trigger: { type: 'on_create', entity_types: ['data_contract'] }, workflow_type: 'process', is_active: true,
     is_default: false, version: 1, steps: [], created_at: CREATED, updated_at: UPDATED,
   },
+
+  // Concept detail (wave 2 Task 15): the concept e2e-concept-1, for its own IRI only
+  ...CONCEPT_DETAIL_RESTYLE,
 };

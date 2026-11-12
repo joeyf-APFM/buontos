@@ -7,6 +7,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CloseButton } from '@mantine/core';
 import { clampRect, currentViewport, defaultRect, movedRect, resizedRect, type WindowRect } from './window-geometry';
+import { Z_INDEX } from '@/mantine/z-index';
 import classes from './assistant-window.module.css';
 
 type Gesture = { kind: 'move' | 'resize'; pointerId: number; startX: number; startY: number; start: WindowRect };
@@ -129,7 +130,7 @@ export function AssistantWindow({
       aria-modal="false"
       aria-labelledby={titleId}
       tabIndex={-1}
-      style={{ left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` }}
+      style={{ zIndex: Z_INDEX.assistant, left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` }}
       onKeyDown={onKeyDown}
     >
       <div className={classes.head} onPointerDown={(e) => begin('move', e)}>

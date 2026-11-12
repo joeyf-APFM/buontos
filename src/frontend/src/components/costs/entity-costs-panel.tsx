@@ -20,6 +20,14 @@ type Props = {
   entityType: EntityKind;
   /** Render as a page-kit Pane instead of a Card, for pages on the page kit. The body is the same. */
   pane?: boolean;
+  /**
+   * The user may write here: shows Add expense, Edit and Delete. Off by
+   * default, so a caller that doesn't say gets a read-only panel. A caller
+   * passes its host page's write permission AND data-domains READ_WRITE,
+   * because the cost routes check data-domains (costs_routes.py), whatever
+   * page hosts the panel (ruling R45).
+   */
+  canEdit?: boolean;
 };
 
 const centers: CostCenter[] = ['INFRASTRUCTURE', 'HR', 'STORAGE', 'MAINTENANCE', 'OTHER'];
@@ -35,7 +43,7 @@ const centerColors: Record<string, string> = {
 
 function firstDay(year: number, month: number) { return `${year}-${String(month).padStart(2,'0')}-01`; }
 
-const EntityCostsPanel: React.FC<Props> = ({ entityId, entityType, pane = false }) => {
+const EntityCostsPanel: React.FC<Props> = ({ entityId, entityType, pane = false, canEdit = false }) => {
   const { t } = useTranslation(['metadata', 'common']);
   const [items, setItems] = React.useState<CostItem[]>([]);
   const [summary, setSummary] = React.useState<CostSummary | null>(null);
@@ -217,7 +225,9 @@ const EntityCostsPanel: React.FC<Props> = ({ entityId, entityType, pane = false 
               <div className="text-xs text-muted-foreground">{t('metadata:costs.total')}</div>
               <div className="text-lg font-semibold">{formatCents(total, currency)}</div>
             </div>
-            <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> {t('metadata:costs.addExpense')}</Button>
+            {canEdit && (
+              <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> {t('metadata:costs.addExpense')}</Button>
+            )}
           </div>
         </div>
 
@@ -235,7 +245,7 @@ const EntityCostsPanel: React.FC<Props> = ({ entityId, entityType, pane = false 
                 <TableHead>{t('metadata:costs.table.center')}</TableHead>
                 <TableHead>{t('metadata:costs.table.monthRange')}</TableHead>
                 <TableHead>{t('metadata:costs.table.amountMonth')}</TableHead>
-                <TableHead className="w-24">{t('common:labels.actions')}</TableHead>
+                {canEdit && <TableHead className="w-24">{t('common:labels.actions')}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -253,12 +263,14 @@ const EntityCostsPanel: React.FC<Props> = ({ entityId, entityType, pane = false 
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{it.start_month}{it.end_month ? ` → ${it.end_month}` : ''}</TableCell>
                   <TableCell className="text-xs">{formatCents(it.amount_cents, it.currency)}</TableCell>
+                  {canEdit && (
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(it)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={async () => { const resp = await fetch(`/api/cost-items/${it.id}`, { method: 'DELETE' }); if (resp.ok) { toast({ title: t('metadata:costs.messages.deleted') }); fetchData(); } else { toast({ title: t('metadata:costs.messages.deleteFailed'), description: await resp.text(), variant: 'destructive' }); } }}><Trash2 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(it)} aria-label={t('common:actions.edit')} title={t('common:actions.edit')}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label={t('common:actions.delete')} title={t('common:actions.delete')} onClick={async () => { const resp = await fetch(`/api/cost-items/${it.id}`, { method: 'DELETE' }); if (resp.ok) { toast({ title: t('metadata:costs.messages.deleted') }); fetchData(); } else { toast({ title: t('metadata:costs.messages.deleteFailed'), description: await resp.text(), variant: 'destructive' }); } }}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

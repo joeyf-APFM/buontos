@@ -55,7 +55,7 @@ export function DetailsPanel({ asset, onClose, onEdit, editPending = false, edit
             {t('details.editError', { message: editError })}
           </div>
         )}
-        <DetailsGrid rows={rows.map(([key, value]) => ({ label: t(`details.${key}`), value }))} />
+        <DetailsGrid columns={1} rows={rows.map(([key, value]) => ({ label: t(`details.${key}`), value }))} />
         <h5 className={classes.detailsHeading}>{t('details.description')}</h5>
         <div className={classes.description}>{asset.description || t('details.noDescription')}</div>
         <Link className={classes.fullPage} to={`/assets/${asset.id}`}>

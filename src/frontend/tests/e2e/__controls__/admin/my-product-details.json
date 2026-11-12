@@ -1,11 +1,11 @@
 [
-  "button \"\"",
   "button \"Add Deliverable\"",
   "button \"Add\"",
   "button \"Back to List\"",
   "button \"Comments\"",
   "button \"Create Genie Space\"",
   "button \"Delete\"",
+  "button \"Edit description\"",
   "button \"Edit\"",
   "button \"Export ODPS\"",
   "button \"L\"",

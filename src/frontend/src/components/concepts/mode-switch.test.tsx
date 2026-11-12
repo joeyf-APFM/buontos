@@ -9,17 +9,18 @@ vi.mock('react-i18next', () => ({
 }))
 
 import { ConceptModeSwitch } from './mode-switch'
+import toggle from '@/components/common/size-toggle.module.css'
 
 describe('ConceptModeSwitch', () => {
   it('renders a compact S | L toggle instead of the wide Simple/Advanced tabs', () => {
     render(<ConceptModeSwitch tipLeft />)
     const group = screen.getByRole('group', { name: 'View mode' })
-    expect(group).toHaveClass('h-8')
+    expect(group).toHaveClass(toggle.group)
     const small = screen.getByRole('button', { name: 'Small View' })
     const large = screen.getByRole('button', { name: /^Large View: Advanced view reveals/ })
     expect(small).toHaveTextContent('S')
     expect(large).toHaveTextContent('L')
-    expect(small).toHaveClass('w-8', 'text-xs')
+    expect(small).toHaveClass(toggle.option)
     // The old wide tabs, their labels and the info tooltip trigger are gone.
     expect(screen.queryAllByRole('tab')).toHaveLength(0)
     expect(screen.queryByText('Simple')).not.toBeInTheDocument()

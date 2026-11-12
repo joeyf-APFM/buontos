@@ -12,7 +12,7 @@ import { AURA } from "@/mantine/theme"
  * (28px default, 12px text) until wave 6 moves those links to Mantine too.
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-sm text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-sm text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -65,8 +65,11 @@ const SIZE_VARS: Record<Size, Record<string, string>> = {
 // caller's gap-*/justify-*) down to the children, and let content overflow
 // the label as it overflowed the shadcn button. Mantine's loader is
 // positioned on the root, so a visible label overflow does not affect it.
+// A busy button that keeps its focus has aria-disabled instead of disabled
+// (ruling R65): it looks unavailable, at half opacity with the not-allowed
+// cursor, and takes no pointer events, but stays in the tab order.
 const ROOT_CLASSES =
-  "inline-flex items-center justify-center gap-1.5 overflow-visible font-medium [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+  "inline-flex items-center justify-center gap-1.5 overflow-visible font-medium [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none"
 const SPAN_STYLES = {
   inner: { flexGrow: 1, justifyContent: "inherit", gap: "inherit" },
   label: { flexGrow: 1, justifyContent: "inherit", gap: "inherit", overflow: "visible" },

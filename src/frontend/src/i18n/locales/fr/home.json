@@ -201,8 +201,8 @@
       "subscriptions": "Mes Données"
     },
     "products": {
-      "available": "{{count}} produit disponible",
-      "available_plural": "{{count}} produits disponibles",
+      "available_one": "{{count}} produit disponible",
+      "available_other": "{{count}} produits disponibles",
       "subscribed": "{{count}} produit abonné",
       "subscribed_plural": "{{count}} produits abonnés",
       "noProducts": "Aucun produit de données trouvé.",
@@ -247,11 +247,13 @@
       "one": "1 par ligne",
       "two": "2 par ligne",
       "three": "3 par ligne",
-      "four": "4 par ligne"
+      "four": "4 par ligne",
+      "label": "Tuiles par ligne"
     },
     "scopeFilter": {
       "placeholder": "Portée",
-      "all": "Toutes les portées"
+      "all": "Toutes les portées",
+      "label": "Portée de publication"
     },
     "openInDetails": "Ouvrir dans la vue détaillée",
     "loadError": "Échec du chargement des produits"

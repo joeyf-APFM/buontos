@@ -1,0 +1,16 @@
+/*
+ * Data Products (/data-products) on the page kit (wave 2 Task 4): full bleed,
+ * the shell's breadcrumb, the kit header with the view switch, then one flush
+ * pane holding the shared DataTable or the product graph. The list look the
+ * list pages share is in components/common/list-page.module.css; what is
+ * left here is the page's own.
+ */
+
+/* The graph fills the pane under the header */
+.view[data-view='graph'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding-top: 12px;
+}

@@ -1,6 +1,7 @@
 {
   "title": "Dataproducten",
   "subtitle": "Beheer je dataproducten",
+  "listPane": "Lijst met dataproducten",
   "newProduct": "Nieuw Dataproduct",
   "importProduct": "Importeren",
   "searchPlaceholder": "Zoek dataproducten...",
@@ -148,6 +149,7 @@
   "details": {
     "backToList": "Terug naar Lijst",
     "edit": "Bewerken",
+    "editDescription": "Beschrijving bewerken",
     "delete": "Verwijderen",
     "subscribe": "Abonneren",
     "unsubscribe": "Afmelden",
@@ -271,6 +273,7 @@
       "assetsLinkedTitle": "Assets gekoppeld",
       "assetsLinked": "{{count}} asset(s) gekoppeld aan {{portName}}",
       "assetUnlinked": "Asset ontkoppeld",
+      "unlinkAsset": "{{name}} ontkoppelen",
       "linkAssetsFailed": "Koppelen van assets mislukt",
       "unlinkAssetFailed": "Ontkoppelen van asset mislukt"
     },
@@ -1163,11 +1166,14 @@
     "retry": "Opnieuw proberen",
     "untitled": "Naamloos",
     "productsAvailable_one": "{{count}} product beschikbaar",
-    "productsAvailable_other": "{{count}} producten beschikbaar"
+    "productsAvailable_other": "{{count}} producten beschikbaar",
+    "productsPane": "Geabonneerde producten",
+    "tilesPerRow": "Tegels per rij"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumenten",
     "totalProducts": "Totaal producten",
+    "summary": "Overzicht",
     "activeProducts": "Actieve producten",
     "totalSubscribers": "Totaal abonnees",
     "products": "Producten",

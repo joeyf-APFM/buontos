@@ -10,11 +10,10 @@ import ReactFlow, {
   useReactFlow,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { Card } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Loader, UnstyledButton } from '@mantine/core'
 import { useApi } from '@/hooks/use-api'
 import { OntologyConcept } from '@/types/ontology'
+import classes from './concept-neighborhood-graph.module.css'
 
 interface NeighborItem {
   direction: 'outgoing' | 'incoming' | 'predicate'
@@ -74,51 +73,25 @@ const VERTICAL_LEVEL_SPACING = 50
 const FIXED_PADDING = 16
 
 function MiniNode({ data }: { data: MiniNodeData }) {
-  // The default `bg-card` + `text-card-foreground` combo always pairs
-  // correctly in both light and dark themes. The "current" node only tints
-  // the background (bg-primary/10) so we keep the regular foreground colour
-  // there too -- using `text-primary-foreground` would render invisibly on
-  // such a faintly-tinted background. Placeholders use `text-foreground`
-  // muted via opacity so they read in both modes.
+  // The node card (wave 2 Task 15: a module class, was a shadcn Card). The
+  // current node is tinted in the accent; placeholders ("+3 more") are dashed.
   return (
-    <Card
+    <div
       onClick={() => {
         if (data.isPlaceholder) return
         if (data.iri && data.onClick) data.onClick(data.iri)
       }}
       title={data.iri || data.label}
-      className={cn(
-        'p-2 flex flex-col items-center justify-center text-center text-xs shadow-sm hover:shadow-md transition-shadow',
-        'bg-card text-card-foreground',
-        data.isPlaceholder &&
-          'cursor-default bg-muted/60 text-muted-foreground border-dashed',
-        !data.isPlaceholder && !data.isCurrent && 'cursor-pointer',
-        data.isCurrent &&
-          'cursor-default bg-primary/10 border-primary text-foreground ring-1 ring-primary/40',
-      )}
+      className={classes.node}
+      data-current={data.isCurrent || undefined}
+      data-placeholder={data.isPlaceholder || undefined}
       style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}
     >
       <Handle type="target" position={Position.Top} id="t-top" style={{ background: 'transparent', border: 'none' }} />
       <Handle type="source" position={Position.Bottom} id="s-bottom" style={{ background: 'transparent', border: 'none' }} />
-      <div
-        className={cn(
-          'font-medium truncate w-full',
-          data.isPlaceholder && 'opacity-80',
-        )}
-      >
-        {data.label}
-      </div>
-      {data.typeBadge && (
-        <div
-          className={cn(
-            'text-[10px] uppercase tracking-wide',
-            data.isCurrent ? 'text-primary' : 'text-muted-foreground',
-          )}
-        >
-          {data.typeBadge}
-        </div>
-      )}
-    </Card>
+      <div className={classes.nodeLabel}>{data.label}</div>
+      {data.typeBadge && <div className={classes.nodeType}>{data.typeBadge}</div>}
+    </div>
   )
 }
 
@@ -289,7 +262,7 @@ function ConceptNeighborhoodGraphInner({
         )}&limit=200`
         const res = await get<NeighborItem[]>(url)
         if (cancelled) return
-        setNeighbors(res.data || [])
+        setNeighbors(Array.isArray(res.data) ? res.data : [])
       } catch (error) {
         console.error('ConceptNeighborhoodGraph: failed to load neighbors', error)
         if (!cancelled) setNeighbors([])
@@ -381,12 +354,12 @@ function ConceptNeighborhoodGraphInner({
 
   if (isLoading && !layout) {
     return (
-      <div className="flex items-center justify-center text-sm text-muted-foreground py-3 gap-2">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      <p className={classes.state}>
+        <Loader size={12} color="currentColor" />
         {t('semantic-models:neighborhood.loading', {
           defaultValue: 'Loading neighbourhood...',
         })}
-      </div>
+      </p>
     )
   }
 
@@ -398,7 +371,7 @@ function ConceptNeighborhoodGraphInner({
     layout.childOverflow === 0
   ) {
     return (
-      <p className="text-sm text-muted-foreground py-2 px-2">
+      <p className={classes.state}>
         {t('semantic-models:neighborhood.empty', {
           defaultValue: 'No related concepts.',
         })}
@@ -411,31 +384,24 @@ function ConceptNeighborhoodGraphInner({
   if (view === 'list') {
     const items = neighbors ?? []
     return (
-      <div
-        className="max-h-[320px] overflow-auto divide-y"
-        data-testid="concept-neighborhood-list"
-      >
+      <div className={classes.list} data-testid="concept-neighborhood-list">
         {items.map((n, i) => {
           const clickable = n.displayType === 'resource' && !!n.stepIri
           return (
-            <div
-              key={`${n.predicate}-${n.display}-${i}`}
-              className="flex items-center gap-3 px-3 py-2 text-sm"
-            >
-              <span className="text-xs font-mono text-muted-foreground shrink-0 w-40 truncate" title={n.predicate}>
+            <div key={`${n.predicate}-${n.display}-${i}`} className={classes.row}>
+              <span className={classes.predicate} title={n.predicate}>
                 {localName(n.predicate)}
               </span>
               {clickable ? (
-                <button
-                  type="button"
-                  className="text-left text-primary hover:underline truncate"
+                <UnstyledButton
+                  className={classes.target}
                   onClick={() => n.stepIri && onNavigate(n.stepIri)}
                   title={n.stepIri || n.display}
                 >
                   {n.display}
-                </button>
+                </UnstyledButton>
               ) : (
-                <span className="truncate" title={n.display}>{n.display}</span>
+                <span className={classes.target} title={n.display}>{n.display}</span>
               )}
             </div>
           )
@@ -463,7 +429,7 @@ function ConceptNeighborhoodGraphInner({
 
   return (
     <div
-      className="bg-muted/30"
+      className={classes.graph}
       style={{ height: GRAPH_HEIGHT }}
       data-testid="concept-neighborhood-graph"
     >

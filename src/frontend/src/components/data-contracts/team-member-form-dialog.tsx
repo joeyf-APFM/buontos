@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Input, TextInput } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Dialog } from '@/mantine/page'
 import { useToast } from '@/hooks/use-toast'
 import { PrincipalPicker } from '@/components/common/principal-picker'
 import { buildContractTeamMember } from '@/lib/team-members'
 import type { TeamMember } from '@/types/data-contract'
+import { FIELD_CLASSES } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
 
 type TeamMemberFormProps = {
   isOpen: boolean
@@ -77,62 +78,59 @@ export default function TeamMemberFormDialog({ isOpen, onOpenChange, onSubmit, i
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-contracts:team.editTitle', 'Edit Team Member') : t('data-contracts:team.addTitle', 'Add Team Member')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:team.description', 'Add a team member responsible for this data contract.')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="role">
-              {t('data-contracts:team.roleLabel', 'Role')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder={t('data-contracts:team.rolePlaceholder', 'e.g., Data Owner, Steward, Engineer')}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">
-              {t('data-contracts:team.emailLabel', 'Email/Username')} <span className="text-destructive">*</span>
-            </Label>
-            <PrincipalPicker
-              id="email"
-              accepts={['user']}
-              value={email || null}
-              onChange={(next) => setEmail(next ?? '')}
-              placeholder={t('data-contracts:team.emailPlaceholder', 'user@example.com or username')}
-              aria-label={t('data-contracts:team.emailAriaLabel', 'Email or username')}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('common:labels.name')}</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('data-contracts:team.namePlaceholder', 'Full name (optional)')}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="sm"
+      title={initial ? t('data-contracts:team.editTitle', 'Edit Team Member') : t('data-contracts:team.addTitle', 'Add Team Member')}
+      description={t('data-contracts:team.description', 'Add a team member responsible for this data contract.')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? t('common:actions.saving') : initial ? t('common:actions.saveChanges') : t('data-contracts:team.addButton', 'Add Member')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          id="role"
+          label={t('data-contracts:team.roleLabel', 'Role')}
+          withAsterisk
+          value={role}
+          onChange={(e) => setRole(e.currentTarget.value)}
+          placeholder={t('data-contracts:team.rolePlaceholder', 'e.g., Data Owner, Steward, Engineer')}
+          classNames={FIELD_CLASSES}
+        />
+
+        <Input.Wrapper
+          id="email"
+          label={t('data-contracts:team.emailLabel', 'Email/Username')}
+          withAsterisk
+          classNames={FIELD_CLASSES}
+        >
+          <PrincipalPicker
+            id="email"
+            accepts={['user']}
+            value={email || null}
+            onChange={(next) => setEmail(next ?? '')}
+            placeholder={t('data-contracts:team.emailPlaceholder', 'user@example.com or username')}
+            aria-label={t('data-contracts:team.emailAriaLabel', 'Email or username')}
+          />
+        </Input.Wrapper>
+
+        <TextInput
+          id="name"
+          label={t('common:labels.name')}
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder={t('data-contracts:team.namePlaceholder', 'Full name (optional)')}
+          classNames={FIELD_CLASSES}
+        />
+      </div>
     </Dialog>
   )
 }

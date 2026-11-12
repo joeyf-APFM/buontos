@@ -28,10 +28,7 @@ export const RESTYLE_PAGES: RestylePage[] = [
   { id: 'data-product-details', route: '/data-products/e2e-product-1', wave: 2 },
   { id: 'my-products', route: '/my-products', wave: 2 },
   { id: 'my-product-details', route: '/my-products/e2e-product-1', wave: 2 },
-  {
-    id: 'my-requests', route: '/my-requests', wave: 2,
-    skip: 'refetches forever: its effects depend on useApi(), which returns a new object every render, so the page never settles',
-  },
+  { id: 'my-requests', route: '/my-requests', wave: 2 },
   { id: 'data-contracts', route: '/data-contracts', wave: 2 },
   { id: 'data-contract-details', route: '/data-contracts/e2e-contract-1', wave: 2 },
   { id: 'marketplace', route: '/marketplace', wave: 2 },
@@ -39,10 +36,7 @@ export const RESTYLE_PAGES: RestylePage[] = [
   { id: 'search-llm', route: '/search/llm', wave: 2 },
   { id: 'search-index', route: '/search/index', wave: 2 },
   { id: 'business-owners', route: '/business-owners', wave: 2 },
-  {
-    id: 'owner-consumers', route: '/owner-consumers', wave: 2,
-    skip: 'refetches forever: its effects depend on useApi(), which returns a new object every render, so the page never settles',
-  },
+  { id: 'owner-consumers', route: '/owner-consumers', wave: 2 },
   { id: 'concepts-define', route: '/concepts/define', wave: 2 },
   { id: 'concepts-enrich', route: '/concepts/enrich', wave: 2 },
   { id: 'concepts-collections', route: '/concepts/collections', wave: 2 },

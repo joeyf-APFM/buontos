@@ -60,4 +60,46 @@ describe('useLayeredEscape', () => {
     fireEvent.keyDown(field, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('closes only the topmost of two open layers, then the one under it', () => {
+    const outer = vi.fn();
+    const inner = vi.fn();
+    const { rerender } = render(
+      <>
+        <Harness opened onClose={outer} />
+        <Harness opened={false} onClose={inner} />
+      </>,
+    );
+    // The second opens later, above the first
+    rerender(
+      <>
+        <Harness opened onClose={outer} />
+        <Harness opened onClose={inner} />
+      </>,
+    );
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect([outer.mock.calls.length, inner.mock.calls.length]).toEqual([0, 1]);
+    rerender(
+      <>
+        <Harness opened onClose={outer} />
+        <Harness opened={false} onClose={inner} />
+      </>,
+    );
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect([outer.mock.calls.length, inner.mock.calls.length]).toEqual([1, 1]);
+  });
+
+  it('leaves an Escape inside an open Mantine Popover or Menu dropdown', () => {
+    const onClose = vi.fn();
+    render(
+      <>
+        <Harness opened onClose={onClose} />
+        <div className="mantine-Popover-dropdown">
+          <input aria-label="in popover" />
+        </div>
+      </>,
+    );
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'in popover' }), { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

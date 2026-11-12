@@ -1,0 +1,597 @@
+/*
+ * The Ontology Generator (/concepts/generator) on the page kit (wave 2 Task
+ * 12b), inside the Concepts layout, which keeps the shell's padding: the kit
+ * header and its description, then two columns of panes: the settings (the
+ * connection, the options, the run and the recent runs) at 300px, and the
+ * resources, the live progress and the result beside them. A narrow window
+ * stacks the columns. The schema browser keeps its own look (wave 1).
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+.columns {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+@media (max-width: 1023.98px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+.muted {
+  margin: 0;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.strong {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.secondary {
+  color: var(--aura-text-secondary);
+}
+
+.critical {
+  color: var(--aura-critical);
+}
+
+.mono {
+  font-family: var(--aura-font-mono);
+}
+
+/* The Base URI is an identifier */
+.monoInput {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+/* A failed load: its alert, then Retry under it */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.alert {
+  align-self: stretch;
+  overflow-wrap: anywhere;
+}
+
+/* The options' switches, ruled off from the fields above */
+.switches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.switchLabel {
+  font-size: 12px;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+/* The run pane: Generate (or the progress and Cancel), and its caption */
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.caption {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--aura-text-secondary);
+}
+
+.progressText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Recent Runs: a head that toggles the list, as the kit's pane head */
+.runsToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--aura-navy);
+}
+
+.runsToggle:hover {
+  background: var(--aura-surface-strong);
+}
+
+.runsToggle:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.runsToggle > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.runsTitle {
+  min-width: 0;
+}
+
+svg.chevron {
+  margin-left: auto;
+  color: var(--aura-text-secondary);
+  transition: transform 200ms;
+}
+
+svg.chevron[data-open] {
+  transform: rotate(180deg);
+}
+
+.runs {
+  max-height: 300px;
+  overflow: auto;
+  padding: 4px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.runs > .state {
+  padding: 8px;
+}
+
+.noRuns {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.runList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A run: its button (status, name, time), then Delete */
+.runItem {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  border-radius: 4px;
+}
+
+.runItem:hover,
+.runItem[data-selected] {
+  background: var(--aura-surface-strong);
+}
+
+.runItem[data-selected] {
+  box-shadow: inset 0 0 0 1px var(--aura-accent-subtle);
+}
+
+.runButton {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.runButton:focus-visible,
+.deleteRun:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.runName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.runTime {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+.deleteRun {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--aura-text-secondary);
+}
+
+.deleteRun:hover {
+  color: var(--aura-critical);
+  background: var(--aura-critical-bg);
+}
+
+.deleteRun > svg {
+  width: 12px;
+  height: 12px;
+}
+
+svg.statusIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+svg.statusIcon[data-status='running'] {
+  color: var(--aura-accent);
+  animation: generator-spin 1s linear infinite;
+}
+
+svg.statusIcon[data-status='completed'] {
+  color: var(--aura-good);
+}
+
+svg.statusIcon[data-status='failed'] {
+  color: var(--aura-critical);
+}
+
+@keyframes generator-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A run's card (on hover and on focus) */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--aura-text-body);
+  overflow-wrap: anywhere;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardTitle {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.cardFacts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border);
+  color: var(--aura-text-secondary);
+}
+
+.cardFacts dd {
+  margin: 0;
+}
+
+.cardSection {
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.cardSection p {
+  margin: 2px 0 0;
+}
+
+.cardLabel {
+  color: var(--aura-text-secondary);
+}
+
+.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The live progress: one line a step */
+.liveSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.liveStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 0;
+  font-size: 11px;
+}
+
+.liveStep > :first-child {
+  flex: none;
+}
+
+.liveContent {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+.toolName {
+  flex: none;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The result: the save banner, the tabs and any notes */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-secondary);
+}
+
+.banner p {
+  margin: 0;
+  min-width: 0;
+}
+
+.banner > :last-child {
+  flex: none;
+}
+
+/* A tab's content scrolls inside the pane, both ways */
+.scroll {
+  max-height: 400px;
+  overflow: auto;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.scroll:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* 28px rows; wide enough to read, so a narrow pane scrolls it */
+.table {
+  min-width: 720px;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  height: 28px;
+  padding: 4px 8px;
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface-strong);
+  white-space: nowrap;
+}
+
+/* Identifiers in mono; a long one wraps */
+.identifier {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.emoji {
+  margin-right: 4px;
+}
+
+/* A long identifier wraps at 280px, so it can't take the table's width */
+.wrap {
+  display: block;
+  max-width: 280px;
+}
+
+/* Room for a few attributes on one line before they wrap */
+.attributes {
+  min-width: 220px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.monoBadge {
+  font-family: var(--aura-font-mono);
+}
+
+/* A description: one line at most 200px (on the span: a cell's max-width
+   doesn't hold in an auto-layout table), its title has it in full */
+.description {
+  max-width: 200px;
+}
+
+.truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+/* A tab's own head: its title and actions */
+.panelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.panelHead .hint {
+  margin: 2px 0 0;
+}
+
+.panelActions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.turtle {
+  margin: 0;
+  padding: 12px;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--aura-surface-strong);
+}
+
+/* The agent log: one box a step */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.step {
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.duration {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.stepContent {
+  max-height: 128px;
+  margin: 4px 0 0;
+  overflow: auto;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--aura-text-secondary);
+}

@@ -26,7 +26,8 @@
     "shippedTaxonomies": "Taxonomias incluídas",
     "reviewsLinkPrefix": "As revisões dos stewards ficam no workspace de",
     "reviewsLinkText": "Revisões de ativos",
-    "reviewsLinkSuffix": ". Cada sugestão se torna um ReviewedAsset lá; as decisões retornam automaticamente a esta execução."
+    "reviewsLinkSuffix": ". Cada sugestão se torna um ReviewedAsset lá; as decisões retornam automaticamente a esta execução.",
+    "paneLabel": "Detalhe da execução"
   },
   "stats": {
     "targets": "Destinos",

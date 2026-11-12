@@ -444,6 +444,7 @@
       "otherGroupOrSp": "Autre groupe ou principal de service",
       "groupOption": "Groupe (nom d'affichage)",
       "servicePrincipalOption": "Principal de service (nom d'affichage ou applicationId)",
+      "principalType": "Type de principal",
       "groupPlaceholder": "par ex. sales_consumers",
       "spPlaceholder": "par ex. 11111111-2222-3333-4444-555555555555",
       "validationNote": "Validé auprès de l'annuaire de l'espace de travail avant l'enregistrement de la demande.",

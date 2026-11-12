@@ -3,7 +3,8 @@
  * record, and falls back to the prettified source key when none is passed.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithMantine as render } from '@/test/utils';
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: () => {} }) }));
 vi.mock('@/components/semantic/status-progress-bar', () => ({ StatusProgressBar: () => null }));
@@ -23,13 +24,13 @@ const concept = {
 
 describe('ConceptSummaryPanel scheme label', () => {
   it('renders the schemeLabel prop when given', () => {
-    render(<ConceptSummaryPanel concept={concept} title="Shipment" schemeLabel="Supply Chain Ontology TEST" />);
+    render(<ConceptSummaryPanel concept={concept} schemeLabel="Supply Chain Ontology TEST" />);
     expect(screen.getByText('Supply Chain Ontology TEST')).toBeInTheDocument();
     expect(screen.queryByText('Supply Chain')).toBeNull();
   });
 
   it('falls back to the prettified source key when the prop is omitted', () => {
-    render(<ConceptSummaryPanel concept={concept} title="Shipment" />);
+    render(<ConceptSummaryPanel concept={concept} />);
     expect(screen.getByText('Supply Chain')).toBeInTheDocument();
   });
 });

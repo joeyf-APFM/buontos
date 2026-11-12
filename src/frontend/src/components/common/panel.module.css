@@ -41,6 +41,52 @@
   flex: none;
 }
 
+/*
+ * Flush (wave 2 Task 3): the panel sits inside a page-kit Pane, which has the
+ * frame and the padding. The panel keeps its head (title and actions) as a
+ * 32px row like a section head, with the title at 12px, and its body runs to
+ * the Pane's padding. Its tables have the explorer grid's 28px rows.
+ */
+.pane[data-flush] {
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.pane[data-flush] .head {
+  min-height: 32px;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.pane[data-flush] .headGroup {
+  border-bottom: 0;
+}
+
+.pane[data-flush] .title {
+  font-size: 12px;
+}
+
+.pane[data-flush] .subtitle {
+  padding: 0 0 6px;
+}
+
+.pane[data-flush] .body {
+  padding: 0;
+}
+
+/* No rules between the rows, as the DetailsGrid (R12): a collapsed 1px rule
+   would add half a pixel to each row */
+.pane[data-flush] tr {
+  border-bottom-width: 0;
+}
+
+.pane[data-flush] td {
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 /* A head with a description under it: one rule under both */
 .headGroup {
   border-bottom: 1px solid var(--aura-border-subtle);
@@ -68,22 +114,42 @@
   padding: 4px 12px 10px;
 }
 
-/* Label / value rows */
+/*
+ * Label / value rows (wave 2 Task 13d, owner: two columns on every screen).
+ * A flex-wrap row of pairs: each pair is a div holding one dt and one dd, half
+ * the width less half the 16px column gap, so pairs read left to right then
+ * down. Inside a pair the 86px label column and the 5px row gap are as before.
+ * Two columns at every width: there is no breakpoint back to one.
+ */
 .kv {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  /* A tall pair (long notes) doesn't stretch its neighbour's label */
+  align-items: flex-start;
+  column-gap: 16px;
   row-gap: 5px;
   margin: 0;
 }
 
-.kv > dt,
-.kv > dd {
+.kv > div {
+  flex: 0 0 calc(50% - 8px);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.kv[data-columns='1'] > div {
+  flex-basis: 100%;
+}
+
+.kv > div > dt,
+.kv > div > dd {
   margin: 0;
   min-width: 0;
   padding: 0;
 }
 
-.kv > dt {
+.kv > div > dt {
   display: flex;
   align-items: center;
   padding-right: 8px;
@@ -91,7 +157,7 @@
   overflow-wrap: anywhere;
 }
 
-.kv > dd {
+.kv > div > dd {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -123,6 +189,20 @@
 
 .dimmed {
   opacity: 0.6;
+}
+
+/* A part of the body under a rule, such as the rating input under the summary */
+.ruled {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--aura-border-subtle);
+}
+
+/* Tag chips and the like, wrapping */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 /* A sub-heading inside the body, such as Current Owners */

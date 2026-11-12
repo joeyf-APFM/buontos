@@ -183,6 +183,7 @@
     "browserTitle": "階層ブラウザ",
     "browserSubtitle": "システムやドメインからテーブルや列まで、データ階層をナビゲートします",
     "browse": "参照",
+    "detailPane": "階層の詳細",
     "filterPlaceholder": "フィルター...",
     "noMatches": "一致するものが見つかりません",
     "noRoots": "ルートエンティティが見つかりません",
@@ -203,8 +204,7 @@
     "heading": "階層",
     "noChildren": "階層内に子がありません",
     "noChildrenFound": "子が見つかりません",
-    "expand": "展開",
-    "collapse": "折りたたむ",
+    "childrenLoadFailed": "子要素を読み込めませんでした。",
     "levelsOption": "{{count}} レベル",
     "allLevels": "すべて",
     "rootType": {

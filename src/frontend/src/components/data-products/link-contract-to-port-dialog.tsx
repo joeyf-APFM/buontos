@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input, Loader } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Dialog } from '@/mantine/page';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { OutputPort, DataProduct } from '@/types/data-product';
 import CreateContractInlineDialog from '@/components/data-contracts/create-contract-inline-dialog';
 import EntityVersionPicker, { type ScopeValue } from '@/components/common/entity-version-picker';
+import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 
 type LinkContractToPortDialogProps = {
   isOpen: boolean;
@@ -137,90 +139,87 @@ export default function LinkContractToPortDialog({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('data-products:linkContract.title')}</DialogTitle>
-            <DialogDescription>
-              {t('data-products:linkContract.descriptionPrefix')} <strong>{currentPort?.name || t('data-products:linkContract.thisDeliverable')}</strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {currentPort && (
-              <div className="rounded-lg bg-muted p-4 space-y-2">
-                <Label className="text-sm font-medium">{t('data-products:linkContract.labels.deliverable')}</Label>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{currentPort.name}</span>
-                  <Badge variant="outline">v{currentPort.version}</Badge>
-                </div>
-                {currentPort.description && (
-                  <p className="text-sm text-muted-foreground">{currentPort.description}</p>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="contract">
-                {t('data-products:linkContract.labels.selectContract')} <span className="text-destructive">*</span>
-              </Label>
-              {/* EntityVersionPicker disambiguates same-named contracts by
-                  showing the version inline (closes #69). Entity-pinned
-                  only for now; family-follow-latest mode lands once the
-                  output-port reference column is added. PRD #442. */}
-              <EntityVersionPicker
-                entityKind="contract"
-                value={pickerValue}
-                onChange={setPickerValue}
-                allowedScopes={['entity']}
-                statusFilter={activeStatuses}
-                placeholder={t('data-products:linkContract.placeholders.chooseContract')}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('data-products:linkContract.statusFilterNote')}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1 border-t" />
-              <span className="text-sm text-muted-foreground">{t('data-products:linkContract.labels.or')}</span>
-              <div className="flex-1 border-t" />
-            </div>
-
+      <Dialog
+        opened={isOpen}
+        onClose={() => onOpenChange(false)}
+        size="md"
+        title={t('data-products:linkContract.title')}
+        description={
+          <>
+            {t('data-products:linkContract.descriptionPrefix')} <strong>{currentPort?.name || t('data-products:linkContract.thisDeliverable')}</strong>
+          </>
+        }
+        footer={
+          <>
             <Button
-              type="button"
               variant="outline"
-              className="w-full"
-              onClick={() => setIsCreateContractOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Contract
-            </Button>
-          </div>
-
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => onOpenChange(false)} 
+              onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmit} 
+            <Button
+              onClick={handleSubmit}
               disabled={isSubmitting || pickerValue?.scope !== 'entity'}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader size={12} color="currentColor" />
                   Linking...
                 </>
               ) : (
                 'Link Contract'
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </>
+        }
+      >
+        {currentPort && (
+          <div className={form.box}>
+            <span className={form.strong}>{t('data-products:linkContract.labels.deliverable')}</span>
+            <div className={form.inline}>
+              <span className={form.strong}>{currentPort.name}</span>
+              <Badge variant="outline">v{currentPort.version}</Badge>
+            </div>
+            {currentPort.description && (
+              <p className={form.muted}>{currentPort.description}</p>
+            )}
+          </div>
+        )}
+
+        {/* EntityVersionPicker disambiguates same-named contracts by
+            showing the version inline (closes #69). Entity-pinned
+            only for now; family-follow-latest mode lands once the
+            output-port reference column is added. PRD #442. */}
+        <Input.Wrapper
+          label={t('data-products:linkContract.labels.selectContract')}
+          labelElement="div"
+          withAsterisk
+          description={t('data-products:linkContract.statusFilterNote')}
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        >
+          <EntityVersionPicker
+            entityKind="contract"
+            value={pickerValue}
+            onChange={setPickerValue}
+            allowedScopes={['entity']}
+            statusFilter={activeStatuses}
+            placeholder={t('data-products:linkContract.placeholders.chooseContract')}
+          />
+        </Input.Wrapper>
+
+        <div className={form.divider}>{t('data-products:linkContract.labels.or')}</div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className={form.fullWidth}
+          onClick={() => setIsCreateContractOpen(true)}
+        >
+          <Plus aria-hidden />
+          Create New Contract
+        </Button>
       </Dialog>
 
       <CreateContractInlineDialog

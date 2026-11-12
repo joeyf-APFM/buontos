@@ -180,7 +180,10 @@
     "title": "Conceptschema's",
     "glossary": "Glossary",
     "taxonomy": "Taxonomie",
-    "ontology": "Ontologie"
+    "ontology": "Ontologie",
+    "listPane": "Schemalijst",
+    "loadFailed": "De schema's konden niet worden geladen.",
+    "actionsFor": "Acties voor {{name}}"
   },
   "actions": {
     "createConcept": "Concept aanmaken",
@@ -228,7 +231,8 @@
       "description": "Geef optioneel een of meer opvolgende concepten op om aan te geven waardoor dit concept is vervangen.",
       "successors": "Opvolgende concepten",
       "noSuccessors": "Niets geselecteerd",
-      "addSuccessor": "+ Opvolger toevoegen"
+      "addSuccessor": "+ Opvolger toevoegen",
+      "removeSuccessor": "{{name}} verwijderen"
     }
   },
   "rdfSources": {
@@ -354,7 +358,10 @@
     "selectSuperclass": "Superklasse selecteren",
     "selectParentConcept": "Bovenliggend concept selecteren",
     "searchClasses": "Klassen zoeken...",
-    "searchConceptsInScheme": "Concepten zoeken in dit conceptschema..."
+    "searchConceptsInScheme": "Concepten zoeken in dit conceptschema...",
+    "removeValue": "{{name}} verwijderen",
+    "addSynonym": "Synoniem toevoegen",
+    "addExample": "Voorbeeld toevoegen"
   },
   "collectionEditor": {
     "editTitle": "Conceptschema bewerken",
@@ -365,7 +372,8 @@
     "parentCollection": "Bovenliggend conceptschema",
     "noneRootCollection": "Geen (hoofdconceptschema)",
     "editable": "Bewerkbaar",
-    "editableHelp": "Sta het aanmaken en bewerken van concepten in dit conceptschema toe"
+    "editableHelp": "Sta het aanmaken en bewerken van concepten in dit conceptschema toe",
+    "typeInfo": "Over schematypen"
   },
   "promotion": {
     "promoteConcept": "Concept promoveren",
@@ -387,7 +395,9 @@
   },
   "collectionTree": {
     "readOnly": "Alleen-lezen conceptschema",
-    "noCollectionsYet": "Nog geen conceptschema's"
+    "noCollectionsYet": "Nog geen conceptschema's",
+    "expand": "{{name}} uitklappen",
+    "collapse": "{{name}} inklappen"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -430,7 +440,6 @@
       "conceptCount_other": "{{count}} concepten"
     },
     "fullscreen": {
-      "description": "Volledig scherm-weergave van de conceptgrafiekvisualisatie",
       "hint": "Klik op knooppunten om concepten te selecteren. Scroll om te zoomen, sleep om te pannen."
     }
   },
@@ -531,7 +540,11 @@
       "descriptionLabel": "Beschrijving (optioneel)",
       "descriptionPlaceholder": "Beschrijf het doel van dit ontologieconceptschema...",
       "importSummary": "{{classes}} klassen en {{properties}} eigenschappen worden geïmporteerd."
-    }
+    },
+    "runPane": "Uitvoering",
+    "results": "Resultaten",
+    "connectionsFailed": "De verbindingen konden niet worden geladen.",
+    "runsFailed": "De recente uitvoeringen konden niet worden geladen."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Andere conceptschema's meenemen",
@@ -551,10 +564,15 @@
   "explore": {
     "emptyTitle": "Nog niets om te verkennen",
     "emptyBody": "Importeer bestanden of maak concepten aan op het tabblad Definiëren.",
-    "emptyCta": "Ga naar Definiëren"
+    "emptyCta": "Ga naar Definiëren",
+    "conceptsPane": "Concepten",
+    "filtersPane": "Filters",
+    "loadFailed": "De concepten konden niet worden geladen."
   },
   "define": {
-    "requiresWrite": "Schrijftoegang vereist"
+    "requiresWrite": "Schrijftoegang vereist",
+    "runsFailed": "Het lopende aanmaakwerk kon niet worden geladen.",
+    "about": "Over {{name}}"
   },
   "lifecycle": {
     "changeStatus": "Status wijzigen",
@@ -627,5 +645,8 @@
   },
   "columns": {
     "fromFile": "uit {{file}}"
+  },
+  "summary": {
+    "title": "Samenvatting"
   }
 }

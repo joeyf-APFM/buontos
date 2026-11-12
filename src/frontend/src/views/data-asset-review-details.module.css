@@ -3,8 +3,7 @@
  * (Task 15): the kit's breadcrumb and one-line header (the title, its edit
  * button, the overall status and Back), the id line, then the request's two
  * panes in one stack: its details, and its assets in the shared DataTable.
- * The asset review editor opens in a Mantine Modal with the Task 7 dialog
- * look (components/schema-importer/import-preview-dialog.module.css).
+ * The asset review editor opens in the kit Dialog (mantine/page/dialog.tsx).
  */
 
 /* Loading, error and not found: the breadcrumb above, in the kit's margin */
@@ -127,16 +126,8 @@ button.copy {
   height: 12px;
 }
 
-/* The request's details: the labels keep to one line ("Current Status" is
-   wider than the 86px column), so the label column grows to the longest
-   label, never below 86px. `.info dl` outranks the shared .kv (R10) */
-.info dl {
-  grid-template-columns: minmax(86px, max-content) minmax(0, 1fr);
-}
-
-.info dt {
-  white-space: nowrap;
-}
+/* The request's details use the shared fixed 86px label column; a longer
+   label wraps inside it, so the values line up down each column */
 
 /* Details values: long ones wrap, so they read in full */
 .wrap {
@@ -155,11 +146,11 @@ button.copy {
 }
 
 .sort {
-  composes: sort from './asset-types.module.css';
+  composes: sort from '../components/common/list-page.module.css';
 }
 
 .sortIcon {
-  composes: sortIcon from './asset-types.module.css';
+  composes: sortIcon from '../components/common/list-page.module.css';
 }
 
 .fqn {
@@ -181,46 +172,7 @@ button.reviewButton {
   min-height: 24px;
 }
 
-/* The editor Modal */
-.editor {
-  composes: content from '../components/schema-importer/import-preview-dialog.module.css';
-}
-
-.editorHeader {
-  composes: header from '../components/schema-importer/import-preview-dialog.module.css';
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--aura-border);
-}
-
-.editorHeading {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* A long name wraps, so it reads in full */
-.editorTitle {
-  composes: title from '../components/schema-importer/import-preview-dialog.module.css';
-  overflow-wrap: anywhere;
-}
-
-.editorBody {
-  min-width: 0;
-  padding: 12px 16px 0;
-}
-
-.editorFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin: 16px -16px 0;
-  padding: 12px 16px 16px;
-  border-top: 1px solid var(--aura-border);
-}
-
-/* A knowledge concept's diff, under the editor's title: accent-subtle */
+/* A knowledge concept's diff, atop the editor: accent-subtle */
 .diff {
   display: flex;
   flex-direction: column;

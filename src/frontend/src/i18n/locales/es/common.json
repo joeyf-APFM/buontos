@@ -448,7 +448,8 @@
     "selectTypeToBrowse": "Seleccione un tipo de activo para explorar",
     "linkEmpty": "Vincular activos",
     "linkCount_one": "Vincular {{count}} activo",
-    "linkCount_other": "Vincular {{count}} activos"
+    "linkCount_other": "Vincular {{count}} activos",
+    "removeSelected": "Quitar {{name}}"
   },
   "addRelationship": {
     "title": "Agregar relación",

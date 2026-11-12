@@ -159,7 +159,10 @@
     "title": "Konzeptschemata",
     "glossary": "Glossar",
     "taxonomy": "Taxonomie",
-    "ontology": "Ontologie"
+    "ontology": "Ontologie",
+    "listPane": "Schemaliste",
+    "loadFailed": "Die Schemata konnten nicht geladen werden.",
+    "actionsFor": "Aktionen für {{name}}"
   },
   "actions": {
     "createConcept": "Konzept erstellen",
@@ -197,6 +200,9 @@
     "linkEditor": {
       "title": "Verknüpfung erstellen",
       "description": "Definieren Sie eine Beziehung zwischen zwei Konzepten"
+    },
+    "deprecate": {
+      "removeSuccessor": "{{name}} entfernen"
     }
   },
   "rdfSources": {
@@ -292,7 +298,10 @@
     "selectSuperclass": "Oberklasse auswählen",
     "selectParentConcept": "Übergeordnetes Konzept auswählen",
     "searchClasses": "Klassen suchen...",
-    "searchConceptsInScheme": "Konzepte in diesem Konzeptschema suchen..."
+    "searchConceptsInScheme": "Konzepte in diesem Konzeptschema suchen...",
+    "removeValue": "{{name}} entfernen",
+    "addSynonym": "Synonym hinzufügen",
+    "addExample": "Beispiel hinzufügen"
   },
   "collectionEditor": {
     "editTitle": "Konzeptschema bearbeiten",
@@ -303,7 +312,8 @@
     "parentCollection": "Übergeordnetes Konzeptschema",
     "noneRootCollection": "Keines (Stamm-Konzeptschema)",
     "editable": "Bearbeitbar",
-    "editableHelp": "Erstellen und Bearbeiten von Konzepten in diesem Konzeptschema zulassen"
+    "editableHelp": "Erstellen und Bearbeiten von Konzepten in diesem Konzeptschema zulassen",
+    "typeInfo": "Über Schematypen"
   },
   "promotion": {
     "promoteConcept": "Konzept hochstufen",
@@ -325,7 +335,9 @@
   },
   "collectionTree": {
     "readOnly": "Schreibgeschütztes Konzeptschema",
-    "noCollectionsYet": "Noch keine Konzeptschemata"
+    "noCollectionsYet": "Noch keine Konzeptschemata",
+    "expand": "{{name}} aufklappen",
+    "collapse": "{{name}} zuklappen"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -368,7 +380,6 @@
       "conceptCount_other": "{{count}} Konzepte"
     },
     "fullscreen": {
-      "description": "Vollbildansicht der Konzeptgraph-Visualisierung",
       "hint": "Klicken Sie auf Knoten, um Konzepte auszuwählen. Zum Zoomen scrollen, zum Verschieben ziehen."
     }
   },
@@ -469,7 +480,11 @@
       "descriptionLabel": "Beschreibung (optional)",
       "descriptionPlaceholder": "Beschreiben Sie den Zweck dieses Ontologie-Konzeptschemas...",
       "importSummary": "{{classes}} Klassen und {{properties}} Eigenschaften werden importiert."
-    }
+    },
+    "runPane": "Ausführung",
+    "results": "Ergebnisse",
+    "connectionsFailed": "Die Verbindungen konnten nicht geladen werden.",
+    "runsFailed": "Die letzten Ausführungen konnten nicht geladen werden."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Andere Konzeptschemata einbeziehen",
@@ -489,9 +504,17 @@
   "explore": {
     "emptyTitle": "Noch nichts zu entdecken",
     "emptyBody": "Importieren Sie Dateien oder erstellen Sie Konzepte auf dem Tab „Define“.",
-    "emptyCta": "Zu Define wechseln"
+    "emptyCta": "Zu Define wechseln",
+    "conceptsPane": "Konzepte",
+    "filtersPane": "Filter",
+    "loadFailed": "Die Konzepte konnten nicht geladen werden."
   },
   "define": {
-    "requiresWrite": "Schreibzugriff erforderlich"
+    "requiresWrite": "Schreibzugriff erforderlich",
+    "runsFailed": "Die laufenden Arbeiten konnten nicht geladen werden.",
+    "about": "Über {{name}}"
+  },
+  "summary": {
+    "title": "Zusammenfassung"
   }
 }

@@ -1,21 +1,15 @@
 import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, Info } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
+import { Alert, Badge, UnstyledButton } from '@mantine/core';
 import type { Column, ColumnDef, Table as TanStackTable } from '@tanstack/react-table';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import { TableCell, TableRow } from '@/components/ui/table';
 import { RelativeDate } from '@/components/common/relative-date';
-import { cn } from '@/lib/utils';
 import { useEnrichCoverageTableStore } from '@/stores/enrich-coverage-table-store';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { InfoTip } from '@/components/common/info-tip';
+import classes from './coverage-matrix.module.css';
 
 // ---------------------------------------------------------------------------
 // Map lane — per-concept-scheme coverage matrix.
@@ -62,6 +56,9 @@ export interface CoverageRow {
   lastRun?: string | null;
 }
 
+/** Where the rows come from: the live read-model, or the sample rows while it loads or once it failed. */
+export type CoverageSource = 'live' | 'loading' | 'failed';
+
 interface Props {
   rows: CoverageRow[];
   platformNoun: string;
@@ -69,88 +66,68 @@ interface Props {
   onReview: (row: CoverageRow) => void;
   /** Whether the current user may act on suggestions. */
   canWrite?: boolean;
-  /** True when rows come from the live coverage read-model; false when the
-   *  endpoint was unavailable and placeholder rows are shown. */
-  isLive?: boolean;
+  /**
+   * Where the rows come from: the live coverage read-model, or the sample
+   * rows while it loads or once it failed (the sample-data notice shows, with
+   * Retry once it failed). @default 'live'
+   */
+  source?: CoverageSource;
+  /** Loads the live rows again, from the sample-data notice. */
+  onRetry?: () => void;
 }
 
-function InfoDot({ text }: { text: string }) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground"
-            aria-label={text}
-          >
-            <Info className="h-3.5 w-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-[260px]">{text}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
-// Column colors shared by the body cells and the totals footer.
-const SKY = 'text-sky-700 dark:text-sky-400';
-const AMBER = 'text-amber-700 dark:text-amber-500';
-const NUM = 'text-right tabular-nums';
+type Tone = 'sky' | 'amber';
 
 function SortHeader<T>({
   column,
   label,
   align = 'right',
-  className,
+  tone,
 }: {
   column: Column<T, unknown>;
   label: string;
   align?: 'left' | 'right';
-  className?: string;
+  tone?: Tone;
 }) {
   const sorted = column.getIsSorted();
-  // The arrow shows on the sorted column only; the ghost button's hover state signals the rest.
+  // The arrow shows on the sorted column only; the hover state signals the rest.
   const Icon = sorted === 'asc' ? ArrowUp : ArrowDown;
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={cn(
-        'relative h-7 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
-        align === 'right' ? '-mr-1 ml-auto flex' : '-ml-1',
-        className,
-      )}
+    <UnstyledButton
+      className={classes.sort}
+      data-align={align}
+      data-tone={tone}
       onClick={() => column.toggleSorting(sorted === 'asc')}
     >
       {label}
       {/* The arrow sits in the cell's side padding, so sorting never widens the header. */}
-      {sorted && (
-        <Icon
-          className="absolute -right-3.5 top-1/2 h-3 w-3 -translate-y-1/2"
-        />
-      )}
-    </Button>
+      {sorted && <Icon className={classes.sortIcon} aria-hidden />}
+    </UnstyledButton>
   );
 }
 
 function CoverageBar({ pct }: { pct: number }) {
   return (
-    <span className="flex items-center justify-end gap-2">
-      <span className="h-1.5 w-[48px] overflow-hidden rounded-full bg-secondary">
-        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+    <span className={classes.bar}>
+      <span className={classes.track}>
+        <span className={classes.fill} style={{ width: `${pct}%` }} />
       </span>
-      <b className="tabular-nums">{pct}%</b>
+      <b className={classes.num}>{pct}%</b>
     </span>
   );
 }
+
+const Num = ({ value, tone }: { value: number; tone?: Tone }) => (
+  <div className={classes.num} data-tone={tone}>{value}</div>
+);
 
 export default function CoverageMatrix({
   rows,
   platformNoun,
   onReview,
   canWrite = true,
-  isLive = true,
+  source = 'live',
+  onRetry,
 }: Props) {
   const { t } = useTranslation(['concepts', 'common']);
   const search = useEnrichCoverageTableStore((s) => s.search);
@@ -198,12 +175,12 @@ export default function CoverageMatrix({
         // Long names truncate inside a bounded width; the full name is in the
         // tooltip, so the column never stretches.
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <span className="block truncate font-semibold" title={row.original.name}>
+          <div className={classes.scheme}>
+            <span className={classes.schemeName} title={row.original.name}>
               {row.original.name}
             </span>
             {row.original.lastRun && (
-              <span className="block truncate text-[11px] text-muted-foreground">
+              <span className={classes.lastRun}>
                 {t('enrich.map.col.lastRun', 'Last run')} <RelativeDate date={row.original.lastRun} />
               </span>
             )}
@@ -217,7 +194,7 @@ export default function CoverageMatrix({
         header: ({ column }) => (
           <SortHeader column={column} label={t('enrich.map.col.concepts', 'Concepts')} />
         ),
-        cell: ({ row }) => <div className={NUM}>{row.original.concepts}</div>,
+        cell: ({ row }) => <Num value={row.original.concepts} />,
       },
       {
         id: 'coverage',
@@ -233,27 +210,27 @@ export default function CoverageMatrix({
         size: 84,
         accessorKey: 'products',
         header: ({ column }) => (
-          <SortHeader column={column} className={SKY} label={t('enrich.map.col.products', 'Products')} />
+          <SortHeader column={column} tone="sky" label={t('enrich.map.col.products', 'Products')} />
         ),
-        cell: ({ row }) => <div className={cn(NUM, SKY)}>{row.original.products}</div>,
+        cell: ({ row }) => <Num value={row.original.products} tone="sky" />,
       },
       {
         id: 'contracts',
         size: 92,
         accessorKey: 'contracts',
         header: ({ column }) => (
-          <SortHeader column={column} className={SKY} label={t('enrich.map.col.contracts', 'Contracts')} />
+          <SortHeader column={column} tone="sky" label={t('enrich.map.col.contracts', 'Contracts')} />
         ),
-        cell: ({ row }) => <div className={cn(NUM, SKY)}>{row.original.contracts}</div>,
+        cell: ({ row }) => <Num value={row.original.contracts} tone="sky" />,
       },
       {
         id: 'assets',
         size: 100,
         accessorKey: 'assets',
         header: ({ column }) => (
-          <div className="flex items-center justify-end gap-1">
-            <SortHeader column={column} className={cn(AMBER, 'ml-0')} label={t('enrich.map.col.assets', 'Assets')} />
-            <InfoDot
+          <div className={classes.headWithTip}>
+            <SortHeader column={column} tone="amber" label={t('enrich.map.col.assets', 'Assets')} />
+            <InfoTip
               text={t(
                 'enrich.map.assetNote',
                 'Asset links are what Deliver enriches in step 2. Asset-direct linking works even before any product or contract exists, so it solves the chicken-and-egg case.',
@@ -261,7 +238,7 @@ export default function CoverageMatrix({
             />
           </div>
         ),
-        cell: ({ row }) => <div className={cn(NUM, AMBER)}>{row.original.assets}</div>,
+        cell: ({ row }) => <Num value={row.original.assets} tone="amber" />,
       },
       {
         id: 'suggested',
@@ -271,16 +248,13 @@ export default function CoverageMatrix({
           <SortHeader column={column} label={t('enrich.map.col.suggested', 'Suggested')} />
         ),
         cell: ({ row }) => (
-          <div className="text-right">
+          <div className={classes.num}>
             {row.original.suggested > 0 ? (
-              <Badge
-                variant="outline"
-                className="border-amber-300 bg-amber-100/60 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
-              >
+              <Badge size="sm" radius="sm" variant="light" color="yellow" className={classes.suggested}>
                 {row.original.suggested}
               </Badge>
             ) : (
-              <span className="text-muted-foreground">0</span>
+              <span className={classes.zero}>0</span>
             )}
           </div>
         ),
@@ -292,11 +266,10 @@ export default function CoverageMatrix({
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => (
-          <div className="text-right">
+          <div className={classes.num}>
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-xs"
               disabled={!canWrite || row.original.suggested === 0}
               onClick={() => onReview(row.original)}
             >
@@ -312,7 +285,7 @@ export default function CoverageMatrix({
   // "All selected" footer: one cell per VISIBLE column so it stays aligned
   // when the user hides columns from the Columns menu.
   const renderTotals = (table: TanStackTable<CoverageRow>) => (
-    <TableRow className="font-semibold hover:bg-transparent">
+    <tr className={classes.totals}>
       {table.getVisibleLeafColumns().map((col) => {
         let content: ReactNode = null;
         switch (col.id) {
@@ -320,77 +293,88 @@ export default function CoverageMatrix({
             content = t('enrich.map.allSelected', 'All selected');
             break;
           case 'concepts':
-            content = <div className={NUM}>{totals.concepts}</div>;
+            content = <Num value={totals.concepts} />;
             break;
           case 'coverage':
             content = <CoverageBar pct={totalPct} />;
             break;
           case 'products':
-            content = <div className={cn(NUM, SKY)}>{totals.products}</div>;
+            content = <Num value={totals.products} tone="sky" />;
             break;
           case 'contracts':
-            content = <div className={cn(NUM, SKY)}>{totals.contracts}</div>;
+            content = <Num value={totals.contracts} tone="sky" />;
             break;
           case 'assets':
-            content = <div className={cn(NUM, AMBER)}>{totals.assets}</div>;
+            content = <Num value={totals.assets} tone="amber" />;
             break;
           case 'suggested':
-            content = <div className={NUM}>{totals.suggested}</div>;
+            content = <Num value={totals.suggested} />;
             break;
         }
         return (
-          <TableCell key={col.id} data-column={col.id} className="px-3 py-2">
+          <td key={col.id} data-column={col.id} className={classes.totalCell}>
             {content}
-          </TableCell>
+          </td>
         );
       })}
-    </TableRow>
+    </tr>
   );
 
   return (
-    <div className="space-y-3">
-      <DataTable<CoverageRow, unknown>
-        columns={columns}
-        data={filteredRows}
-        searchColumn="scheme"
-        selectable={false}
-        dense
-        fixedLayout
-        searchValue={search}
-        onSearchChange={setSearch}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        footer={rows.length > 0 ? renderTotals : undefined}
-      />
+    <div className={classes.root}>
+      {/* Disclosure only when the live coverage read-model is unavailable and
+          we are showing placeholder rows. When live, no note is needed. Once
+          it failed, Retry loads the live rows again. */}
+      {source !== 'live' && (
+        <Alert color="yellow" variant="light" className={classes.notice}>
+          <span>
+            {t(
+              'enrich.map.placeholderNote',
+              'Coverage figures are sample data — the live coverage service is unavailable right now.',
+            )}{' '}
+            <span className={classes.code}>({platformNoun})</span>
+          </span>
+          {source === 'failed' && onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry} className={classes.retry}>
+              {t('common:retry', 'Retry')}
+            </Button>
+          )}
+        </Alert>
+      )}
 
-      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+      {/* The table's frame scrolls sideways inside the pane when the window is narrow */}
+      <div data-enrich-matrix="" className={classes.matrix}>
+        <DataTable<CoverageRow, unknown>
+          columns={columns}
+          data={filteredRows}
+          searchColumn="scheme"
+          selectable={false}
+          dense
+          fixedLayout
+          searchValue={search}
+          onSearchChange={setSearch}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          footer={rows.length > 0 ? renderTotals : undefined}
+        />
+      </div>
+
+      <p className={classes.unmapped}>
+        <span className={classes.dot} aria-hidden />
         {t(
           'enrich.map.unmappedNote',
           '{{unmapped}} concepts have no link yet.',
           { unmapped },
         )}
-        <InfoDot
+        <InfoTip
           text={t(
             'enrich.map.coverageTip',
             "Coverage = share of a concept scheme's concepts with at least one link. Products and Contracts are optional extra links, so the three counts don't sum to the total. Only Assets can be enriched in step 2.",
           )}
         />
       </p>
-
-      {/* Disclosure only when the live coverage read-model is unavailable and
-          we are showing placeholder rows. When live, no note is needed. */}
-      {!isLive && (
-        <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          {t(
-            'enrich.map.placeholderNote',
-            'Coverage figures are sample data — the live coverage service is unavailable right now.',
-          )}{' '}
-          <span className="font-mono">({platformNoun})</span>
-        </p>
-      )}
     </div>
   );
 }

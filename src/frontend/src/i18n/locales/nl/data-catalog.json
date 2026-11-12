@@ -183,6 +183,7 @@
     "browserTitle": "Hiërarchiebrowser",
     "browserSubtitle": "Navigeer datahiërarchieën van systemen en domeinen tot tabellen en kolommen",
     "browse": "Bladeren",
+    "detailPane": "Hiërarchiedetails",
     "filterPlaceholder": "Filteren...",
     "noMatches": "Geen overeenkomsten gevonden",
     "noRoots": "Geen root-entiteiten gevonden",
@@ -203,8 +204,7 @@
     "heading": "Hiërarchie",
     "noChildren": "Geen onderliggende items in de hiërarchie",
     "noChildrenFound": "Geen onderliggende items gevonden",
-    "expand": "Uitklappen",
-    "collapse": "Inklappen",
+    "childrenLoadFailed": "De onderliggende items konden niet worden geladen.",
     "levelsOption": "{{count}} niveaus",
     "allLevels": "Alle",
     "rootType": {

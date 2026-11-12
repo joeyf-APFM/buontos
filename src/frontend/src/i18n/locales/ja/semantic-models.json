@@ -159,7 +159,10 @@
     "title": "コンセプトスキーム",
     "glossary": "用語集",
     "taxonomy": "分類体系",
-    "ontology": "オントロジー"
+    "ontology": "オントロジー",
+    "listPane": "スキーム一覧",
+    "loadFailed": "スキームを読み込めませんでした。",
+    "actionsFor": "{{name}} の操作"
   },
   "actions": {
     "createConcept": "コンセプトを作成",
@@ -197,6 +200,9 @@
     "linkEditor": {
       "title": "リンクを作成",
       "description": "2つのコンセプト間の関係を定義します"
+    },
+    "deprecate": {
+      "removeSuccessor": "{{name}} を削除"
     }
   },
   "rdfSources": {
@@ -292,7 +298,10 @@
     "selectSuperclass": "スーパークラスを選択",
     "selectParentConcept": "親コンセプトを選択",
     "searchClasses": "クラスを検索...",
-    "searchConceptsInScheme": "このコンセプトスキーム内のコンセプトを検索..."
+    "searchConceptsInScheme": "このコンセプトスキーム内のコンセプトを検索...",
+    "removeValue": "{{name}} を削除",
+    "addSynonym": "同義語を追加",
+    "addExample": "例を追加"
   },
   "collectionEditor": {
     "editTitle": "コンセプトスキームを編集",
@@ -303,7 +312,8 @@
     "parentCollection": "親コンセプトスキーム",
     "noneRootCollection": "なし（ルートコンセプトスキーム）",
     "editable": "編集可能",
-    "editableHelp": "このコンセプトスキームでコンセプトの作成と編集を許可する"
+    "editableHelp": "このコンセプトスキームでコンセプトの作成と編集を許可する",
+    "typeInfo": "スキームの種類について"
   },
   "promotion": {
     "promoteConcept": "コンセプトを昇格",
@@ -325,7 +335,9 @@
   },
   "collectionTree": {
     "readOnly": "読み取り専用コンセプトスキーム",
-    "noCollectionsYet": "コンセプトスキームはまだありません"
+    "noCollectionsYet": "コンセプトスキームはまだありません",
+    "expand": "{{name}} を展開",
+    "collapse": "{{name}} を折りたたむ"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -368,7 +380,6 @@
       "conceptCount_other": "{{count}} 件のコンセプト"
     },
     "fullscreen": {
-      "description": "コンセプトグラフの可視化の全画面表示",
       "hint": "ノードをクリックしてコンセプトを選択します。スクロールでズーム、ドラッグでパンできます。"
     }
   },
@@ -469,7 +480,11 @@
       "descriptionLabel": "説明（任意）",
       "descriptionPlaceholder": "このオントロジーのコンセプトスキームの目的を説明してください...",
       "importSummary": "クラス {{classes}} 件とプロパティ {{properties}} 件がインポートされます。"
-    }
+    },
+    "runPane": "実行",
+    "results": "結果",
+    "connectionsFailed": "接続を読み込めませんでした。",
+    "runsFailed": "最近の実行を読み込めませんでした。"
   },
   "conceptSelect": {
     "includeOtherSchemes": "他のコンセプトスキームを含める",
@@ -489,9 +504,17 @@
   "explore": {
     "emptyTitle": "探索できるものはまだありません",
     "emptyBody": "Define タブでファイルをインポートするか、コンセプトを作成してください。",
-    "emptyCta": "Define に移動"
+    "emptyCta": "Define に移動",
+    "conceptsPane": "コンセプト",
+    "filtersPane": "フィルター",
+    "loadFailed": "コンセプトを読み込めませんでした。"
   },
   "define": {
-    "requiresWrite": "書き込み権限が必要です"
+    "requiresWrite": "書き込み権限が必要です",
+    "runsFailed": "進行中の作成作業を読み込めませんでした。",
+    "about": "{{name}} について"
+  },
+  "summary": {
+    "title": "概要"
   }
 }

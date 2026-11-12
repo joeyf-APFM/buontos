@@ -2,13 +2,16 @@
  * The request dialog's toasts name the request type in the UI language (#1078):
  * they showed the raw type ("deploy") inside the translated sentence.
  */
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import i18n from '@/i18n/config';
 import { renderWithProviders } from '@/test/utils';
 import RequestContractActionDialog from './request-contract-action-dialog';
 
 const mockGet = vi.fn();
+
+/** Lets the dialog's open-time lookups and Mantine's mount effects finish inside act. */
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 const mockPost = vi.fn();
 const mockToast = vi.fn();
 const mockRefreshNotifications = vi.fn();
@@ -29,6 +32,7 @@ async function submitDeployRequest() {
       contractStatus="active"
     />,
   );
+  await settle();
   const send = await screen.findByRole('button', { name: i18n.t('data-contracts:requests.sendRequest') });
   fireEvent.click(send);
   await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1));
@@ -46,6 +50,8 @@ describe('RequestContractActionDialog request type in its toasts', () => {
   });
 
   afterEach(async () => {
+    // Unmount first: a language change would update the open dialog outside act
+    cleanup();
     await i18n.changeLanguage('en');
   });
 

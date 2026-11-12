@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Tooltip } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import VersionSelector, {
   EntityKind,
   EntityVersionRow,
   fetchEntityVersions,
 } from './version-selector'
+import classes from './version-navigator.module.css'
 
 /**
  * Combines a previous / next chevron pair with the shared `VersionSelector`
@@ -55,53 +56,55 @@ export default function VersionNavigator({
       : null
 
   return (
-    <TooltipProvider>
-      <div className="flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!newerVersion}
-              onClick={() => newerVersion && onVersionChange(newerVersion.id)}
-              aria-label={t('common:versionNavigator.newerVersion')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {newerVersion
-              ? t('common:versionNavigator.newerTooltip', { version: newerVersion.version })
-              : t('common:versionNavigator.alreadyNewest')}
-          </TooltipContent>
-        </Tooltip>
+    <div className={classes.nav}>
+      <Tooltip
+        withinPortal
+        events={{ hover: true, focus: true, touch: false }}
+        label={
+          newerVersion
+            ? t('common:versionNavigator.newerTooltip', { version: newerVersion.version })
+            : t('common:versionNavigator.alreadyNewest')
+        }
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          className={classes.step}
+          disabled={!newerVersion}
+          onClick={() => newerVersion && onVersionChange(newerVersion.id)}
+          aria-label={t('common:versionNavigator.newerVersion')}
+        >
+          <ChevronLeft />
+        </Button>
+      </Tooltip>
 
-        <VersionSelector
-          entityKind={entityKind}
-          currentEntityId={currentEntityId}
-          currentVersion={currentVersion}
-          onVersionChange={onVersionChange}
-        />
+      <VersionSelector
+        entityKind={entityKind}
+        currentEntityId={currentEntityId}
+        currentVersion={currentVersion}
+        onVersionChange={onVersionChange}
+      />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!olderVersion}
-              onClick={() => olderVersion && onVersionChange(olderVersion.id)}
-              aria-label={t('common:versionNavigator.olderVersion')}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {olderVersion
-              ? t('common:versionNavigator.olderTooltip', { version: olderVersion.version })
-              : t('common:versionNavigator.alreadyOldest')}
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    </TooltipProvider>
+      <Tooltip
+        withinPortal
+        events={{ hover: true, focus: true, touch: false }}
+        label={
+          olderVersion
+            ? t('common:versionNavigator.olderTooltip', { version: olderVersion.version })
+            : t('common:versionNavigator.alreadyOldest')
+        }
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          className={classes.step}
+          disabled={!olderVersion}
+          onClick={() => olderVersion && onVersionChange(olderVersion.id)}
+          aria-label={t('common:versionNavigator.olderVersion')}
+        >
+          <ChevronRight />
+        </Button>
+      </Tooltip>
+    </div>
   )
 }

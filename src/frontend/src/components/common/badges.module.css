@@ -25,6 +25,17 @@
   color: var(--aura-text-secondary);
 }
 
+/* A badge's tooltip on Mantine (the publication badge): navy, 11px, as the
+   ui Tooltip (components/ui/tooltip.tsx) the other badges still use */
+.tooltip {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--aura-navy);
+  font-size: 11px;
+  line-height: 16px;
+  color: #fff;
+}
+
 .tooltipLines {
   display: flex;
   flex-direction: column;

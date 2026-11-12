@@ -1,32 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Loader, Select, Switch, TextInput, Textarea, Tooltip } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import {
   KnowledgeCollection,
   KnowledgeCollectionCreate,
@@ -34,13 +12,19 @@ import {
   CollectionType,
   ScopeLevel,
 } from '@/types/ontology';
-import { Loader2 } from 'lucide-react';
 import { buildSchemeOptionGroups } from '@/lib/scheme-select-options';
-import { SchemeSelectItems } from './scheme-select-items';
+import { useSchemeSelectData } from './scheme-select-data';
+import classes from './collection-editor-dialog.module.css';
 
 // Marker the backend writes as `created_by` on sources it auto-registers as
 // collections (bundled / imported ontologies). These are also read-only.
 const SYSTEM_CREATED_BY = 'urn:user:system';
+
+// The Parent Scheme field's "None (root scheme)": a Select needs a value of its own
+const ROOT = '_none';
+
+const SCOPES: ScopeLevel[] = ['enterprise', 'domain', 'department', 'team', 'project', 'external'];
+const TYPES: CollectionType[] = ['glossary', 'taxonomy', 'ontology'];
 
 /** True when a scheme may be offered as a parent: editable and not a system source. */
 export function isNestableParent(c: KnowledgeCollection): boolean {
@@ -58,6 +42,11 @@ interface CollectionEditorDialogProps {
   initialCollectionType?: CollectionType;
 }
 
+/**
+ * Create or edit a concept scheme (a collection): Define's Author card,
+ * Collections' Create and Edit, and Explore's New Concept Scheme. On the kit
+ * Dialog since wave 2 Task 12a, with Mantine fields.
+ */
 export const CollectionEditorDialog: React.FC<CollectionEditorDialogProps> = ({
   open,
   onOpenChange,
@@ -67,6 +56,7 @@ export const CollectionEditorDialog: React.FC<CollectionEditorDialogProps> = ({
   initialCollectionType,
 }) => {
   const { t } = useTranslation(['semantic-models', 'common']);
+  const formId = useId();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     label: '',
@@ -115,6 +105,8 @@ export const CollectionEditorDialog: React.FC<CollectionEditorDialogProps> = ({
       };
       await onSave(data, isNew);
       onOpenChange(false);
+    } catch {
+      // The caller reports a failed save (its toast); the editor stays open
     } finally {
       setIsLoading(false);
     }
@@ -124,174 +116,152 @@ export const CollectionEditorDialog: React.FC<CollectionEditorDialogProps> = ({
   // offered: editable, not system/bundled, and not the scheme being edited.
   // Each scheme is judged on its own, so a qualifying child of a skipped
   // parent is still listed.
-  const parentOptionGroups = buildSchemeOptionGroups(collections, {
-    include: (c) => isNestableParent(c) && c.iri !== collection?.iri,
-  });
+  const parentOptionGroups = useMemo(
+    () =>
+      buildSchemeOptionGroups(collections, {
+        include: (c) => isNestableParent(c) && c.iri !== collection?.iri,
+      }),
+    [collections, collection?.iri],
+  );
+  const rootLabel = t('semantic-models:collectionEditor.noneRootCollection', 'None (root scheme)');
+  const leading = useMemo(() => [{ value: ROOT, label: rootLabel }], [rootLabel]);
+  const parentSelect = useSchemeSelectData(parentOptionGroups, leading);
+
+  const typeOptions = TYPES.map((type) => ({ value: type, label: t(`semantic-models:collections.${type}`) }));
+  const scopeOptions = SCOPES.map((scope) => ({ value: scope, label: t(`semantic-models:scopes.${scope}`) }));
+
+  const typeTip = t(
+    'collection.typeTooltip',
+    'Glossary, taxonomy, and ontology are points on a maturity ladder, not different tools. Glossary = a flat list of agreed terms and definitions. Taxonomy = terms arranged in a broader/narrower hierarchy. Ontology = formal classes and properties a machine can reason over. Pick where you are today; you can add structure later.',
+  );
+  const editableHint = t('semantic-models:collectionEditor.editableHelp', 'Allow creating and editing concepts in this scheme');
 
   return (
-    <TooltipProvider>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isNew ? t('Create scheme', 'Create Scheme') : t('Edit scheme', 'Edit Scheme')}
-          </DialogTitle>
-          <DialogDescription>
-            {isNew
-              ? t('Create a new concept scheme. Start simple as a glossary; you can add structure later.')
-              : t('Update scheme settings.')}
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="sm"
+      title={isNew ? t('Create scheme', 'Create Scheme') : t('Edit scheme', 'Edit Scheme')}
+      description={
+        isNew
+          ? t('Create a new concept scheme. Start simple as a glossary; you can add structure later.')
+          : t('Update scheme settings.')
+      }
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+            {t('common:actions.cancel')}
+          </Button>
+          {/* In the footer, outside the form: it submits the form by its id */}
+          <Button type="submit" form={formId} disabled={isLoading || !formData.label}>
+            {isLoading && <Loader size={12} color="currentColor" />}
+            {isNew ? t('common:actions.create') : t('common:actions.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className={form.form}>
+        <TextInput
+          label={t('common:labels.name')}
+          value={formData.label}
+          onChange={(e) => {
+            const value = e.currentTarget.value;
+            setFormData((prev) => ({ ...prev, label: value }));
+          }}
+          placeholder={t('semantic-models:collectionEditor.namePlaceholder', 'e.g., Finance Glossary')}
+          required
+          withAsterisk={false}
+          classNames={FIELD_CLASSES}
+          data-autofocus
+        />
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            {/* Name */}
-            <div className="grid gap-2">
-              <Label htmlFor="label">{t('common:labels.name')}</Label>
-              <Input
-                id="label"
-                value={formData.label}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, label: e.target.value }))
-                }
-                placeholder={t('semantic-models:collectionEditor.namePlaceholder', 'e.g., Finance Glossary')}
-                required
-              />
-            </div>
+        <Textarea
+          label={t('common:labels.description')}
+          value={formData.description}
+          onChange={(e) => {
+            const value = e.currentTarget.value;
+            setFormData((prev) => ({ ...prev, description: value }));
+          }}
+          placeholder={t('semantic-models:collectionEditor.descriptionPlaceholder', 'Optional description...')}
+          rows={3}
+          classNames={FIELD_CLASSES}
+        />
 
-            {/* Description */}
-            <div className="grid gap-2">
-              <Label htmlFor="description">{t('common:labels.description')}</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder={t('semantic-models:collectionEditor.descriptionPlaceholder', 'Optional description...')}
-                rows={3}
-              />
-            </div>
-
-            {/* Scheme Type (only for new) */}
-            {isNew && (
-              <div className="grid gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Label htmlFor="collection_type">{t('Type')}</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="cursor-help text-xs text-muted-foreground border rounded-full h-4 w-4 inline-flex items-center justify-center">i</span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[280px]">
-                      {t(
-                        'collection.typeTooltip',
-                        'Glossary, taxonomy, and ontology are points on a maturity ladder, not different tools. Glossary = a flat list of agreed terms and definitions. Taxonomy = terms arranged in a broader/narrower hierarchy. Ontology = formal classes and properties a machine can reason over. Pick where you are today; you can add structure later.',
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <Select
-                  value={formData.collection_type}
-                  onValueChange={(value: CollectionType) =>
-                    setFormData((prev) => ({ ...prev, collection_type: value }))
-                  }
+        {/* Scheme Type (only for new) */}
+        {isNew && (
+          <Select
+            label={
+              <span className={classes.labelLine}>
+                {t('Type')}
+                <Tooltip
+                  label={typeTip}
+                  multiline
+                  w={280}
+                  events={{ hover: true, focus: true, touch: false }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="glossary">{t('semantic-models:collections.glossary')}</SelectItem>
-                    <SelectItem value="taxonomy">{t('semantic-models:collections.taxonomy')}</SelectItem>
-                    <SelectItem value="ontology">{t('semantic-models:collections.ontology')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                  <span
+                    role="img"
+                    className={classes.info}
+                    tabIndex={0}
+                    aria-label={t('semantic-models:collectionEditor.typeInfo', 'About scheme types')}
+                  >
+                    i
+                  </span>
+                </Tooltip>
+              </span>
+            }
+            // The field's own name, without the info mark's
+            aria-label={t('Type')}
+            data={typeOptions}
+            value={formData.collection_type}
+            onChange={(value) => value && setFormData((prev) => ({ ...prev, collection_type: value as CollectionType }))}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+        )}
 
-            {/* Scope Level */}
-            <div className="grid gap-2">
-              <Label htmlFor="scope_level">{t('semantic-models:fields.scope')}</Label>
-              <Select
-                value={formData.scope_level}
-                onValueChange={(value: ScopeLevel) =>
-                  setFormData((prev) => ({ ...prev, scope_level: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="enterprise">{t('semantic-models:scopes.enterprise')}</SelectItem>
-                  <SelectItem value="domain">{t('semantic-models:scopes.domain')}</SelectItem>
-                  <SelectItem value="department">{t('semantic-models:scopes.department')}</SelectItem>
-                  <SelectItem value="team">{t('semantic-models:scopes.team')}</SelectItem>
-                  <SelectItem value="project">{t('semantic-models:scopes.project')}</SelectItem>
-                  <SelectItem value="external">{t('semantic-models:scopes.external')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <Select
+          label={t('semantic-models:fields.scope')}
+          data={scopeOptions}
+          value={formData.scope_level}
+          onChange={(value) => value && setFormData((prev) => ({ ...prev, scope_level: value as ScopeLevel }))}
+          allowDeselect={false}
+          classNames={SELECT_CLASSES}
+        />
 
-            {/* Parent Scheme */}
-            <div className="grid gap-2">
-              <Label htmlFor="parent">{t('semantic-models:collectionEditor.parentCollection', 'Parent Scheme')}</Label>
-              <Select
-                value={formData.parent_collection_iri || '_none'}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    parent_collection_iri: value === '_none' ? '' : value,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('semantic-models:collectionEditor.noneRootCollection', 'None (root scheme)')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">{t('semantic-models:collectionEditor.noneRootCollection', 'None (root scheme)')}</SelectItem>
-                  {parentOptionGroups.length > 0 && <SelectSeparator />}
-                  <SchemeSelectItems groups={parentOptionGroups} />
-                </SelectContent>
-              </Select>
-            </div>
+        <Select
+          label={t('semantic-models:collectionEditor.parentCollection', 'Parent Scheme')}
+          data={parentSelect.data}
+          renderOption={parentSelect.renderOption}
+          value={formData.parent_collection_iri || ROOT}
+          onChange={(value) =>
+            value && setFormData((prev) => ({ ...prev, parent_collection_iri: value === ROOT ? '' : value }))
+          }
+          allowDeselect={false}
+          classNames={SELECT_CLASSES}
+        />
 
-            {/* Editable Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="is_editable">{t('semantic-models:collectionEditor.editable')}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('semantic-models:collectionEditor.editableHelp', 'Allow creating and editing concepts in this scheme')}
-                </p>
-              </div>
-              <Switch
-                id="is_editable"
-                checked={formData.is_editable}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, is_editable: checked }))
-                }
-              />
-            </div>
+        {/* Editable Toggle: its label and hint, the switch at the end */}
+        <div className={form.toggle}>
+          <div>
+            <label htmlFor={`${formId}-editable`} className={form.toggleLabel}>
+              {t('semantic-models:collectionEditor.editable')}
+            </label>
+            <p id={`${formId}-editable-hint`} className={form.hint}>{editableHint}</p>
           </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading}
-            >
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={isLoading || !formData.label}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isNew ? t('common:actions.create') : t('common:actions.save')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+          <Switch
+            id={`${formId}-editable`}
+            aria-describedby={`${formId}-editable-hint`}
+            checked={formData.is_editable}
+            onChange={(e) => {
+              const checked = e.currentTarget.checked;
+              setFormData((prev) => ({ ...prev, is_editable: checked }));
+            }}
+          />
+        </div>
+      </form>
     </Dialog>
-    </TooltipProvider>
   );
 };
 
 export default CollectionEditorDialog;
-

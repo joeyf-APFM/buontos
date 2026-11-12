@@ -1,0 +1,79 @@
+/*
+ * The contract page's commit-draft dialog (wave 2 Task 8b) in the kit Dialog
+ * (mantine/page/dialog.tsx): the parent and new versions side by side, and
+ * the bump choices as bordered rows. The change analysis is in
+ * common/change-analysis.module.css, the fields in common/dialog-form.module.css.
+ */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+/* The parent version, an arrow, the new version */
+.versions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--aura-surface-strong);
+}
+
+.version {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+}
+
+.versionLabel {
+  margin: 0;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* A version number: an identifier, in the mono font */
+.versionNumber {
+  margin: 0;
+  font-family: var(--aura-font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+  overflow-wrap: anywhere;
+}
+
+.versionNumber[data-new] {
+  color: var(--aura-accent);
+}
+
+.arrow {
+  font-size: 20px;
+  color: var(--aura-text-secondary);
+}
+
+/* A bump choice: its radio, label and description in a bordered row */
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.choiceLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+/* The custom version's field, under its radio's label */
+.customField {
+  margin-left: 28px;
+}

@@ -1,0 +1,140 @@
+/*
+ * Review suggested matches (wave 2 Task 14), on the kit Dialog: one row per
+ * match, the concept and its asset wrapping (the asset, an identifier, is
+ * mono and keeps its full name in a title), the reason under them, and the
+ * confidence chip at the end.
+ */
+.scheme {
+  font-weight: 400;
+  color: var(--aura-text-secondary);
+}
+
+.boardLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+  align-self: center;
+  font-size: 12px;
+  color: var(--aura-accent);
+  text-decoration: none;
+}
+
+.boardLink:hover {
+  text-decoration: underline;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 0;
+  color: var(--aura-text-secondary);
+}
+
+.notice {
+  padding: 8px 12px;
+}
+
+.sampleNote {
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px dashed var(--aura-border-strong);
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+  background: var(--aura-canvas);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.mapping {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.concept {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.arrow {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+.target {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.reason {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.confidence {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.confidence[data-confidence='high'] {
+  color: var(--aura-good);
+  background: var(--aura-good-bg);
+}
+
+.confidence[data-confidence='medium'] {
+  color: var(--aura-warning);
+  background: var(--aura-warning-bg);
+}
+
+.confidence[data-confidence='low'] {
+  color: var(--aura-critical);
+  background: var(--aura-critical-bg);
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}

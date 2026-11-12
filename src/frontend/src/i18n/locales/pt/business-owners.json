@@ -1,6 +1,7 @@
 {
   "title": "Responsáveis pelo negócio",
   "subtitle": "Atribuições de responsabilidade que rastreiam quem é responsável pelo quê.",
+  "listPane": "Lista de responsáveis de negócio",
   "addNew": "Atribuir responsável",
   "editOwner": "Editar atribuição",
   "removeOwner": "Remover responsável",
@@ -60,6 +61,7 @@
     "previousOwners": "Responsáveis anteriores",
     "noOwners": "Nenhum responsável atribuído",
     "assignOwner": "Atribuir responsável",
-    "history": "Mostrar histórico"
+    "history": "Mostrar histórico",
+    "removeOwnerNamed": "Remover {{name}}"
   }
 }

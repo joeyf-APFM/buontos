@@ -1,0 +1,156 @@
+/*
+ * The entities linked to a concept (wave 2 Task 15): a flush panel
+ * (components/common/panel.module.css) whose head folds the list and holds
+ * Add. One 28px row per link: icon, name (ellipsed, its type, name and IRI in
+ * the title), the type chip, Open, and Remove, which shows on the row's hover
+ * or focus. Links that resolve through a contract or product sit indented
+ * under it. The list scrolls inside its pane past the row cap.
+ */
+.fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.fold > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.list {
+  padding: 2px 0;
+}
+
+.list[data-capped] {
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.row:hover {
+  background: var(--aura-surface-strong);
+}
+
+.row[data-depth='1'] {
+  margin-left: 16px;
+  padding-left: 12px;
+  border-left: 1px solid var(--aura-border);
+  border-radius: 0;
+}
+
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  color: var(--aura-accent);
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.type {
+  flex: none;
+}
+
+.open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 56px;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.open:hover {
+  color: var(--aura-text-body);
+}
+
+.open > svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Remove: shown on the row's hover, or when it has keyboard focus */
+.remove {
+  flex: none;
+  opacity: 0;
+}
+
+.row:hover .remove,
+.remove:focus-visible,
+.remove:focus {
+  opacity: 1;
+}
+
+.spacer {
+  flex: none;
+  width: 24px;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 4px;
+  color: var(--aura-text-secondary);
+}
+
+/* The Add dialog: the concept it links, then the two fields */
+.concept {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.conceptLabel {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.conceptIri {
+  margin: 0;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.optionLine {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.optionSub {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}

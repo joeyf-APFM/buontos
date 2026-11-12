@@ -9,6 +9,8 @@ import { AlertCircle, SparklesIcon } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import { serverErrorText, USER_TOKEN_REQUIRED_CODE } from '@/lib/server-error-text';
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions, usePermissionsReady } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/settings';
 import {
     ReviewedAsset,
     ReviewedAssetStatus,
@@ -84,6 +86,12 @@ export default function AssetReviewEditor({
     const { t } = useTranslation(['data-asset-reviews', 'common']);
     const { get, put, post } = api;
     const { toast } = useToast();
+    // A term-mapping suggestion is decided through /api/term-mappings/runs/{id}/decisions,
+    // which needs term-mapping Read/Write: without it (or until permissions load) its
+    // reviewer is read-only (ruling R63)
+    const { hasPermission } = usePermissions();
+    const permissionsReady = usePermissionsReady();
+    const canDecideTermMapping = permissionsReady && hasPermission('term-mapping', FeatureAccessLevel.READ_WRITE);
 
     // Content State
     const [definition, setDefinition] = useState<AssetDefinition | null>(null);
@@ -340,6 +348,7 @@ export default function AssetReviewEditor({
             <div className={classes.root}>
                 <TermMappingSuggestionReview
                     assetFqn={asset.asset_fqn}
+                    readOnly={!canDecideTermMapping}
                     onReviewComplete={(status) => {
                         const newStatus = status === 'approved'
                             ? ReviewedAssetStatus.APPROVED

@@ -122,7 +122,9 @@
       "assignError": "Seleziona sia un tipo di entità che un'entità specifica.",
       "assignFailed": "Assegnazione del concetto all'oggetto non riuscita.",
       "navigationError": "Impossibile navigare a {{entityType}}"
-    }
+    },
+    "searchPane": "Ricerca concetti",
+    "relationsPane": "Relazioni del concetto"
   },
   "properties": {
     "searchAndSelect": "Cerca e seleziona una proprietà:",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "Seleziona un contratto, uno schema e una proprietà.",
       "linkedSuccess": "Proprietà collegata correttamente.",
       "assignFailed": "Impossibile assegnare la proprietà all'oggetto."
-    }
+    },
+    "searchPane": "Ricerca proprietà",
+    "relationsPane": "Collegamenti della proprietà"
   },
   "llm": {
     "title": "Chiedi a {{shortName}}",
@@ -216,7 +220,11 @@
       "modeDisabled": "Modalità debug disattivata",
       "modeEnabledDesc": "Verranno mostrati i passaggi intermedi dell'LLM",
       "clickToDisable": "Fai clic per disattivare la modalità debug"
-    }
+    },
+    "you": "Tu",
+    "messagesLabel": "Messaggi",
+    "send": "Invia",
+    "deleteSession": "Elimina conversazione: {{title}}"
   },
   "copilot": {
     "title": "Chiedi a {{shortName}}",
@@ -237,5 +245,9 @@
     "chat_timeout": "La richiesta è scaduta. Prova con una domanda più semplice o riprova più tardi (id errore {{errorId}}).",
     "chat_connection_failed": "Ho avuto problemi a connettermi a un servizio necessario. Riprova tra un momento (id errore {{errorId}}).",
     "chat_failed": "Si è verificato un errore durante l'elaborazione della richiesta. Prova a riformulare la domanda o riprova. I dettagli sono nel log del server (id errore {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "La ricerca non è riuscita.",
+    "loadFailed": "Impossibile caricare i dettagli."
   }
 }

@@ -1,7 +1,10 @@
 [
-  "button \"\"",
+  "button \"Domain\"",
   "button \"Large View: Advanced view reveals the ontology layer: RDF/SKOS, IRIs, property domain & range, and technical delivery settings. Simple hides them. Your choice is remembered.\"",
+  "button \"Product\"",
+  "button \"Refresh\"",
   "button \"Small View\"",
+  "button \"System\"",
   "link \"Build\"",
   "link \"Concepts\"",
   "link \"Home\"",

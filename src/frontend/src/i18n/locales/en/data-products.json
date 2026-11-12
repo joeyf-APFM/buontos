@@ -1,6 +1,7 @@
 {
   "title": "Data Products",
   "subtitle": "Manage your data products",
+  "listPane": "Data product list",
   "newProduct": "New Data Product",
   "importProduct": "Import",
   "searchPlaceholder": "Search data products...",
@@ -148,6 +149,7 @@
   "details": {
     "backToList": "Back to List",
     "edit": "Edit",
+    "editDescription": "Edit description",
     "delete": "Delete",
     "subscribe": "Subscribe",
     "unsubscribe": "Unsubscribe",
@@ -271,6 +273,7 @@
       "assetsLinkedTitle": "Assets linked",
       "assetsLinked": "{{count}} asset(s) linked to {{portName}}",
       "assetUnlinked": "Asset unlinked",
+      "unlinkAsset": "Unlink {{name}}",
       "linkAssetsFailed": "Failed to link assets",
       "unlinkAssetFailed": "Failed to unlink asset"
     },
@@ -1163,11 +1166,14 @@
     "retry": "Retry",
     "untitled": "Untitled",
     "productsAvailable_one": "{{count}} product available",
-    "productsAvailable_other": "{{count}} products available"
+    "productsAvailable_other": "{{count}} products available",
+    "productsPane": "Subscribed products",
+    "tilesPerRow": "Tiles per row"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumers",
     "totalProducts": "Total Products",
+    "summary": "Summary",
     "activeProducts": "Active Products",
     "totalSubscribers": "Total Subscribers",
     "products": "Products",

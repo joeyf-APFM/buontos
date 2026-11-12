@@ -122,7 +122,9 @@
       "assignError": "Por favor seleccione tanto un tipo de entidad como una entidad específica.",
       "assignFailed": "Error al asignar concepto al objeto.",
       "navigationError": "No se puede navegar a {{entityType}}"
-    }
+    },
+    "searchPane": "Búsqueda de conceptos",
+    "relationsPane": "Relaciones del concepto"
   },
   "properties": {
     "searchAndSelect": "Busca y selecciona una propiedad:",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "Selecciona un contrato, un esquema y una propiedad.",
       "linkedSuccess": "Propiedad vinculada correctamente.",
       "assignFailed": "No se pudo asignar la propiedad al objeto."
-    }
+    },
+    "searchPane": "Búsqueda de propiedades",
+    "relationsPane": "Vínculos de la propiedad"
   },
   "llm": {
     "title": "Preguntar a {{shortName}}",
@@ -216,7 +220,11 @@
       "modeDisabled": "Modo de depuración desactivado",
       "modeEnabledDesc": "Se mostrarán los pasos intermedios del LLM",
       "clickToDisable": "Haz clic para desactivar el modo de depuración"
-    }
+    },
+    "you": "Usted",
+    "messagesLabel": "Mensajes",
+    "send": "Enviar",
+    "deleteSession": "Eliminar conversación: {{title}}"
   },
   "copilot": {
     "title": "Pregunta a {{shortName}}",
@@ -237,5 +245,9 @@
     "chat_timeout": "La solicitud superó el tiempo de espera. Prueba con una pregunta más sencilla o inténtalo más tarde (id de error {{errorId}}).",
     "chat_connection_failed": "Tuve problemas para conectarme a un servicio necesario. Inténtalo de nuevo en un momento (id de error {{errorId}}).",
     "chat_failed": "Se produjo un error al procesar tu solicitud. Intenta reformular la pregunta o inténtalo de nuevo. Los detalles están en el registro del servidor (id de error {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "La búsqueda ha fallado.",
+    "loadFailed": "No se pudieron cargar los detalles."
   }
 }

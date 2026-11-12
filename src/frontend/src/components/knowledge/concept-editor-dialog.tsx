@@ -1,39 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ActionIcon, Input, Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog } from '@/mantine/page';
+import { badgeToneStyle } from '@/components/common/aura-status';
+import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import ConceptSelectDialog from '@/components/semantic/concept-select-dialog';
 import { collectionSourceKey } from '@/lib/collection-source-key';
+import { statusTone } from './concept-tones';
+import classes from './concept-editor-dialog.module.css';
 import {
   OntologyConcept,
   ConceptCreate,
   ConceptUpdate,
-  ConceptStatus,
   CollectionType,
   KnowledgeCollection,
 } from '@/types/ontology';
 import {
-  Loader2,
   Plus,
   X,
   Link2,
@@ -142,14 +127,6 @@ function iriLocalName(iri: string): string {
   return tail || iri;
 }
 
-const statusColors: Record<ConceptStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  under_review: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-blue-100 text-blue-700',
-  active: 'bg-green-100 text-green-700',
-  deprecated: 'bg-orange-100 text-orange-700',
-  retired: 'bg-red-100 text-red-700',
-};
 
 export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
   open,
@@ -198,6 +175,15 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
   const [newSynonym, setNewSynonym] = useState('');
   const [newExample, setNewExample] = useState('');
   const [parentPickerOpen, setParentPickerOpen] = useState(false);
+  // The picker fetches on mount, so it mounts on its first open, and afresh
+  // (a new key) on each open; it stays mounted through its close, so the kit
+  // Dialog gives focus back to Add Parent itself (wave 2 Task 15)
+  const [parentPicker, setParentPicker] = useState(0);
+  const openParentPicker = () => {
+    setParentPicker((n) => n + 1);
+    setParentPickerOpen(true);
+  };
+  const formId = useId();
 
   const isNew = !concept;
   const canEdit = !readOnly && (!concept?.status || concept.status === 'draft');
@@ -242,18 +228,6 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
   );
   const isClassParent = formData.concept_type === 'class';
 
-  // Keep the picked scheme valid: the preset `collection` when it fits,
-  // otherwise the first fitting scheme (or none).
-  useEffect(() => {
-    if (!isNew) return;
-    const iris = schemeOptionKey ? schemeOptionKey.split('|') : [];
-    setFormData((prev) => {
-      if (iris.includes(prev.collection_iri)) return prev;
-      const preferred = collection && iris.includes(collection.iri) ? collection.iri : iris[0] || '';
-      return prev.collection_iri === preferred ? prev : { ...prev, collection_iri: preferred };
-    });
-  }, [isNew, schemeOptionKey, collection, formData.collection_iri]);
-
   useEffect(() => {
     if (concept) {
       setFormData({
@@ -288,6 +262,19 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
       });
     }
   }, [concept, collection, open, initialConceptType]);
+
+  // Keep the picked scheme valid: the preset `collection` when it fits,
+  // otherwise the first fitting scheme (or none). After the reset above, so
+  // a reset that empties the scheme is followed by the pick in one commit.
+  useEffect(() => {
+    if (!isNew) return;
+    const iris = schemeOptionKey ? schemeOptionKey.split('|') : [];
+    setFormData((prev) => {
+      if (iris.includes(prev.collection_iri)) return prev;
+      const preferred = collection && iris.includes(collection.iri) ? collection.iri : iris[0] || '';
+      return prev.collection_iri === preferred ? prev : { ...prev, collection_iri: preferred };
+    });
+  }, [isNew, schemeOptionKey, collection, formData.collection_iri]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,6 +319,8 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
         );
       }
       onOpenChange(false);
+    } catch {
+      // The caller reports a failed save (its toast); the editor stays open
     } finally {
       setIsLoading(false);
     }
@@ -371,132 +360,161 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
     }));
   };
 
+  const title = isNew
+    ? t('semantic-models:conceptEditor.createTitle', 'Create Entry')
+    : t('semantic-models:conceptEditor.editTitle', 'Edit Entry');
+  const removeLabel = (name: string) =>
+    t('semantic-models:conceptEditor.removeValue', { defaultValue: 'Remove {{name}}', name });
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                {isNew
-                  ? t('semantic-models:conceptEditor.createTitle', 'Create Entry')
-                  : t('semantic-models:conceptEditor.editTitle', 'Edit Entry')}
-                {concept?.status && (
-                  <Badge className={statusColors[concept.status as ConceptStatus]}>
-                    {concept.status}
-                  </Badge>
+    <>
+      <Dialog
+        opened={open}
+        onClose={() => onOpenChange(false)}
+        size="lg"
+        title={
+          <span className={form.titleLine}>
+            {title}
+            {concept?.status && (
+              <Badge variant="outline" style={badgeToneStyle(statusTone(concept.status))}>
+                {t(`semantic-models:status.${concept.status}`, concept.status)}
+              </Badge>
+            )}
+          </span>
+        }
+        description={
+          isNew
+            ? t('semantic-models:conceptEditor.createDescription', 'Add a new entry to a scheme.')
+            : <span className={form.code}>{concept?.iri}</span>
+        }
+        footer={
+          <>
+            {/* Action buttons for existing concepts, at the start of the row */}
+            {!isNew && concept && (onViewHistory || onPromote || (onSubmitForReview && concept.status === 'draft')) && (
+              <div className={classes.footerStart}>
+                {onViewHistory && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => onViewHistory(concept)}>
+                    <History aria-hidden />
+                    {t('semantic-models:conceptEditor.history')}
+                  </Button>
                 )}
-              </DialogTitle>
-              <DialogDescription>
-                {isNew
-                  ? t('semantic-models:conceptEditor.createDescription', 'Add a new entry to a scheme.')
-                  : concept?.iri}
-              </DialogDescription>
-            </div>
+                {onSubmitForReview && concept.status === 'draft' && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => onSubmitForReview(concept)}>
+                    <Send aria-hidden />
+                    {t('semantic-models:conceptEditor.submitForReview')}
+                  </Button>
+                )}
+                {onPromote && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => onPromote(concept)}>
+                    <ArrowUp aria-hidden />
+                    {t('semantic-models:promotion.promote')}
+                  </Button>
+                )}
+              </div>
+            )}
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              {t('common:actions.cancel')}
+            </Button>
+            {canEdit && (
+              // In the footer, outside the form: it submits the form by its id
+              <Button type="submit" form={formId} disabled={isLoading || !formData.label || noFittingScheme}>
+                {isLoading && <Loader size={12} color="currentColor" />}
+                {isNew ? t('common:actions.create') : t('common:actions.save')}
+              </Button>
+            )}
+          </>
+        }
+      >
+        <form id={formId} onSubmit={handleSubmit} className={form.form}>
+          {/* Type: fixed (preset on create, the entry's own on edit). */}
+          <div className={form.inline} data-testid="concept-type-row">
+            <span className={form.muted}>{t('Type')}:</span>
+            <Badge variant="outline">{typeLabel}</Badge>
           </div>
-        </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] px-1">
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4 px-1">
-              {/* Type: fixed (preset on create, the entry's own on edit). */}
-              <div className="flex items-center gap-2 text-sm" data-testid="concept-type-row">
-                <span className="text-muted-foreground">{t('Type')}:</span>
-                <Badge variant="outline">{typeLabel}</Badge>
-              </div>
+          {/* Scheme (for new entries): only schemes that fit the type. */}
+          {isNew && !noFittingScheme && (
+            <Select
+              label={t('semantic-models:conceptEditor.collectionLabel', 'Scheme')}
+              placeholder={t('semantic-models:conceptEditor.selectCollectionPlaceholder', 'Select scheme...')}
+              data={schemeOptions.map((c) => ({ value: c.iri, label: c.label }))}
+              value={formData.collection_iri || null}
+              onChange={(value) => value && setFormData((prev) => ({ ...prev, collection_iri: value }))}
+              disabled={schemeOptions.length <= 1}
+              allowDeselect={false}
+              classNames={SELECT_CLASSES}
+            />
+          )}
 
-              {/* Scheme (for new entries): only schemes that fit the type. */}
-              {isNew && !noFittingScheme && (
-                <div className="grid gap-2">
-                  <Label htmlFor="collection">{t('semantic-models:conceptEditor.collectionLabel', 'Scheme')}</Label>
-                  <Select
-                    value={formData.collection_iri}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, collection_iri: value }))
-                    }
-                    disabled={schemeOptions.length <= 1}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('semantic-models:conceptEditor.selectCollectionPlaceholder', 'Select scheme...')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schemeOptions.map((c) => (
-                        <SelectItem key={c.iri} value={c.iri}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {/* No editable scheme of the right kind: say so instead of an
+              empty dropdown, and offer to create one. */}
+          {noFittingScheme && (
+            <div className={classes.notice} data-testid="no-scheme-notice">
+              <p className={form.muted}>
+                {t('semantic-models:conceptEditor.noFittingScheme', {
+                  defaultValue: 'No editable scheme for this entry type yet ({{kind}}). Create one first.',
+                  // Localized kind label (Glossary / Taxonomy / Ontology), not the raw id.
+                  kind: t(`semantic-models:collections.${schemeKinds[0]}`),
+                })}
+              </p>
+              {onCreateScheme && (
+                <div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => onCreateScheme(schemeKinds[0])}>
+                    <Plus aria-hidden />
+                    {t('concepts:explore.createScheme', 'New Concept Scheme')}
+                  </Button>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* No editable scheme of the right kind: say so instead of an
-                  empty dropdown, and offer to create one. */}
-              {noFittingScheme && (
-                <div className="grid gap-2 rounded-md border border-dashed p-3" data-testid="no-scheme-notice">
-                  <p className="text-sm text-muted-foreground">
-                    {t('semantic-models:conceptEditor.noFittingScheme', {
-                      defaultValue: 'No editable scheme for this entry type yet ({{kind}}). Create one first.',
-                      // Localized kind label (Glossary / Taxonomy / Ontology), not the raw id.
-                      kind: t(`semantic-models:collections.${schemeKinds[0]}`),
-                    })}
-                  </p>
-                  {onCreateScheme && (
-                    <div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => onCreateScheme(schemeKinds[0])}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        {t('concepts:explore.createScheme', 'New Concept Scheme')}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
+          <TextInput
+            id="label"
+            label={t('semantic-models:conceptEditor.label')}
+            value={formData.label}
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setFormData((prev) => ({ ...prev, label: value }));
+            }}
+            placeholder={t('semantic-models:conceptEditor.labelPlaceholder')}
+            required
+            withAsterisk={false}
+            disabled={!canEdit}
+            classNames={FIELD_CLASSES}
+            data-autofocus
+          />
 
-              {/* Label */}
-              <div className="grid gap-2">
-                <Label htmlFor="label">{t('semantic-models:conceptEditor.label')}</Label>
-                <Input
-                  id="label"
-                  value={formData.label}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, label: e.target.value }))
-                  }
-                  placeholder={t('semantic-models:conceptEditor.labelPlaceholder')}
-                  required
-                  disabled={!canEdit}
-                />
-              </div>
+          <Textarea
+            id="definition"
+            label={t('semantic-models:fields.definition')}
+            value={formData.definition}
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setFormData((prev) => ({ ...prev, definition: value }));
+            }}
+            placeholder={t('semantic-models:conceptEditor.definitionPlaceholder')}
+            rows={3}
+            disabled={!canEdit}
+            classNames={FIELD_CLASSES}
+          />
 
-              {/* Definition */}
-              <div className="grid gap-2">
-                <Label htmlFor="definition">{t('semantic-models:fields.definition')}</Label>
-                <Textarea
-                  id="definition"
-                  value={formData.definition}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, definition: e.target.value }))
-                  }
-                  placeholder={t('semantic-models:conceptEditor.definitionPlaceholder')}
-                  rows={3}
-                  disabled={!canEdit}
-                />
-              </div>
-
-              {/* Parent: see PARENT_FIELD_BY_TYPE. Hidden for other types, but
-                  broader_iris stays in state and in the save payload so existing
-                  parents of a term, property or individual are kept. */}
-              {parentField && (
-              <div className="grid gap-2" data-testid="parent-field">
-                <Label>
-                  {t(parentField.labelKey, parentField.defaultLabel)}
-                </Label>
-                <div className="flex flex-wrap gap-2">
+          {/* Parent: see PARENT_FIELD_BY_TYPE. Hidden for other types, but
+              broader_iris stays in state and in the save payload so existing
+              parents of a term, property or individual are kept. */}
+          {parentField && (
+            <div role="group" aria-labelledby={`${formId}-parent`} className={classes.field} data-testid="parent-field">
+              <span id={`${formId}-parent`} className={form.label}>
+                {t(parentField.labelKey, parentField.defaultLabel)}
+              </span>
+              {(formData.broader_iris.length > 0 || !canEdit) && (
+                <div className={classes.chips}>
                   {formData.broader_iris.map((iri) => (
-                    <Badge key={iri} variant="secondary" className="flex items-center gap-1" title={iri}>
+                    <Badge key={iri} variant="secondary" className={classes.chip} title={iri}>
                       {iriLocalName(iri)}
                       {canEdit && (
                         <button
                           type="button"
+                          className={classes.remove}
                           aria-label={t('semantic-models:conceptEditor.removeParent', { defaultValue: 'Remove {{name}}', name: iriLocalName(iri) })}
                           onClick={() =>
                             setFormData((prev) => ({
@@ -504,287 +522,220 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
                               broader_iris: prev.broader_iris.filter((p) => p !== iri),
                             }))
                           }
-                          className="ml-1 hover:text-destructive"
                         >
-                          <X className="h-3 w-3" />
+                          <X aria-hidden />
                         </button>
-                      )}
-                    </Badge>
-                  ))}
-                  {formData.broader_iris.length === 0 && !canEdit && (
-                    <span className="text-sm text-muted-foreground">-</span>
-                  )}
-                </div>
-                {canEdit && (
-                  <div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setParentPickerOpen(true)}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      {t(parentField.addKey, parentField.defaultAdd)}
-                    </Button>
-                  </div>
-                )}
+                    )}
+                  </Badge>
+                ))}
+                {formData.broader_iris.length === 0 && !canEdit && <span className={form.muted}>-</span>}
               </div>
               )}
-
-              {/* Property-specific fields: shown for every property. */}
-              {formData.concept_type === 'property' && (
-                <>
-                  <Separator />
-                  <div className="space-y-4 bg-muted/30 rounded-lg p-4">
-                    <h4 className="text-sm font-medium flex items-center gap-2">
-                      <Link2 className="h-4 w-4" />
-                      {t('semantic-models:conceptEditor.propertyConfiguration')}
-                    </h4>
-                    
-                    {/* Property Type */}
-                    <div className="grid gap-2">
-                      <Label>{t('semantic-models:conceptEditor.propertyType')}</Label>
-                      <Select
-                        value={formData.property_type}
-                        onValueChange={(value) =>
-                          setFormData((prev) => ({ ...prev, property_type: value as any }))
-                        }
-                        disabled={!canEdit}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('semantic-models:conceptEditor.selectPropertyTypePlaceholder')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {propertyTypes.map((type) => (
-                            <SelectItem
-                              key={type.value}
-                              value={type.value}
-                              displayValue={type.label}
-                              description={type.description}
-                            >
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Domain */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="domain">{t('semantic-models:fields.domain')}</Label>
-                      <Input
-                        id="domain"
-                        value={formData.domain}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, domain: e.target.value }))
-                        }
-                        placeholder={t('semantic-models:conceptEditor.domainPlaceholder')}
-                        disabled={!canEdit}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t('semantic-models:conceptEditor.domainHelp')}
-                      </p>
-                    </div>
-                    
-                    {/* Range */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="range">{t('semantic-models:fields.range')}</Label>
-                      <Input
-                        id="range"
-                        value={formData.range}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, range: e.target.value }))
-                        }
-                        placeholder={
-                          formData.property_type === 'datatype'
-                            ? t('semantic-models:conceptEditor.rangeDatatypePlaceholder')
-                            : t('semantic-models:conceptEditor.rangeObjectPlaceholder')
-                        }
-                        disabled={!canEdit}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {formData.property_type === 'datatype'
-                          ? t('semantic-models:conceptEditor.rangeDatatypeHelp')
-                          : t('semantic-models:conceptEditor.rangeObjectHelp')}
-                      </p>
-                    </div>
-                  </div>
-                  <Separator />
-                </>
-              )}
-
-              {/* Synonyms */}
-              <div className="grid gap-2">
-                <Label>{t('semantic-models:fields.synonyms')}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {formData.synonyms.map((syn) => (
-                    <Badge key={syn} variant="secondary" className="flex items-center gap-1">
-                      {syn}
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => removeSynonym(syn)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </Badge>
-                  ))}
+              {canEdit && (
+                <div>
+                  <Button type="button" variant="outline" size="sm" onClick={openParentPicker}>
+                    <Plus aria-hidden />
+                    {t(parentField.addKey, parentField.defaultAdd)}
+                  </Button>
                 </div>
-                {canEdit && (
-                  <div className="flex gap-2">
-                    <Input
-                      value={newSynonym}
-                      onChange={(e) => setNewSynonym(e.target.value)}
-                      placeholder={t('semantic-models:conceptEditor.addSynonymPlaceholder')}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addSynonym();
-                        }
-                      }}
-                    />
-                    <Button type="button" variant="outline" size="icon" onClick={addSynonym}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Examples */}
-              <div className="grid gap-2">
-                <Label>{t('semantic-models:fields.examples')}</Label>
-                <div className="flex flex-col gap-1">
-                  {formData.examples.map((ex) => (
-                    <div
-                      key={ex}
-                      className="flex items-center justify-between bg-muted px-3 py-1.5 rounded text-sm"
-                    >
-                      <span className="truncate">{ex}</span>
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => removeExample(ex)}
-                          className="ml-2 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {canEdit && (
-                  <div className="flex gap-2">
-                    <Input
-                      value={newExample}
-                      onChange={(e) => setNewExample(e.target.value)}
-                      placeholder={t('semantic-models:conceptEditor.addExamplePlaceholder')}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addExample();
-                        }
-                      }}
-                    />
-                    <Button type="button" variant="outline" size="icon" onClick={addExample}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Governance info (for existing concepts) */}
-              {!isNew && concept && (
-                <>
-                  {/* Certification info */}
-                  {concept.certified_at && (
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Shield className="h-4 w-4 text-purple-500" />
-                        <span>{t('semantic-models:conceptEditor.certified')}: {new Date(concept.certified_at).toLocaleDateString()}</span>
-                      </div>
-                      {concept.certification_expires_at && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{t('semantic-models:conceptEditor.expires')}: {new Date(concept.certification_expires_at).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Provenance info */}
-                  {concept.promotion_type && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <ArrowUp className="h-4 w-4" />
-                      <span>
-                        {concept.promotion_type === 'promoted' ? t('semantic-models:conceptEditor.promotedFrom') : t('semantic-models:conceptEditor.migratedFrom')}:{' '}
-                        {concept.source_collection_iri}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </form>
-        </ScrollArea>
-
-        <DialogFooter className="flex-wrap gap-2">
-          {/* Action buttons for existing concepts */}
-          {!isNew && concept && (
-            <div className="flex gap-2 mr-auto">
-              {onViewHistory && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onViewHistory(concept)}
-                >
-                  <History className="h-4 w-4 mr-1" />
-                  {t('semantic-models:conceptEditor.history')}
-                </Button>
-              )}
-              {onSubmitForReview && concept.status === 'draft' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSubmitForReview(concept)}
-                >
-                  <Send className="h-4 w-4 mr-1" />
-                  {t('semantic-models:conceptEditor.submitForReview')}
-                </Button>
-              )}
-              {onPromote && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onPromote(concept)}
-                >
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                  {t('semantic-models:promotion.promote')}
-                </Button>
               )}
             </div>
           )}
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
+          {/* Property-specific fields: shown for every property. */}
+          {formData.concept_type === 'property' && (
+            <section className={form.section} aria-labelledby={`${formId}-property`}>
+              <h4 id={`${formId}-property`} className={`${form.sectionTitle} ${form.titleLine}`}>
+                <Link2 aria-hidden size={14} />
+                {t('semantic-models:conceptEditor.propertyConfiguration')}
+              </h4>
+              <Select
+                label={t('semantic-models:conceptEditor.propertyType')}
+                placeholder={t('semantic-models:conceptEditor.selectPropertyTypePlaceholder')}
+                data={propertyTypes.map((type) => ({ value: type.value, label: type.label }))}
+                renderOption={({ option }) => (
+                  <div className={classes.option}>
+                    <span>{option.label}</span>
+                    <span className={classes.optionHint}>
+                      {propertyTypes.find((type) => type.value === option.value)?.description}
+                    </span>
+                  </div>
+                )}
+                value={formData.property_type}
+                onChange={(value) => value && setFormData((prev) => ({ ...prev, property_type: value as typeof prev.property_type }))}
+                disabled={!canEdit}
+                allowDeselect={false}
+                classNames={SELECT_CLASSES}
+              />
+              <TextInput
+                id="domain"
+                label={t('semantic-models:fields.domain')}
+                description={t('semantic-models:conceptEditor.domainHelp')}
+                inputWrapperOrder={HINT_BELOW}
+                value={formData.domain}
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  setFormData((prev) => ({ ...prev, domain: value }));
+                }}
+                placeholder={t('semantic-models:conceptEditor.domainPlaceholder')}
+                disabled={!canEdit}
+                classNames={FIELD_CLASSES}
+              />
+              <TextInput
+                id="range"
+                label={t('semantic-models:fields.range')}
+                description={
+                  formData.property_type === 'datatype'
+                    ? t('semantic-models:conceptEditor.rangeDatatypeHelp')
+                    : t('semantic-models:conceptEditor.rangeObjectHelp')
+                }
+                inputWrapperOrder={HINT_BELOW}
+                value={formData.range}
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  setFormData((prev) => ({ ...prev, range: value }));
+                }}
+                placeholder={
+                  formData.property_type === 'datatype'
+                    ? t('semantic-models:conceptEditor.rangeDatatypePlaceholder')
+                    : t('semantic-models:conceptEditor.rangeObjectPlaceholder')
+                }
+                disabled={!canEdit}
+                classNames={FIELD_CLASSES}
+              />
+            </section>
+          )}
+
+          {/* Synonyms */}
+          <Input.Wrapper
+            label={t('semantic-models:fields.synonyms')}
+            labelProps={{ htmlFor: `${formId}-synonym` }}
+            classNames={FIELD_CLASSES}
+            className={formData.concept_type === 'property' ? form.section : undefined}
           >
-            {t('common:actions.cancel')}
-          </Button>
-          {canEdit && (
-            <Button onClick={handleSubmit} disabled={isLoading || !formData.label || noFittingScheme}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isNew ? t('common:actions.create') : t('common:actions.save')}
-            </Button>
+            {formData.synonyms.length > 0 && (
+              <div className={classes.chips}>
+                {formData.synonyms.map((syn) => (
+                  <Badge key={syn} variant="secondary" className={classes.chip} title={syn}>
+                    {syn}
+                    {canEdit && (
+                      <button type="button" className={classes.remove} aria-label={removeLabel(syn)} onClick={() => removeSynonym(syn)}>
+                        <X aria-hidden />
+                      </button>
+                    )}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {canEdit && (
+              <div className={classes.addRow}>
+                <TextInput
+                  id={`${formId}-synonym`}
+                  className={classes.addInput}
+                  value={newSynonym}
+                  onChange={(e) => setNewSynonym(e.currentTarget.value)}
+                  placeholder={t('semantic-models:conceptEditor.addSynonymPlaceholder')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSynonym();
+                    }
+                  }}
+                />
+                <ActionIcon
+                  variant="default"
+                  size={28}
+                  aria-label={t('semantic-models:conceptEditor.addSynonym', 'Add synonym')}
+                  onClick={addSynonym}
+                >
+                  <Plus aria-hidden size={14} />
+                </ActionIcon>
+              </div>
+            )}
+          </Input.Wrapper>
+
+          {/* Examples */}
+          <Input.Wrapper
+            label={t('semantic-models:fields.examples')}
+            labelProps={{ htmlFor: `${formId}-example` }}
+            classNames={FIELD_CLASSES}
+          >
+            {formData.examples.length > 0 && (
+              <ul className={classes.examples}>
+                {formData.examples.map((ex) => (
+                  <li key={ex} className={classes.example}>
+                    <span className={classes.exampleText} title={ex}>{ex}</span>
+                    {canEdit && (
+                      <button type="button" className={classes.remove} aria-label={removeLabel(ex)} onClick={() => removeExample(ex)}>
+                        <X aria-hidden />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canEdit && (
+              <div className={classes.addRow}>
+                <TextInput
+                  id={`${formId}-example`}
+                  className={classes.addInput}
+                  value={newExample}
+                  onChange={(e) => setNewExample(e.currentTarget.value)}
+                  placeholder={t('semantic-models:conceptEditor.addExamplePlaceholder')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addExample();
+                    }
+                  }}
+                />
+                <ActionIcon
+                  variant="default"
+                  size={28}
+                  aria-label={t('semantic-models:conceptEditor.addExample', 'Add example')}
+                  onClick={addExample}
+                >
+                  <Plus aria-hidden size={14} />
+                </ActionIcon>
+              </div>
+            )}
+          </Input.Wrapper>
+
+          {/* Governance info (for existing concepts) */}
+          {!isNew && concept && (concept.certified_at || concept.promotion_type) && (
+            <div className={form.section}>
+              {concept.certified_at && (
+                <div className={`${form.inline} ${form.muted}`}>
+                  <span className={form.titleLine}>
+                    <Shield aria-hidden size={14} className={classes.certified} />
+                    {t('semantic-models:conceptEditor.certified')}: {new Date(concept.certified_at).toLocaleDateString()}
+                  </span>
+                  {concept.certification_expires_at && (
+                    <span className={form.titleLine}>
+                      <Calendar aria-hidden size={14} />
+                      {t('semantic-models:conceptEditor.expires')}: {new Date(concept.certification_expires_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              )}
+              {concept.promotion_type && (
+                <div className={`${form.inline} ${form.muted}`}>
+                  <ArrowUp aria-hidden size={14} />
+                  <span>
+                    {concept.promotion_type === 'promoted' ? t('semantic-models:conceptEditor.promotedFrom') : t('semantic-models:conceptEditor.migratedFrom')}:{' '}
+                    <span className={form.code}>{concept.source_collection_iri}</span>
+                  </span>
+                </div>
+              )}
+            </div>
           )}
-        </DialogFooter>
-      </DialogContent>
-      {/* Mounted only while open: the picker fetches on mount. */}
-      {showParent && parentPickerOpen && (
+        </form>
+      </Dialog>
+
+      {/* Kit on kit: the picker opens on top of this dialog and closes alone on Escape */}
+      {showParent && parentPicker > 0 && (
         <ConceptSelectDialog
+          key={parentPicker}
           isOpen={parentPickerOpen}
           onOpenChange={setParentPickerOpen}
           entityType="class"
@@ -816,7 +767,7 @@ export const ConceptEditorDialog: React.FC<ConceptEditorDialogProps> = ({
           }}
         />
       )}
-    </Dialog>
+    </>
   );
 };
 

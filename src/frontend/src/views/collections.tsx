@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Alert } from '@mantine/core';
+import { AlertCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  FolderTree,
-  Plus,
-} from 'lucide-react';
-import { SplitPaneSkeleton } from '@/components/common/list-view-skeleton';
+import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
+import { PageHeader, PageLayout, Pane } from '@/mantine/page';
 import type { KnowledgeCollection } from '@/types/ontology';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { usePermissions } from '@/stores/permissions-store';
@@ -15,6 +14,7 @@ import {
   CollectionsTab,
   CollectionEditorDialog,
 } from '@/components/knowledge';
+import classes from './collections.module.css';
 
 export default function CollectionsView() {
   const { t } = useTranslation(['semantic-models', 'common']);
@@ -26,6 +26,12 @@ export default function CollectionsView() {
   // Data state
   const [isLoading, setIsLoading] = useState(true);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
+  // The failed load's detail ('' when it gave none), or null
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // The skeleton is for the first load only: a reload keeps the table
+  // mounted, so a dialog opened from a row's menu can give focus back to it
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const createButton = useRef<HTMLButtonElement>(null);
   const [selectedCollection, setSelectedCollection] = useState<KnowledgeCollection | null>(null);
 
   // Dialog state
@@ -42,19 +48,29 @@ export default function CollectionsView() {
     ]);
   }, [setStaticSegments, t]);
 
-  // Fetch data
+  // Fetch data. A reload that a newer one overtook drops its answer.
+  const loadId = useRef(0);
   const fetchData = useCallback(async () => {
+    const id = ++loadId.current;
     setIsLoading(true);
     try {
       const res = await fetch('/api/knowledge/collections?hierarchical=true');
-      if (res.ok) {
-        const data = await res.json();
-        setCollections(data.collections || []);
+      if (id !== loadId.current) return;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.detail || '');
       }
+      const data = await res.json();
+      if (id !== loadId.current) return;
+      setCollections(Array.isArray(data?.collections) ? data.collections : []);
+      setLoadError(null);
+      setHasLoaded(true);
     } catch (error) {
+      if (id !== loadId.current) return;
       console.error('Failed to fetch collections:', error);
+      setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
-      setIsLoading(false);
+      if (id === loadId.current) setIsLoading(false);
     }
   }, []);
 
@@ -132,6 +148,16 @@ export default function CollectionsView() {
       });
 
       await fetchData();
+      // The deleted row is gone (and the table's rows move up, so its menu
+      // button may now be another row's): focus goes from the body or the
+      // table to Create Scheme, unless the user has put it elsewhere since.
+      // A frame later, after the menu's own focus return (Mantine's 10ms).
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (!active || active === document.body || !active.isConnected || active.closest('table')) {
+          createButton.current?.focus({ preventScroll: true });
+        }
+      });
     } catch (error: any) {
       toast({
         title: t('common:toast.error'),
@@ -169,39 +195,50 @@ export default function CollectionsView() {
     }
   };
 
+  const listPane = t('semantic-models:collections.listPane', 'Scheme list');
+
   return (
-    <div className="flex flex-col py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <FolderTree className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">{t('semantic-models:tabs.collections')}</h1>
-            <p className="text-sm text-muted-foreground">
-              {collections.length} {t('semantic-models:collections.title').toLowerCase()}
-            </p>
+    <PageLayout
+      header={
+        <>
+          <PageHeader
+            title={t('semantic-models:tabs.collections')}
+            actions={
+              canWrite && (
+                <Button ref={createButton} onClick={handleCreateCollection}>
+                  <Plus aria-hidden />
+                  {t('semantic-models:actions.createCollection')}
+                </Button>
+              )
+            }
+          />
+          <p className={classes.subtitle}>
+            {collections.length} {t('semantic-models:collections.title').toLowerCase()}
+          </p>
+        </>
+      }
+    >
+      {isLoading && !hasLoaded ? (
+        <Pane flush aria-label={listPane}>
+          <div className={classes.body}>
+            <ListViewSkeleton columns={6} rows={3} toolbarButtons={1} />
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {canWrite && (
-            <Button onClick={handleCreateCollection}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('semantic-models:actions.createCollection')}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Loading state */}
-      {isLoading ? (
-        <SplitPaneSkeleton
-          sidebarVariant="list"
-          sidebarItems={5}
-          main="panel"
-          tableRows={3}
-          showHeader={false}
-        />
+        </Pane>
+      ) : loadError !== null ? (
+        <Pane flush aria-label={listPane}>
+          <div className={`${classes.body} ${classes.state}`}>
+            <Alert
+              color="red"
+              variant="light"
+              icon={<AlertCircle />}
+              title={t('semantic-models:collections.loadFailed', 'Could not load the schemes.')}
+              className={classes.alert}
+            >
+              {loadError || undefined}
+            </Alert>
+            <Button variant="outline" onClick={fetchData}>{t('common:retry')}</Button>
+          </div>
+        </Pane>
       ) : (
         <CollectionsTab
           collections={collections}
@@ -222,6 +259,6 @@ export default function CollectionsView() {
         collections={collections}
         onSave={handleSaveCollection}
       />
-    </div>
+    </PageLayout>
   );
 }

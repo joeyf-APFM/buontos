@@ -1,0 +1,89 @@
+/*
+ * A page's summary counts (components/common/summary-stats.tsx): one strip of
+ * cells sharing 1px borders, as panes side by side do, under the page header
+ * and inside the kit's 14px margin. No shadow: it is not floating. The rules
+ * between cells are the strip's 1px gap over the border colour, so they stay
+ * right when it wraps. It is a wrapping flex row, not a grid: each cell grows
+ * to fill its row, so a row is never left with an empty, border-coloured slot
+ * (a grid of fixed tracks leaves one whenever the last row is short).
+ */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  margin: 0 14px 12px;
+  overflow: hidden;
+  background: var(--aura-border);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 180px;
+  padding: 8px 12px;
+  background: var(--aura-surface);
+}
+
+.icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.icon[data-tone='warning'] {
+  color: var(--aura-warning);
+  background: var(--aura-warning-bg);
+}
+
+.icon[data-tone='good'] {
+  color: var(--aura-good);
+  background: var(--aura-good-bg);
+}
+
+.icon[data-tone='info'] {
+  color: var(--aura-info);
+  background: var(--aura-accent-subtle);
+}
+
+.text {
+  min-width: 0;
+}
+
+.label,
+.value {
+  margin: 0;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.value {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--aura-text-body);
+}

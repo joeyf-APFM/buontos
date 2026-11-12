@@ -448,7 +448,8 @@
     "selectTypeToBrowse": "Seleziona un tipo di asset da sfogliare",
     "linkEmpty": "Collega asset",
     "linkCount_one": "Collega {{count}} asset",
-    "linkCount_other": "Collega {{count}} asset"
+    "linkCount_other": "Collega {{count}} asset",
+    "removeSelected": "Rimuovi {{name}}"
   },
   "addRelationship": {
     "title": "Aggiungi relazione",

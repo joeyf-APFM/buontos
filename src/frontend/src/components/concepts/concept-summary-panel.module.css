@@ -1,0 +1,83 @@
+/*
+ * The concept's summary (wave 2 Task 15), in the first pane of the concept
+ * detail page: the lifecycle chain, the key facts as label / value pairs,
+ * the IRI (Advanced only) and the synonyms and examples.
+ */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.typeLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.typeLine > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.version {
+  font-family: var(--aura-font-mono);
+}
+
+.dash {
+  color: var(--aura-text-secondary);
+}
+
+/* The raw IRI: label, the IRI on one line with its title, Copy and Open */
+.iri {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.iriLabel {
+  flex: none;
+  width: 86px;
+  color: var(--aura-text-secondary);
+}
+
+.iriCode {
+  min-width: 0;
+  padding: 1px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  background: var(--aura-surface-strong);
+  border-radius: 4px;
+}
+
+.open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--aura-text-secondary);
+}
+
+.open:hover {
+  color: var(--aura-accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.examples {
+  margin: 0;
+  padding-left: 16px;
+  list-style: disc;
+  overflow-wrap: anywhere;
+}

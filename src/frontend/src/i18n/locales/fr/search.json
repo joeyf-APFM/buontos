@@ -122,7 +122,9 @@
       "assignError": "Veuillez sélectionner un type d'entité et une entité spécifique.",
       "assignFailed": "Échec de l'assignation du concept à l'objet.",
       "navigationError": "Impossible de naviguer vers {{entityType}}"
-    }
+    },
+    "searchPane": "Recherche de concepts",
+    "relationsPane": "Relations du concept"
   },
   "properties": {
     "searchAndSelect": "Rechercher et sélectionner une propriété :",
@@ -155,7 +157,9 @@
       "selectPropertyTarget": "Veuillez sélectionner un contrat, un schéma et une propriété.",
       "linkedSuccess": "Propriété liée avec succès.",
       "assignFailed": "Échec de l'assignation de la propriété à l'objet."
-    }
+    },
+    "searchPane": "Recherche de propriétés",
+    "relationsPane": "Liens de la propriété"
   },
   "llm": {
     "title": "Demander à {{shortName}}",
@@ -216,7 +220,11 @@
       "modeDisabled": "Mode débogage désactivé",
       "modeEnabledDesc": "Les étapes intermédiaires du LLM seront affichées",
       "clickToDisable": "Cliquez pour désactiver le mode débogage"
-    }
+    },
+    "you": "Vous",
+    "messagesLabel": "Messages",
+    "send": "Envoyer",
+    "deleteSession": "Supprimer la conversation : {{title}}"
   },
   "copilot": {
     "title": "Demander à {{shortName}}",
@@ -237,5 +245,9 @@
     "chat_timeout": "La demande a expiré. Essayez une question plus simple ou réessayez plus tard (id d'erreur {{errorId}}).",
     "chat_connection_failed": "Je n'ai pas réussi à me connecter à un service nécessaire. Réessayez dans un instant (id d'erreur {{errorId}}).",
     "chat_failed": "Une erreur s'est produite lors du traitement de votre demande. Essayez de reformuler votre question ou réessayez. Les détails figurent dans le journal du serveur (id d'erreur {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "La recherche a échoué.",
+    "loadFailed": "Impossible de charger les détails."
   }
 }

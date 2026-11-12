@@ -1,0 +1,77 @@
+/*
+ * The Enrich Direct / Indirect / Manual cards (wave 2 Task 14, advanced view
+ * only): 1px bordered tiles in a wrapping row, the active ones in the good
+ * colour, and the link to the delivery settings under them.
+ */
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.mode {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  background: var(--aura-surface);
+}
+
+.mode[data-active] {
+  border-color: var(--aura-good);
+  background: var(--aura-good-bg);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: 12.5px;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--aura-border-strong);
+}
+
+.mode[data-active] .dot {
+  background: var(--aura-good);
+}
+
+.active {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-good);
+}
+
+.description {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+.link {
+  display: inline-flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--aura-accent);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

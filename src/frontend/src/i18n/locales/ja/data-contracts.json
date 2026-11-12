@@ -1,5 +1,6 @@
 {
   "title": "データ契約",
+  "listPane": "データ契約一覧",
   "subtitle": "データ契約と仕様を管理",
   "newContract": "新規契約",
   "uploadFile": "ファイルをアップロード",
@@ -301,7 +302,8 @@
     "description": {
       "purpose": "目的",
       "limitations": "制限事項",
-      "usage": "利用方法"
+      "usage": "利用方法",
+      "edit": "説明を編集"
     },
     "schemas": {
       "title": "スキーマ（{{count}}）",
@@ -523,6 +525,10 @@
       "startProfilingFailed": "プロファイリングの開始に失敗しました",
       "invalidVersionFormat": "「{{version}}」は有効なバージョンではありません。新しいバージョンは X.Y.Z の形式です（例: 2.0.0）。",
       "draftVersionFormat": "この契約のバージョン「{{version}}」は X.Y.Z の形式ではないため、個人用ドラフトを作成できません。代わりに新しいバージョン（例: 2.0.0）を作成してください。"
+    },
+    "rowActions": {
+      "edit": "{{name}} を編集",
+      "delete": "{{name}} を削除"
     }
   },
   "list": {
@@ -905,7 +911,8 @@
       "fromPlaceholder": "例: customer_id",
       "to": "To（ターゲット参照）",
       "toPlaceholder": "例: schema.table.column",
-      "add": "関係を追加"
+      "add": "関係を追加",
+      "remove": "リレーションシップ {{from}} → {{to}} を削除"
     },
     "toast": {
       "validationError": "検証エラー",
@@ -1530,7 +1537,9 @@
     "valuePlaceholder": "値",
     "newPropertyPlaceholder": "新しいプロパティキー",
     "addProperty": "プロパティを追加",
-    "addButton": "サーバーを追加"
+    "addButton": "サーバーを追加",
+    "propertyValue": "{{key}} の値",
+    "removeProperty": "{{key}} を削除"
   },
   "tag": {
     "validationError": "検証エラー",

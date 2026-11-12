@@ -1,30 +1,30 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Loader, UnstyledButton } from '@mantine/core';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/mantine/page';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import ConceptSelectDialog from './concept-select-dialog';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './deprecate-concept-dialog.module.css';
 
 interface Props {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   conceptIri: string;
   onSuccess: () => void;
+  /**
+   * Where focus goes once the dialog has closed: for an opener that is gone
+   * by then, such as the Request dialog's confirm (the kit gives focus back
+   * to the opener otherwise).
+   */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
-export function DeprecateConceptDialog({ isOpen, onOpenChange, conceptIri, onSuccess }: Props) {
+export function DeprecateConceptDialog({ isOpen, onOpenChange, conceptIri, onSuccess, returnFocusTo }: Props) {
   const { t } = useTranslation(['semantic-models', 'common']);
   const { post } = useApi();
   const { toast } = useToast();
@@ -68,82 +68,76 @@ export function DeprecateConceptDialog({ isOpen, onOpenChange, conceptIri, onSuc
     }
   };
 
+  const localName = (iri: string) => iri.split(/[/#]/).pop() || iri;
+
   return (
     <>
-      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('semantic-models:dialogs.deprecate.title', 'Deprecate concept')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                'semantic-models:dialogs.deprecate.description',
-                'Optionally specify one or more successor concepts to indicate what this concept was replaced by.'
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-3">
-            {/* Successor selection area */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                {t('semantic-models:dialogs.deprecate.successors', 'Successor concepts')}
-              </label>
-              <div className="flex flex-wrap gap-2 min-h-8 p-2 border rounded-md bg-muted/30">
-                {successorIris.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    {t('semantic-models:dialogs.deprecate.noSuccessors', 'None selected')}
-                  </p>
-                ) : (
-                  successorIris.map((iri) => (
-                    <Badge
-                      key={iri}
-                      variant="secondary"
-                      className="pl-2 pr-1 py-1 flex items-center gap-1"
+      {/* A confirm: the alertdialog role and no corner close. The successor
+          picker opens on top of it, kit on kit, and closes alone on Escape. */}
+      <Dialog
+        opened={isOpen}
+        onClose={() => {
+          if (!isSubmitting) onOpenChange(false);
+        }}
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={returnFocusTo}
+        title={t('semantic-models:dialogs.deprecate.title', 'Deprecate concept')}
+        description={t(
+          'semantic-models:dialogs.deprecate.description',
+          'Optionally specify one or more successor concepts to indicate what this concept was replaced by.'
+        )}
+        footer={
+          <>
+            <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
+              {t('common:actions.cancel', 'Cancel')}
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleConfirm} disabled={isSubmitting}>
+              {isSubmitting && <Loader size={12} color="currentColor" />}
+              {t('semantic-models:lifecycle.deprecate', 'Deprecate')}
+            </Button>
+          </>
+        }
+      >
+        <div className={form.form}>
+          <div>
+            <p className={form.label} id="deprecate-successors">
+              {t('semantic-models:dialogs.deprecate.successors', 'Successor concepts')}
+            </p>
+            <div className={classes.successors} role="group" aria-labelledby="deprecate-successors">
+              {successorIris.length === 0 ? (
+                <p className={classes.none}>
+                  {t('semantic-models:dialogs.deprecate.noSuccessors', 'None selected')}
+                </p>
+              ) : (
+                successorIris.map((iri) => (
+                  <Badge key={iri} variant="secondary" className={classes.chip}>
+                    <span className={classes.chipLabel} title={iri}>
+                      {localName(iri)}
+                    </span>
+                    <UnstyledButton
+                      className={classes.chipRemove}
+                      onClick={() => handleRemoveSuccessor(iri)}
+                      aria-label={t('semantic-models:dialogs.deprecate.removeSuccessor', 'Remove {{name}}', { name: localName(iri) })}
                     >
-                      <span className="text-xs truncate max-w-xs" title={iri}>
-                        {iri.split(/[/#]/).pop() || iri}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSuccessor(iri)}
-                        className="ml-1 hover:bg-black/20 rounded-sm p-0.5"
-                        aria-label={t('common:actions.remove', 'Remove')}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSuccessorPicker(true)}
-                className="w-full"
-              >
-                {t('semantic-models:dialogs.deprecate.addSuccessor', '+ Add successor')}
-              </Button>
+                      <X aria-hidden />
+                    </UnstyledButton>
+                  </Badge>
+                ))
+              )}
             </div>
           </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>
-              {t('common:actions.cancel', 'Cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirm}
-              disabled={isSubmitting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('semantic-models:lifecycle.deprecate', 'Deprecate')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSuccessorPicker(true)}
+            className={classes.add}
+          >
+            {t('semantic-models:dialogs.deprecate.addSuccessor', '+ Add successor')}
+          </Button>
+        </div>
+      </Dialog>
 
       {/* Successor concept picker dialog */}
       <ConceptSelectDialog

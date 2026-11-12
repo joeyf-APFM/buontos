@@ -6,8 +6,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { ActionIcon, NativeSelect } from '@mantine/core';
+import classes from './paginated-list.module.css';
 
 // ---------------------------------------------------------------------------
 // Reusable client-side pagination primitive (Concept Builder v2 polish).
@@ -15,7 +15,8 @@ import { cn } from '@/lib/utils';
 // A single small helper reused by every long-list surface (Define in-progress
 // runs, Enrich coverage matrix, Concepts list view, Version history) so we get
 // one consistent "Prev / Page X of Y / Next" control instead of four bespoke
-// paginators. Matches the neutral shadcn theme + lucide icons already in use.
+// paginators. On Mantine since wave 2 Task 12a (paginated-list.module.css),
+// with the same props, so its callers keep working.
 //
 //   const { pageItems, page, setPage, pageCount } = usePagination(items, 10);
 //   ...render pageItems...
@@ -112,79 +113,45 @@ export function PaginationControls({
   const atStart = page <= 1;
   const atEnd = page >= pageCount;
 
+  const pageButton = (label: string, disabled: boolean, target: number, Icon: typeof ChevronLeft) => (
+    <ActionIcon
+      variant="default"
+      size={26}
+      className={classes.pageButton}
+      disabled={disabled}
+      aria-label={label}
+      onClick={() => onPageChange(target)}
+    >
+      <Icon aria-hidden />
+    </ActionIcon>
+  );
+
   return (
-    <div className={cn('flex items-center justify-end gap-1.5 pt-1', className)}>
+    <div className={className ? `${classes.controls} ${className}` : classes.controls}>
       {showSize && (
-        <div className="mr-auto flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
+        <div className={classes.size}>
+          <span className={classes.sizeLabel} aria-hidden>
             {t('pagination.rowsPerPage', 'Rows per page')}
           </span>
-          <select
-            className="h-7 rounded-md border bg-background px-1.5 text-xs"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange!(Number(e.target.value))}
+          <NativeSelect
+            size="xs"
+            classNames={{ input: classes.sizeSelect }}
+            value={String(pageSize)}
+            onChange={(e) => onPageSizeChange!(Number(e.currentTarget.value))}
             aria-label={t('pagination.rowsPerPage', 'Rows per page')}
-          >
-            {pageSizeOptions.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+            data={pageSizeOptions.map((opt) => String(opt))}
+          />
         </div>
       )}
-      {!showNav && <span className="ml-auto" />}
-      {showNav && showEdges && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          disabled={atStart}
-          aria-label={t('pagination.first', 'First page')}
-          onClick={() => onPageChange(1)}
-        >
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
-      )}
+      {showNav && showEdges && pageButton(t('pagination.first', 'First page'), atStart, 1, ChevronsLeft)}
+      {showNav && pageButton(t('pagination.previous', 'Previous page'), atStart, page - 1, ChevronLeft)}
       {showNav && (
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-7 w-7"
-        disabled={atStart}
-        aria-label={t('pagination.previous', 'Previous page')}
-        onClick={() => onPageChange(page - 1)}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
+        <span className={classes.pageOf}>
+          {t('pagination.pageOf', 'Page {{page}} of {{pageCount}}', { page, pageCount })}
+        </span>
       )}
-      {showNav && (
-      <span className="px-2 text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-        {t('pagination.pageOf', 'Page {{page}} of {{pageCount}}', { page, pageCount })}
-      </span>
-      )}
-      {showNav && (
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-7 w-7"
-        disabled={atEnd}
-        aria-label={t('pagination.next', 'Next page')}
-        onClick={() => onPageChange(page + 1)}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-      )}
-      {showNav && showEdges && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          disabled={atEnd}
-          aria-label={t('pagination.last', 'Last page')}
-          onClick={() => onPageChange(pageCount)}
-        >
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
-      )}
+      {showNav && pageButton(t('pagination.next', 'Next page'), atEnd, page + 1, ChevronRight)}
+      {showNav && showEdges && pageButton(t('pagination.last', 'Last page'), atEnd, pageCount, ChevronsRight)}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 {
   "title": "Propriétaires métier",
   "subtitle": "Affectations de propriété indiquant qui est responsable de quoi.",
+  "listPane": "Liste des responsables métier",
   "addNew": "Attribuer un propriétaire",
   "editOwner": "Modifier l'affectation",
   "removeOwner": "Retirer le propriétaire",
@@ -60,6 +61,7 @@
     "previousOwners": "Anciens propriétaires",
     "noOwners": "Aucun propriétaire attribué",
     "assignOwner": "Attribuer un propriétaire",
-    "history": "Afficher l'historique"
+    "history": "Afficher l'historique",
+    "removeOwnerNamed": "Retirer {{name}}"
   }
 }

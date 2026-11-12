@@ -1,55 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { KnowledgeCollection } from '@/types/ontology';
 import { CollectionEditorDialog, isNestableParent } from './collection-editor-dialog';
-
-// Native <select> stand-in for Radix Select (driving Radix in jsdom hung CI).
-vi.mock('@/components/ui/select', async () => {
-  const React = await import('react');
-  const SelectTrigger = (_: { children?: React.ReactNode }) => null;
-  const SelectValue = () => null;
-  const SelectContent = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-  const SelectItem = ({ value, children }: { value: string; children?: React.ReactNode }) => (
-    <option value={value}>{children}</option>
-  );
-  const Select = ({
-    value,
-    onValueChange,
-    children,
-  }: {
-    value?: string;
-    onValueChange?: (v: string) => void;
-    children?: React.ReactNode;
-  }) => {
-    const options: React.ReactNode[] = [];
-    React.Children.forEach(children, (child) => {
-      if (!React.isValidElement(child)) return;
-      if ((child as React.ReactElement).type !== SelectTrigger) options.push(child);
-    });
-    return (
-      <select value={value} onChange={(e) => onValueChange?.(e.target.value)}>
-        {options}
-      </select>
-    );
-  };
-  const SelectGroup = ({ children }: { children?: React.ReactNode }) => (
-    <optgroup data-testid="scheme-group">{children}</optgroup>
-  );
-  const SelectLabel = ({ children }: { children?: React.ReactNode }) => (
-    <option disabled data-testid="scheme-group-label">{children}</option>
-  );
-  const SelectSeparator = () => <option disabled value="" />;
-  return {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectGroup,
-    SelectLabel,
-    SelectSeparator,
-    SelectItem,
-  };
-});
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -63,6 +16,18 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
 }));
+
+/** Opens a Mantine Select by its name and returns its options' texts and its group labels. */
+async function openSelect(name: string) {
+  const field = screen.getByRole('textbox', { name });
+  await userEvent.click(field);
+  await waitFor(() => expect(field).toHaveAttribute('aria-controls'));
+  const list = document.getElementById(field.getAttribute('aria-controls')!)!;
+  return {
+    options: within(list).getAllByRole('option', { hidden: true }).map((o) => o.textContent),
+    groups: [...list.querySelectorAll('[class*="groupLabel"]')].map((g) => g.textContent),
+  };
+}
 
 const makeCollection = (overrides: Partial<KnowledgeCollection>): KnowledgeCollection => ({
   iri: 'urn:glossary:x',
@@ -112,19 +77,20 @@ describe('CollectionEditorDialog', () => {
     expect(screen.getByText('Edit Scheme')).toBeTruthy();
   });
 
-  it('uses Scheme wording for the parent field and its root option', () => {
+  it('uses Scheme wording for the parent field and its root option', async () => {
     render(
       <CollectionEditorDialog open onOpenChange={() => {}} collection={null} collections={[]} onSave={async () => {}} />,
     );
     expect(screen.getByText('Parent Scheme')).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'None (root scheme)' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Parent Scheme' })).toHaveValue('None (root scheme)');
+    expect((await openSelect('Parent Scheme')).options).toEqual(['None (root scheme)']);
   });
 
   it('defaults the Type of a new scheme to glossary', () => {
     render(
       <CollectionEditorDialog open onOpenChange={() => {}} collection={null} collections={[]} onSave={async () => {}} />,
     );
-    expect((screen.getAllByRole('combobox')[0] as HTMLSelectElement).value).toBe('glossary');
+    expect(screen.getByRole('textbox', { name: 'Type' })).toHaveValue('semantic-models:collections.glossary');
   });
 
   it('preselects initialCollectionType when creating and saves it', async () => {
@@ -139,8 +105,8 @@ describe('CollectionEditorDialog', () => {
         initialCollectionType="ontology"
       />,
     );
-    expect((screen.getAllByRole('combobox')[0] as HTMLSelectElement).value).toBe('ontology');
-    fireEvent.change(document.getElementById('label')!, { target: { value: 'Core' } });
+    expect(screen.getByRole('textbox', { name: 'Type' })).toHaveValue('semantic-models:collections.ontology');
+    fireEvent.change(screen.getByRole('textbox', { name: 'common:labels.name' }), { target: { value: 'Core' } });
     fireEvent.click(screen.getByRole('button', { name: 'common:actions.create' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect((onSave.mock.calls[0] as any[])[0].collection_type).toBe('ontology');
@@ -158,10 +124,11 @@ describe('CollectionEditorDialog', () => {
       />,
     );
     // The Type select is create-only; the remaining selects are scope and parent.
-    expect(screen.queryByRole('option', { name: 'semantic-models:collections.ontology' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Type' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'semantic-models:collections.ontology', hidden: true })).toBeNull();
   });
 
-  it('groups parent options by type without dash prefixes and keeps exclusions', () => {
+  it('groups parent options by type without dash prefixes and keeps exclusions', async () => {
     const editing = makeCollection({ iri: 'urn:edit', label: 'Being edited' });
     render(
       <CollectionEditorDialog
@@ -184,16 +151,14 @@ describe('CollectionEditorDialog', () => {
         onSave={async () => {}}
       />,
     );
-    expect(screen.getAllByTestId('scheme-group-label').map((el) => el.textContent)).toEqual([
-      'Glossaries',
-      'Taxonomies',
-    ]);
-    // The editable child of a read-only parent is offered, flat.
-    expect(screen.getByRole('option', { name: 'Nested child' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Read-only root' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'System' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Being edited' })).toBeNull();
-    expect(screen.getByRole('option', { name: 'None (root scheme)' })).toBeTruthy();
+    const { options, groups } = await openSelect('Parent Scheme');
+    expect(groups).toEqual(['Glossaries', 'Taxonomies']);
+    // The editable child of a read-only parent is offered, flat, with its
+    // parent's name after it (this file's t mock leaves {{parent}} as it is)
+    expect(options).toEqual(['None (root scheme)', 'Nested childin {{parent}}', 'Tax']);
+    expect(options).not.toContain('Read-only root');
+    expect(options).not.toContain('System');
+    expect(options).not.toContain('Being edited');
     expect(document.body.textContent).not.toMatch(/[\u2014\u2013]/);
   });
 });

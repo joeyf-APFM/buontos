@@ -1,17 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Select, UnstyledButton } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DetailsGrid, Dialog, Pane, PaneStack } from '@/mantine/page';
+import { SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import { Shapes, Columns2, FileText, Package, Globe, X, Link2, Table, Folder, FolderOpen, Box } from 'lucide-react';
+import { usePermissions } from '@/stores/permissions-store';
+import { FeatureAccessLevel } from '@/types/feature-access-levels';
+import { Shapes, Columns2, FileText, Package, Globe, Link2, Table, Folder, FolderOpen, Box } from 'lucide-react';
 import UCAssetLookupDialog from '@/components/data-contracts/uc-asset-lookup-dialog';
 import { UCAssetInfo, UCAssetType } from '@/types/uc-asset';
+import { LoadError, SearchPane } from './search-pane';
+import { asList, localName } from './search-utils';
+import classes from './search.module.css';
 
 type ConceptItem = { value: string; label: string; type: 'class' };
 type Neighbor = {
@@ -39,6 +43,14 @@ interface ConceptsSearchProps {
   initialSelectedConcept?: ConceptItem | null;
 }
 
+const UC_TYPES = ['uc_catalog', 'uc_schema', 'uc_table'];
+
+/**
+ * The Concepts tab of Search (/concepts/search), on the page kit (wave 2
+ * Task 13b): the search pane, then the selected concept (its IRI and
+ * attributes, with Assign to Concept) and its relations in three columns.
+ * The Assign dialog and the UC asset lookup it opens are kit Dialogs.
+ */
 export default function ConceptsSearch({
   initialQuery = '',
   initialSelectedConcept = null
@@ -48,15 +60,30 @@ export default function ConceptsSearch({
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation(['search', 'common']);
+  const { hasPermission } = usePermissions();
+  // Linking a concept to an object writes: POST /api/semantic-links/ needs
+  // semantic-models READ_WRITE (semantic_links_routes.py)
+  const canLink = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
 
   const [conceptSearchQuery, setConceptSearchQuery] = useState(initialQuery);
   const [conceptSearchResults, setConceptSearchResults] = useState<ConceptItem[]>([]);
   const [isConceptDropdownOpen, setIsConceptDropdownOpen] = useState(false);
   const [selectedConcept, setSelectedConcept] = useState<ConceptItem | null>(initialSelectedConcept);
   const [conceptIri, setConceptIri] = useState('');
-  const [_conceptLabel, setConceptLabel] = useState('');
+  const [conceptLabel, setConceptLabel] = useState('');
   const [conceptNeighbors, setConceptNeighbors] = useState<Neighbor[]>([]);
   const [semanticLinks, setSemanticLinks] = useState<EnrichedSemanticLink[]>([]);
+
+  // The search's state: the query it last answered, its error, a retry nonce,
+  // and the text a selection put in the field (no "no results" for that)
+  const [answeredQuery, setAnsweredQuery] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchNonce, setSearchNonce] = useState(0);
+  const [selectionText, setSelectionText] = useState<string | null>(null);
+  const searchSeq = useRef(0);
+  // The selected concept's details: a failed load's error; a newer selection wins
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const selectSeq = useRef(0);
 
   // Assign to Object dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -123,29 +150,43 @@ export default function ConceptsSearch({
 
   // Search concepts as user types
   useEffect(() => {
+    // A newer query (or Retry) wins over an answer still on its way
+    const seq = ++searchSeq.current;
+    // The text a pick put in the field isn't a search: searching it would
+    // only rewrite ?query=, moving the URL under a dialog opened right after
+    // the pick (the kit Dialog then gives no focus back, R41)
+    if (selectionText !== null && conceptSearchQuery === selectionText) return undefined;
     const searchConcepts = async () => {
       if (!conceptSearchQuery.trim()) {
         setConceptSearchResults([]);
         setIsConceptDropdownOpen(false);
+        setSearchError(null);
+        setAnsweredQuery(null);
         updateUrl({ query: '' });
         return;
       }
 
       try {
         const res = await get<ConceptItem[]>(`/api/semantic-models/concepts?q=${encodeURIComponent(conceptSearchQuery)}&limit=50`);
-        setConceptSearchResults(res.data || []);
-        setIsConceptDropdownOpen((res.data || []).length > 0);
+        if (seq !== searchSeq.current) return;
+        const results = asList<ConceptItem>(res.data);
+        setConceptSearchResults(results);
+        setIsConceptDropdownOpen(results.length > 0);
+        setSearchError(res.error ? res.error : null);
+        setAnsweredQuery(conceptSearchQuery);
         updateUrl({ query: conceptSearchQuery });
       } catch (error) {
+        if (seq !== searchSeq.current) return;
         console.error('Error searching concepts:', error);
         setConceptSearchResults([]);
         setIsConceptDropdownOpen(false);
+        setSearchError(error instanceof Error ? error.message : '');
       }
     };
 
     const timer = setTimeout(searchConcepts, 250);
     return () => clearTimeout(timer);
-  }, [conceptSearchQuery]);
+  }, [conceptSearchQuery, searchNonce, selectionText]);
 
   const clearSearch = () => {
     setConceptSearchQuery('');
@@ -155,13 +196,18 @@ export default function ConceptsSearch({
     setConceptNeighbors([]);
     setSemanticLinks([]);
     setIsConceptDropdownOpen(false);
+    setSelectionText(null);
+    setDetailError(null);
+    selectSeq.current++;
     updateUrl({ query: '', conceptIri: '' });
   };
 
   // Select a concept and load its details
   const selectConcept = async (concept: ConceptItem) => {
+    const seq = ++selectSeq.current;
     setSelectedConcept(concept);
     setConceptIri(concept.value);
+    setDetailError(null);
 
     // Use label if available, otherwise extract last part of IRI
     let displayLabel = concept.label;
@@ -177,15 +223,22 @@ export default function ConceptsSearch({
 
     setConceptLabel(displayLabel);
     setConceptSearchQuery(`${displayLabel} - ${concept.value}`);
+    setSelectionText(`${displayLabel} - ${concept.value}`);
     setIsConceptDropdownOpen(false);
     updateUrl({ conceptIri: concept.value });
+
+    let failure: string | null = null;
 
     // Load neighbors for this concept
     try {
       const res = await get<Neighbor[]>(`/api/semantic-models/neighbors?iri=${encodeURIComponent(concept.value)}&limit=200`);
-      setConceptNeighbors(res.data || []);
+      if (seq !== selectSeq.current) return;
+      if (res.error) failure = res.error;
+      setConceptNeighbors(asList<Neighbor>(res.data));
     } catch (error) {
+      if (seq !== selectSeq.current) return;
       console.error('Error loading neighbors:', error);
+      failure = error instanceof Error ? error.message : '';
       setConceptNeighbors([]);
     }
 
@@ -193,15 +246,21 @@ export default function ConceptsSearch({
     try {
       // Query-param form: proxy-safe for IRIs containing ``//`` (see by-iri route).
       const res = await get<SemanticLink[]>(`/api/semantic-links/by-iri?iri=${encodeURIComponent(concept.value)}`);
-      const links = res.data || [];
+      if (res.error) failure = failure ?? res.error;
+      const links = asList<SemanticLink>(res.data);
 
       // Enrich semantic links with entity names
       const enrichedLinks = await enrichSemanticLinksWithNames(links);
+      if (seq !== selectSeq.current) return;
       setSemanticLinks(enrichedLinks);
     } catch (error) {
+      if (seq !== selectSeq.current) return;
       console.error('Error loading semantic links:', error);
+      failure = failure ?? (error instanceof Error ? error.message : '');
       setSemanticLinks([]);
     }
+
+    if (seq === selectSeq.current) setDetailError(failure);
   };
 
   // Navigate to a related concept (parent/subclass)
@@ -318,7 +377,7 @@ export default function ConceptsSearch({
 
   // Load entities for assignment
   const loadEntitiesForType = async (entityType: string) => {
-    if (['uc_catalog', 'uc_schema', 'uc_table'].includes(entityType)) return;
+    if (UC_TYPES.includes(entityType)) return;
     try {
       let endpoint = '';
       switch (entityType) {
@@ -334,7 +393,7 @@ export default function ConceptsSearch({
         case 'asset': {
           // /api/assets returns a paginated envelope {items, total, ...} — unwrap to a flat list.
           const res = await get<{ items: any[]; total: number }>('/api/assets?limit=200');
-          setAvailableEntities(res.data?.items || []);
+          setAvailableEntities(asList(res.data?.items));
           return;
         }
         default:
@@ -342,7 +401,7 @@ export default function ConceptsSearch({
       }
 
       const res = await get<any[]>(endpoint);
-      setAvailableEntities(res.data || []);
+      setAvailableEntities(asList(res.data));
     } catch (error) {
       console.error('Error loading entities:', error);
       setAvailableEntities([]);
@@ -375,7 +434,7 @@ export default function ConceptsSearch({
       case 'uc_catalog':
       case 'uc_schema':
       case 'uc_table':
-      case 'uc_column':
+      case 'uc_column': {
         navigate(`/catalog-commander`);
         const ucLabel = link.entity_type === 'uc_catalog' ? t('search:concepts.linkedUCCatalog')
           : link.entity_type === 'uc_schema' ? t('search:concepts.linkedUCSchema')
@@ -386,6 +445,7 @@ export default function ConceptsSearch({
           description: link.entity_name || link.entity_id
         });
         return;
+      }
       default:
         toast({
           title: t('common:toast.error'),
@@ -489,309 +549,267 @@ export default function ConceptsSearch({
     }
   };
 
+  const linkIcon = (entityType: string) =>
+    entityType === 'data_contract'
+      ? FileText
+      : entityType === 'data_product'
+      ? Package
+      : entityType === 'data_domain'
+      ? Globe
+      : entityType === 'asset'
+      ? Box
+      : entityType === 'uc_catalog'
+      ? Folder
+      : entityType === 'uc_schema'
+      ? FolderOpen
+      : entityType === 'uc_table' || entityType === 'uc_column'
+      ? Table
+      : entityType === 'data_contract_schema'
+      ? Shapes
+      : entityType === 'data_contract_property'
+      ? Columns2
+      : FileText;
+
+  const linkTypeLabel = (entityType: string) =>
+    entityType === 'uc_catalog'
+      ? t('search:concepts.linkedUCCatalog')
+      : entityType === 'uc_schema'
+      ? t('search:concepts.linkedUCSchema')
+      : entityType === 'uc_table'
+      ? t('search:concepts.linkedUCTable')
+      : entityType === 'uc_column'
+      ? t('search:concepts.linkedUCColumn')
+      : entityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const literalAttributes = conceptNeighbors.filter(n =>
+    n.direction === 'outgoing' &&
+    n.displayType === 'literal' &&
+    !n.predicate.includes('subClassOf') &&
+    !n.predicate.includes('type')
+  );
+
+  const hierarchyChips = (items: Neighbor[]) =>
+    items.map((item, idx) => (
+      <UnstyledButton
+        key={idx}
+        className={classes.chip}
+        onClick={() => item.stepIri && navigateToConcept(item.stepIri)}
+        title={item.stepIri || item.display}
+      >
+        <Shapes aria-hidden size={12} />
+        <span className={classes.ellipsis}>{localName(item.display)}</span>
+      </UnstyledButton>
+    ));
+
+  const isUcType = UC_TYPES.includes(selectedEntityType);
+  const showingSelection = selectionText !== null && conceptSearchQuery === selectionText;
+  const noResults =
+    !showingSelection &&
+    conceptSearchQuery.trim() !== '' &&
+    answeredQuery === conceptSearchQuery &&
+    searchError === null &&
+    conceptSearchResults.length === 0;
+  const title = conceptLabel || selectedConcept?.label || '';
+
+  const entityTypeOptions = [
+    { value: 'data_product', label: t('search:concepts.assignDialog.dataProduct') },
+    { value: 'data_contract', label: t('search:concepts.assignDialog.dataContract') },
+    { value: 'data_domain', label: t('search:concepts.assignDialog.dataDomain') },
+    { value: 'asset', label: t('search:concepts.assignDialog.asset', { defaultValue: 'Asset' }) },
+    { value: 'uc_catalog', label: t('search:concepts.assignDialog.ucCatalog') },
+    { value: 'uc_schema', label: t('search:concepts.assignDialog.ucSchema') },
+    { value: 'uc_table', label: t('search:concepts.assignDialog.ucTable') },
+  ];
+  const entityOptions = uniqueOptions(
+    availableEntities
+      .filter((entity) => entity && entity.id != null)
+      .map((entity) => ({ value: String(entity.id), label: entity.name || entity.info?.title || entity.title || String(entity.id) })),
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Search Section */}
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">{t('search:concepts.searchAndSelect')}</p>
-        <div className="relative">
-          <Input
-            value={conceptSearchQuery}
-            onChange={(e) => setConceptSearchQuery(e.target.value)}
-            onFocus={() => setIsConceptDropdownOpen(conceptSearchResults.length > 0)}
-            placeholder={t('search:concepts.searchPlaceholder')}
-            className="w-full"
-          />
-          {(conceptSearchQuery || selectedConcept) && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1 h-7 w-7"
-              onClick={clearSearch}
-              aria-label={t('search:concepts.clear')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+    <>
+      <PaneStack>
+        <SearchPane
+          paneLabel={t('search:concepts.searchPane', 'Concept search')}
+          intro={t('search:concepts.searchAndSelect')}
+          placeholder={t('search:concepts.searchPlaceholder')}
+          query={conceptSearchQuery}
+          onQueryChange={setConceptSearchQuery}
+          onFocus={() => setIsConceptDropdownOpen(conceptSearchResults.length > 0)}
+          results={conceptSearchResults}
+          open={isConceptDropdownOpen}
+          onPick={(result) => selectConcept(result as ConceptItem)}
+          icon={<Shapes aria-hidden size={14} />}
+          showClear={!!(conceptSearchQuery || selectedConcept)}
+          clearLabel={t('search:concepts.clear')}
+          onClear={clearSearch}
+          noResults={noResults}
+          error={searchError}
+          onRetry={() => setSearchNonce((n) => n + 1)}
+        />
 
-          {/* Search Results Dropdown */}
-          {isConceptDropdownOpen && conceptSearchResults.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-80 overflow-y-auto">
-              {conceptSearchResults.map((result) => (
-                <div
-                  key={result.value}
-                  className="px-3 py-2 text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border last:border-b-0 transition-colors"
-                  onClick={() => selectConcept(result)}
-                  title={result.value}
-                >
-                  <div className="text-sm flex items-center gap-2">
-                    <Shapes className="h-4 w-4 text-muted-foreground" />
-                    <span className="truncate">{result.label} - {result.value}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        {/* Selected Concept Details: its IRI and every assigned literal */}
+        {selectedConcept && (
+          <Pane
+            title={title}
+            titleTooltip
+            actions={
+              canLink ? (
+                <Button variant="outline" onClick={() => setAssignDialogOpen(true)} disabled={!selectedConcept}>
+                  <Link2 aria-hidden />
+                  {t('search:concepts.assignToConcept')}
+                </Button>
+              ) : undefined
+            }
+          >
+            <p className={classes.iri}>
+              <Shapes aria-hidden size={14} />
+              <span>{conceptIri}</span>
+            </p>
+            {detailError !== null ? (
+              <LoadError error={detailError} onRetry={() => selectConcept(selectedConcept)} />
+            ) : literalAttributes.length > 0 ? (
+              <DetailsGrid
+                rows={literalAttributes.map((prop) => ({
+                  label: prop.predicate.split('/').pop()?.split('#').pop() || prop.predicate,
+                  value: <span className={classes.value}>{prop.display}</span>,
+                }))}
+              />
+            ) : null}
+          </Pane>
+        )}
 
-      {/* Selected Concept Details */}
-      {selectedConcept && (
-        <div className="space-y-4">
-          {/* Concept Info - Show ALL assigned properties */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Shapes className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-mono text-foreground break-all">{conceptIri}</span>
+        {/* The hierarchy, the properties and the linked objects, side by side */}
+        {selectedConcept && detailError === null && (
+          <Pane flush aria-label={t('search:concepts.relationsPane', 'Concept relations')}>
+            <div className={classes.columns}>
+              <div className={classes.column}>
+                <h3 className={classes.columnTitle}>{t('search:concepts.conceptHierarchy')}</h3>
+                <div className={classes.group}>
+                  <h4 className={classes.subTitle}>{t('search:concepts.parentClasses')}</h4>
+                  {getParentClasses().length === 0 ? (
+                    <p className={classes.note}>{t('search:concepts.noParentClasses')}</p>
+                  ) : (
+                    <div className={classes.chips}>{hierarchyChips(getParentClasses())}</div>
+                  )}
                 </div>
-                {conceptNeighbors.filter(n =>
-                  n.direction === 'outgoing' &&
-                  n.displayType === 'literal' &&
-                  !n.predicate.includes('subClassOf') &&
-                  !n.predicate.includes('type')
-                ).map((prop, idx) => (
-                  <div key={idx}>
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {prop.predicate.split('/').pop()?.split('#').pop() || prop.predicate}:
-                    </span>
-                    <span className="text-sm text-foreground ml-1">{prop.display}</span>
-                  </div>
-                ))}
+                <div className={classes.group}>
+                  <h4 className={classes.subTitle}>{t('search:concepts.subclasses')}</h4>
+                  {getSubclasses().length === 0 ? (
+                    <p className={classes.note}>{t('search:concepts.noSubclasses')}</p>
+                  ) : (
+                    <div className={classes.chips}>{hierarchyChips(getSubclasses())}</div>
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Three Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Concept Hierarchy */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('search:concepts.conceptHierarchy')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('search:concepts.parentClasses')}</h3>
-                  <div className="space-y-2">
-                    {getParentClasses().length === 0 ? (
-                      <p className="text-sm text-muted-foreground">{t('search:concepts.noParentClasses')}</p>
-                    ) : (
-                      getParentClasses().map((parent, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-accent inline-flex items-center gap-1"
-                          onClick={() => parent.stepIri && navigateToConcept(parent.stepIri)}
-                          title={parent.stepIri || parent.display}
-                        >
-                          <Shapes className="h-3 w-3" />
-                          {parent.display.split('#').pop() || parent.display.split('/').pop() || parent.display}
-                        </Badge>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('search:concepts.subclasses')}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {getSubclasses().length === 0 ? (
-                      <p className="text-sm text-muted-foreground">{t('search:concepts.noSubclasses')}</p>
-                    ) : (
-                      getSubclasses().map((sub, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-accent inline-flex items-center gap-1"
-                          onClick={() => sub.stepIri && navigateToConcept(sub.stepIri)}
-                          title={sub.stepIri || sub.display}
-                        >
-                          <Shapes className="h-3 w-3" />
-                          {sub.display.split('#').pop() || sub.display.split('/').pop() || sub.display}
-                        </Badge>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Related Properties */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('search:concepts.relatedProperties')}</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className={classes.column}>
+                <h3 className={classes.columnTitle}>{t('search:concepts.relatedProperties')}</h3>
                 {getRelatedProperties().length === 0 ? (
-                  <p className="text-sm text-center text-muted-foreground">{t('search:concepts.noRelatedProperties')}</p>
+                  <p className={classes.note}>{t('search:concepts.noRelatedProperties')}</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className={classes.chips}>
                     {getRelatedProperties().map((prop, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs inline-flex items-center gap-1" title={prop.display}>
-                        <Columns2 className="h-3 w-3" />
-                        {prop.display.split('#').pop() || prop.display.split('/').pop() || prop.display}
-                      </Badge>
+                      <span key={idx} className={classes.chip} data-plain="" title={prop.display}>
+                        <Columns2 aria-hidden size={12} />
+                        <span className={classes.ellipsis}>{localName(prop.display)}</span>
+                      </span>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Linked Catalog Objects */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('search:concepts.linkedCatalogObjects')}</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className={classes.column}>
+                <h3 className={classes.columnTitle}>{t('search:concepts.linkedCatalogObjects')}</h3>
                 {getCatalogObjects().length === 0 ? (
-                  <p className="text-sm text-center text-muted-foreground">{t('search:concepts.noCatalogObjects')}</p>
+                  <p className={classes.note}>{t('search:concepts.noCatalogObjects')}</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className={classes.chips}>
                     {getCatalogObjects().map((link) => {
-                      const typeLabel = link.entity_type === 'uc_catalog'
-                        ? t('search:concepts.linkedUCCatalog')
-                        : link.entity_type === 'uc_schema'
-                        ? t('search:concepts.linkedUCSchema')
-                        : link.entity_type === 'uc_table'
-                        ? t('search:concepts.linkedUCTable')
-                        : link.entity_type === 'uc_column'
-                        ? t('search:concepts.linkedUCColumn')
-                        : link.entity_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-                      const Icon = link.entity_type === 'data_contract'
-                        ? FileText
-                        : link.entity_type === 'data_product'
-                        ? Package
-                        : link.entity_type === 'data_domain'
-                        ? Globe
-                        : link.entity_type === 'asset'
-                        ? Box
-                        : link.entity_type === 'uc_catalog'
-                        ? Folder
-                        : link.entity_type === 'uc_schema'
-                        ? FolderOpen
-                        : link.entity_type === 'uc_table' || link.entity_type === 'uc_column'
-                        ? Table
-                        : link.entity_type === 'data_contract_schema'
-                        ? Shapes
-                        : link.entity_type === 'data_contract_property'
-                        ? Columns2
-                        : FileText;
+                      const typeLabel = linkTypeLabel(link.entity_type);
+                      const Icon = linkIcon(link.entity_type);
                       return (
-                        <Badge
+                        <UnstyledButton
                           key={link.id}
-                          variant="outline"
-                          className="text-xs inline-flex items-center gap-1 cursor-pointer hover:bg-accent transition-colors"
+                          className={classes.chip}
                           onClick={() => navigateToEntity(link)}
                           title={`${typeLabel}: ${link.entity_name || link.entity_id} • ${link.iri}`}
                         >
-                          <Icon className="h-3 w-3" /> {typeLabel}: {link.entity_name || link.entity_id}
-                        </Badge>
+                          <Icon aria-hidden size={12} />
+                          <span className={classes.ellipsis}>{typeLabel}: {link.entity_name || link.entity_id}</span>
+                        </UnstyledButton>
                       );
                     })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Assign to Concept Button */}
-          <div className="pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setAssignDialogOpen(true)}
-              disabled={!selectedConcept}
-            >
-              <Link2 className="h-4 w-4 mr-2" />
-              {t('search:concepts.assignToConcept')}
-            </Button>
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          </Pane>
+        )}
+      </PaneStack>
 
       {/* Assign to Concept Dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('search:concepts.assignDialog.title')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedConcept && (
-              <div className="text-sm">
-                <p className="font-medium">{selectedConcept.label}</p>
-                <p className="text-muted-foreground font-mono text-xs">{selectedConcept.value}</p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('search:concepts.assignDialog.entityType')}</label>
-              <Select value={selectedEntityType} onValueChange={handleEntityTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('search:concepts.assignDialog.selectEntityType')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="data_product">{t('search:concepts.assignDialog.dataProduct')}</SelectItem>
-                  <SelectItem value="data_contract">{t('search:concepts.assignDialog.dataContract')}</SelectItem>
-                  <SelectItem value="data_domain">{t('search:concepts.assignDialog.dataDomain')}</SelectItem>
-                  <SelectItem value="asset">{t('search:concepts.assignDialog.asset', { defaultValue: 'Asset' })}</SelectItem>
-                  <SelectItem value="uc_catalog">{t('search:concepts.assignDialog.ucCatalog')}</SelectItem>
-                  <SelectItem value="uc_schema">{t('search:concepts.assignDialog.ucSchema')}</SelectItem>
-                  <SelectItem value="uc_table">{t('search:concepts.assignDialog.ucTable')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {['uc_catalog', 'uc_schema', 'uc_table'].includes(selectedEntityType) && (
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full" onClick={() => setUCTableDialogOpen(true)}>
-                  {selectedEntityType === 'uc_catalog' && <Folder className="h-4 w-4 mr-2" />}
-                  {selectedEntityType === 'uc_schema' && <FolderOpen className="h-4 w-4 mr-2" />}
-                  {selectedEntityType === 'uc_table' && <Table className="h-4 w-4 mr-2" />}
-                  {selectedEntityType === 'uc_catalog' && t('search:concepts.assignDialog.browseUCCatalog')}
-                  {selectedEntityType === 'uc_schema' && t('search:concepts.assignDialog.browseUCSchema')}
-                  {selectedEntityType === 'uc_table' && t('search:concepts.assignDialog.browseUCTable')}
-                </Button>
-              </div>
-            )}
-
-            {selectedEntityType && !['uc_catalog', 'uc_schema', 'uc_table'].includes(selectedEntityType) && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  {getEntityTypeLabel(selectedEntityType)}
-                </label>
-                <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('search:concepts.assignDialog.selectEntity', {
-                      entityType: getEntityTypeLabel(selectedEntityType)
-                    })} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableEntities.map((entity) => (
-                      <SelectItem key={entity.id} value={entity.id}>
-                        {entity.name || entity.info?.title || entity.title || entity.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
-                {t('common:actions.cancel')}
+      <Dialog
+        opened={assignDialogOpen}
+        onClose={() => setAssignDialogOpen(false)}
+        title={t('search:concepts.assignDialog.title')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              {t('common:actions.cancel')}
+            </Button>
+            {!isUcType && (
+              <Button onClick={handleAssignToObject} disabled={!selectedEntityType || !selectedEntityId}>
+                {t('common:actions.assign')}
               </Button>
-              {!['uc_catalog', 'uc_schema', 'uc_table'].includes(selectedEntityType) && (
-                <Button
-                  onClick={handleAssignToObject}
-                  disabled={!selectedEntityType || !selectedEntityId}
-                >
-                  {t('common:actions.assign')}
-                </Button>
-              )}
+            )}
+          </>
+        }
+      >
+        <div className={form.form}>
+          {selectedConcept && (
+            <div className={form.box}>
+              <span className={form.strong}>{selectedConcept.label}</span>
+              <span className={form.code}>{selectedConcept.value}</span>
             </div>
-          </div>
-        </DialogContent>
+          )}
+
+          <Select
+            label={t('search:concepts.assignDialog.entityType')}
+            placeholder={t('search:concepts.assignDialog.selectEntityType')}
+            data={entityTypeOptions}
+            value={selectedEntityType || null}
+            onChange={(value) => value && handleEntityTypeChange(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+
+          {isUcType && (
+            <Button variant="outline" className={form.fullWidth} onClick={() => setUCTableDialogOpen(true)}>
+              {selectedEntityType === 'uc_catalog' && <Folder aria-hidden />}
+              {selectedEntityType === 'uc_schema' && <FolderOpen aria-hidden />}
+              {selectedEntityType === 'uc_table' && <Table aria-hidden />}
+              {selectedEntityType === 'uc_catalog' && t('search:concepts.assignDialog.browseUCCatalog')}
+              {selectedEntityType === 'uc_schema' && t('search:concepts.assignDialog.browseUCSchema')}
+              {selectedEntityType === 'uc_table' && t('search:concepts.assignDialog.browseUCTable')}
+            </Button>
+          )}
+
+          {selectedEntityType && !isUcType && (
+            <Select
+              label={getEntityTypeLabel(selectedEntityType)}
+              placeholder={t('search:concepts.assignDialog.selectEntity', {
+                entityType: getEntityTypeLabel(selectedEntityType)
+              })}
+              data={entityOptions}
+              value={selectedEntityId || null}
+              onChange={(value) => value && setSelectedEntityId(value)}
+              allowDeselect={false}
+              classNames={SELECT_CLASSES}
+            />
+          )}
+        </div>
       </Dialog>
 
       <UCAssetLookupDialog
@@ -815,6 +833,6 @@ export default function ConceptsSearch({
         }
         includeColumns={false}
       />
-    </div>
+    </>
   );
 }

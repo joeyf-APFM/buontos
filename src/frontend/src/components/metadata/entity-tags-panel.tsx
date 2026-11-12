@@ -10,12 +10,19 @@ import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/feature-access-levels';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import classes from '@/components/common/panel.module.css';
 
 interface Props {
   /** Stable identifier of the entity the tags are assigned to (e.g. a table's full path). */
   entityId: string;
   /** Polymorphic entity type understood by the tags backend (e.g. 'catalog-object'). */
   entityType: string;
+  /**
+   * For a page-kit Pane: no card, border or padding of its own, and a compact
+   * head (the title and actions). Put it in a Pane without a title, which the
+   * panel's head would repeat.
+   */
+  flush?: boolean;
 }
 
 /**
@@ -24,12 +31,13 @@ interface Props {
  * and apply tags to any polymorphic entity, including Unity Catalog objects in
  * the Catalog Commander Info panel.
  */
-const EntityTagsPanel: React.FC<Props> = ({ entityId, entityType }) => {
+const EntityTagsPanel: React.FC<Props> = ({ entityId, entityType, flush = false }) => {
   const { get, post, loading: saving } = useApi();
   const { toast } = useToast();
   const { t } = useTranslation('metadata');
   const { hasPermission } = usePermissions();
   const canEditTags = hasPermission('tags', FeatureAccessLevel.READ_WRITE);
+  const titleId = React.useId();
 
   const [assignedTags, setAssignedTags] = React.useState<AssignedTag[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -71,69 +79,96 @@ const EntityTagsPanel: React.FC<Props> = ({ entityId, entityType }) => {
     }
   };
 
+  const title = t('tags.title') || 'Tags';
+  const description = t('tags.description') || 'Apply governance tags to this object.';
+  // Flush (a Pane's content) on the shared panel styles; the Card keeps its Tailwind look
+  const look = (dense: string, card: string) => (flush ? dense : card);
+
+  const tools = (
+    <TooltipProvider>
+      <div className={look(classes.toolbar, 'flex items-center gap-1 border rounded-md bg-muted/40 px-1 py-0.5 ml-1')}>
+        {canEditTags && !editing && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={t('tags.edit') || 'Edit tags'} onClick={startEditing}>
+                <Pencil />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('tags.edit') || 'Edit tags'}</TooltipContent>
+          </Tooltip>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={t('tags.refresh') || 'Refresh'} onClick={fetchTags} disabled={editing}>
+              <RefreshCcw />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('tags.refresh') || 'Refresh'}</TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  );
+
+  const content = editing ? (
+    <div className={look(classes.form, 'space-y-3')}>
+      <TagSelector
+        value={draft}
+        onChange={setDraft}
+        placeholder={t('tags.placeholder') || 'Search and select tags...'}
+      />
+      <div className={look(classes.buttons, 'flex gap-2')}>
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          {saving && <Loader2 className={look(classes.spin, 'h-4 w-4 mr-1 animate-spin')} />}
+          {t('tags.save') || 'Save'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>
+          {t('tags.cancel') || 'Cancel'}
+        </Button>
+      </div>
+    </div>
+  ) : loading ? (
+    <div className={look(classes.inlineLoading, 'flex items-center gap-2 text-sm text-muted-foreground')}>
+      <Loader2 className={look(classes.spin, 'h-4 w-4 animate-spin')} /> {t('common:actions.loading')}
+    </div>
+  ) : assignedTags.length === 0 ? (
+    <div className={look(classes.empty, 'text-sm text-muted-foreground')}>{t('tags.noTags') || 'No tags applied.'}</div>
+  ) : (
+    <div className={look(classes.chips, 'flex flex-wrap gap-1')}>
+      {assignedTags.map(tag => (
+        <TagChip key={tag.tag_id} tag={tag} size="sm" displayFormat="long" />
+      ))}
+    </div>
+  );
+
+  if (flush) {
+    return (
+      <section className={classes.pane} aria-labelledby={titleId} data-flush>
+        <div className={classes.headGroup}>
+          <div className={classes.head}>
+            <h3 id={titleId} className={classes.title}>
+              <Tags aria-hidden />
+              {title}
+            </h3>
+            <div className={classes.actions}>{tools}</div>
+          </div>
+          <p className={classes.subtitle}>{description}</p>
+        </div>
+        <div className={classes.body}>{content}</div>
+      </section>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-medium flex items-center gap-2">
           <Tags className="h-5 w-5 text-primary" />
-          {t('tags.title') || 'Tags'}
-          <TooltipProvider>
-            <div className="flex items-center gap-1 border rounded-md bg-muted/40 px-1 py-0.5 ml-1">
-              {canEditTags && !editing && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={t('tags.edit') || 'Edit tags'} onClick={startEditing}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('tags.edit') || 'Edit tags'}</TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label={t('tags.refresh') || 'Refresh'} onClick={fetchTags} disabled={editing}>
-                    <RefreshCcw className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('tags.refresh') || 'Refresh'}</TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
+          {title}
+          {tools}
         </CardTitle>
-        <CardDescription>{t('tags.description') || 'Apply governance tags to this object.'}</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {editing ? (
-          <div className="space-y-3">
-            <TagSelector
-              value={draft}
-              onChange={setDraft}
-              placeholder={t('tags.placeholder') || 'Search and select tags...'}
-            />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                {t('tags.save') || 'Save'}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>
-                {t('tags.cancel') || 'Cancel'}
-              </Button>
-            </div>
-          </div>
-        ) : loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> {t('common:actions.loading')}
-          </div>
-        ) : assignedTags.length === 0 ? (
-          <div className="text-sm text-muted-foreground">{t('tags.noTags') || 'No tags applied.'}</div>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {assignedTags.map(tag => (
-              <TagChip key={tag.tag_id} tag={tag} size="sm" displayFormat="long" />
-            ))}
-          </div>
-        )}
-      </CardContent>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 };

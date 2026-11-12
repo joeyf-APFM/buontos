@@ -180,7 +180,10 @@
     "title": "Schemes",
     "glossary": "Glossary",
     "taxonomy": "Taxonomy",
-    "ontology": "Ontology"
+    "ontology": "Ontology",
+    "listPane": "Scheme list",
+    "loadFailed": "Could not load the schemes.",
+    "actionsFor": "Actions for {{name}}"
   },
   "actions": {
     "createConcept": "Create Concept",
@@ -228,7 +231,8 @@
       "description": "Optionally specify one or more successor concepts to indicate what this concept was replaced by.",
       "successors": "Successor concepts",
       "noSuccessors": "None selected",
-      "addSuccessor": "+ Add successor"
+      "addSuccessor": "+ Add successor",
+      "removeSuccessor": "Remove {{name}}"
     }
   },
   "lifecycle": {
@@ -426,7 +430,10 @@
     "selectSuperclass": "Select Superclass",
     "selectParentConcept": "Select Parent Concept",
     "searchClasses": "Search classes...",
-    "searchConceptsInScheme": "Search concepts in this scheme..."
+    "searchConceptsInScheme": "Search concepts in this scheme...",
+    "removeValue": "Remove {{name}}",
+    "addSynonym": "Add synonym",
+    "addExample": "Add example"
   },
   "collectionEditor": {
     "editTitle": "Edit Scheme",
@@ -437,7 +444,8 @@
     "parentCollection": "Parent Scheme",
     "noneRootCollection": "None (root scheme)",
     "editable": "Editable",
-    "editableHelp": "Allow creating and editing concepts in this scheme"
+    "editableHelp": "Allow creating and editing concepts in this scheme",
+    "typeInfo": "About scheme types"
   },
   "promotion": {
     "promoteConcept": "Promote Concept",
@@ -459,7 +467,9 @@
   },
   "collectionTree": {
     "readOnly": "Read-only scheme",
-    "noCollectionsYet": "No schemes yet"
+    "noCollectionsYet": "No schemes yet",
+    "expand": "Expand {{name}}",
+    "collapse": "Collapse {{name}}"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -502,7 +512,6 @@
       "conceptCount_other": "{{count}} concepts"
     },
     "fullscreen": {
-      "description": "Fullscreen view of the concept graph visualization",
       "hint": "Click on nodes to select concepts. Use scroll to zoom, drag to pan."
     }
   },
@@ -603,7 +612,11 @@
       "descriptionLabel": "Description (optional)",
       "descriptionPlaceholder": "Describe the purpose of this ontology scheme...",
       "importSummary": "{{classes}} classes and {{properties}} properties will be imported."
-    }
+    },
+    "runPane": "Run",
+    "results": "Results",
+    "connectionsFailed": "Could not load the connections.",
+    "runsFailed": "Could not load the recent runs."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Include other schemes",
@@ -623,9 +636,17 @@
   "explore": {
     "emptyTitle": "Nothing to explore yet",
     "emptyBody": "Import files or create concepts on the Define page.",
-    "emptyCta": "Go to Define"
+    "emptyCta": "Go to Define",
+    "conceptsPane": "Concepts",
+    "filtersPane": "Filters",
+    "loadFailed": "Could not load the concepts."
   },
   "define": {
-    "requiresWrite": "Requires write access"
+    "requiresWrite": "Requires write access",
+    "runsFailed": "Could not load the creation work in progress.",
+    "about": "About {{name}}"
+  },
+  "summary": {
+    "title": "Summary"
   }
 }

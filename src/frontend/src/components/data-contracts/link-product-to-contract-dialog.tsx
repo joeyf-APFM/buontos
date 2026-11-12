@@ -1,14 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Combobox, Loader, Radio, Select, TextInput, type SelectProps } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import type { DataProduct, OutputPort } from '@/types/data-product';
 
 type LinkProductToContractDialogProps = {
@@ -204,145 +202,65 @@ export default function LinkProductToContractDialog({
     }
   };
 
+  const productOptions = uniqueOptions((Array.isArray(products) ? products : []).map((product) => ({
+    value: product.id,
+    label: product.name || t('data-contracts:linkProduct.unnamedProduct', 'Unnamed Product'),
+    version: `v${product.version || t('common:states.notAvailable')}`,
+    status: product.status,
+  })));
+  // The product's version and status beside its name, as the Radix items showed them
+  const productBadges = (option: typeof productOptions[number]) => (
+    <>
+      <Badge variant="secondary">{option.version}</Badge>
+      {option.status && <Badge variant="outline">{option.status}</Badge>}
+    </>
+  );
+  const renderProduct: SelectProps['renderOption'] = ({ option }) => (
+    <span className={form.optionLine}>
+      <span>{option.label}</span>
+      {productBadges(option as typeof productOptions[number])}
+    </span>
+  );
+  const chosenProduct = productOptions.find((o) => o.value === selectedProductId);
+
+  // The deliverables with no contract yet, by their index in the product's ports
+  const portOptions = uniqueOptions(availablePorts.map((port) => {
+    const actualIndex = selectedProduct?.outputPorts?.findIndex(p => p === port) ?? -1;
+    return { value: actualIndex.toString(), label: port.name, version: `v${port.version}` };
+  }));
+  const renderPort: SelectProps['renderOption'] = ({ option }) => (
+    <span className={form.optionLine}>
+      <span>{option.label}</span>
+      <Badge variant="outline">{(option as typeof portOptions[number]).version}</Badge>
+    </span>
+  );
+  const chosenPort = portOptions.find((o) => o.value === selectedPortIndex);
+
+  /** A Select's chosen badges before its chevron, as the Radix SelectValue repeated the item */
+  const withBadge = (badge: ReactNode) => ({
+    rightSection: (
+      <span className={form.fieldBadge}>
+        {badge}
+        <Combobox.Chevron />
+      </span>
+    ),
+    rightSectionWidth: 'auto' as const,
+    rightSectionPointerEvents: 'none' as const,
+  });
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t('data-contracts:linkProduct.title', 'Link Contract to Existing Product')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:linkProduct.descriptionBefore', 'Link')} <strong>{contractName}</strong> {t('data-contracts:linkProduct.descriptionAfter', 'to a deliverable of an existing data product')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Product Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="product">
-              {t('data-contracts:linkProduct.selectProductLabel', 'Select Product')} <span className="text-destructive">*</span>
-            </Label>
-            {isLoadingProducts ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger id="product">
-                  <SelectValue placeholder={t('data-contracts:linkProduct.chooseProductPlaceholder', 'Choose a product...')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      {t('data-contracts:linkProduct.noProducts', 'No products available')}
-                    </div>
-                  ) : (
-                    products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{product.name || t('data-contracts:linkProduct.unnamedProduct', 'Unnamed Product')}</span>
-                          <Badge variant="secondary" className="text-xs">v{product.version || t('common:states.notAvailable')}</Badge>
-                          <Badge variant="outline" className="text-xs">{product.status}</Badge>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {/* Port Assignment Section - only show after product selected */}
-          {selectedProduct && (
-            <>
-              <div className="border-t pt-4 space-y-4">
-                <Label>{t('data-contracts:linkProduct.deliverableAssignment', 'Deliverable Assignment')}</Label>
-
-                <RadioGroup value={assignmentMode} onValueChange={(value: 'existing' | 'new') => setAssignmentMode(value)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="existing" id="existing" disabled={availablePorts.length === 0} />
-                    <Label htmlFor="existing" className={availablePorts.length === 0 ? 'text-muted-foreground' : ''}>
-                      {t('data-contracts:linkProduct.assignExisting', 'Assign to Existing Deliverable')} {availablePorts.length === 0 && t('data-contracts:linkProduct.noAvailableDeliverables', '(no available deliverables)')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="new" id="new" />
-                    <Label htmlFor="new">{t('data-contracts:linkProduct.createNew', 'Create New Deliverable')}</Label>
-                  </div>
-                </RadioGroup>
-
-                {assignmentMode === 'existing' && availablePorts.length > 0 && (
-                  <div className="space-y-2 ml-6">
-                    <Label htmlFor="port">{t('data-contracts:linkProduct.selectDeliverableLabel', 'Select Deliverable')}</Label>
-                    <Select value={selectedPortIndex} onValueChange={setSelectedPortIndex}>
-                      <SelectTrigger id="port">
-                        <SelectValue placeholder={t('data-contracts:linkProduct.chooseDeliverablePlaceholder', 'Choose a deliverable...')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePorts.map((port) => {
-                          // Find the actual index in the full outputPorts array
-                          const actualIndex = selectedProduct.outputPorts?.findIndex(p => p === port) ?? -1;
-                          return (
-                            <SelectItem key={actualIndex} value={actualIndex.toString()}>
-                              <div className="flex items-center gap-2">
-                                <span>{port.name}</span>
-                                <Badge variant="outline" className="text-xs">v{port.version}</Badge>
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {t('data-contracts:linkProduct.onlyUnassigned', 'Only showing deliverables without an assigned contract')}
-                    </p>
-                  </div>
-                )}
-
-                {assignmentMode === 'new' && (
-                  <div className="space-y-4 ml-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="portName">
-                        {t('data-contracts:linkProduct.deliverableNameLabel', 'Deliverable Name')} <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="portName"
-                        value={newPortName}
-                        onChange={(e) => setNewPortName(e.target.value)}
-                        placeholder={t('data-contracts:linkProduct.deliverableNamePlaceholder', 'e.g., analytics-output')}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="portVersion">
-                        {t('data-contracts:linkProduct.deliverableVersionLabel', 'Deliverable Version')} <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="portVersion"
-                        value={newPortVersion}
-                        onChange={(e) => setNewPortVersion(e.target.value)}
-                        placeholder={t('data-contracts:linkProduct.deliverableVersionPlaceholder', '1.0.0')}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Product Info Summary */}
-              <div className="rounded-lg bg-muted p-4 space-y-2">
-                <Label className="text-sm font-medium">{t('data-contracts:linkProduct.selectedProduct', 'Selected Product')}</Label>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{selectedProduct.name}</span>
-                    <Badge variant="outline">v{selectedProduct.version}</Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {t('data-contracts:linkProduct.currentDeliverables', 'Current deliverables: {{total}} ({{available}} available for linking)', { total: selectedProduct.outputPorts?.length || 0, available: availablePorts.length })}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="lg"
+      title={t('data-contracts:linkProduct.title', 'Link Contract to Existing Product')}
+      description={
+        <>
+          {t('data-contracts:linkProduct.descriptionBefore', 'Link')} <strong>{contractName}</strong> {t('data-contracts:linkProduct.descriptionAfter', 'to a deliverable of an existing data product')}
+        </>
+      }
+      footer={
+        <>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -356,15 +274,119 @@ export default function LinkProductToContractDialog({
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader size={12} color="currentColor" />
                 {t('data-contracts:linkProduct.linking', 'Linking...')}
               </>
             ) : (
               t('data-contracts:linkProduct.linkButton', 'Link to Product')
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        {/* Product Selection */}
+        {isLoadingProducts ? (
+          <div className={form.loading} role="status" aria-label={t('data-contracts:linkProduct.selectProductLabel', 'Select Product')}>
+            <Loader size={20} />
+          </div>
+        ) : (
+          <Select
+            id="product"
+            label={t('data-contracts:linkProduct.selectProductLabel', 'Select Product')}
+            required
+            placeholder={t('data-contracts:linkProduct.chooseProductPlaceholder', 'Choose a product...')}
+            data={productOptions}
+            value={selectedProductId || null}
+            onChange={(value) => value && setSelectedProductId(value)}
+            allowDeselect={false}
+            renderOption={renderProduct}
+            {...(chosenProduct ? withBadge(productBadges(chosenProduct)) : {})}
+            nothingFoundMessage={t('data-contracts:linkProduct.noProducts', 'No products available')}
+            classNames={SELECT_CLASSES}
+          />
+        )}
+
+        {/* Port Assignment Section - only show after product selected */}
+        {selectedProduct && (
+          <>
+            <section className={form.section}>
+              <Radio.Group
+                label={t('data-contracts:linkProduct.deliverableAssignment', 'Deliverable Assignment')}
+                value={assignmentMode}
+                onChange={(value) => setAssignmentMode(value as 'existing' | 'new')}
+                classNames={FIELD_CLASSES}
+              >
+                <div className={form.choices}>
+                  <Radio
+                    value="existing"
+                    id="existing"
+                    disabled={availablePorts.length === 0}
+                    label={`${t('data-contracts:linkProduct.assignExisting', 'Assign to Existing Deliverable')}${availablePorts.length === 0 ? ` ${t('data-contracts:linkProduct.noAvailableDeliverables', '(no available deliverables)')}` : ''}`}
+                  />
+                  <Radio value="new" id="new" label={t('data-contracts:linkProduct.createNew', 'Create New Deliverable')} />
+                </div>
+              </Radio.Group>
+
+              {assignmentMode === 'existing' && availablePorts.length > 0 && (
+                <div className={form.indent}>
+                  <Select
+                    id="port"
+                    label={t('data-contracts:linkProduct.selectDeliverableLabel', 'Select Deliverable')}
+                    placeholder={t('data-contracts:linkProduct.chooseDeliverablePlaceholder', 'Choose a deliverable...')}
+                    data={portOptions}
+                    value={selectedPortIndex || null}
+                    onChange={(value) => value && setSelectedPortIndex(value)}
+                    allowDeselect={false}
+                    renderOption={renderPort}
+                    {...(chosenPort ? withBadge(<Badge variant="outline">{chosenPort.version}</Badge>) : {})}
+                    description={t('data-contracts:linkProduct.onlyUnassigned', 'Only showing deliverables without an assigned contract')}
+                    inputWrapperOrder={HINT_BELOW}
+                    classNames={SELECT_CLASSES}
+                  />
+                </div>
+              )}
+
+              {assignmentMode === 'new' && (
+                <div className={form.indent}>
+                  <div className={form.form}>
+                    <TextInput
+                      id="portName"
+                      label={t('data-contracts:linkProduct.deliverableNameLabel', 'Deliverable Name')}
+                      required
+                      value={newPortName}
+                      onChange={(e) => setNewPortName(e.currentTarget.value)}
+                      placeholder={t('data-contracts:linkProduct.deliverableNamePlaceholder', 'e.g., analytics-output')}
+                      classNames={FIELD_CLASSES}
+                    />
+                    <TextInput
+                      id="portVersion"
+                      label={t('data-contracts:linkProduct.deliverableVersionLabel', 'Deliverable Version')}
+                      required
+                      value={newPortVersion}
+                      onChange={(e) => setNewPortVersion(e.currentTarget.value)}
+                      placeholder={t('data-contracts:linkProduct.deliverableVersionPlaceholder', '1.0.0')}
+                      classNames={FIELD_CLASSES}
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Product Info Summary */}
+            <div className={form.box}>
+              <div className={form.strong}>{t('data-contracts:linkProduct.selectedProduct', 'Selected Product')}</div>
+              <div className={form.inline}>
+                <span className={form.strong}>{selectedProduct.name}</span>
+                <Badge variant="outline">v{selectedProduct.version}</Badge>
+              </div>
+              <div className={form.muted}>
+                {t('data-contracts:linkProduct.currentDeliverables', 'Current deliverables: {{total}} ({{available}} available for linking)', { total: selectedProduct.outputPorts?.length || 0, available: availablePorts.length })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </Dialog>
   );
 }

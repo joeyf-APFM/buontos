@@ -1,27 +1,14 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ActionIcon, Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { useDomains } from '@/hooks/use-domains';
+import classes from './guided-generate-dialog.module.css';
 
 // ---------------------------------------------------------------------------
 // Guided "Generate" dialog (Concept Builder v2, Define > Generate).
@@ -43,7 +30,7 @@ interface GuidedGenerateDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Sentinel for the "no domain" option (Radix Select disallows empty values).
+// Sentinel for the "no domain" option (a Select needs a value of its own).
 const NO_DOMAIN = '__none__';
 
 /**
@@ -73,6 +60,7 @@ export function GuidedGenerateDialog({ open, onOpenChange }: GuidedGenerateDialo
   const navigate = useNavigate();
 
   const { domains, loading: domainsLoading } = useDomains();
+  const domainId = useId();
 
   const [domain, setDomain] = useState('');
   const [questions, setQuestions] = useState<string[]>(['']);
@@ -110,6 +98,14 @@ export function GuidedGenerateDialog({ open, onOpenChange }: GuidedGenerateDialo
     });
   };
 
+  // A question added by Enter or Add question takes focus once it's rendered
+  useEffect(() => {
+    const index = focusIndexRef.current;
+    if (index === null) return;
+    focusIndexRef.current = null;
+    questionRefs.current[index]?.focus();
+  }, [questions.length]);
+
   const removeQuestion = (index: number) => {
     setQuestions((prev) => {
       const next = prev.filter((_, i) => i !== index);
@@ -143,171 +139,155 @@ export function GuidedGenerateDialog({ open, onOpenChange }: GuidedGenerateDialo
     navigate(`/concepts/generator${qs}`);
   };
 
+  const domainOptions = uniqueOptions([
+    { value: NO_DOMAIN, label: t('semantic-models:define.guided.noDomain', 'No data domain (type your own)') },
+    ...domains.map((d) => ({ value: d.id, label: d.name })),
+  ]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px]">
-        <DialogHeader>
-          <DialogTitle>{t('semantic-models:define.guided.title', 'Guided build')}</DialogTitle>
-          <DialogDescription>
-            {t(
-              'semantic-models:define.guided.subtitle',
-              'Answer a few questions. We turn them into a prompt for the generator, which drafts a concept scheme you review before keeping. Nothing is saved yet.',
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-1">
-          <div className="space-y-1.5">
-            <Label htmlFor="guided-domain">
-              {t('semantic-models:define.guided.domainLabel', 'What domain are you working in?')}
-            </Label>
-            {domainsLoading ? (
-              <div
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-                data-testid="guided-domains-loading"
-              >
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t('semantic-models:define.guided.domainsLoading', 'Loading data domains...')}
-              </div>
-            ) : domains.length > 0 ? (
-              <Select value={selectedDomainId} onValueChange={handleDomainSelect}>
-                <SelectTrigger
-                  id="guided-domain-select"
-                  aria-label={t('semantic-models:define.guided.domainSelectLabel', 'Data domain')}
-                >
-                  <SelectValue
-                    placeholder={t('semantic-models:define.guided.domainSelectPlaceholder', 'Pick a data domain')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_DOMAIN}>
-                    {t('semantic-models:define.guided.noDomain', 'No data domain (type your own)')}
-                  </SelectItem>
-                  {domains.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p className="text-xs text-muted-foreground" data-testid="guided-domains-empty">
-                {t(
-                  'semantic-models:define.guided.noDomainsHint',
-                  'No data domains defined yet. Describe your domain in your own words below.',
-                )}
-              </p>
-            )}
-            <Input
-              id="guided-domain"
-              autoFocus
-              placeholder={t(
-                'semantic-models:define.guided.domainPlaceholder',
-                'e.g. Retail pricing, Clinical trials, Fleet logistics',
-              )}
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="guided-questions">
-              {t(
-                'semantic-models:define.guided.questionsLabel',
-                'What questions should it help answer? (optional)',
-              )}
-            </Label>
-            <div className="space-y-2">
-              {questions.map((q, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    id={index === 0 ? 'guided-questions' : undefined}
-                    ref={(el) => {
-                      questionRefs.current[index] = el;
-                      if (el && focusIndexRef.current === index) {
-                        focusIndexRef.current = null;
-                        el.focus();
-                      }
-                    }}
-                    aria-label={t('semantic-models:define.guided.questionAria', {
-                      defaultValue: 'Question {{n}}',
-                      n: index + 1,
-                    })}
-                    placeholder={
-                      index === 0
-                        ? t(
-                            'semantic-models:define.guided.questionPlaceholder',
-                            'e.g. Which customers churned last quarter?',
-                          )
-                        : undefined
-                    }
-                    value={q}
-                    onChange={(e) => updateQuestion(index, e.target.value)}
-                    onKeyDown={(e) => handleQuestionKeyDown(index, e)}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    aria-label={t('semantic-models:define.guided.removeQuestion', {
-                      defaultValue: 'Remove question {{n}}',
-                      n: index + 1,
-                    })}
-                    disabled={questions.length === 1 && !q}
-                    onClick={() => removeQuestion(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" className="h-7" onClick={addQuestion}>
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {t('semantic-models:define.guided.addQuestion', 'Add question')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="guided-objects">
-              {t(
-                'semantic-models:define.guided.objectsLabel',
-                'What objects do you work with? (optional)',
-              )}
-            </Label>
-            <Textarea
-              id="guided-objects"
-              rows={2}
-              placeholder={t(
-                'semantic-models:define.guided.objectsPlaceholder',
-                'e.g. Customer, Order, Shipment, Invoice',
-              )}
-              value={objects}
-              onChange={(e) => setObjects(e.target.value)}
-            />
-          </div>
-
-          {composedPrompt && (
-            <div className="rounded-md border bg-muted/40 p-3">
-              <div className="text-xs font-medium text-muted-foreground mb-1">
-                {t('semantic-models:define.guided.previewLabel', 'Prompt for the generator')}
-              </div>
-              <p className="text-sm whitespace-pre-line" data-testid="guided-prompt-preview">
-                {composedPrompt}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="md"
+      title={t('semantic-models:define.guided.title', 'Guided build')}
+      description={t(
+        'semantic-models:define.guided.subtitle',
+        'Answer a few questions. We turn them into a prompt for the generator, which drafts a concept scheme you review before keeping. Nothing is saved yet.',
+      )}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('common:actions.cancel', 'Cancel')}
           </Button>
           <Button disabled={!canContinue} onClick={handleContinue}>
             {t('semantic-models:define.guided.continue', 'Continue to generator')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        {/* The domain: a data domain to pick, or free text (the prompt's source) */}
+        <div className={classes.field}>
+          <label htmlFor={domainId} className={form.label}>
+            {t('semantic-models:define.guided.domainLabel', 'What domain are you working in?')}
+          </label>
+          {domainsLoading ? (
+            <div className={form.loading} data-testid="guided-domains-loading">
+              <Loader size={14} />
+              {t('semantic-models:define.guided.domainsLoading', 'Loading data domains...')}
+            </div>
+          ) : domains.length > 0 ? (
+            <Select
+              aria-label={t('semantic-models:define.guided.domainSelectLabel', 'Data domain')}
+              placeholder={t('semantic-models:define.guided.domainSelectPlaceholder', 'Pick a data domain')}
+              data={domainOptions}
+              value={selectedDomainId}
+              onChange={(value) => value && handleDomainSelect(value)}
+              allowDeselect={false}
+              classNames={SELECT_CLASSES}
+            />
+          ) : (
+            <p className={form.hint} data-testid="guided-domains-empty">
+              {t(
+                'semantic-models:define.guided.noDomainsHint',
+                'No data domains defined yet. Describe your domain in your own words below.',
+              )}
+            </p>
+          )}
+          <TextInput
+            id={domainId}
+            data-autofocus
+            placeholder={t(
+              'semantic-models:define.guided.domainPlaceholder',
+              'e.g. Retail pricing, Clinical trials, Fleet logistics',
+            )}
+            value={domain}
+            onChange={(e) => setDomain(e.currentTarget.value)}
+          />
+        </div>
+
+        <div className={classes.field}>
+          <label htmlFor={`${domainId}-q0`} className={form.label}>
+            {t(
+              'semantic-models:define.guided.questionsLabel',
+              'What questions should it help answer? (optional)',
+            )}
+          </label>
+          <div className={classes.questions}>
+            {questions.map((q, index) => (
+              <div key={index} className={classes.question}>
+                <TextInput
+                  id={index === 0 ? `${domainId}-q0` : undefined}
+                  className={classes.questionInput}
+                  ref={(el) => {
+                    questionRefs.current[index] = el;
+                  }}
+                  aria-label={t('semantic-models:define.guided.questionAria', {
+                    defaultValue: 'Question {{n}}',
+                    n: index + 1,
+                  })}
+                  placeholder={
+                    index === 0
+                      ? t(
+                          'semantic-models:define.guided.questionPlaceholder',
+                          'e.g. Which customers churned last quarter?',
+                        )
+                      : undefined
+                  }
+                  value={q}
+                  onChange={(e) => updateQuestion(index, e.currentTarget.value)}
+                  onKeyDown={(e) => handleQuestionKeyDown(index, e)}
+                />
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size={28}
+                  aria-label={t('semantic-models:define.guided.removeQuestion', {
+                    defaultValue: 'Remove question {{n}}',
+                    n: index + 1,
+                  })}
+                  disabled={questions.length === 1 && !q}
+                  onClick={() => removeQuestion(index)}
+                >
+                  <X size={14} aria-hidden />
+                </ActionIcon>
+              </div>
+            ))}
+            <div>
+              <Button type="button" variant="outline" size="sm" onClick={addQuestion}>
+                <Plus aria-hidden />
+                {t('semantic-models:define.guided.addQuestion', 'Add question')}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <Textarea
+          label={t(
+            'semantic-models:define.guided.objectsLabel',
+            'What objects do you work with? (optional)',
+          )}
+          rows={2}
+          placeholder={t(
+            'semantic-models:define.guided.objectsPlaceholder',
+            'e.g. Customer, Order, Shipment, Invoice',
+          )}
+          value={objects}
+          onChange={(e) => setObjects(e.currentTarget.value)}
+          classNames={FIELD_CLASSES}
+        />
+
+        {composedPrompt && (
+          <div className={form.box}>
+            <div className={classes.previewLabel}>
+              {t('semantic-models:define.guided.previewLabel', 'Prompt for the generator')}
+            </div>
+            <p className={classes.preview} data-testid="guided-prompt-preview">
+              {composedPrompt}
+            </p>
+          </div>
+        )}
+      </div>
     </Dialog>
   );
 }

@@ -14,19 +14,12 @@ import ImportExportDialog from '@/components/data-products/import-export-dialog'
 import { useApi } from '@/hooks/use-api';
 import { useApprovalWizardTrigger } from '@/hooks/use-approval-wizard-trigger';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Pencil, Trash2, AlertCircle, Sparkles, CopyPlus, ArrowLeft, Package, KeyRound, Plus, FileText, Download, Bell, BellOff, Users, ShieldCheck, Globe } from 'lucide-react';
-import {
-  DetailHeaderSkeleton,
-  PanelSkeleton,
-  SkeletonLine,
-  TableSkeleton,
-} from '@/components/common/list-view-skeleton';
+import { Loader2, Pencil, Trash2, AlertCircle, Sparkles, CopyPlus, ArrowLeft, KeyRound, Plus, FileText, Download, Bell, BellOff, ShieldCheck, Globe } from 'lucide-react';
+import { Alert } from '@mantine/core';
+import { DetailViewSkeleton } from '@/components/common/list-view-skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import TagChip from '@/components/ui/tag-chip';
 import { useToast } from '@/hooks/use-toast';
-import { Label } from '@/components/ui/label';
 import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
 import { usePermissions } from '@/stores/permissions-store';
 import { useUserStore } from '@/stores/user-store';
@@ -58,7 +51,6 @@ import { BusinessLineageView } from '@/components/lineage';
 import { MaturityInline } from '@/components/common/maturity-inline';
 import { LineageEditor } from '@/components/common/lineage-editor';
 import { useCopilotContext } from '@/hooks/use-copilot-context';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { QualitySummary } from '@/types/quality';
 import CertificationBadge from '@/components/common/certification-badge';
 import PublicationScopeBadge from '@/components/common/publication-scope-badge';
@@ -66,6 +58,9 @@ import { DirectCertifyDialog, DirectPublishDialog } from '@/components/common/di
 import type { CertificationLevel, PublicationScope } from '@/types/lifecycle';
 import { userHasApprovalPrivilege } from '@/lib/permissions';
 import { ApprovalEntity } from '@/types/settings';
+import { DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
+import classes from './data-product-details.module.css';
+import common from '@/components/common/detail-page.module.css';
 
 /**
  * ODPS v1.0.0 Data Product Details View
@@ -78,6 +73,13 @@ type ViewMode = 'minimal' | 'medium' | 'large'
 const VIEW_MODE_STORAGE_KEY = 'data-product-view-mode'
 
 const VIEW_MODES: ReadonlyArray<ViewMode> = ['minimal', 'medium', 'large'];
+
+// The view-size buttons: S, M and L, each with its tooltip
+const VIEW_MODE_BUTTONS = [
+  { mode: 'minimal', label: 'S', tooltip: 'common:tooltips.smallView' },
+  { mode: 'medium', label: 'M', tooltip: 'common:tooltips.mediumView' },
+  { mode: 'large', label: 'L', tooltip: 'common:tooltips.largeView' },
+] as const satisfies ReadonlyArray<{ mode: ViewMode; label: string; tooltip: string }>;
 
 /**
  * Parse a value retrieved from `localStorage[VIEW_MODE_STORAGE_KEY]`. Returns
@@ -293,6 +295,10 @@ export function buildLinkAssetRequestBody(
   };
 }
 
+/** Label / value rows, leaving out the empty ones. */
+const rowsOf = (rows: (DetailsRow | false | null | undefined | '')[]): DetailsRow[] =>
+  rows.filter((r): r is DetailsRow => !!r);
+
 type CheckApiResponseFn = <T>(
   response: { data?: T | { detail?: string }, error?: string | null | undefined },
   name: string
@@ -390,14 +396,14 @@ function PortLinkedAssets({ portId, portName, canEdit }: { portId: string; portN
   const linkedAssets = relationships.filter(r => r.source_id === portId);
 
   return (
-    <div className="mt-2 space-y-1">
+    <div className={classes.assets}>
       {linkedAssets.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className={classes.chips}>
           {linkedAssets.map((rel) => (
             <Badge
               key={rel.id}
               variant="outline"
-              className="text-xs cursor-pointer hover:bg-accent group"
+              className={classes.assetBadge}
               onClick={() => {
                 if (rel.target_type && rel.target_id) {
                   navigate(`/assets/${rel.target_id}`);
@@ -407,7 +413,10 @@ function PortLinkedAssets({ portId, portName, canEdit }: { portId: string; portN
               {rel.target_name || rel.target_id}
               {canEdit && (
                 <button
-                  className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  type="button"
+                  className={classes.unlink}
+                  aria-label={t('data-products:details.deliverables.unlinkAsset', { name: rel.target_name || rel.target_id })}
+                  title={t('data-products:details.deliverables.unlinkAsset', { name: rel.target_name || rel.target_id })}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleUnlinkAsset(rel.id);
@@ -425,10 +434,10 @@ function PortLinkedAssets({ portId, portName, canEdit }: { portId: string; portN
           <Button
             size="sm"
             variant="ghost"
-            className="text-xs h-7 text-muted-foreground"
+            className={classes.inlineAction}
             onClick={() => setIsAssetSelectorOpen(true)}
           >
-            <Plus className="mr-1 h-3 w-3" />
+            <Plus />
             Link Asset
           </Button>
           <AssetSelector
@@ -447,7 +456,7 @@ function PortLinkedAssets({ portId, portName, canEdit }: { portId: string; portN
 }
 
 export default function DataProductDetails() {
-  const { t } = useTranslation(['data-products', 'common']);
+  const { t } = useTranslation(['data-products', 'common', 'business-owners', 'metadata']);
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -532,6 +541,15 @@ export default function DataProductDetails() {
   const canRead = !permissionsLoading && hasPermission(featureId, Settings.FeatureAccessLevel.READ_ONLY);
   const canWrite = !permissionsLoading && hasPermission(featureId, Settings.FeatureAccessLevel.READ_WRITE);
   const canAdmin = !permissionsLoading && hasPermission(featureId, Settings.FeatureAccessLevel.ADMIN);
+  // The notes, costs and quality routes check data-domains; concept links check semantic-models
+  const canWriteDomains = !permissionsLoading && hasPermission('data-domains', Settings.FeatureAccessLevel.READ_WRITE);
+  const canWriteSemantic = !permissionsLoading && hasPermission('semantic-models', Settings.FeatureAccessLevel.READ_WRITE);
+  // The owner routes check business-owners (R66)
+  const canWriteOwners = !permissionsLoading && hasPermission('business-owners', Settings.FeatureAccessLevel.READ_WRITE);
+  // Revoke and Approve/Deny check access-grants; Related Entities and the lineage editor check entity_relationships
+  const canWriteGrants = !permissionsLoading && hasPermission('access-grants', Settings.FeatureAccessLevel.READ_WRITE);
+  const canWriteRelationships = !permissionsLoading && hasPermission('entity_relationships', Settings.FeatureAccessLevel.READ_WRITE);
+  const canEditPanels = canWrite && canWriteDomains;
 
   const canApproveProductLifecycle = userHasApprovalPrivilege(
     ApprovalEntity.PRODUCTS,
@@ -1329,49 +1347,34 @@ export default function DataProductDetails() {
   const shouldShowSection = (section: string): boolean =>
     shouldShowSectionForViewMode(viewMode, section);
 
+  const backButton = (
+    <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
+      <ArrowLeft />
+      {t('data-products:details.backToList')}
+    </Button>
+  );
+
   if (loading || permissionsLoading) {
     return (
-      <div className="py-6 space-y-6">
-        <DetailHeaderSkeleton actionButtons={6} leftControls={2} />
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <SkeletonLine height="h-9" width="w-9" className="rounded" />
-            <SkeletonLine height="h-8" width="w-80" />
-            <SkeletonLine height="h-5" width="w-20" />
-          </div>
-          <SkeletonLine height="h-4" width="w-2/3" />
-        </div>
-        <PanelSkeleton rows={3} rowHeight="h-12" />
-        <PanelSkeleton rows={2} rowHeight="h-10" />
-        <div className="border rounded-lg">
-          <div className="p-6 border-b">
-            <div className="flex items-center gap-2">
-              <SkeletonLine height="h-5" width="w-5" />
-              <SkeletonLine height="h-5" width="w-40" />
-            </div>
-          </div>
-          <TableSkeleton columns={5} rows={3} bordered={false} />
-        </div>
-        <PanelSkeleton rows={3} rowHeight="h-10" />
-        <PanelSkeleton rows={2} rowHeight="h-10" />
+      <div className={classes.state}>
+        <DetailViewSkeleton cards={4} actionButtons={6} />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !product) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (!product) {
-    return (
-      <Alert>
-        <AlertDescription>{t('data-products:details.notFound')}</AlertDescription>
-      </Alert>
+      <div className={classes.state}>
+        <div className={classes.stateBack}>{backButton}</div>
+        <Alert
+          color={error ? 'red' : 'gray'}
+          variant="light"
+          icon={<AlertCircle size={16} />}
+          title={error ? t('common:toast.error') : undefined}
+        >
+          {error || t('data-products:details.notFound')}
+        </Alert>
+      </div>
     );
   }
 
@@ -1381,999 +1384,766 @@ export default function DataProductDetails() {
     notAssignedLabel: t('common:states.notAssigned'),
   });
 
-  return (
-    <div className="py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate(listPath)} size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('data-products:details.backToList')}
-          </Button>
+  const none = <span className={common.muted}>—</span>;
+  const domainId = product.domain ? getDomainIdByName(domainLabel) : undefined;
+  const qualityTone = qualitySummary
+    ? qualitySummary.overall_score_percent >= 80 ? 'good' : qualitySummary.overall_score_percent >= 50 ? 'warning' : 'critical'
+    : undefined;
 
-          {/* Version Navigation — unified across contracts and products (PRD #442). */}
-          <VersionNavigator
-            entityKind="product"
-            currentEntityId={productId!}
-            currentVersion={product?.version}
-            onVersionChange={(id) => navigate(`${listPath}/${id}`)}
-          />
+  const detailRows: DetailsRow[] = [
+    {
+      label: t('data-products:details.coreMetadata.version'),
+      value: product.version ? <Badge variant="outline">{product.version}</Badge> : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.domain'),
+      value: product.domain && domainId ? (
+        <span className={classes.link} onClick={() => navigate(`/settings/data-domains/${domainId}`)}>
+          {domainLabel}
+        </span>
+      ) : product.domain ? <span className={common.muted}>{domainLabel}</span> : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.project'),
+      value: (product as any).project_id && product.project_name ? (
+        // No route shows one project, so the name is text, with the id in its title
+        <span title={`Project ID: ${(product as any).project_id}`}>{product.project_name}</span>
+      ) : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.tenant'),
+      value: product.tenant ? <span className={common.muted}>{product.tenant}</span> : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.ownerTeam'),
+      value: product.owner_team_id && product.owner_team_name ? (
+        // No route shows one team, so the name is text, with the id in its title
+        <span title={`Team ID: ${product.owner_team_id}`}>{product.owner_team_name}</span>
+      ) : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.apiVersion'),
+      value: product.apiVersion ? <Badge variant="outline">{product.apiVersion}</Badge> : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.created'),
+      value: product.created_at ? <span className={common.muted}>{formatDate(product.created_at)}</span> : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.updated'),
+      value: product.updated_at ? <span className={common.muted}>{formatDate(product.updated_at)}</span> : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.certification'),
+      value: (product.certification_level || product.inherited_certification_level) ? (
+        <CertificationBadge
+          certificationLevel={product.certification_level}
+          inheritedCertificationLevel={product.inherited_certification_level}
+          certifiedAt={product.certified_at}
+          certifiedBy={product.certified_by}
+          levels={certificationLevels}
+          size="sm"
+        />
+      ) : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.publishedLabel'),
+      value: product.publication_scope && product.publication_scope !== 'none' ? (
+        <PublicationScopeBadge
+          scope={product.publication_scope as PublicationScope}
+          publishedAt={product.published_at}
+          publishedBy={product.published_by}
+          size="sm"
+        />
+      ) : none,
+    },
+    {
+      label: t('data-products:details.coreMetadata.tags'),
+      value: (product.tags || []).length > 0 ? (
+        <span className={classes.chips}>
+          {(product.tags || []).map((tag, index) => (
+            <TagChip key={index} tag={tag} size="sm" />
+          ))}
+        </span>
+      ) : <span className={common.muted}>{t('data-products:details.coreMetadata.noTags')}</span>,
+    },
+    {
+      label: t('data-products:details.coreMetadata.linkedConcepts'),
+      value: (
+        <LinkedConceptChips
+          links={links}
+          onRemove={canModify && canWriteSemantic ? removeLink : undefined}
+          trailing={canModify && canWriteSemantic ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)}>{t('common:actions.add')}</Button> : undefined}
+        />
+      ),
+    },
+  ];
 
-          {/* View Mode Toggle */}
-          <div className="inline-flex items-stretch h-8 gap-px border rounded-md bg-background overflow-hidden">
-            <Button
-              variant={viewMode === 'minimal' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('minimal')}
-              className="h-full w-8 p-0 font-semibold text-xs rounded-none"
-              title={t('common:tooltips.smallView')}
-            >
-              S
-            </Button>
-            <Button
-              variant={viewMode === 'medium' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('medium')}
-              className="h-full w-8 p-0 font-semibold text-xs rounded-none"
-              title={t('common:tooltips.mediumView')}
-            >
-              M
-            </Button>
-            <Button
-              variant={viewMode === 'large' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('large')}
-              className="h-full w-8 p-0 font-semibold text-xs rounded-none"
-              title={t('common:tooltips.largeView')}
-            >
-              L
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm">
-            <KeyRound className="mr-2 h-4 w-4" /> {t('data-products:details.actions.requestAccess')}
-          </Button>
-          {isProductActive(product.status) && canApproveProductLifecycle && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const first = certificationLevels[0]?.level_order ?? null;
-                setSelectedCertifyLevel(first);
-                setCertifyDialogOpen(true);
-              }}
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" /> {t('data-products:details.actions.certify')}
-            </Button>
-          )}
-          {isProductActive(product.status) && canWrite && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const cur = (product.publication_scope || 'none') as PublicationScope;
-                setSelectedPublishScope(cur === 'none' ? 'organization' : cur);
-                setPublishDialogOpen(true);
-              }}
-            >
-              <Globe className="mr-2 h-4 w-4" /> {t('data-products:details.publish')}
-            </Button>
-          )}
-          <CommentSidebar
-            entityType="data_product"
-            entityId={productId!}
-            isOpen={isCommentSidebarOpen}
-            onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
-            className="h-8"
-          />
-          <Button variant="outline" onClick={handleCreateGenieSpace} disabled={!canModify} size="sm">
-            <Sparkles className="mr-2 h-4 w-4" /> {t('data-products:details.actions.createGenieSpace')}
-          </Button>
-          {/* Clone for Editing - shown when product is read-only */}
-          {isReadOnly && canWrite && (
-            <Button variant="outline" onClick={handleCloneForEditing} disabled={isCloning} size="sm">
-              {isCloning ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CopyPlus className="mr-2 h-4 w-4" />
-              )}
-              {t('data-products:details.actions.cloneForEditing')}
-            </Button>
-          )}
-          {/* Commit Draft - shown when this is a personal draft */}
-          {isPersonalDraft && canWrite && (
-            <Button variant="default" onClick={() => setIsCommitDraftDialogOpen(true)} size="sm">
-              <FileText className="mr-2 h-4 w-4" /> {t('data-products:details.actions.commitChanges')}
-            </Button>
-          )}
-          {/* Discard Draft - shown when this is a personal draft */}
-          {isPersonalDraft && canWrite && (
-            <Button variant="outline" onClick={handleDiscardDraft} disabled={isDiscarding} size="sm">
-              {isDiscarding ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
-              {t('data-products:details.actions.discardDraft')}
-            </Button>
-          )}
-          {/* New Version - only for editable products */}
-          {!isReadOnly && (
-            <Button variant="outline" onClick={handleCreateNewVersion} disabled={!canModify} size="sm">
-              <CopyPlus className="mr-2 h-4 w-4" /> {t('data-products:details.actions.newVersion')}
-            </Button>
-          )}
-          <Button variant="outline" onClick={() => setIsImportExportDialogOpen(true)} size="sm">
-            <Download className="mr-2 h-4 w-4" /> {t('data-products:details.actions.exportODPS')}
-          </Button>
-          {/* Subscribe/Unsubscribe Button */}
-          {isSubscribable && (
-            subscriptionStatus?.subscribed ? (
-              <Button
-                variant="outline"
-                onClick={handleUnsubscribe}
-                disabled={subscriptionLoading}
-                size="sm"
-              >
-                {subscriptionLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <BellOff className="mr-2 h-4 w-4" />
-                )}
-                {t('data-products:details.unsubscribe')}
-              </Button>
-            ) : (
-              <Button
-                variant="default"
-                onClick={handleSubscribeClick}
-                disabled={subscriptionLoading}
-                size="sm"
-              >
-                {subscriptionLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Bell className="mr-2 h-4 w-4" />
-                )}
-                {t('data-products:details.subscribe')}
-              </Button>
-            )
-          )}
-          {/* Edit - only enabled for editable products */}
-          {canModify && (
-            <Button variant="outline" onClick={handleEdit} size="sm">
-              <Pencil className="mr-2 h-4 w-4" /> {t('data-products:details.edit')}
-            </Button>
-          )}
-          <Button variant="destructive" onClick={handleDelete} disabled={!canAdmin} size="sm">
-            <Trash2 className="mr-2 h-4 w-4" /> {t('data-products:details.delete')}
-          </Button>
-        </div>
+  // Contacts: the assigned owners, else the imported ODPS owners, else the owner team
+  const ownerContacts = product.team?.members?.filter(
+    (m) => m.role && ['owner', 'data owner', 'data steward', 'steward'].includes(m.role.toLowerCase())
+  );
+  const contactSource = sidebarOwners.length > 0
+    ? 'owners'
+    : (ownerContacts && ownerContacts.length > 0)
+      ? 'imported'
+      : product.owner_team_name
+        ? 'team_only'
+        : 'none';
+  const initialsOf = (text: string, split: RegExp = /[\s.@]+/) =>
+    text.split(split).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
+  const contact = (key: string | number, initials: string, name: string, role: string) => (
+    <div key={key} className={classes.contact}>
+      <span className={classes.initials} aria-hidden>{initials}</span>
+      <div className={classes.contactText}>
+        <span className={classes.contactName} title={name}>{name}</span>
+        <span className={common.muted}>{role}</span>
       </div>
+    </div>
+  );
 
-      {/* Personal Draft Banner */}
-      {isPersonalDraft && (
-        <Alert className="bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-800">
-          <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <AlertDescription className="text-blue-800 dark:text-blue-200">
-            <strong>{t('data-products:details.banners.personalDraftTitle')}</strong> - {t('data-products:details.banners.personalDraftMessage')}
-          </AlertDescription>
-        </Alert>
-      )}
+  /** A row's icon-only edit and delete buttons, named for their action. */
+  const rowActions = (onEdit: () => void, onDelete: () => void, editTitle?: string, deleteTitle?: string) => (
+    <div className={classes.itemActions}>
+      <Button
+        size="icon"
+        variant="ghost"
+        className={common.iconButton}
+        onClick={onEdit}
+        title={editTitle}
+        aria-label={editTitle ? undefined : t('common:actions.edit')}
+      >
+        <Pencil />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className={`${common.iconButton} ${common.danger}`}
+        onClick={onDelete}
+        title={deleteTitle}
+        aria-label={deleteTitle ? undefined : t('common:actions.delete')}
+      >
+        <Trash2 />
+      </Button>
+    </div>
+  );
 
-      {/* Read-Only Banner */}
-      {isReadOnly && (
-        <Alert className="bg-yellow-50 border-yellow-300 dark:bg-yellow-950 dark:border-yellow-800">
-          <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-            <strong>{t('data-products:details.banners.readOnlyTitle')}</strong> - {t('data-products:details.banners.readOnlyMessage', { status: product?.status?.toLowerCase() })}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Basic Info + Contacts sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
-        {/* Basic Info Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <CardTitle className="text-2xl font-bold flex items-center">
-                  <Package className="mr-3 h-7 w-7 text-primary shrink-0" />
-                  <span className="truncate">{product.name || t('data-products:details.unnamedProduct')}</span>
-                </CardTitle>
-                <CardDescription className="pt-1">
-                  {product.description?.purpose || t('data-products:details.noDescription')}
-                </CardDescription>
-              </div>
-              <div className="flex items-end gap-5 shrink-0">
-                <div className="flex flex-col items-center gap-1">
-                  <Badge variant={getStatusColor(product.status)}>
-                    {product.status || '—'}
-                  </Badge>
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('data-products:details.coreMetadata.status')}</span>
-                </div>
-                {qualitySummary && qualitySummary.items_count > 0 && (
-                  <div className="flex flex-col items-center gap-1">
-                    <span
-                      className="text-2xl font-semibold leading-none"
-                      style={{
-                        color:
-                          qualitySummary.overall_score_percent >= 80
-                            ? '#22c55e'
-                            : qualitySummary.overall_score_percent >= 50
-                              ? '#eab308'
-                              : '#ef4444',
+  return (
+    <>
+      <PageLayout
+        header={
+          <>
+            <PageHeader
+              title={product.name || t('data-products:details.unnamedProduct')}
+              badges={
+                <>
+                  <Badge variant={getStatusColor(product.status)}>{product.status || '—'}</Badge>
+                  {qualitySummary && qualitySummary.items_count > 0 && (
+                    <span className={classes.metric}>
+                      <span className={classes.metricLabel}>{t('data-products:details.coreMetadata.quality')}</span>
+                      <span className={classes.score} data-tone={qualityTone}>
+                        {Math.round(qualitySummary.overall_score_percent)}%
+                      </span>
+                    </span>
+                  )}
+                  {productId && <MaturityInline entityType="DataProduct" entityId={productId} compact />}
+                </>
+              }
+              wrapActions
+              actions={
+                <>
+                  {backButton}
+                  <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm">
+                    <KeyRound /> {t('data-products:details.actions.requestAccess')}
+                  </Button>
+                  {isProductActive(product.status) && canApproveProductLifecycle && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const first = certificationLevels[0]?.level_order ?? null;
+                        setSelectedCertifyLevel(first);
+                        setCertifyDialogOpen(true);
                       }}
                     >
-                      {Math.round(qualitySummary.overall_score_percent)}%
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('data-products:details.coreMetadata.quality')}</span>
-                  </div>
-                )}
-                {productId && (
-                  <MaturityInline entityType="DataProduct" entityId={productId} compact />
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid md:grid-cols-3 gap-x-6 gap-y-2">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.version')}:</Label>
-                {product.version ? (
-                  <Badge variant="outline" className="text-xs">{product.version}</Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.domain')}:</Label>
-                {product.domain && getDomainIdByName(domainLabel) ? (
-                  <span
-                    className="text-xs cursor-pointer text-primary hover:underline truncate"
-                    onClick={() => navigate(`/settings/data-domains/${getDomainIdByName(domainLabel)}`)}
-                  >
-                    {domainLabel}
-                  </span>
-                ) : product.domain ? (
-                  <span className="text-xs text-muted-foreground truncate">{domainLabel}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.project')}:</Label>
-                {(product as any).project_id && product.project_name ? (
-                  <span
-                    className="text-xs cursor-pointer text-primary hover:underline truncate"
-                    onClick={() => navigate(`/projects/${(product as any).project_id}`)}
-                    title={`Project ID: ${(product as any).project_id}`}
-                  >
-                    {product.project_name}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.tenant')}:</Label>
-                {product.tenant ? (
-                  <span className="text-xs text-muted-foreground truncate">{product.tenant}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.ownerTeam')}:</Label>
-                {product.owner_team_id && product.owner_team_name ? (
-                  <span
-                    className="text-xs cursor-pointer text-primary hover:underline truncate"
-                    onClick={() => navigate(`/teams/${product.owner_team_id}`)}
-                    title={`Team ID: ${product.owner_team_id}`}
-                  >
-                    {product.owner_team_name}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.apiVersion')}:</Label>
-                {product.apiVersion ? (
-                  <Badge variant="outline" className="text-xs">{product.apiVersion}</Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.created')}:</Label>
-                {product.created_at ? (
-                  <span className="text-xs text-muted-foreground truncate">{formatDate(product.created_at)}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.updated')}:</Label>
-                {product.updated_at ? (
-                  <span className="text-xs text-muted-foreground truncate">{formatDate(product.updated_at)}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.certification')}:</Label>
-                {(product.certification_level || product.inherited_certification_level) ? (
-                  <CertificationBadge
-                    certificationLevel={product.certification_level}
-                    inheritedCertificationLevel={product.inherited_certification_level}
-                    certifiedAt={product.certified_at}
-                    certifiedBy={product.certified_by}
-                    levels={certificationLevels}
-                    size="sm"
+                      <ShieldCheck /> {t('data-products:details.actions.certify')}
+                    </Button>
+                  )}
+                  {isProductActive(product.status) && canWrite && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = (product.publication_scope || 'none') as PublicationScope;
+                        setSelectedPublishScope(cur === 'none' ? 'organization' : cur);
+                        setPublishDialogOpen(true);
+                      }}
+                    >
+                      <Globe /> {t('data-products:details.publish')}
+                    </Button>
+                  )}
+                  <CommentSidebar
+                    entityType="data_product"
+                    entityId={productId!}
+                    isOpen={isCommentSidebarOpen}
+                    onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
                   />
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground min-w-[4rem]">{t('data-products:details.coreMetadata.publishedLabel')}:</Label>
-                {product.publication_scope && product.publication_scope !== 'none' ? (
-                  <PublicationScopeBadge
-                    scope={product.publication_scope as PublicationScope}
-                    publishedAt={product.published_at}
-                    publishedBy={product.published_by}
-                    size="sm"
-                  />
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground mb-1.5 block">{t('data-products:details.coreMetadata.tags')}:</Label>
-                  <div className="flex flex-wrap gap-1">
-                    {(product.tags || []).length > 0 ? (
-                      (product.tags || []).map((tag, index) => (
-                        <TagChip key={index} tag={tag} size="sm" />
-                      ))
+                  <Button variant="outline" onClick={handleCreateGenieSpace} disabled={!canModify} size="sm">
+                    <Sparkles /> {t('data-products:details.actions.createGenieSpace')}
+                  </Button>
+                  {/* Clone for Editing - shown when product is read-only */}
+                  {isReadOnly && canWrite && (
+                    <Button variant="outline" onClick={handleCloneForEditing} disabled={isCloning} size="sm">
+                      {isCloning ? <Loader2 className={common.spin} /> : <CopyPlus />}
+                      {t('data-products:details.actions.cloneForEditing')}
+                    </Button>
+                  )}
+                  {/* Commit Draft - shown when this is a personal draft */}
+                  {isPersonalDraft && canWrite && (
+                    <Button variant="default" onClick={() => setIsCommitDraftDialogOpen(true)} size="sm">
+                      <FileText /> {t('data-products:details.actions.commitChanges')}
+                    </Button>
+                  )}
+                  {/* Discard Draft - shown when this is a personal draft */}
+                  {isPersonalDraft && canWrite && (
+                    <Button variant="outline" onClick={handleDiscardDraft} disabled={isDiscarding} size="sm">
+                      {isDiscarding ? <Loader2 className={common.spin} /> : <Trash2 />}
+                      {t('data-products:details.actions.discardDraft')}
+                    </Button>
+                  )}
+                  {/* New Version - only for editable products */}
+                  {!isReadOnly && (
+                    <Button variant="outline" onClick={handleCreateNewVersion} disabled={!canModify} size="sm">
+                      <CopyPlus /> {t('data-products:details.actions.newVersion')}
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setIsImportExportDialogOpen(true)} size="sm">
+                    <Download /> {t('data-products:details.actions.exportODPS')}
+                  </Button>
+                  {/* Subscribe/Unsubscribe Button */}
+                  {isSubscribable && (
+                    subscriptionStatus?.subscribed ? (
+                      <Button variant="outline" onClick={handleUnsubscribe} disabled={subscriptionLoading} size="sm">
+                        {subscriptionLoading ? <Loader2 className={common.spin} /> : <BellOff />}
+                        {t('data-products:details.unsubscribe')}
+                      </Button>
                     ) : (
-                      <span className="text-xs text-muted-foreground">{t('data-products:details.coreMetadata.noTags')}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground mb-1.5 block">{t('data-products:details.coreMetadata.linkedConcepts')}:</Label>
-                  <LinkedConceptChips
-                    links={links}
-                    onRemove={canModify ? removeLink : undefined}
-                    trailing={canModify ? <Button size="sm" variant="outline" onClick={() => setIriDialogOpen(true)} className="h-6 text-xs">{t('common:actions.add')}</Button> : undefined}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sidebar: Contacts only */}
-        <div className="space-y-4">
-          {/* Contacts */}
-          {(() => {
-            // Determine contact source for fallback indicator
-            const ownerContacts = product.team?.members?.filter(
-              (m) => m.role && ['owner', 'data owner', 'data steward', 'steward'].includes(m.role.toLowerCase())
-            );
-            const contactSource = sidebarOwners.length > 0
-              ? 'owners'
-              : (ownerContacts && ownerContacts.length > 0)
-                ? 'imported'
-                : product.owner_team_name
-                  ? 'team_only'
-                  : 'none';
-
-            return (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">{t('data-products:details.contacts.title')}</CardTitle>
-                  {contactSource === 'imported' && (
-                    <p className="text-[11px] text-muted-foreground italic">{t('data-products:details.contacts.fromImportedData')}</p>
+                      <Button variant="default" onClick={handleSubscribeClick} disabled={subscriptionLoading} size="sm">
+                        {subscriptionLoading ? <Loader2 className={common.spin} /> : <Bell />}
+                        {t('data-products:details.subscribe')}
+                      </Button>
+                    )
                   )}
-                  {contactSource === 'team_only' && (
-                    <p className="text-[11px] text-muted-foreground italic">{t('data-products:details.contacts.teamAssignmentOnly')}</p>
+                  {/* Edit - only enabled for editable products */}
+                  {canModify && (
+                    <Button variant="outline" onClick={handleEdit} size="sm">
+                      <Pencil /> {t('data-products:details.edit')}
+                    </Button>
                   )}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {contactSource === 'owners' && sidebarOwners.map((owner, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {(owner.user_name || owner.user_email || '?')
-                            .split(/[\s.@]+/)
-                            .filter(Boolean)
-                            .slice(0, 2)
-                            .map((p) => p[0].toUpperCase())
-                            .join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{owner.user_name || owner.user_email}</div>
-                        <div className="text-xs text-muted-foreground">{owner.role_name || t('data-products:details.contacts.defaultRole')}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {contactSource === 'imported' && ownerContacts!.map((member, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {(member.name || member.username || '?')
-                            .split(/[\s.@]+/)
-                            .filter(Boolean)
-                            .slice(0, 2)
-                            .map((p) => p[0].toUpperCase())
-                            .join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{member.name || member.username}</div>
-                        <div className="text-xs text-muted-foreground">{member.role}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {contactSource === 'team_only' && (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {product.owner_team_name!.split(/\s+/).slice(0, 2).map((p) => p[0].toUpperCase()).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{product.owner_team_name}</div>
-                        <div className="text-xs text-muted-foreground">{t('data-products:details.contacts.teamRole')}</div>
-                      </div>
-                    </div>
-                  )}
-                  {contactSource === 'none' && (
-                    <span className="text-xs text-muted-foreground">{t('data-products:details.contacts.noContactsAssigned')}</span>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })()}
-        </div>
-      </div>
+                  <Button variant="outline" className={common.danger} onClick={handleDelete} disabled={!canAdmin} size="sm">
+                    <Trash2 /> {t('data-products:details.delete')}
+                  </Button>
+                </>
+              }
+            />
+            <p className={classes.description}>
+              {product.description?.purpose || t('data-products:details.noDescription')}
+            </p>
+          </>
+        }
+      >
+        <div className={classes.body}>
+          {/* Personal Draft Banner */}
+          {isPersonalDraft && (
+            <Alert color="blue" variant="light" icon={<AlertCircle size={16} />} className={classes.banner}>
+              <strong>{t('data-products:details.banners.personalDraftTitle')}</strong> - {t('data-products:details.banners.personalDraftMessage')}
+            </Alert>
+          )}
 
-      {/* Deliverables (Output Ports) – primary composition surface */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{t('data-products:details.deliverables.titleWithCount', { count: product.outputPorts?.length || 0 })}</span>
-            {canModify && <Button size="sm" onClick={() => setIsOutputPortDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />{t('data-products:details.deliverables.addDeliverable')}</Button>}
-          </CardTitle>
-          <CardDescription>
-            {t('data-products:details.deliverables.subtitle')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {product.outputPorts && product.outputPorts.length > 0 ? (
-            <div className="space-y-3">
-              {product.outputPorts.map((port, idx) => (
-                <div key={port.id || idx} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">{port.name}</span>
-                        <Badge variant="outline" className="text-xs">v{port.version}</Badge>
-                        {port.deliveryMethodName && (
-                          <Badge variant="secondary" className="text-xs">{port.deliveryMethodName}</Badge>
-                        )}
-                        {port.status && (
-                          <Badge variant="outline" className="text-xs">{port.status}</Badge>
-                        )}
-                        {port.containsPii && (
-                          <Badge variant="destructive" className="text-xs">PII</Badge>
-                        )}
-                      </div>
-                      {port.description && <p className="text-sm text-muted-foreground">{port.description}</p>}
-                      {port.contractId ? (
-                        <div className="flex items-center gap-2">
-                          {/* Only render as a navigable link when the backend resolved
-                              the id to a contract (contractName is set); otherwise the
-                              id is dangling and the link would 404 (#854 review). */}
-                          {port.contractName ? (
-                            <Badge
-                              variant="secondary"
-                              className="cursor-pointer hover:bg-secondary/80"
-                              onClick={() => navigate(`/data-contracts/${port.contractId}`)}
-                            >
-                              Contract: {port.contractName}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground" title={t('data-products:details.contractDangling', 'Contract no longer exists')}>
-                              Contract: {port.contractId}
-                            </Badge>
-                          )}
-                          {canModify && (
-                            <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => handleUnlinkContract(idx)} title={t('common:tooltips.unlinkContract')}>
-                              <Unlink className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      ) : canModify && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-xs text-muted-foreground h-7"
-                          onClick={() => handleLinkContract(idx)}
-                        >
-                          <Link2 className="mr-1 h-3 w-3" />
-                          {t('common:tooltips.linkContract')}
-                        </Button>
-                      )}
+          {/* Read-Only Banner */}
+          {isReadOnly && (
+            <Alert color="yellow" variant="light" icon={<AlertCircle size={16} />} className={classes.banner}>
+              <strong>{t('data-products:details.banners.readOnlyTitle')}</strong> - {t('data-products:details.banners.readOnlyMessage', { status: product?.status?.toLowerCase() })}
+            </Alert>
+          )}
 
-                      {/* Per-port linked assets */}
-                      {port.id && (
-                        <PortLinkedAssets
-                          portId={port.id}
-                          portName={port.name}
-                          canEdit={canModify}
-                        />
-                      )}
-                    </div>
-                    {canModify && (
-                      <div className="flex gap-1 ml-3 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingOutputPortIndex(idx);
-                            setIsOutputPortDialogOpen(true);
-                          }}
-                          title={t('data-products:details.deliverables.editTitle')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteOutputPort(idx)}
-                          className="text-destructive hover:text-destructive"
-                          title={t('data-products:details.deliverables.deleteTitle')}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {/* The view controls, above the stack (which holds only panes) */}
+          <div className={classes.toolbar}>
+            {/* Version Navigation — unified across contracts and products (PRD #442). */}
+            <VersionNavigator
+              entityKind="product"
+              currentEntityId={productId!}
+              currentVersion={product?.version}
+              onVersionChange={(id) => navigate(`${listPath}/${id}`)}
+            />
+            {/* View Mode Toggle */}
+            <div className={classes.sizes}>
+              {VIEW_MODE_BUTTONS.map(({ mode, label, tooltip }) => (
+                <Button
+                  key={mode}
+                  size="sm"
+                  variant={viewMode === mode ? 'default' : 'outline'}
+                  className={classes.size}
+                  aria-pressed={viewMode === mode}
+                  onClick={() => setViewMode(mode)}
+                  title={t(tooltip)}
+                >
+                  {label}
+                </Button>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {canModify
-                ? t('data-products:details.deliverables.noDeliverablesWithEdit')
-                : t('data-products:details.deliverables.noDeliverables')}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          </div>
 
-      {/* ODPS Structured Description */}
-      {product.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center">
-                <FileText className="mr-2 h-5 w-5" />
-                {t('data-products:details.sections.description')}
-              </span>
-              {canModify && <Button size="sm" variant="outline" onClick={handleEdit}><Pencil className="h-4 w-4" /></Button>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {product.description.purpose && (
-              <div>
-                <Label>{t('data-products:details.description.purposeLabel')}:</Label>
-                <p className="text-sm mt-1">{product.description.purpose}</p>
-              </div>
-            )}
-            {product.description.limitations && (
-              <div>
-                <Label>{t('data-products:details.description.limitationsLabel')}:</Label>
-                <p className="text-sm mt-1">{product.description.limitations}</p>
-              </div>
-            )}
-            {product.description.usage && (
-              <div>
-                <Label>{t('data-products:details.description.usageLabel')}:</Label>
-                <p className="text-sm mt-1">{product.description.usage}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          <PaneStack>
+            <Pane title={t('common:labels.details')}>
+              <DetailsGrid rows={detailRows} />
+            </Pane>
 
-      {/* Business Lineage Graph */}
-      {shouldShowSection('lineage') && productId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <GitBranch className="h-4 w-4" />
-                {t('data-products:details.lineage.businessLineageTitle')}
-              </span>
-              {canModify && (
-                <Button size="sm" variant="outline" onClick={() => setIsLineageEditorOpen(true)}>
-                  <GitBranch className="mr-2 h-3.5 w-3.5" /> {t('data-products:details.actions.manageLineage')}
+            <Pane title={t('data-products:details.contacts.title')}>
+              {contactSource === 'imported' && (
+                <p className={classes.lead}><span className={classes.italic}>{t('data-products:details.contacts.fromImportedData')}</span></p>
+              )}
+              {contactSource === 'team_only' && (
+                <p className={classes.lead}><span className={classes.italic}>{t('data-products:details.contacts.teamAssignmentOnly')}</span></p>
+              )}
+              {contactSource === 'owners' && sidebarOwners.map((owner, idx) =>
+                contact(
+                  idx,
+                  initialsOf(owner.user_name || owner.user_email || '?'),
+                  owner.user_name || owner.user_email,
+                  owner.role_name || t('data-products:details.contacts.defaultRole'),
+                ))}
+              {contactSource === 'imported' && ownerContacts!.map((member, idx) =>
+                contact(idx, initialsOf(member.name || member.username || '?'), member.name || member.username || '', member.role || ''))}
+              {contactSource === 'team_only' &&
+                contact('team', initialsOf(product.owner_team_name!, /\s+/), product.owner_team_name!, t('data-products:details.contacts.teamRole'))}
+              {contactSource === 'none' && (
+                <p className={classes.empty}>{t('data-products:details.contacts.noContactsAssigned')}</p>
+              )}
+            </Pane>
+
+            {/* Deliverables (Output Ports) – primary composition surface */}
+            <Pane
+              title={t('data-products:details.deliverables.titleWithCount', { count: product.outputPorts?.length || 0 })}
+              actions={canModify && (
+                <Button size="sm" onClick={() => setIsOutputPortDialogOpen(true)}>
+                  <Plus />{t('data-products:details.deliverables.addDeliverable')}
                 </Button>
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BusinessLineageView
-              entityType="DataProduct"
-              entityId={productId}
-              className="h-[500px]"
-            />
-          </CardContent>
-        </Card>
-      )}
+            >
+              <p className={classes.lead}>{t('data-products:details.deliverables.subtitle')}</p>
+              {product.outputPorts && product.outputPorts.length > 0 ? (
+                <div className={classes.list}>
+                  {product.outputPorts.map((port, idx) => (
+                    <div key={port.id || idx} className={classes.item}>
+                      <div className={classes.itemMain}>
+                        <div className={classes.itemLine}>
+                          <span className={classes.itemName}>{port.name}</span>
+                          <Badge variant="outline">v{port.version}</Badge>
+                          {port.deliveryMethodName && <Badge variant="secondary">{port.deliveryMethodName}</Badge>}
+                          {port.status && <Badge variant="outline">{port.status}</Badge>}
+                          {port.containsPii && <Badge variant="destructive">PII</Badge>}
+                        </div>
+                        {port.description && <span className={common.muted}>{port.description}</span>}
+                        {port.contractId ? (
+                          <div className={classes.itemLine}>
+                            {/* Only render as a navigable link when the backend resolved
+                                the id to a contract (contractName is set); otherwise the
+                                id is dangling and the link would 404 (#854 review). */}
+                            {port.contractName ? (
+                              <Badge
+                                variant="secondary"
+                                className={classes.clickable}
+                                onClick={() => navigate(`/data-contracts/${port.contractId}`)}
+                              >
+                                Contract: {port.contractName}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" title={t('data-products:details.contractDangling', 'Contract no longer exists')}>
+                                Contract: {port.contractId}
+                              </Badge>
+                            )}
+                            {canModify && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className={common.iconButton}
+                                onClick={() => handleUnlinkContract(idx)}
+                                title={t('common:tooltips.unlinkContract')}
+                              >
+                                <Unlink />
+                              </Button>
+                            )}
+                          </div>
+                        ) : canModify && (
+                          <Button size="sm" variant="ghost" className={classes.inlineAction} onClick={() => handleLinkContract(idx)}>
+                            <Link2 />
+                            {t('common:tooltips.linkContract')}
+                          </Button>
+                        )}
 
-      {/* Consumables (Input Ports) */}
-      {shouldShowSection('consumables') && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>{t('data-products:details.consumables.titleWithCount', { count: product.inputPorts?.length || 0 })}</span>
-              {canModify && <Button size="sm" onClick={() => setIsInputPortDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />{t('data-products:details.consumables.addConsumable')}</Button>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {product.inputPorts && product.inputPorts.length > 0 ? (
-              <div className="space-y-2">
-                {product.inputPorts.map((port, idx) => (
-                  <div key={idx} className="flex items-start justify-between border rounded p-3">
-                    <div className="flex-1">
-                      <div className="font-medium">{port.name} (v{port.version})</div>
-                      {/* #854: resolve input-port contractId to a navigable name (mirrors output ports).
-                          Dangling id → no link (would 404), per #864 review. */}
-                      {port.contractId ? (
-                        port.contractName ? (
-                          <Badge
-                            variant="secondary"
-                            className="mt-1 cursor-pointer hover:bg-secondary/80"
-                            onClick={() => navigate(`/data-contracts/${port.contractId}`)}
-                          >
-                            {t('data-products:details.consumables.contractLabel', { contractId: port.contractName })}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="mt-1 text-muted-foreground" title={t('data-products:details.contractDangling', 'Contract no longer exists')}>
-                            {t('data-products:details.consumables.contractLabel', { contractId: port.contractId })}
-                          </Badge>
-                        )
-                      ) : (
-                        <div className="text-sm text-muted-foreground">{t('data-products:details.consumables.contractLabel', { contractId: port.contractId })}</div>
+                        {/* Per-port linked assets */}
+                        {port.id && <PortLinkedAssets portId={port.id} portName={port.name} canEdit={canModify} />}
+                      </div>
+                      {canModify && rowActions(
+                        () => {
+                          setEditingOutputPortIndex(idx);
+                          setIsOutputPortDialogOpen(true);
+                        },
+                        () => handleDeleteOutputPort(idx),
+                        t('data-products:details.deliverables.editTitle'),
+                        t('data-products:details.deliverables.deleteTitle'),
                       )}
                     </div>
-                    {canModify && (
-                      <div className="flex gap-2 ml-3">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
+                  ))}
+                </div>
+              ) : (
+                <p className={classes.empty}>
+                  {canModify
+                    ? t('data-products:details.deliverables.noDeliverablesWithEdit')
+                    : t('data-products:details.deliverables.noDeliverables')}
+                </p>
+              )}
+            </Pane>
+
+            {/* ODPS Structured Description */}
+            {product.description && (
+              <Pane
+                title={t('data-products:details.sections.description')}
+                actions={canModify && (
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className={common.iconButton}
+                    onClick={handleEdit}
+                    aria-label={t('data-products:details.editDescription')}
+                    title={t('data-products:details.editDescription')}
+                  >
+                    <Pencil />
+                  </Button>
+                )}
+              >
+                <DetailsGrid
+                  rows={rowsOf([
+                    product.description.purpose && {
+                      label: t('data-products:details.description.purposeLabel'),
+                      value: <span className={classes.prose}>{product.description.purpose}</span>,
+                    },
+                    product.description.limitations && {
+                      label: t('data-products:details.description.limitationsLabel'),
+                      value: <span className={classes.prose}>{product.description.limitations}</span>,
+                    },
+                    product.description.usage && {
+                      label: t('data-products:details.description.usageLabel'),
+                      value: <span className={classes.prose}>{product.description.usage}</span>,
+                    },
+                  ])}
+                />
+              </Pane>
+            )}
+
+            {/* Business Lineage Graph */}
+            {shouldShowSection('lineage') && productId && (
+              <Pane
+                flush
+                title={t('data-products:details.lineage.businessLineageTitle')}
+                actions={canModify && canWriteRelationships && (
+                  <Button size="sm" variant="outline" onClick={() => setIsLineageEditorOpen(true)}>
+                    <GitBranch /> {t('data-products:details.actions.manageLineage')}
+                  </Button>
+                )}
+              >
+                <BusinessLineageView entityType="DataProduct" entityId={productId} className={classes.graph} bare />
+              </Pane>
+            )}
+
+            {/* Consumables (Input Ports) */}
+            {shouldShowSection('consumables') && (
+              <Pane
+                title={t('data-products:details.consumables.titleWithCount', { count: product.inputPorts?.length || 0 })}
+                actions={canModify && (
+                  <Button size="sm" onClick={() => setIsInputPortDialogOpen(true)}>
+                    <Plus />{t('data-products:details.consumables.addConsumable')}
+                  </Button>
+                )}
+              >
+                {product.inputPorts && product.inputPorts.length > 0 ? (
+                  <div className={classes.list}>
+                    {product.inputPorts.map((port, idx) => (
+                      <div key={idx} className={classes.item}>
+                        <div className={classes.itemMain}>
+                          <span className={classes.itemName}>{port.name} (v{port.version})</span>
+                          {/* #854: resolve input-port contractId to a navigable name (mirrors output ports).
+                              Dangling id → no link (would 404), per #864 review. */}
+                          {port.contractId ? (
+                            port.contractName ? (
+                              <span className={classes.itemLine}>
+                                <Badge
+                                  variant="secondary"
+                                  className={classes.clickable}
+                                  onClick={() => navigate(`/data-contracts/${port.contractId}`)}
+                                >
+                                  {t('data-products:details.consumables.contractLabel', { contractId: port.contractName })}
+                                </Badge>
+                              </span>
+                            ) : (
+                              <span className={classes.itemLine}>
+                                <Badge variant="outline" title={t('data-products:details.contractDangling', 'Contract no longer exists')}>
+                                  {t('data-products:details.consumables.contractLabel', { contractId: port.contractId })}
+                                </Badge>
+                              </span>
+                            )
+                          ) : (
+                            <span className={common.muted}>{t('data-products:details.consumables.contractLabel', { contractId: port.contractId })}</span>
+                          )}
+                        </div>
+                        {canModify && rowActions(
+                          () => {
                             setEditingInputPortIndex(idx);
                             setIsInputPortDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteInputPort(idx)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t('data-products:details.consumables.noConsumables')}</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Management Ports Section (NEW in ODPS v1.0.0) */}
-      {shouldShowSection('management-ports') && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{t('data-products:details.managementPorts.titleWithCount', { count: product.managementPorts?.length || 0 })}</span>
-            {canModify && <Button size="sm" onClick={() => setIsManagementPortDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />{t('data-products:details.managementPorts.addManagementPort')}</Button>}
-          </CardTitle>
-          <CardDescription>{t('data-products:details.managementPorts.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {product.managementPorts && product.managementPorts.length > 0 ? (
-            <div className="space-y-2">
-              {product.managementPorts.map((port, idx) => (
-                <div key={idx} className="flex items-start justify-between border rounded p-3">
-                  <div className="flex-1">
-                    <div className="font-medium">{port.name}</div>
-                    <div className="text-sm">{t('data-products:details.managementPorts.contentLabel')}: {port.content}</div>
-                    {port.url && <div className="text-sm text-muted-foreground">{t('data-products:details.managementPorts.urlLabel')}: {port.url}</div>}
-                  </div>
-                  {canModify && (
-                    <div className="flex gap-2 ml-3">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingManagementPortIndex(idx);
-                          setIsManagementPortDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteManagementPort(idx)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t('data-products:details.managementPorts.noManagementPorts')}</p>
-          )}
-        </CardContent>
-      </Card>
-      )}
-
-      {/* ODPS Team Metadata (read-only provenance) */}
-      {shouldShowSection('team') && product.team?.members && product.team.members.length > 0 && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{t('data-products:details.teamMetadata.titleWithCount', { count: product.team.members.length })}</span>
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">{t('data-products:details.teamMetadata.subtitle')}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {product.team.members.map((member, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-3 border rounded-lg">
-                <Badge variant="outline">{member.role || t('data-products:details.teamMetadata.defaultRole')}</Badge>
-                <span className="text-sm">{member.name || member.username}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      )}
-
-      {/* Support Channels */}
-      {shouldShowSection('support-channels') && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{t('data-products:details.supportChannels.titleWithCount', { count: product.support?.length || 0 })}</span>
-            {canModify && <Button size="sm" onClick={() => setIsSupportChannelDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />{t('data-products:details.supportChannels.addChannel')}</Button>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {product.support && product.support.length > 0 ? (
-            <div className="space-y-2">
-              {product.support.map((channel, idx) => (
-                <div key={idx} className="flex items-start justify-between border rounded p-3">
-                  <div className="flex-1">
-                    <div className="font-medium">{channel.channel}</div>
-                    <div className="text-sm">{t('data-products:details.managementPorts.urlLabel')}: <a href={channel.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{channel.url}</a></div>
-                    {channel.tool && <div className="text-sm text-muted-foreground">{t('data-products:details.supportChannels.toolLabel')}: {channel.tool}</div>}
-                  </div>
-                  {canModify && (
-                    <div className="flex gap-2 ml-3">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingSupportChannelIndex(idx);
-                          setIsSupportChannelDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteSupportChannel(idx)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t('data-products:details.supportChannels.noChannels')}</p>
-          )}
-        </CardContent>
-      </Card>
-      )}
-
-      {/* Authoritative Definitions (read-only provenance from imported product YAML).
-          Large-view only, mirroring the contract detail view. */}
-      {shouldShowSection('authoritative-definitions') && product.authoritativeDefinitions && product.authoritativeDefinitions.length > 0 && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Authoritative Definitions ({product.authoritativeDefinitions.length})</span>
-          </CardTitle>
-          <CardDescription>ODPS authoritative sources for this product</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {product.authoritativeDefinitions.map((def, idx) => (
-              <div key={idx} className="border rounded p-3">
-                <Badge variant="outline">{def.type}</Badge>
-                <div className="text-sm mt-1">
-                  <a href={def.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{def.url}</a>
-                </div>
-                {def.description && <div className="text-sm text-muted-foreground mt-1">{def.description}</div>}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      )}
-
-      {/* Custom Properties (read-only provenance from imported product YAML).
-          Large-view only, mirroring the contract detail view. The ODPS API
-          returns customProperties as an array of {property, value}; null values
-          may arrive as the literal string "null" from the importer, so treat
-          both null and "null" as empty. */}
-      {shouldShowSection('custom-properties') && product.customProperties && product.customProperties.length > 0 && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Custom Properties ({product.customProperties.length})</span>
-          </CardTitle>
-          <CardDescription>Additional metadata from the imported product profile</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {product.customProperties.map((prop, idx) => {
-              const v = prop.value;
-              const isEmpty = v === null || v === undefined || v === '' || v === 'null';
-              const display = isEmpty ? null : (typeof v === 'object' ? JSON.stringify(v) : String(v));
-              return (
-                <div key={idx} className="flex items-start justify-between gap-3 border rounded p-3">
-                  <div className="font-medium text-sm break-all">{prop.property}</div>
-                  {isEmpty
-                    ? <span className="text-sm text-muted-foreground italic">null</span>
-                    : <span className="text-sm font-mono break-all text-right">{display}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-      )}
-
-      {/* Subscribers Section (only visible to owners/admins) */}
-      {shouldShowSection('subscribers') && (canWrite || canAdmin) && subscribers && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              <span>{t('data-products:details.subscribers.titleWithCount', { count: subscribers.subscriber_count })}</span>
-            </CardTitle>
-            <CardDescription>
-              {t('data-products:details.subscribers.notificationSubtitle')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {subscribers.subscribers.length > 0 ? (
-              <div className="space-y-2">
-                {subscribers.subscribers.map((subscriber, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Bell className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <span className="text-sm font-medium">{subscriber.email}</span>
-                        {subscriber.reason && (
-                          <p className="text-xs text-muted-foreground">{subscriber.reason}</p>
+                          },
+                          () => handleDeleteInputPort(idx),
                         )}
                       </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(subscriber.subscribed_at)}
-                    </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t('data-products:details.subscribers.noSubscribers')}</p>
+                ) : (
+                  <p className={classes.empty}>{t('data-products:details.consumables.noConsumables')}</p>
+                )}
+              </Pane>
             )}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Access Grants Panel */}
-      {shouldShowSection('access-grants') && productId && (
-        <AccessGrantsPanel
-          entityType="data_product"
-          entityId={productId}
-          canManage={canModify}
-          showPendingRequests={canModify}
-        />
-      )}
+            {/* Management Ports Section (NEW in ODPS v1.0.0) */}
+            {shouldShowSection('management-ports') && (
+              <Pane
+                title={t('data-products:details.managementPorts.titleWithCount', { count: product.managementPorts?.length || 0 })}
+                actions={canModify && (
+                  <Button size="sm" onClick={() => setIsManagementPortDialogOpen(true)}>
+                    <Plus />{t('data-products:details.managementPorts.addManagementPort')}
+                  </Button>
+                )}
+              >
+                <p className={classes.lead}>{t('data-products:details.managementPorts.subtitle')}</p>
+                {product.managementPorts && product.managementPorts.length > 0 ? (
+                  <div className={classes.list}>
+                    {product.managementPorts.map((port, idx) => (
+                      <div key={idx} className={classes.item}>
+                        <div className={classes.itemMain}>
+                          <span className={classes.itemName}>{port.name}</span>
+                          <span>{t('data-products:details.managementPorts.contentLabel')}: {port.content}</span>
+                          {port.url && <span className={common.muted}>{t('data-products:details.managementPorts.urlLabel')}: {port.url}</span>}
+                        </div>
+                        {canModify && rowActions(
+                          () => {
+                            setEditingManagementPortIndex(idx);
+                            setIsManagementPortDialogOpen(true);
+                          },
+                          () => handleDeleteManagementPort(idx),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={classes.empty}>{t('data-products:details.managementPorts.noManagementPorts')}</p>
+                )}
+              </Pane>
+            )}
 
-      {/* Ownership Panel (with imported ODPS contacts) */}
-      {shouldShowSection('ownership') && (
-        <OwnershipPanel
-          objectType="data_product"
-          objectId={productId!}
-          canAssign={canModify}
-          className="mb-6"
-          importedContacts={product.team?.members?.map((m) => ({
-            username: m.username,
-            name: m.name,
-            role: m.role,
-            description: m.description,
-          }))}
-          importedContactsLabel={t('data-products:details.contacts.importedContactsLabel')}
-          ownerTeamId={product.owner_team_id}
-          ownerTeamName={product.owner_team_name}
-        />
-      )}
+            {/* ODPS Team Metadata (read-only provenance) */}
+            {shouldShowSection('team') && product.team?.members && product.team.members.length > 0 && (
+              <Pane title={t('data-products:details.teamMetadata.titleWithCount', { count: product.team.members.length })}>
+                <p className={classes.lead}>{t('data-products:details.teamMetadata.subtitle')}</p>
+                <div className={classes.list}>
+                  {product.team.members.map((member, idx) => (
+                    <div key={idx} className={classes.item}>
+                      <Badge variant="outline">{member.role || t('data-products:details.teamMetadata.defaultRole')}</Badge>
+                      <span className={classes.itemMain}>{member.name || member.username}</span>
+                    </div>
+                  ))}
+                </div>
+              </Pane>
+            )}
 
-      {/* Entity Relationships Panel (tree-based with drill-down) */}
-      {shouldShowSection('entity-relationships') && (
-        <EntityTreePanel
-          entityType="DataProduct"
-          entityId={productId!}
-          title={t('data-products:details.relatedEntities.title')}
-          canEdit={canModify}
-        />
-      )}
+            {/* Support Channels */}
+            {shouldShowSection('support-channels') && (
+              <Pane
+                title={t('data-products:details.supportChannels.titleWithCount', { count: product.support?.length || 0 })}
+                actions={canModify && (
+                  <Button size="sm" onClick={() => setIsSupportChannelDialogOpen(true)}>
+                    <Plus />{t('data-products:details.supportChannels.addChannel')}
+                  </Button>
+                )}
+              >
+                {product.support && product.support.length > 0 ? (
+                  <div className={classes.list}>
+                    {product.support.map((channel, idx) => (
+                      <div key={idx} className={classes.item}>
+                        <div className={classes.itemMain}>
+                          <span className={classes.itemName}>{channel.channel}</span>
+                          <span>
+                            {t('data-products:details.managementPorts.urlLabel')}:{' '}
+                            <a href={channel.url} target="_blank" rel="noopener noreferrer" className={classes.link}>{channel.url}</a>
+                          </span>
+                          {channel.tool && <span className={common.muted}>{t('data-products:details.supportChannels.toolLabel')}: {channel.tool}</span>}
+                        </div>
+                        {canModify && rowActions(
+                          () => {
+                            setEditingSupportChannelIndex(idx);
+                            setIsSupportChannelDialogOpen(true);
+                          },
+                          () => handleDeleteSupportChannel(idx),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={classes.empty}>{t('data-products:details.supportChannels.noChannels')}</p>
+                )}
+              </Pane>
+            )}
 
-      {/* Metadata Panel */}
-      {shouldShowSection('metadata-panel') && (
-        <EntityMetadataPanel entityId={productId!} entityType="data_product" />
-      )}
+            {/* Authoritative Definitions (read-only provenance from imported product YAML).
+                Large-view only, mirroring the contract detail view. */}
+            {shouldShowSection('authoritative-definitions') && product.authoritativeDefinitions && product.authoritativeDefinitions.length > 0 && (
+              <Pane title={`Authoritative Definitions (${product.authoritativeDefinitions.length})`}>
+                <p className={classes.lead}>ODPS authoritative sources for this product</p>
+                <div className={classes.list}>
+                  {product.authoritativeDefinitions.map((def, idx) => (
+                    <div key={idx} className={classes.item}>
+                      <div className={classes.itemMain}>
+                        <span className={classes.itemLine}><Badge variant="outline">{def.type}</Badge></span>
+                        <a href={def.url} target="_blank" rel="noopener noreferrer" className={classes.link}>{def.url}</a>
+                        {def.description && <span className={common.muted}>{def.description}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Pane>
+            )}
 
-      {/* Ratings Panel */}
-      {shouldShowSection('ratings') && (
-        <RatingPanel
-          entityType="data_product"
-          entityId={productId!}
-          title={t('data-products:details.ratings.title')}
-          showDistribution
-          allowSubmit={canRead}
-        />
-      )}
+            {/* Custom Properties (read-only provenance from imported product YAML).
+                Large-view only, mirroring the contract detail view. The ODPS API
+                returns customProperties as an array of {property, value}; null values
+                may arrive as the literal string "null" from the importer, so treat
+                both null and "null" as empty. */}
+            {shouldShowSection('custom-properties') && product.customProperties && product.customProperties.length > 0 && (
+              <Pane title={`Custom Properties (${product.customProperties.length})`}>
+                <p className={classes.lead}>Additional metadata from the imported product profile</p>
+                <DetailsGrid
+                  rows={product.customProperties.map((prop) => {
+                    const v = prop.value;
+                    const isEmpty = v === null || v === undefined || v === '' || v === 'null';
+                    const display = isEmpty ? null : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+                    return {
+                      label: prop.property,
+                      value: isEmpty
+                        ? <span className={classes.italic}>null</span>
+                        : <span className={classes.mono}>{display}</span>,
+                    };
+                  })}
+                />
+              </Pane>
+            )}
 
-      {/* Costs Panel */}
-      {shouldShowSection('costs') && (
-        <EntityCostsPanel entityId={productId!} entityType="data_product" />
-      )}
+            {/* Subscribers Section (only visible to owners/admins) */}
+            {shouldShowSection('subscribers') && (canWrite || canAdmin) && subscribers && (
+              <Pane title={t('data-products:details.subscribers.titleWithCount', { count: subscribers.subscriber_count })}>
+                <p className={classes.lead}>{t('data-products:details.subscribers.notificationSubtitle')}</p>
+                {Array.isArray(subscribers.subscribers) && subscribers.subscribers.length > 0 ? (
+                  <div className={classes.list}>
+                    {subscribers.subscribers.map((subscriber, idx) => (
+                      <div key={idx} className={classes.item}>
+                        <div className={classes.itemMain}>
+                          <span className={classes.itemName}>{subscriber.email}</span>
+                          {subscriber.reason && <span className={common.muted}>{subscriber.reason}</span>}
+                        </div>
+                        <span className={common.muted}>{formatDate(subscriber.subscribed_at)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={classes.empty}>{t('data-products:details.subscribers.noSubscribers')}</p>
+                )}
+              </Pane>
+            )}
 
-      {/* Quality Panel */}
-      {shouldShowSection('quality') && (
-        <EntityQualityPanel entityId={productId!} entityType="data_product" productAggregation />
-      )}
+            {/* Access Grants Panel */}
+            {shouldShowSection('access-grants') && productId && (
+              <AccessGrantsPanel
+                entityType="data_product"
+                entityId={productId}
+                canManage={canModify && canWriteGrants}
+                showPendingRequests={canModify && canWriteGrants}
+              />
+            )}
 
+            {/* Ownership Panel (with imported ODPS contacts) */}
+            {shouldShowSection('ownership') && (
+              <Pane aria-label={t('business-owners:panel.title')}>
+                <OwnershipPanel
+                  flush
+                  objectType="data_product"
+                  objectId={productId!}
+                  canAssign={canModify && canWriteOwners}
+                  importedContacts={product.team?.members?.map((m) => ({
+                    username: m.username,
+                    name: m.name,
+                    role: m.role,
+                    description: m.description,
+                  }))}
+                  importedContactsLabel={t('data-products:details.contacts.importedContactsLabel')}
+                  ownerTeamId={product.owner_team_id}
+                  ownerTeamName={product.owner_team_name}
+                />
+              </Pane>
+            )}
+
+            {/* Entity Relationships Panel (tree-based with drill-down) */}
+            {shouldShowSection('entity-relationships') && (
+              <EntityTreePanel
+                entityType="DataProduct"
+                entityId={productId!}
+                title={t('data-products:details.relatedEntities.title')}
+                canEdit={canModify && canWriteRelationships}
+                pane
+              />
+            )}
+
+            {/* Metadata Panel */}
+            {shouldShowSection('metadata-panel') && (
+              <Pane aria-label={t('metadata:title')}>
+                <EntityMetadataPanel entityId={productId!} entityType="data_product" flush canEdit={canEditPanels} />
+              </Pane>
+            )}
+
+            {/* Ratings Panel */}
+            {shouldShowSection('ratings') && (
+              <Pane aria-label={t('data-products:details.ratings.title')}>
+                <RatingPanel
+                  entityType="data_product"
+                  entityId={productId!}
+                  title={t('data-products:details.ratings.title')}
+                  showDistribution
+                  allowSubmit={canRead}
+                  flush
+                />
+              </Pane>
+            )}
+
+            {/* Costs Panel */}
+            {shouldShowSection('costs') && (
+              <EntityCostsPanel entityId={productId!} entityType="data_product" pane canEdit={canEditPanels} />
+            )}
+
+            {/* Quality Panel */}
+            {shouldShowSection('quality') && (
+              <Pane aria-label={t('metadata:quality.title')}>
+                <EntityQualityPanel entityId={productId!} entityType="data_product" productAggregation flush canEdit={canEditPanels} />
+              </Pane>
+            )}
+          </PaneStack>
+        </div>
+      </PageLayout>
       {/* Lineage Editor */}
       {productId && product && (
         <LineageEditor
@@ -2555,6 +2325,6 @@ export default function DataProductDetails() {
         isSubmitting={lifecycleActionSubmitting}
         onConfirm={handleDirectPublish}
       />
-    </div>
+    </>
   );
 }

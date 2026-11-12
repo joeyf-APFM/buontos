@@ -1,45 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGlossaryPreferencesStore } from '@/stores/glossary-preferences-store';
+import { ActionIcon, Checkbox, Collapse, Menu, Select, Switch, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Dialog, Pane } from '@/mantine/page';
+import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
 import {
   ChevronRight,
   ChevronDown,
@@ -53,12 +19,74 @@ import {
   Share2,
   Library,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { systemRdfNamespaceDisplayLabel } from '@/lib/system-rdf-namespace-labels';
 import type { OntologyConcept, KnowledgeCollection } from '@/types/ontology';
 import type { GroupByDimension } from '@/stores/glossary-preferences-store';
 import { getAvailableLanguages, getLanguageDisplayName } from '@/lib/ontology-utils';
 import { collectionSourceKey } from '@/lib/collection-source-key';
+import classes from './glossary-filter-panel.module.css';
+
+// The scheme types' icons, as on Define
+const TYPE_ICONS: Record<string, typeof Filter> = {
+  glossary: List,
+  taxonomy: ListTree,
+  ontology: Share2,
+  other: Filter,
+};
+
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: false };
+
+interface SchemeActionsProps {
+  collection: KnowledgeCollection;
+  label: string;
+  deletable: boolean;
+  onRename: (collection: KnowledgeCollection) => void;
+  /** Asks first: opens the delete confirm */
+  onDelete: (collection: KnowledgeCollection) => void;
+}
+
+/**
+ * A scheme's Rename / Delete menu. Both items open a kit Dialog (the scheme
+ * editor, the confirm), which keeps focus: one useMenuItemFocus per menu (R51).
+ */
+function SchemeActions({ collection, label, deletable, onRename, onDelete }: SchemeActionsProps) {
+  const { t } = useTranslation(['semantic-models', 'common']);
+  const { menuProps, opensDialog } = useMenuItemFocus();
+  return (
+    <Menu position="bottom-end" withinPortal {...menuProps}>
+      <Menu.Target>
+        <ActionIcon
+          variant="subtle"
+          size={20}
+          className={classes.chipAction}
+          aria-label={t('semantic-models:collections.actionsFor', { defaultValue: 'Actions for {{name}}', name: label })}
+        >
+          <MoreHorizontal aria-hidden />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Item onClick={opensDialog(() => onRename(collection))}>
+          {t('common:actions.rename', 'Rename')}
+        </Menu.Item>
+        {deletable ? (
+          <Menu.Item color="red" onClick={opensDialog(() => onDelete(collection))}>
+            {t('common:actions.delete', 'Delete')}
+          </Menu.Item>
+        ) : (
+          // Off, with the reason under it
+          <Menu.Item disabled>
+            <span className={classes.disabledItem}>
+              {t('common:actions.delete', 'Delete')}
+              <span className={classes.disabledReason}>
+                {t('semantic-models:filters.importedDisable', 'Imported — cannot delete')}
+              </span>
+            </span>
+          </Menu.Item>
+        )}
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
 
 interface GlossaryFilterPanelProps {
   // Data for computing counts
@@ -86,13 +114,15 @@ interface GlossaryFilterPanelProps {
   // Expansion state
   isFilterExpanded: boolean;
   onSetFilterExpanded: (expanded: boolean) => void;
-  // Collections and callbacks for scheme actions (optional for read-only views)
+  // Collections and callbacks for scheme actions (optional for read-only
+  // views). The actions menu shows only with both callbacks: the caller passes
+  // them only to a user who may write schemes.
   collections?: KnowledgeCollection[];
   onRenameScheme?: (collection: KnowledgeCollection) => void;
   onDeleteScheme?: (collection: KnowledgeCollection) => void;
 }
 
-export const GlossaryFilterPanel: React.FC<GlossaryFilterPanelProps> = ({
+export function GlossaryFilterPanel({
   filteredConcepts,
   sourceConceptCounts,
   availableSources,
@@ -113,7 +143,7 @@ export const GlossaryFilterPanel: React.FC<GlossaryFilterPanelProps> = ({
   collections,
   onRenameScheme,
   onDeleteScheme,
-}) => {
+}: GlossaryFilterPanelProps) {
   const { t } = useTranslation(['semantic-models', 'common']);
 
   // Local search text; the Name/Size sort is a persisted user preference.
@@ -121,6 +151,7 @@ export const GlossaryFilterPanel: React.FC<GlossaryFilterPanelProps> = ({
   const sortMode = useGlossaryPreferencesStore((s) => s.sourceSortMode);
   const setSortMode = useGlossaryPreferencesStore((s) => s.setSourceSortMode);
   const [deleteConfirmScheme, setDeleteConfirmScheme] = useState<KnowledgeCollection | null>(null);
+  const bodyId = useId();
 
   // Flatten collections tree and build a map: source key (the concepts' group
   // name) → collection
@@ -217,84 +248,71 @@ export const GlossaryFilterPanel: React.FC<GlossaryFilterPanelProps> = ({
     return null;
   }
 
+  const visibleCount = availableSources.filter((s) => !hiddenSources.includes(s)).length;
+  const sourceLabel = (source: string) =>
+    collectionsBySource.get(source)?.label || systemRdfNamespaceDisplayLabel(source, t);
+
   return (
-    <Collapsible
-      open={isFilterExpanded}
-      onOpenChange={onSetFilterExpanded}
-      className="border rounded-lg bg-card mb-4"
-    >
-      <div className="px-4 py-2 flex items-center justify-between">
-        <CollapsibleTrigger asChild>
-          <button className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors">
-            {isFilterExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            <Filter className="h-4 w-4" />
-            {t('semantic-models:filters.bySource')}
-            {hiddenSources.length > 0 && (
-              <Badge variant="secondary" className="h-5 text-[10px] px-1.5">
-                {availableSources.filter(s => !hiddenSources.includes(s)).length}/{availableSources.length}
-              </Badge>
-            )}
-          </button>
-        </CollapsibleTrigger>
-        <div className="flex gap-1 items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs px-2"
-            onClick={onSelectAllSources}
-          >
+    <Pane flush aria-label={t('semantic-models:explore.filtersPane', 'Filters')}>
+      <div className={classes.head}>
+        <UnstyledButton
+          className={classes.toggle}
+          aria-expanded={isFilterExpanded}
+          aria-controls={bodyId}
+          onClick={() => onSetFilterExpanded(!isFilterExpanded)}
+        >
+          {isFilterExpanded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+          <Filter aria-hidden />
+          {t('semantic-models:filters.bySource')}
+          {hiddenSources.length > 0 && (
+            <Badge variant="secondary">
+              {visibleCount}/{availableSources.length}
+            </Badge>
+          )}
+        </UnstyledButton>
+        <div className={classes.headActions}>
+          <Button variant="ghost" size="sm" onClick={onSelectAllSources}>
             {t('semantic-models:filters.all')}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs px-2"
-            onClick={() => onSelectNoneSources(availableSources)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => onSelectNoneSources(availableSources)}>
             {t('semantic-models:filters.none')}
           </Button>
-          <div className="flex items-center gap-1 ml-2 pl-2 border-l">
+          <div role="group" aria-label={t('semantic-models:filters.sortBy', 'Sort by')} className={classes.sort}>
             <Button
               variant={sortMode === 'name' ? 'default' : 'outline'}
               size="sm"
-              className="h-6 text-xs px-2"
+              aria-pressed={sortMode === 'name'}
               onClick={() => setSortMode('name')}
-              title={t('semantic-models:filters.sortName', 'Name')}
             >
               {t('semantic-models:filters.sortName', 'Name')}
             </Button>
             <Button
               variant={sortMode === 'size' ? 'default' : 'outline'}
               size="sm"
-              className="h-6 text-xs px-2"
+              aria-pressed={sortMode === 'size'}
               onClick={() => setSortMode('size')}
-              title={t('semantic-models:filters.sortSize', 'Size')}
             >
               {t('semantic-models:filters.sortSize', 'Size')}
             </Button>
           </div>
         </div>
       </div>
-      <CollapsibleContent>
-        <div className="px-4 pb-3 space-y-2">
-          {/* Search input — narrow, not full width */}
-          <Input
-            type="text"
+
+      <Collapse in={isFilterExpanded} transitionDuration={0}>
+        <div id={bodyId} className={classes.body}>
+          <TextInput
+            className={classes.search}
             placeholder={t('semantic-models:filters.searchSchemes', 'Search schemes...')}
+            aria-label={t('semantic-models:filters.searchSchemes', 'Search schemes...')}
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="h-8 text-xs w-48"
+            onChange={(e) => setSearchText(e.currentTarget.value)}
           />
 
-          {/* Source chips grouped by type. Height-bounded scroll area so a large source
-              count doesn't explode the panel vertically; multi-select behavior
-              is unchanged (each chip is still an independent checkbox).
-              Type headers replaced with icons + tooltips (left of each type row). */}
-          <div className="max-h-56 overflow-y-auto px-1 -mx-1 space-y-1.5">
+          {/* Source chips grouped by type. Height-bounded scroll area so a
+              large source count doesn't explode the panel; each chip is an
+              independent checkbox. Each type row starts with its icon and
+              count, its name in the tooltip (hover and focus). */}
+          <div className={classes.sources}>
             {(['glossary', 'taxonomy', 'ontology', 'other'] as const).map((type) => {
               const sources = sortedSourcesByType[type] || [];
               if (sources.length === 0) return null;
@@ -302,108 +320,48 @@ export const GlossaryFilterPanel: React.FC<GlossaryFilterPanelProps> = ({
               const typeLabel = t(`semantic-models:filters.groupType${type.charAt(0).toUpperCase() + type.slice(1)}`,
                 type === 'glossary' ? 'GLOSSARIES' : type === 'taxonomy' ? 'TAXONOMIES' : type === 'ontology' ? 'ONTOLOGIES' : 'OTHER'
               );
-
-              // Type icon mapping — reuse the same icons as Define for consistency
-              const typeIconMap: Record<string, React.FC<any>> = {
-                glossary: List,
-                taxonomy: ListTree,
-                ontology: Share2,
-                other: Filter,
-              };
-              const TypeIcon = typeIconMap[type] || Filter;
+              const TypeIcon = TYPE_ICONS[type] || Filter;
 
               return (
-                <div key={type} className="flex items-start gap-2">
-                  {/* Type icon with tooltip + count */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-0.5 text-muted-foreground pt-0.5 flex-shrink-0">
-                          <TypeIcon className="h-3.5 w-3.5" />
-                          <Badge variant="secondary" className="h-4 text-[10px] px-1">
-                            {sources.length}
-                          </Badge>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>{typeLabel}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  {/* Chips wrapping to the right */}
-                  <div className="flex flex-wrap gap-2 flex-1">
+                <div key={type} role="group" aria-label={typeLabel} className={classes.typeRow}>
+                  <Tooltip label={typeLabel} events={TOOLTIP_EVENTS}>
+                    <span role="img" tabIndex={0} aria-label={typeLabel} className={classes.typeMark}>
+                      <TypeIcon aria-hidden />
+                      <Badge variant="secondary">{sources.length}</Badge>
+                    </span>
+                  </Tooltip>
+                  <div className={classes.chips}>
                     {sources.map((source) => {
                       const isVisible = !hiddenSources.includes(source);
                       const conceptCount = sourceConceptCounts[source] || 0;
                       const collection = collectionsBySource.get(source);
                       const isDeletable = collection && collection.source_type !== 'imported' && collection.is_editable;
+                      const label = sourceLabel(source);
 
                       return (
-                        <div
-                          key={source}
-                          className={cn(
-                            "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors",
-                            "border hover:bg-accent",
-                            isVisible ? "bg-accent/50 border-primary/30" : "opacity-60"
-                          )}
-                        >
-                          <label className="flex items-center gap-1.5 cursor-pointer flex-1">
-                            <Checkbox
-                              checked={isVisible}
-                              onCheckedChange={() => onToggleSource(source)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <span title={source}>
-                              {collection?.label || systemRdfNamespaceDisplayLabel(source, t)}
-                            </span>
-                            <Badge variant="secondary" className="h-4 text-[10px] px-1">
-                              {conceptCount}
-                            </Badge>
-                          </label>
+                        <div key={source} className={classes.chip} data-visible={isVisible || undefined}>
+                          <Checkbox
+                            size="xs"
+                            className={classes.chipCheck}
+                            checked={isVisible}
+                            onChange={() => onToggleSource(source)}
+                            label={
+                              <span className={classes.chipLabel}>
+                                <span className={classes.chipName} title={source}>{label}</span>
+                                <Badge variant="secondary">{conceptCount}</Badge>
+                              </span>
+                            }
+                          />
 
-                          {/* Actions menu for schemes with a collection record (only if callbacks provided) */}
+                          {/* Actions for schemes with a collection record (only if callbacks provided) */}
                           {collection && onRenameScheme && onDeleteScheme && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5 ml-1"
-                                >
-                                  <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem onClick={(e) => {
-                                  e.stopPropagation();
-                                  onRenameScheme(collection);
-                                }}>
-                                  {t('common:actions.rename', 'Rename')}
-                                </DropdownMenuItem>
-                                {isDeletable ? (
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteConfirmScheme(collection);
-                                    }}
-                                  >
-                                    {t('common:actions.delete', 'Delete')}
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="flex items-center justify-between px-2 py-1.5 text-xs text-muted-foreground cursor-not-allowed opacity-50">
-                                          {t('common:actions.delete', 'Delete')}
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {t('semantic-models:filters.importedDisable', 'Imported — cannot delete')}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <SchemeActions
+                              collection={collection}
+                              label={label}
+                              deletable={!!isDeletable}
+                              onRename={onRenameScheme}
+                              onDelete={setDeleteConfirmScheme}
+                            />
                           )}
                         </div>
                       );
@@ -413,125 +371,113 @@ export const GlossaryFilterPanel: React.FC<GlossaryFilterPanelProps> = ({
               );
             })}
           </div>
-          
-          {/* Display toggles. This row lives inside the collapsible advanced
-              area, so the "Group by" lens below is only reachable once the
-              panel is expanded. */}
-          <div className="flex flex-wrap items-center gap-6 pt-2 border-t">
-            {/* Group by lens (advanced): re-organizes the same chips/terms under
-                dimension headers. It is a LENS, not a second filter.
-                TODO: wire visibility to global advanced mode when one exists;
-                for now it is gated behind the expanded filter panel. */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="group-by-dimension" className="text-sm flex items-center gap-2 cursor-pointer">
-                <FolderTree className="h-4 w-4" />
-                {t('semantic-models:filters.groupBy', 'Group by')}
-              </Label>
-              <Select
-                value={groupByDimension}
-                onValueChange={(value) => onSetGroupByDimension(value as GroupByDimension)}
-              >
-                <SelectTrigger id="group-by-dimension" className="w-32 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                {/* Option labels are the dimension noun ONLY ("Source",
-                    "Domain", …). The "Group by" prefix already lives in the
-                    Label beside the select, so full "Group by Source" strings
-                    would render "Group by [Group by Source]". */}
-                <SelectContent>
-                  <SelectItem value="none">{t('semantic-models:filters.groupByNone', 'None')}</SelectItem>
-                  <SelectItem value="scheme">{t('semantic-models:filters.groupByScheme', 'Scheme')}</SelectItem>
-                  <SelectItem value="source">{t('semantic-models:filters.groupByDimSource', 'Source')}</SelectItem>
-                  <SelectItem value="domain">{t('semantic-models:filters.groupByDimDomain', 'Domain')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            {/* Show Properties Toggle */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="show-properties" className="text-sm flex items-center gap-2 cursor-pointer">
-                <Zap className="h-4 w-4" />
-                {t('semantic-models:filters.showProperties')}
-              </Label>
-              <Switch
-                id="show-properties"
-                checked={showProperties}
-                onCheckedChange={onSetShowProperties}
-              />
-            </div>
+          {/* Display options. The "Group by" lens re-organizes the same
+              chips/terms under dimension headers: a LENS, not a second filter. */}
+          <div className={classes.options}>
+            <Select
+              label={
+                <span className={classes.optionLabel}>
+                  <FolderTree aria-hidden />
+                  {t('semantic-models:filters.groupBy', 'Group by')}
+                </span>
+              }
+              aria-label={t('semantic-models:filters.groupBy', 'Group by')}
+              // Option labels are the dimension noun only: "Group by" is the label
+              data={[
+                { value: 'none', label: t('semantic-models:filters.groupByNone', 'None') },
+                { value: 'scheme', label: t('semantic-models:filters.groupByScheme', 'Scheme') },
+                { value: 'source', label: t('semantic-models:filters.groupByDimSource', 'Source') },
+                { value: 'domain', label: t('semantic-models:filters.groupByDimDomain', 'Domain') },
+              ]}
+              value={groupByDimension}
+              onChange={(value) => value && onSetGroupByDimension(value as GroupByDimension)}
+              allowDeselect={false}
+              classNames={{ root: classes.inlineField, label: classes.inlineLabel, wrapper: classes.groupByField }}
+            />
+
+            <Switch
+              classNames={{ root: classes.option, label: classes.inlineLabel }}
+              labelPosition="left"
+              label={
+                <span className={classes.optionLabel}>
+                  <Zap aria-hidden />
+                  {t('semantic-models:filters.showProperties')}
+                </span>
+              }
+              aria-label={t('semantic-models:filters.showProperties')}
+              checked={showProperties}
+              onChange={(e) => onSetShowProperties(e.currentTarget.checked)}
+            />
 
             {/* Show built-in system ontologies (Ontos / ODCS / Databricks, ...) */}
             {onSetShowSystemSources && (
-              <div className="flex items-center gap-2">
-                <Label htmlFor="show-system-sources" className="text-sm flex items-center gap-2 cursor-pointer">
-                  <Library className="h-4 w-4" />
-                  {t('semantic-models:filters.showSystemSources', 'Show system ontologies')}
-                </Label>
-                <Switch
-                  id="show-system-sources"
-                  checked={showSystemSources}
-                  onCheckedChange={onSetShowSystemSources}
-                />
-              </div>
+              <Switch
+                classNames={{ root: classes.option, label: classes.inlineLabel }}
+                labelPosition="left"
+                label={
+                  <span className={classes.optionLabel}>
+                    <Library aria-hidden />
+                    {t('semantic-models:filters.showSystemSources', 'Show system ontologies')}
+                  </span>
+                }
+                aria-label={t('semantic-models:filters.showSystemSources', 'Show system ontologies')}
+                checked={showSystemSources}
+                onChange={(e) => onSetShowSystemSources(e.currentTarget.checked)}
+              />
             )}
 
             {/* Label Language Selector */}
             {availableLanguages.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Label htmlFor="label-language" className="text-sm flex items-center gap-2 cursor-pointer">
-                  <Languages className="h-4 w-4" />
-                  {t('semantic-models:filters.labelLanguage', 'Label Language')}
-                </Label>
-                <Select value={selectedLanguage} onValueChange={onSetSelectedLanguage}>
-                  <SelectTrigger id="label-language" className="w-28 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableLanguages.map((lang) => (
-                      <SelectItem key={lang} value={lang}>
-                        {getLanguageDisplayName(lang)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                label={
+                  <span className={classes.optionLabel}>
+                    <Languages aria-hidden />
+                    {t('semantic-models:filters.labelLanguage', 'Label Language')}
+                  </span>
+                }
+                aria-label={t('semantic-models:filters.labelLanguage', 'Label Language')}
+                data={availableLanguages.map((lang) => ({ value: lang, label: getLanguageDisplayName(lang) }))}
+                value={selectedLanguage}
+                onChange={(value) => value && onSetSelectedLanguage(value)}
+                allowDeselect={false}
+                classNames={{ root: classes.inlineField, label: classes.inlineLabel, wrapper: classes.languageField }}
+              />
             )}
           </div>
         </div>
-      </CollapsibleContent>
+      </Collapse>
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!deleteConfirmScheme} onOpenChange={(open) => !open && setDeleteConfirmScheme(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('semantic-models:dialogs.deleteScheme.title', 'Delete Scheme')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('semantic-models:dialogs.deleteScheme.description',
-                'Are you sure you want to delete "{{label}}"? This will delete all concepts in this scheme and cannot be undone.',
-                { label: deleteConfirmScheme?.label || '' }
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex gap-3 justify-end">
-            <AlertDialogCancel>
+      {/* Delete confirmation */}
+      <Dialog
+        opened={!!deleteConfirmScheme}
+        onClose={() => setDeleteConfirmScheme(null)}
+        role="alertdialog"
+        size="sm"
+        title={t('semantic-models:dialogs.deleteScheme.title', 'Delete Scheme')}
+        description={t('semantic-models:dialogs.deleteScheme.description',
+          'Are you sure you want to delete "{{label}}"? This will delete all concepts in this scheme and cannot be undone.',
+          { label: deleteConfirmScheme?.label || '' }
+        )}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteConfirmScheme(null)}>
               {t('common:actions.cancel', 'Cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </Button>
+            <Button
+              variant="destructive"
               onClick={() => {
                 if (deleteConfirmScheme && onDeleteScheme) {
                   onDeleteScheme(deleteConfirmScheme);
                   setDeleteConfirmScheme(null);
                 }
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t('common:actions.delete', 'Delete')}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Collapsible>
+            </Button>
+          </>
+        }
+      />
+    </Pane>
   );
-};
+}

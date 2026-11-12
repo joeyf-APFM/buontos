@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Alert, Radio, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
+import detail from '@/components/common/detail-page.module.css';
+import classes from './commit-draft-dialog.module.css';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -134,128 +134,112 @@ export default function CommitDraftDialog({
     }
   };
 
+  /** A bump choice's label: the bump, its version, then what it's for. */
+  const bumpLabel = (bump: 'major' | 'minor' | 'patch') => (
+    <>
+      {t(`data-products:commitDraft.${bump}`)} ({diffAnalysis ? calculateNextSemver(diffAnalysis.parent_version, bump) : '?.?.?'})
+      {' '}<span className={form.muted}>- {t(`data-products:commitDraft.${bump}Description`)}</span>
+    </>
+  );
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            {t('data-products:commitDraft.title')}
-          </DialogTitle>
-          <DialogDescription>
-            {productName && <span className="font-medium">{productName}</span>}
-            <span className="text-muted-foreground ml-2">
-              {t('data-products:commitDraft.description')}
-            </span>
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          {loadingDiff ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              {t('data-products:commitDraft.analyzing')}
-            </div>
-          ) : (
-            <>
-              {/* Change Analysis Summary */}
-              {diffAnalysis && (
-                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                  <AlertTitle className="text-blue-800 dark:text-blue-200">{t('data-products:commitDraft.changeAnalysisTitle')}</AlertTitle>
-                  <AlertDescription className="text-blue-700 dark:text-blue-300">
-                    {t('data-products:commitDraft.changeAnalysisDescription', { bump: diffAnalysis.suggested_bump })}
-                    {diffAnalysis.analysis?.summary && (
-                      <p className="mt-1 text-sm">{diffAnalysis.analysis.summary}</p>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Version Selection */}
-              <div className="space-y-3">
-                <Label>{t('data-products:commitDraft.selectVersion')}</Label>
-                <RadioGroup
-                  value={selectedVersionBump}
-                  onValueChange={(v) => setSelectedVersionBump(v as typeof selectedVersionBump)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="patch" id="patch" />
-                    <Label htmlFor="patch" className="font-normal">
-                      {t('data-products:commitDraft.patch')} ({diffAnalysis ? calculateNextSemver(diffAnalysis.parent_version, 'patch') : '?.?.?'})
-                      <span className="text-muted-foreground ml-2">- {t('data-products:commitDraft.patchDescription')}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="minor" id="minor" />
-                    <Label htmlFor="minor" className="font-normal">
-                      {t('data-products:commitDraft.minor')} ({diffAnalysis ? calculateNextSemver(diffAnalysis.parent_version, 'minor') : '?.?.?'})
-                      <span className="text-muted-foreground ml-2">- {t('data-products:commitDraft.minorDescription')}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="major" id="major" />
-                    <Label htmlFor="major" className="font-normal">
-                      {t('data-products:commitDraft.major')} ({diffAnalysis ? calculateNextSemver(diffAnalysis.parent_version, 'major') : '?.?.?'})
-                      <span className="text-muted-foreground ml-2">- {t('data-products:commitDraft.majorDescription')}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="custom" id="custom" />
-                    <Label htmlFor="custom" className="font-normal">{t('data-products:commitDraft.customVersion')}</Label>
-                  </div>
-                </RadioGroup>
-                
-                {selectedVersionBump === 'custom' && (
-                  <Input
-                    value={customVersion}
-                    onChange={(e) => setCustomVersion(e.target.value)}
-                    placeholder={t('data-products:commitDraft.customVersionPlaceholder')}
-                    className="mt-2"
-                  />
-                )}
-              </div>
-
-              {/* Change Summary */}
-              <div className="space-y-2">
-                <Label htmlFor="change-summary">{t('data-products:commitDraft.changeSummaryLabel')}</Label>
-                <Textarea
-                  id="change-summary"
-                  value={changeSummary}
-                  onChange={(e) => setChangeSummary(e.target.value)}
-                  placeholder={t('data-products:commitDraft.changeSummaryPlaceholder')}
-                  className="min-h-[100px] resize-none"
-                  disabled={isCommitting}
-                />
-              </div>
-
-              {/* Error Display */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="md"
+      title={
+        <span className={form.titleLine}>
+          <CheckCircle2 size={16} className={classes.done} aria-hidden />
+          {t('data-products:commitDraft.title')}
+        </span>
+      }
+      description={
+        <>
+          {productName && <span className={form.strong}>{productName}</span>}
+          {productName && ' '}
+          {t('data-products:commitDraft.description')}
+        </>
+      }
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCommitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isCommitting || loadingDiff}>
             {isCommitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className={detail.spin} aria-hidden />
                 {t('data-products:commitDraft.committing')}
               </>
             ) : (
               t('data-products:commitDraft.commitButton')
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      {loadingDiff ? (
+        <div className={classes.loading}>
+          <Loader2 size={20} className={detail.spin} aria-hidden />
+          {t('data-products:commitDraft.analyzing')}
+        </div>
+      ) : (
+        <div className={form.form}>
+          {/* Change Analysis Summary */}
+          {diffAnalysis && (
+            <Alert color="blue" variant="light" title={t('data-products:commitDraft.changeAnalysisTitle')}>
+              {t('data-products:commitDraft.changeAnalysisDescription', { bump: diffAnalysis.suggested_bump })}
+              {diffAnalysis.analysis?.summary && (
+                <p className={classes.summary}>{diffAnalysis.analysis.summary}</p>
+              )}
+            </Alert>
+          )}
+
+          {/* Version Selection */}
+          <Radio.Group
+            label={t('data-products:commitDraft.selectVersion')}
+            value={selectedVersionBump}
+            onChange={(v) => setSelectedVersionBump(v as typeof selectedVersionBump)}
+            classNames={FIELD_CLASSES}
+          >
+            <div className={form.choices}>
+              <Radio value="patch" id="patch" label={bumpLabel('patch')} classNames={{ label: classes.choiceLabel }} />
+              <Radio value="minor" id="minor" label={bumpLabel('minor')} classNames={{ label: classes.choiceLabel }} />
+              <Radio value="major" id="major" label={bumpLabel('major')} classNames={{ label: classes.choiceLabel }} />
+              <Radio value="custom" id="custom" label={t('data-products:commitDraft.customVersion')} classNames={{ label: classes.choiceLabel }} />
+            </div>
+          </Radio.Group>
+
+          {selectedVersionBump === 'custom' && (
+            <TextInput
+              aria-label={t('data-products:commitDraft.customVersion')}
+              value={customVersion}
+              onChange={(e) => setCustomVersion(e.currentTarget.value)}
+              placeholder={t('data-products:commitDraft.customVersionPlaceholder')}
+            />
+          )}
+
+          {/* Change Summary */}
+          <Textarea
+            id="change-summary"
+            label={t('data-products:commitDraft.changeSummaryLabel')}
+            value={changeSummary}
+            onChange={(e) => setChangeSummary(e.currentTarget.value)}
+            placeholder={t('data-products:commitDraft.changeSummaryPlaceholder')}
+            minRows={4}
+            autosize
+            disabled={isCommitting}
+            classNames={FIELD_CLASSES}
+          />
+
+          {/* Error Display */}
+          {error && (
+            <Alert color="red" variant="light" icon={<AlertCircle size={16} />} role="alert">
+              {error}
+            </Alert>
+          )}
+        </div>
+      )}
     </Dialog>
   );
 }
-

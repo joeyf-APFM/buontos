@@ -20,14 +20,18 @@ const withKit = (own?: TabsClassNames): TabsClassNames => {
  * caller's classNames add to the kit's. Arrow keys move between tabs and
  * activate them (Mantine's defaults). Inactive panels are unmounted, as with
  * Radix Tabs (Mantine keeps them mounted by default); pass keepMounted to
- * keep them.
+ * keep them. With a controlled `value`, clicking the active tab calls no
+ * onChange, as with Radix Tabs (ruling R71): Mantine reports every click,
+ * so a caller that navigates on change would push the same page again.
  */
-export function Tabs({ classNames, ...props }: TabsProps) {
+export function Tabs({ classNames, value, onChange, ...props }: TabsProps) {
   const merged: TabsProps['classNames'] =
     typeof classNames === 'function'
       ? (theme, p, ctx) => withKit(classNames(theme, p, ctx) as TabsClassNames)
       : withKit(classNames as TabsClassNames | undefined);
-  return <MantineTabs keepMounted={false} {...props} classNames={merged} unstyled />;
+  const quietOnChange: TabsProps['onChange'] =
+    onChange && value !== undefined ? (next) => { if (next !== value) onChange(next); } : onChange;
+  return <MantineTabs keepMounted={false} {...props} value={value} onChange={quietOnChange} classNames={merged} unstyled />;
 }
 
 Tabs.List = MantineTabs.List;

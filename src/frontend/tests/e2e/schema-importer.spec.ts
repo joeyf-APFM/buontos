@@ -5,8 +5,8 @@
  * kit's breadcrumb and header and two panes sharing one border; inside the
  * Concepts layout it keeps that layout's padding and breadcrumb and draws
  * framed panes. The schema browser's rows are the explorer's 24px tree rows.
- * The preview dialog is a Mantine Modal, with the shared (Radix) asset
- * selector opening above it.
+ * The preview dialog is a Mantine Modal, with the shared asset selector
+ * (a kit Dialog since wave 2 Task 11) opening above it.
  *
  * CAPTURE=before|after also saves an image of each wizard step to
  * .superpowers/sdd/2026-11-09-mantine-restyle-waves-0-1/task-13-images/.
@@ -258,10 +258,19 @@ test.describe('its own route', () => {
     await page.mouse.click(10, 400);
     await expect(dialog).toBeVisible();
 
-    // The shared asset selector (a Radix Dialog) opens on top and takes Escape alone
+    // The shared asset selector (a kit Dialog since Task 11, R39) opens on top, kit on kit, and takes Escape alone
     await dialog.locator('button:has(svg.lucide-link-2)').first().click();
     const selector = page.getByRole('dialog', { name: 'Link to existing asset' });
     await expect(selector).toBeVisible();
+    await expect(selector).toHaveClass(/mantine-Modal-content/);
+    // Nothing covers its search field, and typing reaches it (the pointer stays
+    // on the Link button, for its tooltip below)
+    const search = selector.getByRole('textbox', { name: 'Search assets by name...' });
+    const field = await box(search);
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('input')?.placeholder, [field.x + field.width / 2, field.y + field.height / 2])).toBe('Search assets by name...');
+    await search.focus();
+    await search.pressSequentially('ma');
+    await expect(search).toHaveValue('ma');
     const s = await box(selector);
     const onTop = await page.evaluate(([x, y]) => {
       const el = document.elementFromPoint(x, y);
@@ -271,7 +280,12 @@ test.describe('its own route', () => {
     await page.keyboard.press('Escape');
     await expect(selector).toHaveCount(0);
     await expect(dialog).toBeVisible();
-    // Then Escape closes the preview
+    // The pointer is still on the Link button, so its tooltip is open: an
+    // Escape closes that first (the kit Dialog's layered Escape), then the preview
+    await expect(page.getByRole('tooltip')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
   });

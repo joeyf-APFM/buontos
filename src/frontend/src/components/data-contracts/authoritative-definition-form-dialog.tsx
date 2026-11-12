@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { TextInput } from '@mantine/core'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { Dialog } from '@/mantine/page'
+import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form'
+import form from '@/components/common/dialog-form.module.css'
 import { useTranslation } from 'react-i18next'
 
 type AuthoritativeDefinition = {
@@ -92,61 +93,53 @@ export default function AuthoritativeDefinitionFormDialog({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-contracts:authoritativeDefinition.editTitle', 'Edit Authoritative Definition') : t('data-contracts:authoritativeDefinition.addTitle', 'Add Authoritative Definition')}</DialogTitle>
-          <DialogDescription>
-            {t('data-contracts:authoritativeDefinition.description', '{{level}}-level authoritative source (ODCS compliant)', { level: levelLabels[level] })}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          {/* URL */}
-          <div className="space-y-2">
-            <Label htmlFor="url">
-              {t('data-contracts:authoritativeDefinition.fields.url', 'URL')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('data-contracts:authoritativeDefinition.fields.urlPlaceholder', 'https://glossary.example.com/term/123')}
-              autoFocus
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('data-contracts:authoritativeDefinition.fields.urlHelp', 'Full URL to the authoritative source')}
-            </p>
-          </div>
-
-          {/* Type */}
-          <div className="space-y-2">
-            <Label htmlFor="type">
-              {t('common:labels.type', 'Type')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="type"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              placeholder={t('data-contracts:authoritativeDefinition.fields.typePlaceholder', 'e.g., glossary, standard, documentation')}
-              maxLength={255}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('data-contracts:authoritativeDefinition.fields.typeHelp', 'Type of authoritative source')}
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="md"
+      title={initial ? t('data-contracts:authoritativeDefinition.editTitle', 'Edit Authoritative Definition') : t('data-contracts:authoritativeDefinition.addTitle', 'Add Authoritative Definition')}
+      description={t('data-contracts:authoritativeDefinition.description', '{{level}}-level authoritative source (ODCS compliant)', { level: levelLabels[level] })}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel', 'Cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? t('common:actions.saving', 'Saving...') : initial ? t('common:actions.update', 'Update') : t('common:actions.add', 'Add')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        {/* URL */}
+        <TextInput
+          id="url"
+          type="url"
+          label={t('data-contracts:authoritativeDefinition.fields.url', 'URL')}
+          required
+          value={url}
+          onChange={(e) => setUrl(e.currentTarget.value)}
+          placeholder={t('data-contracts:authoritativeDefinition.fields.urlPlaceholder', 'https://glossary.example.com/term/123')}
+          description={t('data-contracts:authoritativeDefinition.fields.urlHelp', 'Full URL to the authoritative source')}
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+          data-autofocus
+        />
+
+        {/* Type */}
+        <TextInput
+          id="type"
+          label={t('common:labels.type', 'Type')}
+          required
+          value={type}
+          onChange={(e) => setType(e.currentTarget.value)}
+          placeholder={t('data-contracts:authoritativeDefinition.fields.typePlaceholder', 'e.g., glossary, standard, documentation')}
+          maxLength={255}
+          description={t('data-contracts:authoritativeDefinition.fields.typeHelp', 'Type of authoritative source')}
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        />
+      </div>
     </Dialog>
   )
 }

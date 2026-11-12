@@ -159,7 +159,10 @@
     "title": "Schémas de concepts",
     "glossary": "Glossaire",
     "taxonomy": "Taxonomie",
-    "ontology": "Ontologie"
+    "ontology": "Ontologie",
+    "listPane": "Liste des schémas",
+    "loadFailed": "Impossible de charger les schémas.",
+    "actionsFor": "Actions pour {{name}}"
   },
   "actions": {
     "createConcept": "Créer un concept",
@@ -197,6 +200,9 @@
     "linkEditor": {
       "title": "Créer un lien",
       "description": "Définissez une relation entre deux concepts"
+    },
+    "deprecate": {
+      "removeSuccessor": "Retirer {{name}}"
     }
   },
   "rdfSources": {
@@ -292,7 +298,10 @@
     "selectSuperclass": "Sélectionner une super-classe",
     "selectParentConcept": "Sélectionner un concept parent",
     "searchClasses": "Rechercher des classes...",
-    "searchConceptsInScheme": "Rechercher des concepts dans ce schéma de concepts..."
+    "searchConceptsInScheme": "Rechercher des concepts dans ce schéma de concepts...",
+    "removeValue": "Retirer {{name}}",
+    "addSynonym": "Ajouter un synonyme",
+    "addExample": "Ajouter un exemple"
   },
   "collectionEditor": {
     "editTitle": "Modifier le schéma de concepts",
@@ -303,7 +312,8 @@
     "parentCollection": "Schéma de concepts parent",
     "noneRootCollection": "Aucun (schéma de concepts racine)",
     "editable": "Modifiable",
-    "editableHelp": "Autoriser la création et la modification de concepts dans ce schéma de concepts"
+    "editableHelp": "Autoriser la création et la modification de concepts dans ce schéma de concepts",
+    "typeInfo": "À propos des types de schéma"
   },
   "promotion": {
     "promoteConcept": "Promouvoir le concept",
@@ -325,7 +335,9 @@
   },
   "collectionTree": {
     "readOnly": "Schéma de concepts en lecture seule",
-    "noCollectionsYet": "Aucun schéma de concepts pour le moment"
+    "noCollectionsYet": "Aucun schéma de concepts pour le moment",
+    "expand": "Développer {{name}}",
+    "collapse": "Réduire {{name}}"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -368,7 +380,6 @@
       "conceptCount_other": "{{count}} concepts"
     },
     "fullscreen": {
-      "description": "Vue plein écran de la visualisation du graphe de concepts",
       "hint": "Cliquez sur les nœuds pour sélectionner des concepts. Utilisez la molette pour zoomer, glissez pour déplacer."
     }
   },
@@ -469,7 +480,11 @@
       "descriptionLabel": "Description (facultatif)",
       "descriptionPlaceholder": "Décrivez l'objet de ce schéma de concepts d'ontologie...",
       "importSummary": "{{classes}} classes et {{properties}} propriétés seront importées."
-    }
+    },
+    "runPane": "Exécution",
+    "results": "Résultats",
+    "connectionsFailed": "Impossible de charger les connexions.",
+    "runsFailed": "Impossible de charger les exécutions récentes."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Inclure les autres schémas de concepts",
@@ -489,9 +504,17 @@
   "explore": {
     "emptyTitle": "Rien à explorer pour l'instant",
     "emptyBody": "Importez des fichiers ou créez des concepts dans l'onglet Define.",
-    "emptyCta": "Aller à Define"
+    "emptyCta": "Aller à Define",
+    "conceptsPane": "Concepts",
+    "filtersPane": "Filtres",
+    "loadFailed": "Impossible de charger les concepts."
   },
   "define": {
-    "requiresWrite": "Nécessite un accès en écriture"
+    "requiresWrite": "Nécessite un accès en écriture",
+    "runsFailed": "Impossible de charger les créations en cours.",
+    "about": "À propos de {{name}}"
+  },
+  "summary": {
+    "title": "Résumé"
   }
 }

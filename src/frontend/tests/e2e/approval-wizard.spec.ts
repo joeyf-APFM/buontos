@@ -178,7 +178,8 @@ test('user_action: 12px secondary labels, 28px controls, a warning hint at AA an
   const label = dialog.locator('label', { hasText: 'Ticket number' });
   expect(await style(label, ['font-size', 'color'])).toEqual({ 'font-size': '12px', color: SECONDARY });
   expect(await height(dialog.getByLabel('Ticket number'))).toBe(28);
-  expect(await height(dialog.getByRole('combobox'))).toBe(28);
+  // The Mantine Select (a textbox with a listbox, wave 2 Task 8b)
+  expect(await height(dialog.getByRole('textbox', { name: 'Target workspace' }))).toBe(28);
   // The step's title is the 13px navy heading
   expect(await style(dialog.getByText('Tell us why', { exact: true }), ['font-size', 'color', 'font-weight'])).toEqual({
     'font-size': '13px', color: NAVY, 'font-weight': '600',
@@ -265,7 +266,7 @@ test('on_behalf_of: 12px options, nested 28px controls, a justification field', 
   expect(await style(dialog.locator('label', { hasText: 'For myself' }), ['font-size', 'color'])).toEqual({
     'font-size': '12px', color: BODY,
   });
-  expect(await height(dialog.getByRole('combobox'))).toBe(28);
+  expect(await height(dialog.getByRole('textbox', { name: 'Principal type' }))).toBe(28);
   expect(await height(dialog.getByPlaceholder('e.g., sales_consumers'))).toBe(28);
   await expect(dialog.getByLabel(/Justification/)).toBeVisible();
   await expectFooter(dialog, 'Next');
@@ -279,8 +280,9 @@ test('non-visual step: a 24px spinner over 12px secondary text', async ({ page }
   await expect(text).toBeVisible();
   await capture(page, 'step-non-visual');
   expect(await style(text, ['font-size', 'color'])).toEqual({ 'font-size': '12px', color: SECONDARY });
-  // The box of a turning icon grows and shrinks, so read its size
-  const spinner = dialog.locator('svg.animate-spin').first();
+  // The box of a turning icon grows and shrinks, so read its size (the
+  // turning class is a CSS module's, so its name is hashed)
+  const spinner = dialog.locator('svg[class*="spin"]').first();
   expect(await style(spinner, ['width', 'height'])).toEqual({ width: '24px', height: '24px' });
 });
 

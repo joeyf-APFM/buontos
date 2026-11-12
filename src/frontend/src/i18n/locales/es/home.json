@@ -201,8 +201,8 @@
       "subscriptions": "Mis Datos"
     },
     "products": {
-      "available": "{{count}} producto disponible",
-      "available_plural": "{{count}} productos disponibles",
+      "available_one": "{{count}} producto disponible",
+      "available_other": "{{count}} productos disponibles",
       "subscribed": "{{count}} producto suscrito",
       "subscribed_plural": "{{count}} productos suscritos",
       "noProducts": "No se encontraron productos de datos.",
@@ -247,11 +247,13 @@
       "one": "1 por fila",
       "two": "2 por fila",
       "three": "3 por fila",
-      "four": "4 por fila"
+      "four": "4 por fila",
+      "label": "Mosaicos por fila"
     },
     "scopeFilter": {
       "placeholder": "Ámbito",
-      "all": "Todos los ámbitos"
+      "all": "Todos los ámbitos",
+      "label": "Ámbito de publicación"
     },
     "openInDetails": "Abrir en vista de detalles",
     "loadError": "No se pudieron cargar los productos"

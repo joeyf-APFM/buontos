@@ -15,6 +15,17 @@ import classes from './page.module.css';
 vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
 
 describe('page kit', () => {
+  it('page header shares its line with many actions only when asked (wrapActions)', () => {
+    const { rerender } = renderWithMantine(<PageHeader title="Orders" actions={<button type="button">New</button>} />);
+    const header = () => screen.getByRole('heading', { level: 1, name: 'Orders' }).parentElement!;
+    expect(header()).not.toHaveAttribute('data-wrap-actions');
+    rerender(<PageHeader title="Orders" wrapActions actions={<button type="button">New</button>} />);
+    expect(header()).toHaveAttribute('data-wrap-actions');
+    // The actions stay in the kit's end slot; the line split is measured in Chrome
+    // (tests/e2e/data-product-details.spec.ts)
+    expect(screen.getByRole('button', { name: 'New' }).parentElement).toHaveClass(classes.headerEnd);
+  });
+
   it('page layout renders a one-line header, filters and panes with shared borders', () => {
     renderWithMantine(
       <PageLayout
@@ -204,7 +215,7 @@ describe('page kit', () => {
     expect(terms.map((t) => t.textContent)).toEqual(['Type', 'Owner']);
     expect(definitions.map((d) => d.textContent)).toEqual(['Table', 'Sales Analytics']);
     // The same label/value module as the shared panels, so the two can't drift
-    expect(terms[0].parentElement).toHaveClass(panel.kv);
+    expect(terms[0].closest('dl')).toHaveClass(panel.kv);
     expect(terms[0].nextElementSibling).toBe(definitions[0]);
   });
 
@@ -233,6 +244,26 @@ describe('page kit', () => {
     expect(screen.getByRole('tabpanel')).toHaveTextContent('Lineage panel');
     await user.keyboard('{ArrowLeft}');
     expect(details).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('controlled tabs call onChange only for a new value, as Radix Tabs do (R71)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithMantine(
+      <Tabs value="details" onChange={onChange}>
+        <Tabs.List>
+          <Tabs.Tab value="details">Details</Tabs.Tab>
+          <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+        </Tabs.List>
+      </Tabs>,
+    );
+    // Clicking the active tab is quiet
+    await user.click(screen.getByRole('tab', { name: 'Details' }));
+    expect(onChange).not.toHaveBeenCalled();
+    // Another tab still reports its value
+    await user.click(screen.getByRole('tab', { name: 'Lineage' }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('lineage');
   });
 
   it('tabs unmount inactive panels, as Radix Tabs do, unless kept mounted', () => {
@@ -371,7 +402,7 @@ describe('the explorer on the page kit', () => {
     const details = await screen.findByRole('complementary', { name: 'leads' });
     const terms = within(details).getAllByRole('term');
     expect(terms[0]).toHaveTextContent('Type');
-    expect(terms[0].parentElement).toHaveClass(panel.kv);
+    expect(terms[0].closest('dl')).toHaveClass(panel.kv);
     expect(terms[0].nextElementSibling).toHaveTextContent('Table');
   });
 });

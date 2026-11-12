@@ -1,0 +1,121 @@
+/*
+ * The Enrich delivery targets (wave 2 Task 14): one row per target in a 1px
+ * bordered list, its name, status and assist on a line, the description and
+ * the sync readout wrapping under it, the actions at the end. Rows that
+ * aren't live sit on the subtle surface.
+ */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row:not([data-status='live']) {
+  background: var(--aura-canvas);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.name {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.assist {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--aura-info);
+  background: var(--aura-surface-strong);
+}
+
+.description {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.via {
+  opacity: 0.8;
+}
+
+.coverage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--aura-border-strong);
+}
+
+.dot[data-synced] {
+  background: var(--aura-good);
+}
+
+.link {
+  font-size: 12px;
+  color: var(--aura-accent);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+/* A narrow window: the actions go under the text */
+@media (max-width: 640px) {
+  .row {
+    flex-wrap: wrap;
+  }
+}

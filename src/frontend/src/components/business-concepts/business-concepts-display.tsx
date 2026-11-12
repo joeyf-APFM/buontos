@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { X, Shapes, Columns2 } from 'lucide-react'
@@ -49,6 +49,8 @@ export default function BusinessConceptsDisplay({
   parentEntityName,
 }: BusinessConceptsDisplayProps) {
   const [showDialog, setShowDialog] = useState(false)
+  // The Add button (one of two, by whether any concept is linked): focus comes back to it after the picker
+  const addButtonRef = useRef<HTMLButtonElement>(null)
 
   // Derive a human-readable label from an IRI. This splits on both
   // '/' and '#' so IRIs like ".../concepts#BusinessConcept" become
@@ -88,6 +90,7 @@ export default function BusinessConceptsDisplay({
           <Button
             variant="outline"
             size="sm"
+            ref={addButtonRef}
             onClick={() => setShowDialog(true)}
             className="h-6 px-2 text-xs"
           >
@@ -115,6 +118,7 @@ export default function BusinessConceptsDisplay({
           <Button
             variant="outline"
             size="sm"
+            ref={addButtonRef}
             onClick={() => setShowDialog(true)}
             className="h-6 px-2 text-xs"
           >
@@ -127,6 +131,7 @@ export default function BusinessConceptsDisplay({
         isOpen={showDialog}
         onOpenChange={setShowDialog}
         onSelect={handleAddConcept}
+        returnFocusTo={addButtonRef}
         parentConceptIris={parentConceptIris}
         entityType={conceptType}
         mappingSource={

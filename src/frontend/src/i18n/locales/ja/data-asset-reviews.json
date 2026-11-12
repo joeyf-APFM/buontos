@@ -190,6 +190,7 @@
     "activeSubscriptions": "有効なサブスクリプション",
     "accessRequestsTab": "アクセスリクエスト",
     "subscriptionsTab": "マイサブスクリプション",
+    "summary": "概要",
     "noSubscriptions": "まだデータプロダクトをサブスクライブしていません。",
     "product": "プロダクト",
     "loadFailed": "読み込みに失敗しました",

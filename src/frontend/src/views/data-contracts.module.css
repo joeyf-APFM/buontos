@@ -1,0 +1,66 @@
+/*
+ * Data Contracts (/data-contracts) on the page kit (wave 2 Task 6): full
+ * bleed, the shell's breadcrumb, the kit header, then one flush pane holding
+ * the shared DataTable. The list look it shares with Data Products is in
+ * components/common/list-page.module.css; what is left here is the page's
+ * own.
+ */
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.state .stateAlert {
+  align-self: stretch;
+  margin: 4px 0 0;
+}
+
+/* For a user who can't create or upload: nothing to rule off from */
+.historyAlone {
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+
+/* The upload error: its message (with the ODPS hint on its own lines), then
+   the technical details behind a toggle */
+.alertText {
+  white-space: pre-wrap;
+}
+
+.detailToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: inherit;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.detailToggle:hover {
+  opacity: 1;
+}
+
+.detailToggle svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The server's own error text: an identifier-like dump, in the mono font */
+.detail {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--aura-critical-bg);
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -159,7 +159,10 @@
     "title": "Schemi di concetti",
     "glossary": "Glossario",
     "taxonomy": "Tassonomia",
-    "ontology": "Ontologia"
+    "ontology": "Ontologia",
+    "listPane": "Elenco degli schemi",
+    "loadFailed": "Impossibile caricare gli schemi.",
+    "actionsFor": "Azioni per {{name}}"
   },
   "actions": {
     "createConcept": "Crea Concetto",
@@ -197,6 +200,9 @@
     "linkEditor": {
       "title": "Crea Collegamento",
       "description": "Definisci una relazione tra due concetti"
+    },
+    "deprecate": {
+      "removeSuccessor": "Rimuovi {{name}}"
     }
   },
   "rdfSources": {
@@ -292,7 +298,10 @@
     "selectSuperclass": "Seleziona superclasse",
     "selectParentConcept": "Seleziona concetto padre",
     "searchClasses": "Cerca classi...",
-    "searchConceptsInScheme": "Cerca concetti in questo schema di concetti..."
+    "searchConceptsInScheme": "Cerca concetti in questo schema di concetti...",
+    "removeValue": "Rimuovi {{name}}",
+    "addSynonym": "Aggiungi sinonimo",
+    "addExample": "Aggiungi esempio"
   },
   "collectionEditor": {
     "editTitle": "Modifica Schema di concetti",
@@ -303,7 +312,8 @@
     "parentCollection": "Schema di concetti padre",
     "noneRootCollection": "Nessuno (schema di concetti radice)",
     "editable": "Modificabile",
-    "editableHelp": "Consenti la creazione e la modifica di concetti in questo schema di concetti"
+    "editableHelp": "Consenti la creazione e la modifica di concetti in questo schema di concetti",
+    "typeInfo": "Informazioni sui tipi di schema"
   },
   "promotion": {
     "promoteConcept": "Promuovi Concetto",
@@ -325,7 +335,9 @@
   },
   "collectionTree": {
     "readOnly": "Schema di concetti di sola lettura",
-    "noCollectionsYet": "Ancora nessuno schema di concetti"
+    "noCollectionsYet": "Ancora nessuno schema di concetti",
+    "expand": "Espandi {{name}}",
+    "collapse": "Comprimi {{name}}"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -368,7 +380,6 @@
       "conceptCount_other": "{{count}} concetti"
     },
     "fullscreen": {
-      "description": "Vista a schermo intero della visualizzazione del grafo dei concetti",
       "hint": "Clicca sui nodi per selezionare i concetti. Usa lo scorrimento per lo zoom, trascina per spostarti."
     }
   },
@@ -469,7 +480,11 @@
       "descriptionLabel": "Descrizione (facoltativa)",
       "descriptionPlaceholder": "Descrivi lo scopo di questo schema di concetti di ontologia...",
       "importSummary": "Verranno importate {{classes}} classi e {{properties}} proprietà."
-    }
+    },
+    "runPane": "Esecuzione",
+    "results": "Risultati",
+    "connectionsFailed": "Impossibile caricare le connessioni.",
+    "runsFailed": "Impossibile caricare le esecuzioni recenti."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Includi altri schemi di concetti",
@@ -489,9 +504,17 @@
   "explore": {
     "emptyTitle": "Ancora niente da esplorare",
     "emptyBody": "Importa file o crea concetti nella scheda Define.",
-    "emptyCta": "Vai a Define"
+    "emptyCta": "Vai a Define",
+    "conceptsPane": "Concetti",
+    "filtersPane": "Filtri",
+    "loadFailed": "Impossibile caricare i concetti."
   },
   "define": {
-    "requiresWrite": "Richiede accesso in scrittura"
+    "requiresWrite": "Richiede accesso in scrittura",
+    "runsFailed": "Impossibile caricare il lavoro di creazione in corso.",
+    "about": "Informazioni su {{name}}"
+  },
+  "summary": {
+    "title": "Riepilogo"
   }
 }

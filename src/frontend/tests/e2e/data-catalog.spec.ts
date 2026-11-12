@@ -251,8 +251,11 @@ test.describe('a table', () => {
     const value = basic.locator('dd', { hasText: 'main' });
     expect(await style(label, ['color', 'font-size'])).toEqual({ color: TEXT_SECONDARY, 'font-size': '12px' });
     expect(Math.round((await box(value)).x - (await box(label)).x)).toBe(86);
+    // Two pairs to a row (Task 13d): Schema sits beside Catalog, Owner a row below
     const schema = await box(basic.locator('dt', { hasText: 'Schema' }));
-    expect(Math.abs(schema.y - (await box(label)).y - 23)).toBeLessThanOrEqual(1);
+    expect(Math.abs(schema.y - (await box(label)).y)).toBeLessThanOrEqual(0.5);
+    const owner = await box(basic.locator('dt', { hasText: 'Owner' }));
+    expect(Math.abs(owner.y - (await box(label)).y - 23)).toBeLessThanOrEqual(1);
   });
 
   test('the white page surface fills the window under a short page', async ({ page }) => {

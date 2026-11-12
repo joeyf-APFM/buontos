@@ -34,10 +34,9 @@ describe('FetchedSelectField', () => {
     await waitFor(() => {
       expect(fetcher).toHaveBeenCalledWith('/api/workspace/accessible-workspaces');
     });
-    // Trigger renders the placeholder (value is empty); the actual options
-    // live inside SelectContent which Radix portals on open. We assert via
-    // the trigger having been rendered with the expected placeholder.
-    expect(screen.getByText('Target workspace')).toBeInTheDocument();
+    // The field shows the placeholder (value is empty); the options are in
+    // the Mantine Select's list, opened on click.
+    expect(screen.getByPlaceholderText('Target workspace')).toBeInTheDocument();
   });
 
   it('skips fetch when no options_endpoint is provided (uses static options)', async () => {
@@ -81,6 +80,6 @@ describe('FetchedSelectField', () => {
       expect(fetcher).toHaveBeenCalled();
     });
     // Component renders without throwing — placeholder is still there.
-    expect(screen.getByText('Target workspace')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Target workspace')).toBeInTheDocument();
   });
 });

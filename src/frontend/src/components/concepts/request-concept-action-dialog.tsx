@@ -4,7 +4,6 @@ import {
   Archive,
   CheckCircle,
   CopyPlus,
-  Loader2,
   Rocket,
   Send,
   ShieldCheck,
@@ -12,17 +11,12 @@ import {
   ArchiveX,
   ArrowRightCircle,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Loader, Select } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SELECT_CLASSES } from '@/components/common/dialog-form';
+import { Dialog } from '@/mantine/page';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './request-concept-action-dialog.module.css';
 
 // ---------------------------------------------------------------------------
 // RequestConceptActionDialog: the concept detail page's single "Request"
@@ -95,13 +89,12 @@ export function RequestConceptActionDialog({
   const { t } = useTranslation(['semantic-models', 'common']);
 
   const options = useMemo<OptionConfig[]>(() => {
-    const iconCls = 'h-5 w-5';
     const describe = (item: ConceptTransitionItem): Pick<OptionConfig, 'icon' | 'description'> => {
       const action = (item.action || '').toLowerCase();
       const status = (item.status || '').toLowerCase();
       if (action === 'submit-review') {
         return {
-          icon: <Send className={iconCls} />,
+          icon: <Send aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.submitReview',
             'Submit this concept for review. The reviewer is chosen in the next step.',
@@ -110,7 +103,7 @@ export function RequestConceptActionDialog({
       }
       if (action === 'approve') {
         return {
-          icon: <CheckCircle className={iconCls} />,
+          icon: <CheckCircle aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.approve',
             'Approve this concept so it can be published.',
@@ -119,7 +112,7 @@ export function RequestConceptActionDialog({
       }
       if (action === 'reject' || action === 'request-changes' || status === 'draft') {
         return {
-          icon: <Undo2 className={iconCls} />,
+          icon: <Undo2 aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.requestChanges',
             'Send this concept back to draft. You can add a comment in the next step.',
@@ -128,7 +121,7 @@ export function RequestConceptActionDialog({
       }
       if (action === 'publish' || status === 'published') {
         return {
-          icon: <Rocket className={iconCls} />,
+          icon: <Rocket aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.publish',
             'Publish this concept so others can find and use it.',
@@ -137,7 +130,7 @@ export function RequestConceptActionDialog({
       }
       if (action === 'certify' || status === 'certified') {
         return {
-          icon: <ShieldCheck className={iconCls} />,
+          icon: <ShieldCheck aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.certify',
             'Mark this concept as certified, a trusted reference.',
@@ -146,7 +139,7 @@ export function RequestConceptActionDialog({
       }
       if (action === 'deprecate' || status === 'deprecated') {
         return {
-          icon: <ArchiveX className={iconCls} />,
+          icon: <ArchiveX aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.deprecate',
             'Deprecate this concept. It stays visible but is flagged as no longer recommended.',
@@ -155,7 +148,7 @@ export function RequestConceptActionDialog({
       }
       if (action === 'archive' || status === 'archived') {
         return {
-          icon: <Archive className={iconCls} />,
+          icon: <Archive aria-hidden />,
           description: t(
             'semantic-models:lifecycle.requestDialog.describe.archive',
             'Archive this concept. It is retired and hidden from normal use.',
@@ -163,7 +156,7 @@ export function RequestConceptActionDialog({
         };
       }
       return {
-        icon: <ArrowRightCircle className={iconCls} />,
+        icon: <ArrowRightCircle aria-hidden />,
         description: t('semantic-models:lifecycle.requestDialog.describe.generic', {
           defaultValue: 'Move this concept to the {{status}} status.',
           status: item.status,
@@ -191,7 +184,7 @@ export function RequestConceptActionDialog({
         key: NEW_VERSION_KEY,
         label: t('semantic-models:versionHistory.newVersion', 'New Version'),
         confirmLabel: t('semantic-models:lifecycle.requestDialog.createNewVersion', 'Create New Version'),
-        icon: <CopyPlus className={iconCls} />,
+        icon: <CopyPlus aria-hidden />,
         description: t(
           'semantic-models:lifecycle.requestDialog.describe.newVersion',
           'Save a new version of this concept. The IRI stays the same.',
@@ -224,76 +217,69 @@ export function RequestConceptActionDialog({
     selected.run();
   };
 
+  const pickerLabel = t('semantic-models:lifecycle.requestDialog.pickerLabel', 'What do you want to request?');
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle>{t('semantic-models:lifecycle.requestDialog.title', 'Request Action')}</DialogTitle>
-          <DialogDescription>
-            {conceptLabel
-              ? t('semantic-models:lifecycle.requestDialog.descriptionWithLabel', {
-                  defaultValue: 'Choose what you want to do with the concept "{{label}}".',
-                  label: conceptLabel,
-                })
-              : t('semantic-models:lifecycle.requestDialog.description', 'Choose what you want to do with this concept.')}
-            {currentStatus && (
-              <>
-                {' '}
-                {t('semantic-models:lifecycle.requestDialog.currentStatus', {
-                  defaultValue: 'Current status: {{status}}.',
-                  status: t(`semantic-models:lifecycle.status.${currentStatus.toLowerCase()}`, currentStatus),
-                })}
-              </>
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="request-concept-action">
-              {t('semantic-models:lifecycle.requestDialog.pickerLabel', 'What do you want to request?')}
-            </Label>
-            <Select value={selected?.key} onValueChange={setSelectedKey}>
-              <SelectTrigger
-                id="request-concept-action"
-                aria-label={t('semantic-models:lifecycle.requestDialog.pickerLabel', 'What do you want to request?')}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((o) => (
-                  <SelectItem key={o.key} value={o.key}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selected && (
-            <div className="flex items-start gap-3 rounded-md border p-3" data-testid="request-concept-action-body">
-              <div className="mt-0.5 text-muted-foreground">{selected.icon}</div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{selected.label}</p>
-                <p className="text-sm text-muted-foreground">{selected.description}</p>
-                {selected.disabled && selected.disabledReason && (
-                  <p className="text-sm text-amber-600 dark:text-amber-500">{selected.disabledReason}</p>
-                )}
-              </div>
-            </div>
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      title={t('semantic-models:lifecycle.requestDialog.title', 'Request Action')}
+      description={
+        <>
+          {conceptLabel
+            ? t('semantic-models:lifecycle.requestDialog.descriptionWithLabel', {
+                defaultValue: 'Choose what you want to do with the concept "{{label}}".',
+                label: conceptLabel,
+              })
+            : t('semantic-models:lifecycle.requestDialog.description', 'Choose what you want to do with this concept.')}
+          {currentStatus && (
+            <>
+              {' '}
+              {t('semantic-models:lifecycle.requestDialog.currentStatus', {
+                defaultValue: 'Current status: {{status}}.',
+                status: t(`semantic-models:lifecycle.status.${currentStatus.toLowerCase()}`, currentStatus),
+              })}
+            </>
           )}
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-0">
+        </>
+      }
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             {t('common:actions.cancel', 'Cancel')}
           </Button>
           <Button onClick={handleConfirm} disabled={confirmDisabled}>
-            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {busy && <Loader size={12} color="currentColor" />}
             {selected?.confirmLabel ?? t('semantic-models:lifecycle.request', 'Request')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <Select
+          id="request-concept-action"
+          label={pickerLabel}
+          aria-label={pickerLabel}
+          data={options.map((o) => ({ value: o.key, label: o.label }))}
+          value={selected?.key ?? null}
+          onChange={(value) => value && setSelectedKey(value)}
+          allowDeselect={false}
+          classNames={SELECT_CLASSES}
+        />
+
+        {selected && (
+          <div className={classes.body} data-testid="request-concept-action-body">
+            <div className={classes.icon}>{selected.icon}</div>
+            <div className={classes.text}>
+              <p className={classes.label}>{selected.label}</p>
+              <p className={classes.description}>{selected.description}</p>
+              {selected.disabled && selected.disabledReason && (
+                <p className={classes.reason}>{selected.disabledReason}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </Dialog>
   );
 }

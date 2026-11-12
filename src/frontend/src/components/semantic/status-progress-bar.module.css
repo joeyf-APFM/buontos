@@ -1,0 +1,58 @@
+/*
+ * The concept lifecycle chain (wave 2 Task 15): one pill per step, the
+ * current one filled in the accent, done ones subtle with a check, the rest
+ * dashed; a deprecated or archived concept shows that off-ramp after a dot.
+ */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px dashed var(--aura-border);
+  border-radius: 10px;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+}
+
+.pill > svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pill[data-step='done'] {
+  border-style: solid;
+  background: var(--aura-surface-strong);
+}
+
+.pill[data-step='current'] {
+  border: 1px solid var(--aura-accent);
+  background: var(--aura-accent);
+  color: var(--aura-surface);
+  font-weight: 600;
+}
+
+.pill[data-terminal] {
+  border: 1px solid var(--aura-warning);
+  background: var(--aura-warning-bg);
+  color: var(--aura-text-body);
+  font-weight: 600;
+}
+
+.arrow {
+  color: var(--aura-text-muted);
+}

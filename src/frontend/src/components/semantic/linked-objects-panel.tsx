@@ -1,36 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { ActionIcon, Collapse, Loader, Select, UnstyledButton } from '@mantine/core'
 import {
   ChevronDown,
   ChevronRight,
@@ -42,13 +13,20 @@ import {
   FolderOpen,
   Globe,
   Link2,
-  Loader2,
   Package,
   Plus,
   Shapes,
   Table,
   Trash2,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status'
+import { SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form'
+import { Dialog } from '@/mantine/page'
+import panel from '@/components/common/panel.module.css'
+import form from '@/components/common/dialog-form.module.css'
+import classes from './linked-objects-panel.module.css'
 import { useApi } from '@/hooks/use-api'
 import { useToast } from '@/hooks/use-toast'
 import { useKnowledgeGraphStore } from '@/stores/knowledge-graph-store'
@@ -76,7 +54,7 @@ interface LinkedObjectsPanelProps {
   canAssign: boolean
   onChanged?: () => void
   // When set, the linked-objects list scrolls internally past this row
-  // count instead of growing the page (rows are ~32px high).
+  // count instead of growing the page (rows are 28px high).
   maxVisibleRows?: number
 }
 
@@ -93,19 +71,19 @@ const ENTITY_ICONS: Record<string, typeof FileText> = {
   data_contract_property: Columns2,
 }
 
-// Same colour vocabulary as NodeLinksPanel relationshipColors so the badges
-// look at home next to the ontology relations panel above.
-const ENTITY_TYPE_COLORS: Record<string, string> = {
-  data_product: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-  data_contract: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-  asset: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
-  data_domain: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
-  uc_catalog: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-  uc_schema: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-  uc_table: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
-  uc_column: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
-  data_contract_schema: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
-  data_contract_property: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+// Each entity type's Aura tone (wave 2 Task 15; were Tailwind colours, the
+// same vocabulary as NodeLinksPanel's relationshipColors)
+const ENTITY_TYPE_TONES: Record<string, StatusTone> = {
+  data_product: 'emerald',
+  data_contract: 'info',
+  asset: 'accent',
+  data_domain: 'cyan',
+  uc_catalog: 'gold',
+  uc_schema: 'gold',
+  uc_table: 'warning',
+  uc_column: 'warning',
+  data_contract_schema: 'accent',
+  data_contract_property: 'accent',
 }
 
 const iconFor = (entityType: string) => ENTITY_ICONS[entityType] ?? FileText
@@ -120,7 +98,7 @@ export default function LinkedObjectsPanel({
   onChanged,
   maxVisibleRows,
 }: LinkedObjectsPanelProps) {
-  const ROW_HEIGHT_PX = 32
+  const ROW_HEIGHT_PX = 28
   const listMaxHeight = maxVisibleRows
     ? { maxHeight: ROW_HEIGHT_PX * maxVisibleRows }
     : undefined
@@ -133,6 +111,11 @@ export default function LinkedObjectsPanel({
   const [links, setLinks] = useState<EnrichedSemanticLink[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [open, setOpen] = useState(true)
+  const bodyId = useId()
+  const addButtonRef = useRef<HTMLButtonElement>(null)
+  // Where focus goes once the remove confirm has closed: its opener (the
+  // row's Remove) by default; Add, once the row has gone with its link
+  const removeReturnRef = useRef<HTMLElement | null>(null)
 
   // Assign dialog state
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
@@ -220,7 +203,10 @@ export default function LinkedObjectsPanel({
     [get]
   )
 
+  // Each load's turn: an answer for a concept the page has moved on from is dropped
+  const loadSeq = useRef(0)
   const fetchLinks = useCallback(async () => {
+    const seq = ++loadSeq.current
     if (!conceptIri) {
       setLinks([])
       return
@@ -233,14 +219,15 @@ export default function LinkedObjectsPanel({
       const res = await get<SemanticLink[]>(
         `/api/semantic-links/by-iri?iri=${encodeURIComponent(conceptIri)}`
       )
-      const raw = res.data || []
+      const raw = Array.isArray(res.data) ? res.data : []
       const enriched = await enrichLinks(raw)
+      if (seq !== loadSeq.current) return
       setLinks(enriched)
     } catch (error) {
       console.error('LinkedObjectsPanel: failed to load links', error)
-      setLinks([])
+      if (seq === loadSeq.current) setLinks([])
     } finally {
-      setIsLoading(false)
+      if (seq === loadSeq.current) setIsLoading(false)
     }
   }, [conceptIri, get, enrichLinks])
 
@@ -248,13 +235,20 @@ export default function LinkedObjectsPanel({
     fetchLinks()
   }, [fetchLinks])
 
+  // Each entity-type load's turn: an answer for a type the user has moved on
+  // from is dropped, so the list never offers another type's entities
+  const entitiesSeq = useRef(0)
   const loadEntitiesForType = useCallback(
     async (entityType: string) => {
+      const seq = ++entitiesSeq.current
+      const keep = (entities: typeof availableEntities) => {
+        if (seq === entitiesSeq.current) setAvailableEntities(entities)
+      }
       try {
         if (entityType === 'asset') {
           // /api/assets returns a PaginatedAssetSummary { items, total, ... }
           const res = await get<{ items: any[] }>('/api/assets?limit=500')
-          setAvailableEntities(res.data?.items || [])
+          keep(Array.isArray(res.data?.items) ? res.data.items : [])
           return
         }
 
@@ -267,14 +261,14 @@ export default function LinkedObjectsPanel({
             endpoint = '/api/data-contracts'
             break
           default:
-            setAvailableEntities([])
+            keep([])
             return
         }
         const res = await get<any[]>(endpoint)
-        setAvailableEntities(res.data || [])
+        keep(Array.isArray(res.data) ? res.data : [])
       } catch (error) {
         console.error('LinkedObjectsPanel: failed to load entities for', entityType, error)
-        setAvailableEntities([])
+        keep([])
       }
     },
     [get]
@@ -283,6 +277,8 @@ export default function LinkedObjectsPanel({
   const handleEntityTypeChange = (entityType: string) => {
     setSelectedEntityType(entityType)
     setSelectedEntityId('')
+    // The last type's entities go at once, not when the new answer lands
+    setAvailableEntities([])
     loadEntitiesForType(entityType)
   }
 
@@ -435,6 +431,8 @@ export default function LinkedObjectsPanel({
       const res = await deleteLink(`/api/semantic-links/${link.id}`)
       if (res.error) throw new Error(res.error)
 
+      // The row (and its Remove) goes with the link: focus goes to Add
+      removeReturnRef.current = addButtonRef.current
       setLinkPendingRemoval(null)
       bumpKnowledgeGraphRefresh('semantic-link-mutated')
       onChanged?.()
@@ -490,124 +488,136 @@ export default function LinkedObjectsPanel({
     return out
   })()
 
-  // Aligned columns: [icon] name … [type pill] [Open] [remove]. The name cell
+  // Aligned columns: [icon] name … [type chip] [Open] [remove]. The name cell
   // flexes; the trailing cells keep a fixed footprint so every row lines up.
   const renderLinkRow = (link: EnrichedSemanticLink, depth = 0) => {
     const Icon = iconFor(link.entity_type)
     const typeLabel = getEntityTypeLabel(link.entity_type)
-    const colour = ENTITY_TYPE_COLORS[link.entity_type] || ''
+    const tone = ENTITY_TYPE_TONES[link.entity_type] ?? 'neutral'
     return (
       <div
         key={link.id}
         data-testid={`linked-object-${link.id}`}
         data-depth={depth}
-        className={`flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 group ${
-          depth > 0 ? 'ml-4 border-l pl-3' : ''
-        }`}
+        className={classes.row}
       >
-        <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-        <button
-          type="button"
-          className="text-sm text-primary hover:underline text-left truncate flex-1 min-w-0"
+        <Icon className={classes.icon} aria-hidden />
+        <UnstyledButton
+          className={classes.name}
           onClick={() => navigateToEntity(link)}
           title={`${typeLabel}: ${link.entity_name || link.entity_id} • ${link.iri}`}
         >
           {link.entity_name || link.entity_id}
-        </button>
-        <Badge
-          variant="outline"
-          className={`text-xs flex-shrink-0 ${colour}`}
-        >
+        </UnstyledButton>
+        <Badge variant="outline" className={classes.type} style={badgeToneStyle(tone)}>
           {typeLabel}
         </Badge>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground flex-shrink-0 w-14 justify-end"
+        <UnstyledButton
+          className={classes.open}
           onClick={() => navigateToEntity(link)}
           aria-label={t('semantic-models:linkedObjects.open', {
             defaultValue: 'Open',
           })}
         >
           {t('semantic-models:linkedObjects.open', { defaultValue: 'Open' })}
-          <ExternalLink className="h-3 w-3" />
-        </button>
+          <ExternalLink aria-hidden />
+        </UnstyledButton>
         {canAssign ? (
-          <Button
-            variant="ghost"
-            size="icon"
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size={24}
             data-testid={`linked-object-remove-${link.id}`}
             aria-label={t('semantic-models:linkedObjects.removeAria', {
               defaultValue: 'Remove linked entity',
             })}
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
+            className={classes.remove}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              removeReturnRef.current = null
               setLinkPendingRemoval(link)
             }}
           >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+            <Trash2 size={14} />
+          </ActionIcon>
         ) : (
-          <span className="w-6 flex-shrink-0" aria-hidden="true" />
+          <span className={classes.spacer} aria-hidden="true" />
         )}
       </div>
     )
   }
 
+  const typeOptions = [
+    { value: 'data_product', label: t('search:concepts.assignDialog.dataProduct') },
+    { value: 'data_contract', label: t('search:concepts.assignDialog.dataContract') },
+    { value: 'asset', label: t('search:concepts.assignDialog.asset', { defaultValue: 'Asset' }) },
+  ]
+  // One option per entity; an asset's type shows after its name
+  const entityOptions = uniqueOptions(
+    availableEntities
+      .filter((entity) => entity?.id != null)
+      .map((entity) => ({
+        value: String(entity.id),
+        label: String(entity.name || entity.info?.title || entity.title || entity.id),
+        sub: selectedEntityType === 'asset' && entity.asset_type_name ? String(entity.asset_type_name) : null,
+      })),
+  )
+  const subLabels = new Map(entityOptions.map((o) => [o.value, o.sub]))
+
+  const closeAssign = () => setAssignDialogOpen(false)
+
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="border rounded-lg">
-        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50">
-          <div className="flex items-center gap-2">
-            {open ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            <Link2 className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium text-sm">
+    <>
+      <div className={panel.pane} data-flush>
+        <div className={panel.head}>
+          <h3 className={panel.title}>
+            <UnstyledButton
+              className={classes.fold}
+              aria-expanded={open}
+              aria-controls={bodyId}
+              onClick={() => setOpen((o) => !o)}
+            >
+              {open ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+              <Link2 aria-hidden />
               {t('semantic-models:linkedObjects.title', {
                 defaultValue: 'Linked Entities',
               })}
-            </span>
-            <Badge variant="secondary" className="text-xs">
-              {links.length}
-            </Badge>
-          </div>
-
+              <Badge variant="secondary">{links.length}</Badge>
+            </UnstyledButton>
+          </h3>
           {canAssign && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7"
-              data-testid="linked-objects-assign-button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setAssignDialogOpen(true)
-              }}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              {t('common:actions.add')}
-            </Button>
+            <div className={panel.actions}>
+              <Button
+                ref={addButtonRef}
+                variant="ghost"
+                size="sm"
+                data-testid="linked-objects-assign-button"
+                onClick={() => setAssignDialogOpen(true)}
+              >
+                <Plus aria-hidden />
+                {t('common:actions.add')}
+              </Button>
+            </div>
           )}
-        </CollapsibleTrigger>
+        </div>
 
-        <CollapsibleContent>
+        <Collapse in={open} id={bodyId} transitionDuration={0}>
           <div
-            className={`border-t px-2 py-1 ${maxVisibleRows ? 'overflow-y-auto' : ''}`}
+            className={classes.list}
+            data-capped={maxVisibleRows ? '' : undefined}
             style={listMaxHeight}
             data-testid="linked-objects-list"
           >
             {isLoading && links.length === 0 ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2 px-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <p className={classes.state}>
+                <Loader size={12} color="currentColor" />
                 {t('semantic-models:linkedObjects.loading', {
                   defaultValue: 'Loading linked entities...',
                 })}
-              </div>
+              </p>
             ) : links.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2 px-2">
+              <p className={classes.state}>
                 {t('semantic-models:linkedObjects.empty', {
                   defaultValue: 'No entities linked to this concept.',
                 })}
@@ -616,141 +626,115 @@ export default function LinkedObjectsPanel({
               orderedLinks.map(({ link, depth }) => renderLinkRow(link, depth))
             )}
           </div>
-        </CollapsibleContent>
+        </Collapse>
       </div>
 
       {/* Assign dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('search:concepts.assignDialog.title')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm">
-              <p className="font-medium">{conceptLabel}</p>
-              <p className="text-muted-foreground font-mono text-xs break-all">{conceptIri}</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {t('search:concepts.assignDialog.entityType')}
-              </label>
-              <Select value={selectedEntityType} onValueChange={handleEntityTypeChange}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={t('search:concepts.assignDialog.selectEntityType')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="data_product">
-                    {t('search:concepts.assignDialog.dataProduct')}
-                  </SelectItem>
-                  <SelectItem value="data_contract">
-                    {t('search:concepts.assignDialog.dataContract')}
-                  </SelectItem>
-                  <SelectItem value="asset">
-                    {t('search:concepts.assignDialog.asset', { defaultValue: 'Asset' })}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedEntityType && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  {getEntityTypeLabel(selectedEntityType)}
-                </label>
-                <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={t('search:concepts.assignDialog.selectEntity', {
-                        entityType: getEntityTypeLabel(selectedEntityType),
-                      })}
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72 overflow-y-auto">
-                    {availableEntities.map((entity) => {
-                      const label =
-                        entity.name || entity.info?.title || entity.title || entity.id
-                      const subLabel =
-                        selectedEntityType === 'asset' && entity.asset_type_name
-                          ? entity.asset_type_name
-                          : null
-                      return (
-                        <SelectItem key={entity.id} value={entity.id}>
-                          <span className="flex items-center gap-2">
-                            <span>{label}</span>
-                            {subLabel && (
-                              <span className="text-xs text-muted-foreground">
-                                · {subLabel}
-                              </span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
-                {t('common:actions.cancel')}
-              </Button>
-              <Button
-                onClick={handleAssignToObject}
-                disabled={!selectedEntityType || !selectedEntityId}
-                data-testid="linked-objects-assign-confirm"
-              >
-                {t('common:actions.assign')}
-              </Button>
-            </div>
+      <Dialog
+        opened={assignDialogOpen}
+        onClose={closeAssign}
+        size="sm"
+        title={t('search:concepts.assignDialog.title')}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={closeAssign}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssignToObject}
+              disabled={!selectedEntityType || !selectedEntityId}
+              data-testid="linked-objects-assign-confirm"
+            >
+              {t('common:actions.assign')}
+            </Button>
+          </>
+        }
+      >
+        <div className={form.form}>
+          <div className={classes.concept}>
+            <p className={classes.conceptLabel}>{conceptLabel}</p>
+            <p className={classes.conceptIri}>{conceptIri}</p>
           </div>
-        </DialogContent>
+
+          <Select
+            label={t('search:concepts.assignDialog.entityType')}
+            placeholder={t('search:concepts.assignDialog.selectEntityType')}
+            data={typeOptions}
+            value={selectedEntityType || null}
+            onChange={(value) => value && handleEntityTypeChange(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+
+          {selectedEntityType && (
+            <Select
+              label={getEntityTypeLabel(selectedEntityType)}
+              placeholder={t('search:concepts.assignDialog.selectEntity', {
+                entityType: getEntityTypeLabel(selectedEntityType),
+              })}
+              data={entityOptions.map(({ value, label }) => ({ value, label }))}
+              value={selectedEntityId || null}
+              onChange={(value) => setSelectedEntityId(value ?? '')}
+              allowDeselect={false}
+              maxDropdownHeight={288}
+              classNames={SELECT_CLASSES}
+              renderOption={({ option }) => {
+                const sub = subLabels.get(option.value)
+                return (
+                  <span className={classes.optionLine}>
+                    <span>{option.label}</span>
+                    {sub && <span className={classes.optionSub}>· {sub}</span>}
+                  </span>
+                )
+              }}
+            />
+          )}
+        </div>
       </Dialog>
 
       {/* Remove-link confirm dialog */}
-      <AlertDialog
-        open={linkPendingRemoval !== null}
-        onOpenChange={(open) => {
-          if (!open) setLinkPendingRemoval(null)
+      <Dialog
+        opened={linkPendingRemoval !== null}
+        onClose={() => {
+          if (!isRemoving) setLinkPendingRemoval(null)
         }}
-      >
-        <AlertDialogContent data-testid="linked-object-remove-confirm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('semantic-models:linkedObjects.removeConfirmTitle', {
-                defaultValue: 'Remove this link?',
-              })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('semantic-models:linkedObjects.removeConfirmBody', {
-                label: linkPendingRemoval?.entity_name || linkPendingRemoval?.entity_id,
-                defaultValue:
-                  'This unlinks "{{label}}" from this concept. It does not delete the entity itself.',
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRemoving}>
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={removeReturnRef}
+        title={t('semantic-models:linkedObjects.removeConfirmTitle', {
+          defaultValue: 'Remove this link?',
+        })}
+        description={t('semantic-models:linkedObjects.removeConfirmBody', {
+          label: linkPendingRemoval?.entity_name || linkPendingRemoval?.entity_id,
+          defaultValue:
+            'This unlinks "{{label}}" from this concept. It does not delete the entity itself.',
+        })}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isRemoving}
+              onClick={() => setLinkPendingRemoval(null)}
+            >
               {t('common:actions.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
               data-testid="linked-object-remove-confirm-button"
               disabled={isRemoving}
-              onClick={(e) => {
-                // Keep the dialog mounted until the request resolves so we can
-                // surface an error toast without it closing underneath us.
-                e.preventDefault()
-                handleRemoveLink()
-              }}
+              // Keeps the dialog open until the request resolves, so an error
+              // toast shows without it closing underneath
+              onClick={() => void handleRemoveLink()}
             >
+              {isRemoving && <Loader size={12} color="currentColor" />}
               {t('common:actions.remove', { defaultValue: 'Remove' })}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Collapsible>
+            </Button>
+          </>
+        }
+      />
+    </>
   )
 }

@@ -1,37 +1,9 @@
 /*
- * The create review request dialog on a Mantine Modal with Mantine fields
- * (Task 15): the Task 7 dialog look (8px corners, 16px padding, the floating
- * shadow, a 14px navy title), as the import preview dialog
- * (components/schema-importer/import-preview-dialog.module.css), with 28px
- * fields 12px apart, as the asset type form (components/asset-types/).
+ * The create review request dialog's form, in the kit Dialog
+ * (mantine/page/dialog.tsx, which has the dialog look), with 28px fields
+ * 12px apart, as the asset type form (components/asset-types/).
  * The reviewer picker and the asset tree are shared and keep their own look.
  */
-.content {
-  composes: content from '../schema-importer/import-preview-dialog.module.css';
-  position: relative;
-}
-
-.header {
-  composes: header from '../schema-importer/import-preview-dialog.module.css';
-  padding-right: 40px;
-}
-
-.title {
-  composes: title from '../schema-importer/import-preview-dialog.module.css';
-}
-
-/* The description: Mantine's Modal body, so it describes the dialog */
-.description {
-  composes: description from '../schema-importer/import-preview-dialog.module.css';
-}
-
-/* The corner close, last in the content (as Radix's), placed at the top right */
-.close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
-
 .form {
   composes: form from '../asset-types/asset-type-form-dialog.module.css';
 }
@@ -106,12 +78,4 @@
 
 .functionIcon {
   color: var(--aura-critical);
-}
-
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px 16px;
-  border-top: 1px solid var(--aura-border);
 }

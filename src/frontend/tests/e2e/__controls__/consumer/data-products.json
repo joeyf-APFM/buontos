@@ -34,5 +34,5 @@
   "link \"Home\"",
   "link \"Products\"",
   "switch \"Show all versions\"",
-  "textbox \"Filter info > titles...\""
+  "textbox \"Filter names...\""
 ]

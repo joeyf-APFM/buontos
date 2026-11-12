@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AppMantineProvider } from '@/mantine/provider';
+import { optionNames, pick, selectField } from '@/test/kit-dialog';
 import { GuidedGenerateDialog, composeGuidedPrompt } from './guided-generate-dialog';
 
 const mockUseDomains = vi.fn();
@@ -14,43 +16,6 @@ const DOMAINS = [
   { id: 'd2', name: 'Logistics', description: null },
 ];
 
-// Swap Radix Select for a native <select>: driving Radix's pointer/portal
-// machinery through jsdom hung the CI runner. The dialog's behaviour (which
-// options exist, what picking one does) is what this file tests.
-vi.mock('@/components/ui/select', async () => {
-  const React = await import('react');
-  const SelectTrigger = (_: { 'aria-label'?: string; children?: React.ReactNode }) => null;
-  const SelectValue = () => null;
-  const SelectContent = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-  const SelectItem = ({ value, children }: { value: string; children?: React.ReactNode }) => (
-    <option value={value}>{children}</option>
-  );
-  const Select = ({
-    value,
-    onValueChange,
-    children,
-  }: {
-    value?: string;
-    onValueChange?: (v: string) => void;
-    children?: React.ReactNode;
-  }) => {
-    let label: string | undefined;
-    const options: React.ReactNode[] = [];
-    React.Children.forEach(children, (child) => {
-      if (!React.isValidElement(child)) return;
-      const el = child as React.ReactElement<any>;
-      if (el.type === SelectTrigger) label = el.props['aria-label'];
-      else options.push(el);
-    });
-    return (
-      <select aria-label={label} value={value} onChange={(e) => onValueChange?.(e.target.value)}>
-        {options}
-      </select>
-    );
-  };
-  return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
-});
-
 function GeneratorProbe() {
   const loc = useLocation();
   return <div data-testid="generator-search">{loc.search}</div>;
@@ -58,12 +23,14 @@ function GeneratorProbe() {
 
 function renderDialog() {
   return render(
-    <MemoryRouter initialEntries={['/concepts']}>
-      <Routes>
-        <Route path="/concepts" element={<GuidedGenerateDialog open onOpenChange={vi.fn()} />} />
-        <Route path="/concepts/generator" element={<GeneratorProbe />} />
-      </Routes>
-    </MemoryRouter>,
+    <AppMantineProvider>
+      <MemoryRouter initialEntries={['/concepts']}>
+        <Routes>
+          <Route path="/concepts" element={<GuidedGenerateDialog open onOpenChange={vi.fn()} />} />
+          <Route path="/concepts/generator" element={<GeneratorProbe />} />
+        </Routes>
+      </MemoryRouter>
+    </AppMantineProvider>,
   );
 }
 
@@ -91,14 +58,12 @@ describe('GuidedGenerateDialog', () => {
     const user = userEvent.setup();
     renderDialog();
 
-    const select = screen.getByRole('combobox', { name: 'Data domain' });
-    expect(within(select).getByRole('option', { name: 'Finance' })).toBeInTheDocument();
-    expect(within(select).getByRole('option', { name: 'Logistics' })).toBeInTheDocument();
-    expect(within(select).getByRole('option', { name: /No data domain/ })).toBeInTheDocument();
+    const select = selectField(screen.getByRole('dialog'), 'Data domain');
+    expect(await optionNames(user, select)).toEqual(['No data domain (type your own)', 'Finance', 'Logistics']);
     // Hardcoded example chips are gone.
     expect(screen.queryByText('Supply chain')).not.toBeInTheDocument();
 
-    await user.selectOptions(select, 'd2');
+    await pick(user, select, 'Logistics');
     expect(screen.getByLabelText('What domain are you working in?')).toHaveValue('Logistics');
   });
 
@@ -113,7 +78,7 @@ describe('GuidedGenerateDialog', () => {
     const user = userEvent.setup();
     renderDialog();
     expect(screen.getByTestId('guided-domains-empty')).toBeInTheDocument();
-    expect(screen.queryByRole('combobox', { name: 'Data domain' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Data domain' })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText('What domain are you working in?'), 'Clinical trials');
     expect(screen.getByTestId('guided-prompt-preview')).toHaveTextContent(

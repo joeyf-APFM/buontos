@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog } from '@/mantine/page';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import type { ManagementPort } from '@/types/data-product';
+import { FIELD_CLASSES, HINT_BELOW, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 
 type ManagementPortFormProps = {
   isOpen: boolean;
@@ -98,117 +97,97 @@ export default function ManagementPortFormDialog({ isOpen, onOpenChange, onSubmi
     }
   };
 
+  const contentOptions = MANAGEMENT_PORT_CONTENTS.map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }));
+  const typeOptions = MANAGEMENT_PORT_TYPES.map((p) => ({ value: p, label: p.toUpperCase() }));
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{initial ? t('data-products:managementPortForm.editTitle') : t('data-products:managementPortForm.addTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('data-products:managementPortForm.description')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">
-              {t('data-products:managementPortForm.labels.portName')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('data-products:managementPortForm.placeholders.name')}
-              autoFocus
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="content">
-                {t('data-products:managementPortForm.labels.contentType')} <span className="text-destructive">*</span>
-              </Label>
-              <Select value={content} onValueChange={setContent}>
-                <SelectTrigger id="content">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MANAGEMENT_PORT_CONTENTS.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c.charAt(0).toUpperCase() + c.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Purpose of this management port
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="type">{t('data-products:managementPortForm.labels.portType')}</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger id="type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MANAGEMENT_PORT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t.toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="url">{t('data-products:managementPortForm.labels.url')}</Label>
-            <Input
-              id="url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('data-products:managementPortForm.placeholders.url')}
-            />
-            <p className="text-xs text-muted-foreground">
-              Access URL for this management port
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="channel">{t('data-products:managementPortForm.labels.channel')}</Label>
-            <Input
-              id="channel"
-              value={channel}
-              onChange={(e) => setChannel(e.target.value)}
-              placeholder={t('data-products:managementPortForm.placeholders.channel')}
-            />
-            <p className="text-xs text-muted-foreground">
-              Communication channel identifier
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('common:labels.description')}</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('data-products:managementPortForm.placeholders.description')}
-              rows={3}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="md"
+      title={initial ? t('data-products:managementPortForm.editTitle') : t('data-products:managementPortForm.addTitle')}
+      description={t('data-products:managementPortForm.description')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Saving...' : initial ? 'Save Changes' : 'Add Port'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          id="name"
+          label={t('data-products:managementPortForm.labels.portName')}
+          withAsterisk
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder={t('data-products:managementPortForm.placeholders.name')}
+          classNames={FIELD_CLASSES}
+          data-autofocus
+        />
+
+        <div className={form.row}>
+          <Select
+            id="content"
+            label={t('data-products:managementPortForm.labels.contentType')}
+            withAsterisk
+            data={contentOptions}
+            value={content || null}
+            onChange={(value) => value && setContent(value)}
+            allowDeselect={false}
+            description="Purpose of this management port"
+            inputWrapperOrder={HINT_BELOW}
+            classNames={SELECT_CLASSES}
+          />
+
+          <Select
+            id="type"
+            label={t('data-products:managementPortForm.labels.portType')}
+            data={typeOptions}
+            value={type || null}
+            onChange={(value) => value && setType(value)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+        </div>
+
+        <TextInput
+          id="url"
+          type="url"
+          label={t('data-products:managementPortForm.labels.url')}
+          value={url}
+          onChange={(e) => setUrl(e.currentTarget.value)}
+          placeholder={t('data-products:managementPortForm.placeholders.url')}
+          description="Access URL for this management port"
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        />
+
+        <TextInput
+          id="channel"
+          label={t('data-products:managementPortForm.labels.channel')}
+          value={channel}
+          onChange={(e) => setChannel(e.currentTarget.value)}
+          placeholder={t('data-products:managementPortForm.placeholders.channel')}
+          description="Communication channel identifier"
+          inputWrapperOrder={HINT_BELOW}
+          classNames={FIELD_CLASSES}
+        />
+
+        <Textarea
+          id="description"
+          label={t('common:labels.description')}
+          value={description}
+          onChange={(e) => setDescription(e.currentTarget.value)}
+          placeholder={t('data-products:managementPortForm.placeholders.description')}
+          rows={3}
+          classNames={FIELD_CLASSES}
+        />
+      </div>
     </Dialog>
   );
 }

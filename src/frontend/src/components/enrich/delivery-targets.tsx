@@ -1,15 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Info, Sparkles, ExternalLink } from 'lucide-react';
+import { Badge, Tooltip, UnstyledButton } from '@mantine/core';
+import { Sparkles, ExternalLink } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { InfoTip } from '@/components/common/info-tip';
+import classes from './delivery-targets.module.css';
 
 // ---------------------------------------------------------------------------
 // Deliver lane — target rows.
@@ -74,11 +70,10 @@ const STATUS_LABEL: Record<TargetStatus, string> = {
   coming: 'Coming',
 };
 
-const STATUS_CLASS: Record<TargetStatus, string> = {
-  live: 'border-emerald-300 bg-emerald-100/60 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
-  planned:
-    'border-amber-300 bg-amber-100/60 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
-  coming: 'border-border bg-secondary text-muted-foreground',
+const STATUS_COLOR: Record<TargetStatus, string> = {
+  live: 'green',
+  planned: 'yellow',
+  coming: 'gray',
 };
 
 interface Props {
@@ -93,51 +88,33 @@ export default function DeliveryTargets({ targets, advanced = false, canWrite = 
   const navigate = useNavigate();
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
+    <ul className={classes.list}>
       {targets.map((target) => {
         const synced = !!target.coverage;
         return (
-          <div
-            key={target.id}
-            className={`flex items-center gap-3 border-b px-4 py-3 last:border-b-0 ${
-              target.status !== 'live' ? 'bg-muted/40' : ''
-            }`}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{target.name}</span>
-                <Badge variant="outline" className={STATUS_CLASS[target.status]}>
+          <li key={target.id} className={classes.row} data-status={target.status}>
+            <div className={classes.main}>
+              <div className={classes.head}>
+                <span className={classes.name}>{target.name}</span>
+                <Badge size="sm" radius="sm" variant="light" color={STATUS_COLOR[target.status]}>
                   {t(`enrich.deliver.status.${target.status}`, STATUS_LABEL[target.status])}
                 </Badge>
                 {target.assist && (
-                  <span className="inline-flex items-center gap-1 rounded bg-sky-100/60 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-                    <Sparkles className="h-3 w-3" />
+                  <span className={classes.assist}>
+                    <Sparkles size={12} aria-hidden />
                     {target.assist}
                   </span>
                 )}
-                {target.note && advanced && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" aria-label="about" className="text-muted-foreground">
-                          <Info className="h-3.5 w-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[280px]">{target.note}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+                {target.note && advanced && <InfoTip text={target.note} label="about" />}
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className={classes.description}>
                 {target.description}
                 {advanced && target.via && (
-                  <span className="opacity-80"> · {target.via}</span>
+                  <span className={classes.via}> · {target.via}</span>
                 )}
               </p>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${synced ? 'bg-emerald-500' : 'bg-border'}`}
-                />
+              <p className={classes.coverage}>
+                <span className={classes.dot} data-synced={synced || undefined} aria-hidden />
                 {target.coverage ? (
                   <span>
                     {t(
@@ -148,15 +125,11 @@ export default function DeliveryTargets({ targets, advanced = false, canWrite = 
                     {/* Pending is clickable when a handler is provided, so the
                         user can see the actual list of unsynced changes. */}
                     {target.onShowPending ? (
-                      <button
-                        type="button"
-                        className="text-primary hover:underline"
-                        onClick={target.onShowPending}
-                      >
+                      <UnstyledButton className={classes.link} onClick={target.onShowPending}>
                         {t('enrich.deliver.pendingCount', '{{pending}} pending', {
                           pending: target.coverage.pending,
                         })}
-                      </button>
+                      </UnstyledButton>
                     ) : (
                       <span>
                         {t('enrich.deliver.pendingCount', '{{pending}} pending', {
@@ -175,7 +148,7 @@ export default function DeliveryTargets({ targets, advanced = false, canWrite = 
                 )}
               </p>
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className={classes.actions}>
               {target.manageHref ? (
                 // Delivery is driven by a shared job (uc_tag_sync) that owns many
                 // aspects beyond semantic assignment, so we don't run/scope it
@@ -186,28 +159,26 @@ export default function DeliveryTargets({ targets, advanced = false, canWrite = 
                   onClick={() => navigate(target.manageHref!)}
                 >
                   {t('enrich.deliver.manageInSettings', 'Manage in Settings')}
-                  <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+                  <ExternalLink size={14} aria-hidden />
                 </Button>
               ) : target.comingSoon ? (
                 // Write path not wired yet: disabled with a clear reason, so the
                 // buttons don't look actionable while doing nothing.
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span tabIndex={0}>
-                        <Button variant="outline" size="sm" disabled>
-                          {t('enrich.deliver.configure', 'Configure')}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[260px]">
-                      {t(
-                        'enrich.deliver.comingSoon',
-                        'Coming soon: configuring and running this sync from Ontos is not wired yet.',
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip
+                  label={t(
+                    'enrich.deliver.comingSoon',
+                    'Coming soon: configuring and running this sync from Ontos is not wired yet.',
+                  )}
+                  multiline
+                  w={260}
+                  events={{ hover: true, focus: true, touch: false }}
+                >
+                  <span tabIndex={0}>
+                    <Button variant="outline" size="sm" disabled>
+                      {t('enrich.deliver.configure', 'Configure')}
+                    </Button>
+                  </span>
+                </Tooltip>
               ) : (
                 <>
                   <Button
@@ -230,9 +201,9 @@ export default function DeliveryTargets({ targets, advanced = false, canWrite = 
                 </>
               )}
             </div>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

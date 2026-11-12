@@ -1,22 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useState, type RefObject } from 'react';
+import { Alert, Checkbox, Loader, TextInput, Textarea } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, HINT_BELOW } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import type {
@@ -31,6 +21,8 @@ interface Props {
   run: Run | null;
   currentUserEmail?: string;
   onCreated?: (reviewId: string) => void;
+  /** Where focus goes once it has closed, when its opener is gone by then (Enrich's run summary's Request review). */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
 export default function GenerateReviewDialog({
@@ -39,6 +31,7 @@ export default function GenerateReviewDialog({
   run,
   currentUserEmail,
   onCreated,
+  returnFocusTo,
 }: Props) {
   const { t } = useTranslation(['term-mapping', 'common']);
   const { post } = useApi();
@@ -107,85 +100,81 @@ export default function GenerateReviewDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t('generateReview.title')}</DialogTitle>
-          <DialogDescription>{t('generateReview.description')}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="reviewer-email">{t('generateReview.reviewerEmail')}</Label>
-            <Input
-              id="reviewer-email"
-              type="email"
-              value={reviewerEmail}
-              onChange={(e) => setReviewerEmail(e.target.value)}
-              placeholder={t('generateReview.reviewerEmailPlaceholder')}
-            />
-            <p className="text-xs text-muted-foreground">{t('generateReview.reviewerEmailHelp')}</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">{t('generateReview.notes')}</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t('generateReview.notesPlaceholder')}
-              className="min-h-[80px]"
-            />
-          </div>
-
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="include-accepted"
-              checked={includeAccepted}
-              onCheckedChange={(v) => setIncludeAccepted(v === true)}
-            />
-            <Label htmlFor="include-accepted" className="text-sm font-normal leading-snug">
-              {t('generateReview.includeAccepted')}
-              <span className="block text-xs text-muted-foreground">
-                {t('generateReview.includeAcceptedHelp')}
-              </span>
-            </Label>
-          </div>
-
-          <Alert>
-            <AlertDescription>
-              {t(
-                eligible === 1
-                  ? 'generateReview.eligibleSummaryOne'
-                  : 'generateReview.eligibleSummaryMany',
-                {
-                  eligible,
-                  pending,
-                  acceptedPart: includeAccepted
-                    ? t('generateReview.acceptedPart', { accepted })
-                    : '',
-                },
-              )}
-            </AlertDescription>
-          </Alert>
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      returnFocusTo={returnFocusTo}
+      title={t('generateReview.title')}
+      description={t('generateReview.description')}
+      footer={
+        <>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t('actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting || eligible === 0}>
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitting && <Loader size={12} color="currentColor" />}
             {t('generateReview.submit')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <TextInput
+          id="reviewer-email"
+          type="email"
+          label={t('generateReview.reviewerEmail')}
+          description={t('generateReview.reviewerEmailHelp')}
+          inputWrapperOrder={HINT_BELOW}
+          value={reviewerEmail}
+          onChange={(e) => setReviewerEmail(e.currentTarget.value)}
+          placeholder={t('generateReview.reviewerEmailPlaceholder')}
+          classNames={FIELD_CLASSES}
+          data-autofocus
+        />
+
+        <Textarea
+          id="notes"
+          label={t('generateReview.notes')}
+          value={notes}
+          onChange={(e) => setNotes(e.currentTarget.value)}
+          placeholder={t('generateReview.notesPlaceholder')}
+          rows={3}
+          classNames={FIELD_CLASSES}
+        />
+
+        <Checkbox
+          id="include-accepted"
+          size="xs"
+          checked={includeAccepted}
+          onChange={(e) => setIncludeAccepted(e.currentTarget.checked)}
+          label={t('generateReview.includeAccepted')}
+          description={t('generateReview.includeAcceptedHelp')}
+          classNames={{ description: form.hint }}
+        />
+
+        <div className={form.note}>
+          <p>
+            {t(
+              eligible === 1
+                ? 'generateReview.eligibleSummaryOne'
+                : 'generateReview.eligibleSummaryMany',
+              {
+                eligible,
+                pending,
+                acceptedPart: includeAccepted
+                  ? t('generateReview.acceptedPart', { accepted })
+                  : '',
+              },
+            )}
+          </p>
+        </div>
+
+        {error && (
+          <Alert color="red" variant="light">
+            {error}
+          </Alert>
+        )}
+      </div>
     </Dialog>
   );
 }

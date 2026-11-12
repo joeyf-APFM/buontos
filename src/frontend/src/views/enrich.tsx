@@ -1,46 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Info } from 'lucide-react';
+import { Badge, Select, UnstyledButton } from '@mantine/core';
 
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Dialog, FilterBar, PageHeader, PageLayout, Pane, PaneStack } from '@/mantine/page';
 import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { useConceptMode } from '@/components/concepts/mode-switch';
 
-import CoverageMatrix, { type CoverageRow } from '@/components/enrich/coverage-matrix';
+import CoverageMatrix, { type CoverageRow, type CoverageSource } from '@/components/enrich/coverage-matrix';
 import ReviewSuggestionsDialog, {
   type PlaceholderSuggestion,
 } from '@/components/enrich/review-suggestions-dialog';
 import DeliveryTargets, { type DeliveryTarget } from '@/components/enrich/delivery-targets';
 import DeliveryModes from '@/components/enrich/delivery-modes';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { InfoTip } from '@/components/common/info-tip';
 import RunConfigDialog from '@/components/term-mapping/run-config-dialog';
 import GenerateReviewDialog from '@/components/term-mapping/generate-review-dialog';
 import RunResultDialog from '@/components/enrich/run-result-dialog';
 import { useUserStore } from '@/stores/user-store';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import type { Run } from '@/types/term-mapping';
+import classes from './enrich.module.css';
 
 // ---------------------------------------------------------------------------
 // Enrich — Concept Builder v2 delivery frame (wireframe: enrich.html).
@@ -77,6 +59,9 @@ import type { Run } from '@/types/term-mapping';
 // enabled connection (e.g. "snowflake", "bigquery"), so this is an open string
 // rather than a fixed union.
 type Platform = string;
+
+// The host platform's option: always offered, and the only live delivery path today
+const HOST_PLATFORM = { value: 'uc', label: 'Databricks, Unity Catalog' };
 
 // Friendly nouns for known connector types; unknown types fall back to a
 // title-cased connector_type (see platformNounFor).
@@ -153,21 +138,6 @@ const PLACEHOLDER_SUGGESTIONS: Record<string, PlaceholderSuggestion[]> = {
     },
   ],
 };
-
-function InfoDot({ text }: { text: string }) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button type="button" aria-label={text} className="text-muted-foreground hover:text-foreground">
-            <Info className="h-3.5 w-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-[280px]">{text}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
 
 function readableName(s: string): string {
   // Extract the last segment after /, #, or .
@@ -275,6 +245,9 @@ export default function EnrichView() {
   // action reviews the matches in place; requesting a Review-Board handoff is a
   // secondary, opt-in action. reviewRun drives that opt-in delegate dialog.
   const [runConfigOpen, setRunConfigOpen] = useState(false);
+  // Suggest matches opens a chain of dialogs (run, result, review or request),
+  // each opened from the last as it closes: focus goes back here at the end
+  const suggestButton = useRef<HTMLButtonElement>(null);
   const [reviewRun, setReviewRun] = useState<Run | null>(null);
   // Result of the just-completed run: the run + its live suggestion refs for the
   // in-place reviewer. Null when no run summary is showing.
@@ -287,12 +260,20 @@ export default function EnrichView() {
   // placeholder rows only if the endpoint is unavailable, so the frame is never
   // empty during review.
   const [coverageRows, setCoverageRows] = useState<CoverageRow[] | null>(null);
+  // Whether the last attempt failed: the sample rows then say so, with Retry
+  const [coverageFailed, setCoverageFailed] = useState(false);
+  // A newer load drops an older answer (a Retry, or the refresh after a run)
+  const coverageSeq = useRef(0);
   const fetchCoverage = useCallback(async () => {
+    const seq = ++coverageSeq.current;
+    const fail = () => {
+      if (seq === coverageSeq.current) setCoverageFailed(true);
+    };
     try {
       const res = await fetch('/api/knowledge/coverage');
-      if (!res.ok) return;
+      if (!res.ok) return fail();
       const data = await res.json();
-      if (!Array.isArray(data?.schemes)) return;
+      if (!Array.isArray(data?.schemes)) return fail();
       const rows: CoverageRow[] = data.schemes.map((s: any) => ({
         id: s.scheme,
         name: s.label || s.scheme,
@@ -304,9 +285,12 @@ export default function EnrichView() {
         suggested: s.suggested ?? 0,
         lastRun: s.last_run_at ?? null,
       }));
+      if (seq !== coverageSeq.current) return;
       setCoverageRows(rows);
+      setCoverageFailed(false);
     } catch {
       /* endpoint unavailable — keep placeholder rows */
+      fail();
     }
   }, []);
   useEffect(() => {
@@ -317,6 +301,8 @@ export default function EnrichView() {
   // by coverage.last_run_at), so the separate recent-runs list was removed.
 
   const rows = coverageRows ?? PLACEHOLDER_ROWS;
+  const coverageSource: CoverageSource =
+    coverageRows !== null ? 'live' : coverageFailed ? 'failed' : 'loading';
 
   // Real tag-delivery stats (eligible links + pending since last sync + last
   // run). Null until loaded / when the endpoint is unavailable.
@@ -341,12 +327,15 @@ export default function EnrichView() {
   }
   const [tagStats, setTagStats] = useState<TagStats | null>(null);
   const [pendingOpen, setPendingOpen] = useState(false);
+  const tagStatsSeq = useRef(0);
   const fetchTagStats = useCallback(async () => {
+    const seq = ++tagStatsSeq.current;
     try {
       const res = await fetch('/api/knowledge/tag-delivery-stats');
       if (!res.ok) return;
       const data = await res.json();
-      setTagStats(data);
+      if (seq !== tagStatsSeq.current || !data || typeof data !== 'object') return;
+      setTagStats({ ...data, pending_items: Array.isArray(data.pending_items) ? data.pending_items : [] });
     } catch {
       /* endpoint unavailable — Tags row omits the coverage readout */
     }
@@ -355,8 +344,11 @@ export default function EnrichView() {
     void fetchTagStats();
   }, [fetchTagStats]);
 
-  // Load a scheme's live pending suggestions when the Review dialog opens.
+  // Load a scheme's live pending suggestions when the Review dialog opens. A
+  // newer review (or closing this one) drops an older answer.
+  const reviewSeq = useRef(0);
   const openReview = useCallback(async (row: CoverageRow) => {
+    const seq = ++reviewSeq.current;
     setReviewScheme(row);
     setReviewSuggestions([]);
     setReviewLoading(true);
@@ -365,12 +357,20 @@ export default function EnrichView() {
         `/api/knowledge/coverage/${encodeURIComponent(row.id)}/pending-suggestions`,
       );
       const data = res.ok ? await res.json() : [];
-      setReviewSuggestions(Array.isArray(data) ? data : []);
+      if (seq === reviewSeq.current) setReviewSuggestions(Array.isArray(data) ? data : []);
     } catch {
-      setReviewSuggestions([]);
+      if (seq === reviewSeq.current) setReviewSuggestions([]);
     } finally {
-      setReviewLoading(false);
+      if (seq === reviewSeq.current) setReviewLoading(false);
     }
+  }, []);
+  // Stable, so the matrix's memoised columns (and the focused Review button) survive a re-render
+  const handleReview = useCallback((row: CoverageRow) => void openReview(row), [openReview]);
+  const closeReview = useCallback(() => {
+    reviewSeq.current += 1;
+    setReviewScheme(null);
+    setReviewSuggestions([]);
+    setReviewLoading(false);
   }, []);
 
   // Accept every pending suggestion for the reviewed scheme, then materialise
@@ -480,62 +480,93 @@ export default function EnrichView() {
     [t, platform, tagStats?.job_installed, tagStats?.synced, tagStats?.eligible, tagStats?.pending, tagStats?.last_run_at],
   );
 
+  // The run's suggestions for the result summary: a newer run (or closing
+  // the summary) drops an older answer
+  const runResultSeq = useRef(0);
+  const handleRunCreated = async (run: Run) => {
+    setRunConfigOpen(false);
+    // Refresh the coverage matrix so the per-scheme suggested count, the
+    // Review button, and the Last run column reflect the new run.
+    void fetchCoverage();
+    // Fetch the run's suggestions so the in-place reviewer has live refs.
+    const seq = ++runResultSeq.current;
+    setRunResultLoading(true);
+    setRunResult({ run, refs: [] });
+    try {
+      const res = await fetch(
+        `/api/term-mappings/runs/${run.id}/suggestions?status=pending`,
+      );
+      const data = res.ok ? await res.json() : [];
+      const refs = (Array.isArray(data) ? data : []).map((s: { id: string }) => ({
+        fqn: `term-mapping://${run.id}/${s.id}`,
+      }));
+      if (seq === runResultSeq.current) setRunResult({ run, refs });
+    } catch {
+      if (seq === runResultSeq.current) setRunResult({ run, refs: [] });
+    } finally {
+      if (seq === runResultSeq.current) setRunResultLoading(false);
+    }
+  };
+  const closeRunResult = () => {
+    runResultSeq.current += 1;
+    setRunResult(null);
+    setRunResultLoading(false);
+  };
+
+  const pendingItems = Array.isArray(tagStats?.pending_items) ? tagStats.pending_items : [];
+
   return (
-    <div className="max-w-[1180px] space-y-6 pt-3">
-      {/* Subtitle (title + Simple/Advanced switch live in the section tab row). */}
-      <p className="text-sm text-muted-foreground">
-        {t('enrich.subtitle', 'Map your concepts to assets, then deliver governed metadata onto the platform.')}
-      </p>
-
-      {/* Platform selector */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className="text-xs font-medium text-muted-foreground">
-          {t('enrich.deliverTo', 'Deliver to')}
-        </span>
-        <Select value={platform} onValueChange={(v) => setPlatform(v as Platform)}>
-          <SelectTrigger className="h-9 w-[240px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {/* Databricks/UC is the host platform — always available, and the
-                only one with a live delivery path today (uc_tag_sync). Any
-                additional targets come from ENABLED connections configured in
-                Settings > Connectors (Snowflake, BigQuery, …), so the list
-                reflects what is actually wired rather than a fixed menu. */}
-            <SelectItem value="uc">Databricks, Unity Catalog</SelectItem>
-            {deliveryPlatforms.map((p) => (
-              <SelectItem key={p.value} value={p.value}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <InfoDot
-          text={t(
-            'enrich.platformTip',
-            'Delivery platforms come from your configured connections in Settings. Unity Catalog is the default. The delivery targets below adapt to the platform you pick.',
-          )}
-        />
-        <a
-          href="/settings/connectors"
-          className="ml-auto text-xs text-sky-700 hover:underline dark:text-sky-400"
-        >
-          {t('enrich.manageConnections', 'Manage connections ↗')}
-        </a>
-      </div>
-
-      {/* LANE 1 — MAP */}
-      <section className="space-y-2">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            1
+    <PageLayout
+      header={
+        <>
+          {/* The Simple/Advanced switch lives in the Concepts layout, above */}
+          <PageHeader title={t('concepts:sections.enrich', 'Enrich')} />
+          <p className={classes.subtitle}>
+            {t('enrich.subtitle', 'Map your concepts to assets, then deliver governed metadata onto the platform.')}
+          </p>
+        </>
+      }
+      filters={
+        <FilterBar>
+          {/* Platform selector */}
+          <span className={classes.barLabel} aria-hidden>
+            {t('enrich.deliverTo', 'Deliver to')}
           </span>
-          <h3 className="text-base font-semibold">{t('enrich.map.title', 'Map')}</h3>
-          <div className="ml-auto flex items-center gap-2">
-            {/* Suggest matches: opens the full run-config dialog (engine, target,
-                contexts live there), runs the suggester, and routes candidates
-                to the Review Board. Requires write access on term-mapping. */}
+          {/* Databricks/UC is the host platform — always available, and the
+              only one with a live delivery path today (uc_tag_sync). Any
+              additional targets come from ENABLED connections configured in
+              Settings > Connectors (Snowflake, BigQuery, …), so the list
+              reflects what is actually wired rather than a fixed menu. */}
+          <Select
+            aria-label={t('enrich.deliverTo', 'Deliver to')}
+            data={[HOST_PLATFORM, ...deliveryPlatforms.filter((p) => p.value !== HOST_PLATFORM.value)]}
+            value={platform}
+            onChange={(v) => v && setPlatform(v as Platform)}
+            allowDeselect={false}
+            w={240}
+          />
+          <InfoTip
+            text={t(
+              'enrich.platformTip',
+              'Delivery platforms come from your configured connections in Settings. Unity Catalog is the default. The delivery targets below adapt to the platform you pick.',
+            )}
+          />
+          <a href="/settings/connectors" className={classes.manageLink}>
+            {t('enrich.manageConnections', 'Manage connections ↗')}
+          </a>
+        </FilterBar>
+      }
+    >
+      <PaneStack>
+        {/* LANE 1 — MAP */}
+        <Pane
+          title={t('enrich.map.title', 'Map')}
+          actions={
+            // Suggest matches: opens the full run-config dialog (engine, target,
+            // contexts live there), runs the suggester, and routes candidates
+            // to the Review Board. Requires write access on term-mapping.
             <Button
+              ref={suggestButton}
               variant="outline"
               size="sm"
               disabled={!canWrite}
@@ -543,62 +574,59 @@ export default function EnrichView() {
             >
               {t('enrich.map.suggest', 'Suggest matches')}
             </Button>
+          }
+        >
+          <div className={classes.lane}>
+            <p className={classes.laneDescription}>
+              {t(
+                'enrich.map.desc',
+                'Link a concept straight to a {{platform}} Asset (the default path, no product or contract needed), then optionally add links to data products and data contracts. All three are independent.',
+                { platform: platformNoun },
+              )}
+            </p>
+            <CoverageMatrix
+              rows={rows}
+              platformNoun={platformNoun}
+              canWrite={canWrite}
+              source={coverageSource}
+              onRetry={() => void fetchCoverage()}
+              onReview={handleReview}
+            />
           </div>
-        </div>
-        <p className="ml-8 text-sm text-muted-foreground">
-          {t(
-            'enrich.map.desc',
-            'Link a concept straight to a {{platform}} Asset (the default path, no product or contract needed), then optionally add links to data products and data contracts. All three are independent.',
-            { platform: platformNoun },
-          )}
-        </p>
-        <div className="ml-8">
-          <CoverageMatrix
-            rows={rows}
-            platformNoun={platformNoun}
-            canWrite={canWrite}
-            isLive={coverageRows !== null}
-            onReview={(row) => void openReview(row)}
-          />
-        </div>
-      </section>
+        </Pane>
 
-      {/* LANE 2 — DELIVER */}
-      <section className="space-y-2">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            2
-          </span>
-          <h3 className="text-base font-semibold">{t('enrich.deliver.title', 'Deliver')}</h3>
-          <InfoDot
-            text={t(
-              'enrich.deliver.tip',
-              "Deliver writes your governed metadata onto the platform. Downstream tools (Genie, search, agents) read it from there. Tags = policy & discovery. Descriptions = what Genie reads. Glossary = the governed business layer.",
+        {/* LANE 2 — DELIVER */}
+        <Pane
+          title={t('enrich.deliver.title', 'Deliver')}
+          actions={
+            <InfoTip
+              text={t(
+                'enrich.deliver.tip',
+                "Deliver writes your governed metadata onto the platform. Downstream tools (Genie, search, agents) read it from there. Tags = policy & discovery. Descriptions = what Genie reads. Glossary = the governed business layer.",
+              )}
+            />
+          }
+        >
+          <div className={classes.lane}>
+            <p className={classes.laneDescription}>
+              {t('enrich.deliver.desc', 'Write governed metadata onto the mapped {{platform}} assets.', {
+                platform: platformNoun,
+              })}
+            </p>
+            {/* Delivery-mode cards are advanced-only per the wireframe. */}
+            {advanced && (
+              <DeliveryModes activeModes={['direct', 'indirect']} settingsHref="/settings/delivery" />
             )}
-          />
-        </div>
-        <p className="ml-8 text-sm text-muted-foreground">
-          {t('enrich.deliver.desc', 'Write governed metadata onto the mapped {{platform}} assets.', {
-            platform: platformNoun,
-          })}
-        </p>
-        <div className="ml-8 space-y-3">
-          {/* Delivery-mode cards are advanced-only per the wireframe. */}
-          {advanced && (
-            <DeliveryModes activeModes={['direct', 'indirect']} settingsHref="/settings/delivery" />
-          )}
-          <DeliveryTargets targets={targets} advanced={advanced} canWrite={canWrite} />
-        </div>
-      </section>
+            <DeliveryTargets targets={targets} advanced={advanced} canWrite={canWrite} />
+          </div>
+        </Pane>
+      </PaneStack>
 
       {/* Inline "Review suggested matches" — modal, no route change. */}
       <ReviewSuggestionsDialog
         open={reviewScheme !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            setReviewScheme(null);
-            setReviewSuggestions([]);
-          }
+          if (!open) closeReview();
         }}
         schemeName={reviewScheme?.name ?? ''}
         liveSuggestions={reviewSuggestions.map((s) => ({
@@ -625,41 +653,21 @@ export default function EnrichView() {
       <RunConfigDialog
         isOpen={runConfigOpen}
         onOpenChange={setRunConfigOpen}
-        onCreated={async (run) => {
-          setRunConfigOpen(false);
-          // Refresh the coverage matrix so the per-scheme suggested count, the
-          // Review button, and the Last run column reflect the new run.
-          void fetchCoverage();
-          // Fetch the run's suggestions so the in-place reviewer has live refs.
-          setRunResultLoading(true);
-          setRunResult({ run, refs: [] });
-          try {
-            const res = await fetch(
-              `/api/term-mappings/runs/${run.id}/suggestions?status=pending`,
-            );
-            const data = res.ok ? await res.json() : [];
-            const refs = (Array.isArray(data) ? data : []).map((s: { id: string }) => ({
-              fqn: `term-mapping://${run.id}/${s.id}`,
-            }));
-            setRunResult({ run, refs });
-          } catch {
-            setRunResult({ run, refs: [] });
-          } finally {
-            setRunResultLoading(false);
-          }
-        }}
+        onCreated={(run) => void handleRunCreated(run)}
       />
       <RunResultDialog
         open={runResult !== null}
         onOpenChange={(open) => {
-          if (!open) setRunResult(null);
+          if (!open) closeRunResult();
         }}
         run={runResult?.run ?? null}
         suggestionRefs={runResult?.refs ?? []}
         loading={runResultLoading}
+        returnFocusTo={suggestButton}
+        canWrite={canWrite}
         onRequestReview={() => {
           const r = runResult?.run ?? null;
-          setRunResult(null);
+          closeRunResult();
           setReviewRun(r);
         }}
       />
@@ -671,78 +679,76 @@ export default function EnrichView() {
         }}
         run={reviewRun}
         currentUserEmail={currentUser?.email ?? undefined}
+        returnFocusTo={suggestButton}
       />
 
       {/* Pending tag changes — the actual list behind the "N pending" count. */}
-      <Dialog open={pendingOpen} onOpenChange={setPendingOpen}>
-        <DialogContent className="sm:max-w-[640px]">
-          <DialogHeader>
-            <DialogTitle>{t('enrich.deliver.pendingTitle', 'Pending tag changes')}</DialogTitle>
-            <DialogDescription>
-              {t(
-                'enrich.deliver.pendingSubtitle',
-                'Concept-to-asset links created since the last successful tag sync. A re-run of uc_tag_sync would deliver these.',
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[420px] overflow-auto divide-y">
-            {(tagStats?.pending_items ?? []).length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {t('enrich.deliver.pendingEmpty', 'Nothing pending.')}
-              </p>
-            ) : (
-              (tagStats?.pending_items ?? []).map((it) => (
-                <div key={`${it.entity_type}:${it.entity_id}:${it.iri}`} className="flex items-center gap-3 py-2 text-sm">
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    {/* Concept (linkable) + its scheme (linkable). No raw urn shown. */}
-                    <div className="truncate">
-                      <button
-                        type="button"
-                        className="font-medium text-primary hover:underline"
-                        title={it.iri}
-                        onClick={() => navigate(`/concepts/browser/${encodeURIComponent(it.iri)}`)}
-                      >
-                        {it.label || readableName(it.iri)}
-                      </button>
-                      {it.scheme && (
-                        <>
-                          <span className="text-muted-foreground"> {t('enrich.deliver.pendingInScheme', 'in')} </span>
-                          <button
-                            type="button"
-                            className="text-primary hover:underline"
-                            title={it.scheme}
-                            onClick={() => navigate(`/concepts/browser?source=${encodeURIComponent(it.scheme!)}`)}
-                          >
-                            {it.scheme_label || readableName(it.scheme)}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    {/* Physical asset the tag will be applied to (linkable). */}
-                    <div className="text-xs text-muted-foreground truncate">
-                      {t('enrich.deliver.pendingAppliesTo', 'applies to')}{' '}
-                      <button
-                        type="button"
-                        className="text-primary hover:underline"
-                        title={it.entity_id}
-                        onClick={() => goToPendingAsset(it)}
-                      >
-                        {it.asset_name || readableName(it.entity_id)}
-                      </button>
-                    </div>
+      <Dialog
+        opened={pendingOpen}
+        onClose={() => setPendingOpen(false)}
+        size="lg"
+        title={t('enrich.deliver.pendingTitle', 'Pending tag changes')}
+        description={t(
+          'enrich.deliver.pendingSubtitle',
+          'Concept-to-asset links created since the last successful tag sync. A re-run of uc_tag_sync would deliver these.',
+        )}
+      >
+        {pendingItems.length === 0 ? (
+          <p className={classes.pendingEmpty}>
+            {t('enrich.deliver.pendingEmpty', 'Nothing pending.')}
+          </p>
+        ) : (
+          <ul className={classes.pendingList}>
+            {pendingItems.map((it) => (
+              <li key={`${it.entity_type}:${it.entity_id}:${it.iri}`} className={classes.pendingRow}>
+                <div className={classes.pendingMain}>
+                  {/* Concept (linkable) + its scheme (linkable). No raw urn shown. */}
+                  <div className={classes.pendingLine}>
+                    <UnstyledButton
+                      className={classes.pendingConcept}
+                      title={it.iri}
+                      onClick={() => navigate(`/concepts/browser/${encodeURIComponent(it.iri)}`)}
+                    >
+                      {it.label || readableName(it.iri)}
+                    </UnstyledButton>
+                    {it.scheme && (
+                      <>
+                        <span className={classes.muted}> {t('enrich.deliver.pendingInScheme', 'in')} </span>
+                        <UnstyledButton
+                          className={classes.pendingLink}
+                          title={it.scheme}
+                          onClick={() => navigate(`/concepts/browser?source=${encodeURIComponent(it.scheme!)}`)}
+                        >
+                          {it.scheme_label || readableName(it.scheme)}
+                        </UnstyledButton>
+                      </>
+                    )}
                   </div>
-                  <Badge variant="outline" className="shrink-0 text-[10px]">{it.entity_type}</Badge>
-                  {it.created_at && (
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {new Date(it.created_at).toLocaleDateString()}
-                    </span>
-                  )}
+                  {/* Physical asset the tag will be applied to (linkable). */}
+                  <div className={classes.pendingAsset}>
+                    {t('enrich.deliver.pendingAppliesTo', 'applies to')}{' '}
+                    <UnstyledButton
+                      className={classes.pendingLink}
+                      title={it.entity_id}
+                      onClick={() => goToPendingAsset(it)}
+                    >
+                      {it.asset_name || readableName(it.entity_id)}
+                    </UnstyledButton>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
+                <Badge size="sm" radius="sm" variant="outline" color="gray" className={classes.pendingType}>
+                  {it.entity_type}
+                </Badge>
+                {it.created_at && (
+                  <span className={classes.pendingDate}>
+                    {new Date(it.created_at).toLocaleDateString()}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

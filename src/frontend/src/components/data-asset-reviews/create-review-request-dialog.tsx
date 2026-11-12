@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Input, Loader, Modal, TextInput, Textarea } from '@mantine/core';
+import { Alert, Input, Loader, TextInput, Textarea } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from "@/hooks/use-toast";
@@ -8,8 +8,7 @@ import { TreeView } from '@/components/ui/tree-view';
 import { CatalogItem, DataAssetReviewRequest, DataAssetReviewRequestCreate, AssetType } from '@/types/data-asset-review';
 import { AlertCircle, Folder, FolderOpen, Table, Layout, FunctionSquare } from 'lucide-react';
 import { PrincipalPicker } from '@/components/common/principal-picker';
-import { Z_INDEX } from '@/mantine/z-index';
-import { useLayeredEscape } from '@/mantine/use-layered-escape';
+import { Dialog } from '@/mantine/page';
 import classes from './create-review-request-dialog.module.css';
 
 // Define user info type based on backend response
@@ -331,134 +330,113 @@ export default function CreateReviewRequestDialog({ isOpen, onOpenChange, api, o
         }
     };
 
-    // Escape closes the dialog, unless a layer above it took it first: the
-    // reviewer picker's results or its directory dialog (Radix layers)
-    useLayeredEscape(isOpen, () => onOpenChange(false));
-
     const fieldClassNames = { label: classes.label };
-    const contentRef = useRef<HTMLDivElement | null>(null);
 
+    // The kit Dialog's Escape leaves a key the layers above it took: the
+    // reviewer picker's results and its directory dialog (Radix layers)
     return (
-        <Modal.Root
+        <Dialog
             opened={isOpen}
             onClose={() => onOpenChange(false)}
-            size={600}
-            centered
-            // Below the Radix layers the reviewer picker opens over it
-            zIndex={Z_INDEX.modalUnderRadix}
-            // As the Radix dialog: a click outside leaves it open; Escape is
-            // left to useLayeredEscape
-            closeOnClickOutside={false}
-            closeOnEscape={false}
-            returnFocus={!onExited}
-            onExitTransitionEnd={() => onExited?.(contentRef.current)}
-        >
-            <Modal.Overlay />
-            <Modal.Content ref={contentRef} className={classes.content}>
-                <Modal.Header className={classes.header}>
-                    <Modal.Title className={classes.title}>{t('data-asset-reviews:createRequest')}</Modal.Title>
-                </Modal.Header>
-                {/* The Modal's body is only the description: the dialog's
-                    aria-describedby points at the body, as Radix's did at its
-                    DialogDescription. The form follows it. */}
-                <Modal.Body className={classes.description}>{t('data-asset-reviews:dialog.description')}</Modal.Body>
-                <form onSubmit={handleSubmit} className={classes.form}>
-                    <div className={classes.pair}>
-                        <TextInput
-                            id="requester-email"
-                            label={t('data-asset-reviews:dialog.yourEmailLabel')}
-                            value={requesterEmail ?? t('common:states.loading')}
-                            disabled
-                            aria-disabled={true}
-                            classNames={fieldClassNames}
-                        />
-                        {/* The shared picker, labelled by id as before (its own
-                            aria-label names it) */}
-                        <Input.Wrapper
-                            id="reviewer-email"
-                            label={t('data-asset-reviews:dialog.reviewerLabel')}
-                            classNames={fieldClassNames}
-                        >
-                            <PrincipalPicker
-                                id="reviewer-email"
-                                accepts={['user']}
-                                value={reviewerEmail || null}
-                                onChange={(next) => {
-                                    setReviewerEmail(next ?? '');
-                                    setFormError(null);
-                                }}
-                                placeholder={t('data-asset-reviews:dialog.reviewerPlaceholder')}
-                                aria-label={t('common:labels.reviewer')}
-                            />
-                        </Input.Wrapper>
-                    </div>
-                    <TextInput
-                        id="review-title"
-                        label={t('data-asset-reviews:form.titleLabel')}
-                        value={title}
-                        maxLength={200}
-                        onChange={(e) => {
-                            setTitle(e.target.value);
-                            setFormError(null);
-                        }}
-                        placeholder={t('data-asset-reviews:form.titlePlaceholder')}
-                        classNames={fieldClassNames}
-                    />
-                    <Textarea
-                        id="notes"
-                        label={t('data-asset-reviews:dialog.notesLabel')}
-                        value={notes}
-                        onChange={(e) => {
-                            setNotes(e.target.value);
-                            setFormError(null);
-                        }}
-                        placeholder={t('data-asset-reviews:dialog.notesPlaceholder')}
-                        // Grows with long notes, so they read in full
-                        autosize
-                        minRows={3}
-                        maxRows={10}
-                        classNames={fieldClassNames}
-                    />
-
-                    <div className={classes.tree}>
-                        <div className={classes.treeLabel}>{t('data-asset-reviews:dialog.selectAssetsLabel')}</div>
-                        <div className={classes.treeBody}>
-                            {isLoadingCatalog ? (
-                                <div className={classes.loading}>
-                                    <Loader size={24} />
-                                </div>
-                            ) : catalogError ? (
-                                <Alert color="red" variant="light" icon={<AlertCircle />}>
-                                    {catalogError}
-                                </Alert>
-                            ) : (
-                                <TreeView
-                                    data={renderTree(catalogItems)}
-                                    onSelectChange={handleSelectionChange}
-                                />
-                            )}
-                        </div>
-                    </div>
-
-                    {formError && (
-                        <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.formError}>
-                            {formError}
-                        </Alert>
-                    )}
-                </form>
-                {/* Outside the form, as before: Enter in a field doesn't submit */}
-                <div className={classes.footer}>
+            title={t('data-asset-reviews:createRequest')}
+            description={t('data-asset-reviews:dialog.description')}
+            onExited={onExited}
+            footer={
+                // Outside the form, as before: Enter in a field doesn't submit
+                <>
                     <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
                         {t('common:actions.cancel')}
                     </Button>
                     <Button type="submit" onClick={handleSubmit} disabled={isSubmitting || selectedAssetFqns.size === 0}>
                         {isSubmitting && <Loader size={12} color="currentColor" />} {t('data-asset-reviews:dialog.submitRequest')}
                     </Button>
+                </>
+            }
+        >
+            <form onSubmit={handleSubmit} className={classes.form}>
+                <div className={classes.pair}>
+                    <TextInput
+                        id="requester-email"
+                        label={t('data-asset-reviews:dialog.yourEmailLabel')}
+                        value={requesterEmail ?? t('common:states.loading')}
+                        disabled
+                        aria-disabled={true}
+                        classNames={fieldClassNames}
+                    />
+                    {/* The shared picker, labelled by id as before (its own
+                        aria-label names it) */}
+                    <Input.Wrapper
+                        id="reviewer-email"
+                        label={t('data-asset-reviews:dialog.reviewerLabel')}
+                        classNames={fieldClassNames}
+                    >
+                        <PrincipalPicker
+                            id="reviewer-email"
+                            accepts={['user']}
+                            value={reviewerEmail || null}
+                            onChange={(next) => {
+                                setReviewerEmail(next ?? '');
+                                setFormError(null);
+                            }}
+                            placeholder={t('data-asset-reviews:dialog.reviewerPlaceholder')}
+                            aria-label={t('common:labels.reviewer')}
+                        />
+                    </Input.Wrapper>
                 </div>
-                {/* The corner close comes last, as Radix's did: focus starts
-                    on the first field */}
-                <Modal.CloseButton className={classes.close} aria-label={t('common:actions.close')} />
-            </Modal.Content>
-        </Modal.Root>
+                <TextInput
+                    id="review-title"
+                    label={t('data-asset-reviews:form.titleLabel')}
+                    value={title}
+                    maxLength={200}
+                    onChange={(e) => {
+                        setTitle(e.target.value);
+                        setFormError(null);
+                    }}
+                    placeholder={t('data-asset-reviews:form.titlePlaceholder')}
+                    classNames={fieldClassNames}
+                />
+                <Textarea
+                    id="notes"
+                    label={t('data-asset-reviews:dialog.notesLabel')}
+                    value={notes}
+                    onChange={(e) => {
+                        setNotes(e.target.value);
+                        setFormError(null);
+                    }}
+                    placeholder={t('data-asset-reviews:dialog.notesPlaceholder')}
+                    // Grows with long notes, so they read in full
+                    autosize
+                    minRows={3}
+                    maxRows={10}
+                    classNames={fieldClassNames}
+                />
+
+                <div className={classes.tree}>
+                    <div className={classes.treeLabel}>{t('data-asset-reviews:dialog.selectAssetsLabel')}</div>
+                    <div className={classes.treeBody}>
+                        {isLoadingCatalog ? (
+                            <div className={classes.loading}>
+                                <Loader size={24} />
+                            </div>
+                        ) : catalogError ? (
+                            <Alert color="red" variant="light" icon={<AlertCircle />}>
+                                {catalogError}
+                            </Alert>
+                        ) : (
+                            <TreeView
+                                data={renderTree(catalogItems)}
+                                onSelectChange={handleSelectionChange}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {formError && (
+                    <Alert color="red" variant="light" icon={<AlertCircle />} className={classes.formError}>
+                        {formError}
+                    </Alert>
+                )}
+            </form>
+        </Dialog>
     );
 }

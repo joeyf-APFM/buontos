@@ -1,6 +1,7 @@
 {
   "title": "Propietarios de negocio",
   "subtitle": "Asignaciones de propiedad que rastrean quién es responsable de qué.",
+  "listPane": "Lista de responsables de negocio",
   "addNew": "Asignar propietario",
   "editOwner": "Editar asignación",
   "removeOwner": "Quitar propietario",
@@ -60,6 +61,7 @@
     "previousOwners": "Propietarios anteriores",
     "noOwners": "No hay propietarios asignados",
     "assignOwner": "Asignar propietario",
-    "history": "Mostrar historial"
+    "history": "Mostrar historial",
+    "removeOwnerNamed": "Quitar a {{name}}"
   }
 }

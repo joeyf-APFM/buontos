@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { History, Loader2 } from 'lucide-react';
+import { Alert, Loader, UnstyledButton } from '@mantine/core';
+import { AlertCircle, History } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { useApi } from '@/hooks/use-api';
 import { usePagination, PaginationControls } from '@/components/common/paginated-list';
+import panel from '@/components/common/panel.module.css';
+import classes from './version-history-panel.module.css';
 
 // ---------------------------------------------------------------------------
 // VersionHistoryPanel — drives the signed-off versioning contract §1 (version
@@ -88,14 +91,18 @@ export function VersionHistoryPanel({
   const [detailByVersion, setDetailByVersion] = useState<Record<number, string>>({});
   const [detailLoading, setDetailLoading] = useState<number | null>(null);
 
+  // Each load's turn: an answer for a concept the page has moved on from is dropped
+  const loadSeq = useRef(0);
   const fetchInfo = useCallback(async () => {
     if (!conceptIri) return;
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError(null);
     try {
       const res = await get<VersionInfo>(
         `/api/semantic-models/concepts/version?iri=${encodeURIComponent(conceptIri)}`,
       );
+      if (seq !== loadSeq.current) return;
       // A concept with no version rows (or one the version engine doesn't
       // track, e.g. some imported properties -> 404) simply has no history:
       // show the empty "no previous versions" state, not "unavailable".
@@ -108,12 +115,13 @@ export function VersionHistoryPanel({
         setInfo(null);
         return;
       }
-      setInfo({ ...res.data, versions: res.data.versions ?? [] });
+      setInfo({ ...res.data, versions: Array.isArray(res.data.versions) ? res.data.versions : [] });
     } catch (err: any) {
+      if (seq !== loadSeq.current) return;
       setError(err?.message || 'Failed to load version history');
       setInfo(null);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [conceptIri, get]);
 
@@ -180,57 +188,58 @@ export function VersionHistoryPanel({
     pageCount: versionPageCount,
   } = usePagination(versions, 10);
 
-  if (loading) {
-    return (
-      <div className="rounded-lg border bg-card p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <History className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">{title}</h3>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {t('common:loading', 'Loading…')}
-        </div>
+  // A flush panel (components/common/panel.module.css): the page's Pane frames it
+  const frame = (body: ReactNode) => (
+    <div className={panel.pane} data-flush>
+      <div className={panel.head}>
+        <h3 className={panel.title}>
+          <History aria-hidden />
+          {title}
+        </h3>
       </div>
+      <div className={panel.body}>{body}</div>
+    </div>
+  );
+
+  if (loading) {
+    return frame(
+      <p className={classes.loading}>
+        <Loader size={12} color="currentColor" />
+        {t('common:loading', 'Loading…')}
+      </p>,
     );
   }
 
   if (error || !info) {
-    return (
-      <div className="rounded-lg border bg-card p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <History className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">{title}</h3>
+    return frame(
+      <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t(
+        'semantic-models:versionHistory.unavailable',
+        'Version history is unavailable.',
+      )}>
+        {error && <span className={classes.alertMessage}>{error}</span>}
+        <div className={classes.alertActions}>
+          <Button variant="outline" size="sm" onClick={() => void fetchInfo()}>
+            {t('common:retry')}
+          </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {t(
-            'semantic-models:versionHistory.unavailable',
-            'Version history is unavailable.',
-          )}
-        </p>
-      </div>
+      </Alert>,
     );
   }
 
-  return (
-    <div className="rounded-lg border bg-card p-3">
-      <div className="flex items-center gap-2 mb-2">
-        <History className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium">{title}</h3>
-      </div>
-
+  return frame(
+    <>
       {readOnlyNote && (
-        <p className="mb-2 text-xs text-muted-foreground italic" data-testid="version-history-readonly-note">
+        <p className={classes.note} data-testid="version-history-readonly-note">
           {readOnlyNote}
         </p>
       )}
 
       {onlyOne ? (
-        <p className="text-xs text-muted-foreground">
+        <p className={classes.muted}>
           {t('semantic-models:versionHistory.none', 'No previous versions yet.')}
         </p>
       ) : (
-        <ul className="space-y-1 text-xs">
+        <ul className={classes.list}>
           {pagedVersions.map((entry) => {
             const who =
               entry.created_by ||
@@ -241,25 +250,15 @@ export function VersionHistoryPanel({
 
             return (
               <li key={entry.version}>
-                <button
-                  type="button"
+                <UnstyledButton
                   disabled={entry.is_current}
                   onClick={() => handleToggle(entry)}
-                  className={cn(
-                    'flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left',
-                    entry.is_current
-                      ? 'cursor-default'
-                      : 'hover:bg-accent hover:text-accent-foreground',
-                  )}
+                  className={classes.entry}
+                  aria-expanded={entry.is_current ? undefined : isExpanded}
                 >
-                  <span
-                    className={cn(
-                      'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
-                      entry.is_current ? 'bg-emerald-600' : 'bg-muted-foreground/50',
-                    )}
-                  />
-                  <span className="flex-1 min-w-0">
-                    <span className="block">
+                  <span className={classes.dot} data-current={entry.is_current || undefined} />
+                  <span className={classes.text}>
+                    <span>
                       {t(
                         'semantic-models:versionHistory.editedBy',
                         'Edited by {{who}} on {{when}}',
@@ -267,7 +266,7 @@ export function VersionHistoryPanel({
                       )}
                     </span>
                     {/* Advanced-only mechanics: version integer + status. */}
-                    <span className="adv-only mt-0.5 block font-mono text-[10px] text-muted-foreground">
+                    <span className={`adv-only ${classes.mechanics}`}>
                       v{entry.version}
                       {entry.is_current
                         ? ' · current'
@@ -276,24 +275,24 @@ export function VersionHistoryPanel({
                     </span>
                     {/* Frozen previous definition, on expand. */}
                     {isExpanded && (
-                      <span className="mt-1 block rounded-md border bg-muted/30 p-2 text-xs">
+                      <span className={classes.frozen}>
                         {detailLoading === entry.version ? (
-                          <span className="flex items-center gap-2 text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className={classes.loading}>
+                            <Loader size={12} color="currentColor" />
                             {t('common:loading', 'Loading…')}
                           </span>
                         ) : frozen ? (
                           <>
-                            <span className="font-medium">
+                            <span className={classes.strong}>
                               {t(
                                 'semantic-models:versionHistory.previousDefinition',
                                 'Previous definition:',
                               )}
                             </span>{' '}
-                            <span className="whitespace-pre-line">{frozen}</span>
+                            <span className={classes.frozenText}>{frozen}</span>
                           </>
                         ) : (
-                          <span className="text-muted-foreground">
+                          <span className={classes.muted}>
                             {t(
                               'semantic-models:versionHistory.noDefinition',
                               'No definition recorded for this version.',
@@ -305,7 +304,7 @@ export function VersionHistoryPanel({
                   </span>
                   <Badge
                     variant={entry.is_current ? 'secondary' : 'outline'}
-                    className="shrink-0 text-[10px]"
+                    className={classes.chip}
                   >
                     {entry.is_current
                       ? t('semantic-models:versionHistory.current', 'Current')
@@ -314,7 +313,7 @@ export function VersionHistoryPanel({
                           'Previous version',
                         )}
                   </Badge>
-                </button>
+                </UnstyledButton>
               </li>
             );
           })}
@@ -328,7 +327,7 @@ export function VersionHistoryPanel({
           onPageChange={setVersionPage}
         />
       )}
-    </div>
+    </>,
   );
 }
 

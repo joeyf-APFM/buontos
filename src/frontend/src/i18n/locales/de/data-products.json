@@ -1,6 +1,7 @@
 {
   "title": "Datenprodukte",
   "subtitle": "Verwalten Sie Ihre Datenprodukte",
+  "listPane": "Liste der Datenprodukte",
   "newProduct": "Neues Datenprodukt",
   "importProduct": "Importieren",
   "searchPlaceholder": "Datenprodukte suchen...",
@@ -148,6 +149,7 @@
   "details": {
     "backToList": "Zurück zur Liste",
     "edit": "Bearbeiten",
+    "editDescription": "Beschreibung bearbeiten",
     "delete": "Löschen",
     "subscribe": "Abonnieren",
     "unsubscribe": "Abbestellen",
@@ -271,6 +273,7 @@
       "assetsLinkedTitle": "Assets verknüpft",
       "assetsLinked": "{{count}} Asset(s) mit {{portName}} verknüpft",
       "assetUnlinked": "Asset-Verknüpfung gelöst",
+      "unlinkAsset": "Verknüpfung mit {{name}} aufheben",
       "linkAssetsFailed": "Assets konnten nicht verknüpft werden",
       "unlinkAssetFailed": "Asset-Verknüpfung konnte nicht gelöst werden"
     },
@@ -1163,11 +1166,14 @@
     "retry": "Erneut versuchen",
     "untitled": "Ohne Titel",
     "productsAvailable_one": "{{count}} Produkt verfügbar",
-    "productsAvailable_other": "{{count}} Produkte verfügbar"
+    "productsAvailable_other": "{{count}} Produkte verfügbar",
+    "productsPane": "Abonnierte Produkte",
+    "tilesPerRow": "Kacheln pro Zeile"
   },
   "ownerConsumers": {
     "breadcrumb": "Verbraucher",
     "totalProducts": "Produkte gesamt",
+    "summary": "Übersicht",
     "activeProducts": "Aktive Produkte",
     "totalSubscribers": "Abonnenten gesamt",
     "products": "Produkte",

@@ -1,0 +1,156 @@
+/*
+ * Collections' scheme list and details (collections-tab.tsx), wave 2 Task
+ * 12a: the shared DataTable in a flush kit pane, 14px in, with the list
+ * pages' sort headers and row icon buttons
+ * (components/common/list-page.module.css), and the chosen scheme's details
+ * in a pane beside it.
+ */
+.body {
+  composes: body from '../common/list-page.module.css';
+}
+
+.sort {
+  composes: sort from '../common/list-page.module.css';
+}
+
+.sortIcon {
+  composes: sortIcon from '../common/list-page.module.css';
+}
+
+.actions {
+  composes: actions from '../common/list-page.module.css';
+}
+
+.action {
+  composes: action from '../common/list-page.module.css';
+}
+
+/* The name (and the lock of a read-only scheme) over its description. A
+   long name wraps, so it reads in full; table cells ignore max-width, so the
+   text's own box sets the measure */
+.nameCell {
+  composes: titleCell from '../common/list-page.module.css';
+}
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.name {
+  composes: title from '../common/list-page.module.css';
+}
+
+/* One line; its title has it in full */
+.description {
+  display: block;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.lock {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: capitalize;
+  cursor: help;
+}
+
+.scope svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+.scope:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* The details pane's body */
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The scheme's IRI: an identifier, in the mono font, wrapping anywhere */
+.iri {
+  margin: -4px 0 0;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.prose {
+  margin: 0;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.badges svg {
+  width: 11px;
+  height: 11px;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--aura-accent);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.created {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+  color: var(--aura-text-secondary);
+}

@@ -138,11 +138,14 @@ test('details: the explorer details grid', async ({ page }) => {
   const terms = details.getByRole('term');
   await expect(terms).toHaveCount(6);
   const dl = details.locator('dl');
-  expect((await style(dl, ['grid-template-columns']))['grid-template-columns']).toMatch(/^86px /);
+  // Two pairs to a row (Task 13d), each with the 86px label column
+  expect(await style(dl, ['display', 'flex-wrap'])).toEqual({ display: 'flex', 'flex-wrap': 'wrap' });
+  expect((await style(dl.locator(':scope > div').first(), ['grid-template-columns']))['grid-template-columns']).toMatch(/^86px /);
   expect(await style(terms.first(), ['color', 'font-size'])).toEqual({ color: TEXT_SECONDARY, 'font-size': '12px' });
-  // Text rows about 23px apart, with no rules between them (R12)
-  const a = (await terms.nth(1).boundingBox())!;
-  const b = (await terms.nth(2).boundingBox())!;
+  // Text rows about 23px apart, with no rules between them (R12): the first
+  // label of the second row and of the third
+  const a = (await terms.nth(2).boundingBox())!;
+  const b = (await terms.nth(4).boundingBox())!;
   expect(Math.abs(b.y - a.y - 23)).toBeLessThanOrEqual(1);
   expect((await style(terms.first(), ['border-bottom-width']))['border-bottom-width']).toBe('0px');
   // The location keeps to one line with an ellipsis, as before (truncate)

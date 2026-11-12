@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,12 @@ import { ConceptModeSwitch } from '@/components/concepts/mode-switch';
 
 // EnrichView mounts dialogs that use useNavigate (Suggest matches routes to the
 // Review Board), so it needs a Router in tests even when those dialogs are closed.
+// (src/test/setup.ts already wraps every render in a MantineProvider.)
 const renderEnrich = () => render(<EnrichView />, { wrapper: MemoryRouter });
+
+// Every endpoint is unavailable, so the frame shows its sample rows. Once the
+// coverage load has failed, its notice offers Retry: the page has settled.
+const settled = () => screen.findByRole('button', { name: 'Retry' });
 
 describe('EnrichView', () => {
   beforeEach(() => {
@@ -63,10 +68,16 @@ describe('EnrichView', () => {
     } catch {
       /* ignore */
     }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
   });
 
-  it('renders both lanes and the coverage matrix', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('renders both lanes and the coverage matrix', async () => {
     renderEnrich();
+    await settled();
     expect(screen.getByText('Map')).toBeInTheDocument();
     expect(screen.getByText('Deliver')).toBeInTheDocument();
     // Coverage rows + totals.
@@ -75,8 +86,9 @@ describe('EnrichView', () => {
     expect(screen.getByText('All selected')).toBeInTheDocument();
   });
 
-  it('renders delivery targets with correct status badges', () => {
+  it('renders delivery targets with correct status badges', async () => {
     renderEnrich();
+    await settled();
     expect(screen.getByText('Tags')).toBeInTheDocument();
     expect(screen.getByText('Live')).toBeInTheDocument();
     expect(screen.getByText('Column descriptions')).toBeInTheDocument();
@@ -85,18 +97,19 @@ describe('EnrichView', () => {
     expect(screen.getByText('Coming')).toBeInTheDocument();
   });
 
-  it('opens the inline review modal without navigating', () => {
+  it('opens the inline review modal without navigating', async () => {
     renderEnrich();
+    await settled();
     const reviewButtons = screen.getAllByRole('button', { name: 'Review' });
     fireEvent.click(reviewButtons[0]);
     // Dialog title is the inline review header.
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Review suggested matches')).toBeInTheDocument();
     // A placeholder suggestion from the Finance scheme is shown in-place.
     expect(within(dialog).getByText('Payment Term')).toBeInTheDocument();
   });
 
-  it('reveals delivery-mode cards only in advanced view', () => {
+  it('reveals delivery-mode cards only in advanced view', async () => {
     // The Simple/Advanced switch now lives in the Concepts layout (shared),
     // not inside EnrichView. Render the switch alongside so toggling it drives
     // the same shared mode store EnrichView reads.
@@ -106,6 +119,7 @@ describe('EnrichView', () => {
         <EnrichView />
       </MemoryRouter>,
     );
+    await settled();
     // Simple (default): mode cards hidden.
     expect(screen.queryByText('Direct')).not.toBeInTheDocument();
     // Switch to advanced.
@@ -113,5 +127,8 @@ describe('EnrichView', () => {
     expect(screen.getByText('Direct')).toBeInTheDocument();
     expect(screen.getByText('Indirect')).toBeInTheDocument();
     expect(screen.getByText('Manual')).toBeInTheDocument();
+    // Back to simple, so the shared mode doesn't leak into other files
+    fireEvent.click(screen.getByRole('button', { name: 'Small View' }));
+    await waitFor(() => expect(screen.queryByText('Direct')).not.toBeInTheDocument());
   });
 });

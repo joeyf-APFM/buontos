@@ -1,0 +1,34 @@
+/*
+ * A concept's triples as Turtle (wave 2 Task 15), Advanced only: a flush
+ * panel (components/common/panel.module.css) with Copy in its head, and the
+ * text in the mono font, wrapping, scrolling inside past 256px.
+ */
+.turtle {
+  max-height: 256px;
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--aura-surface-strong);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.error {
+  overflow-wrap: anywhere;
+}
+
+.alertActions {
+  margin-top: 8px;
+}

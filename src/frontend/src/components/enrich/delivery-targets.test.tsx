@@ -225,7 +225,7 @@ describe('DeliveryTargets', () => {
           <DeliveryTargets targets={[sampleTargets[1]]} />
         </BrowserRouter>,
       )
-      const row = container.querySelector('[class*="bg-muted/40"]')
+      const row = container.querySelector('li:not([data-status="live"])')
       expect(row).toBeInTheDocument()
     })
 
@@ -235,7 +235,7 @@ describe('DeliveryTargets', () => {
           <DeliveryTargets targets={[sampleTargets[0]]} />
         </BrowserRouter>,
       )
-      const rows = container.querySelectorAll('[class*="bg-muted/40"]')
+      const rows = container.querySelectorAll('li:not([data-status="live"])')
       // Should have 0 muted backgrounds
       expect(rows.length).toBe(0)
     })
@@ -335,7 +335,7 @@ describe('DeliveryTargets', () => {
           <DeliveryTargets targets={sampleTargets} />
         </BrowserRouter>,
       )
-      const rows = container.querySelectorAll('[class*="border-b"]')
+      const rows = container.querySelectorAll('li')
       expect(rows.length).toBeGreaterThan(0)
     })
   })

@@ -1,33 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Alert, Loader, TextInput, Textarea } from '@mantine/core';
 import {
   AlertCircle,
   ArrowRight,
   Check,
   ChevronRight,
   HelpCircle,
-  Loader2,
   Sparkles,
   X,
 } from 'lucide-react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
+import { FIELD_CLASSES } from '@/components/common/dialog-form';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { bucketConfidence, type Suggestion } from '@/types/term-mapping';
+import classes from './suggestion-review.module.css';
 
 interface Props {
   /** FQN format: term-mapping://{run_id}/{suggestion_id} */
@@ -48,12 +38,6 @@ function parseFqn(fqn: string): { runId: string; suggestionId: string } | null {
   if (!m) return null;
   return { runId: m[1], suggestionId: m[2] };
 }
-
-const CONFIDENCE_BADGE: Record<string, string> = {
-  high: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100',
-  medium: 'bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100',
-  low: 'bg-rose-100 text-rose-900 dark:bg-rose-900/50 dark:text-rose-100',
-};
 
 export default function TermMappingSuggestionReview({
   assetFqn,
@@ -76,6 +60,8 @@ export default function TermMappingSuggestionReview({
 
   const [customIri, setCustomIri] = useState('');
   const [comment, setComment] = useState('');
+  // Bumped by Retry, to load the suggestion again
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,31 +96,36 @@ export default function TermMappingSuggestionReview({
     return () => {
       cancelled = true;
     };
-  }, [assetFqn, get, t]);
+  }, [assetFqn, get, t, attempt]);
 
   if (!parsed) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{t('suggestion.invalidFqn')}</AlertDescription>
+      <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
+        {t('suggestion.invalidFqn')}
       </Alert>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className={classes.loading}>
+        <Loader size="sm" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className={classes.error}>
+        <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
+          <span className={classes.wrap}>{error}</span>
+        </Alert>
+        <div>
+          <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+            {t('common:retry', 'Retry')}
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -213,131 +204,109 @@ export default function TermMappingSuggestionReview({
   const bucket = bucketConfidence(suggestion.confidence);
 
   return (
-    <div className="space-y-4">
+    <div className={classes.root}>
       {/* Header with progress + status */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-5 w-5 text-purple-500" />
+      <div className={classes.header}>
+        <div className={classes.heading}>
+          <Sparkles size={18} className={classes.icon} aria-hidden />
           <div>
-            <h3 className="text-base font-semibold leading-tight">
-              {t('suggestion.header')}
-            </h3>
+            <h3 className={classes.title}>{t('suggestion.header')}</h3>
             {typeof currentIndex === 'number' && typeof totalCount === 'number' && (
-              <p className="text-xs text-muted-foreground">
+              <p className={classes.muted}>
                 {t('suggestion.progress', { current: currentIndex, total: totalCount })}
               </p>
             )}
           </div>
         </div>
-        <Badge
-          variant={isTerminal ? 'secondary' : 'outline'}
-          className="capitalize"
-        >
+        <Badge variant={isTerminal ? 'secondary' : 'outline'} className={classes.cap}>
           {suggestion.status.replace(/_/g, ' ')}
         </Badge>
       </div>
 
-      {/* Mapping card: source → target */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs">{sourceTypeLabel}</Badge>
-            <span className="font-mono text-xs text-muted-foreground truncate" title={suggestion.source_entity_id}>
-              {suggestion.source_label || suggestion.source_entity_id}
-            </span>
-            <ArrowRight className="h-4 w-4 mx-1 shrink-0" />
-            <Badge variant="default" className="text-xs">{t('suggestion.concept')}</Badge>
-            <span className="text-sm font-medium">
-              {suggestion.target_concept_label ?? suggestion.target_concept_iri}
-            </span>
-          </CardTitle>
-          <CardDescription className="font-mono text-xs break-all">
-            {suggestion.target_concept_iri}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">{t('suggestion.confidence')}</span>
-            <span className={`px-2 py-0.5 rounded text-xs font-medium ${CONFIDENCE_BADGE[bucket]}`}>
-              {t('suggestion.confidenceValue', {
-                value: (suggestion.confidence * 100).toFixed(0),
-                bucket,
-              })}
-            </span>
-            {suggestion.auto_apply && (
-              <Badge variant="outline" className="text-xs">{t('suggestion.autoApply')}</Badge>
-            )}
-            <Badge variant="outline" className="text-xs capitalize">{suggestion.engine}</Badge>
-          </div>
-          <Separator />
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground tracking-wide">
-              {t('suggestion.whyMatch')}
-            </Label>
-            <p className="text-sm mt-1 whitespace-pre-wrap">
-              {suggestion.reason || t('suggestion.noReason')}
-            </p>
-          </div>
-          {suggestion.warnings && suggestion.warnings.length > 0 && (
-            <Alert variant="destructive" className="py-2">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                {suggestion.warnings.join(', ')}
-              </AlertDescription>
-            </Alert>
+      {/* Mapping: source → target */}
+      <section className={classes.mapping}>
+        <div className={classes.pair}>
+          <Badge variant="secondary">{sourceTypeLabel}</Badge>
+          <span className={classes.source} title={suggestion.source_entity_id}>
+            {suggestion.source_label || suggestion.source_entity_id}
+          </span>
+          <ArrowRight size={16} className={classes.arrow} aria-hidden />
+          <Badge variant="default">{t('suggestion.concept')}</Badge>
+          <span className={classes.target}>
+            {suggestion.target_concept_label ?? suggestion.target_concept_iri}
+          </span>
+        </div>
+        <p className={classes.iri}>{suggestion.target_concept_iri}</p>
+        <div className={classes.rule} />
+        <div className={classes.facts}>
+          <span className={classes.muted}>{t('suggestion.confidence')}</span>
+          <span className={classes.confidence} data-bucket={bucket}>
+            {t('suggestion.confidenceValue', {
+              value: (suggestion.confidence * 100).toFixed(0),
+              bucket,
+            })}
+          </span>
+          {suggestion.auto_apply && (
+            <Badge variant="outline">{t('suggestion.autoApply')}</Badge>
           )}
-        </CardContent>
-      </Card>
+          <Badge variant="outline" className={classes.cap}>{suggestion.engine}</Badge>
+        </div>
+        <div>
+          <div className={classes.label}>{t('suggestion.whyMatch')}</div>
+          <p className={classes.reason}>
+            {suggestion.reason || t('suggestion.noReason')}
+          </p>
+        </div>
+        {Array.isArray(suggestion.warnings) && suggestion.warnings.length > 0 && (
+          <Alert color="red" variant="light" icon={<AlertCircle size={16} />} className={classes.warnings}>
+            {suggestion.warnings.join(', ')}
+          </Alert>
+        )}
+      </section>
 
       {/* Decision form: custom IRI override + comment */}
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor="custom-iri" className="text-sm">
-            {t('suggestion.overrideIri')}
-          </Label>
-          <Input
-            id="custom-iri"
-            value={customIri}
-            onChange={(e) => setCustomIri(e.target.value)}
-            placeholder={suggestion.target_concept_iri}
-            disabled={disabled}
-            className="font-mono text-xs"
-          />
-          <p className="text-xs text-muted-foreground">{t('suggestion.overrideIriHelp')}</p>
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="decision-comment" className="text-sm">
-            {t('suggestion.comment')}
-          </Label>
-          <Textarea
-            id="decision-comment"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder={t('suggestion.commentPlaceholder')}
-            className="min-h-[60px]"
-            disabled={disabled}
-          />
-        </div>
+      <div className={classes.fields}>
+        <TextInput
+          id="custom-iri"
+          label={t('suggestion.overrideIri')}
+          description={t('suggestion.overrideIriHelp')}
+          inputWrapperOrder={['label', 'input', 'description', 'error']}
+          value={customIri}
+          onChange={(e) => setCustomIri(e.currentTarget.value)}
+          placeholder={suggestion.target_concept_iri}
+          disabled={disabled}
+          classNames={{ ...FIELD_CLASSES, input: classes.mono }}
+        />
+        <Textarea
+          id="decision-comment"
+          label={t('suggestion.comment')}
+          value={comment}
+          onChange={(e) => setComment(e.currentTarget.value)}
+          placeholder={t('suggestion.commentPlaceholder')}
+          rows={2}
+          disabled={disabled}
+          classNames={FIELD_CLASSES}
+        />
       </div>
 
       {/* Action bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t">
+      <div className={classes.actions}>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => submitDecision('clarify')}
           disabled={disabled || submitting}
         >
-          <HelpCircle className="mr-1 h-4 w-4" /> {t('suggestion.needsClarification')}
+          <HelpCircle size={14} aria-hidden /> {t('suggestion.needsClarification')}
         </Button>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={classes.decide}>
           <Button
             variant="outline"
             size="sm"
             onClick={() => submitDecision('reject')}
             disabled={disabled || submitting}
           >
-            {submitting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <X className="mr-1 h-4 w-4" />}
+            {submitting ? <Loader size={12} color="currentColor" /> : <X size={14} aria-hidden />}
             {t('suggestion.reject')}
           </Button>
           <Button
@@ -345,7 +314,7 @@ export default function TermMappingSuggestionReview({
             onClick={() => submitDecision('accept')}
             disabled={disabled || submitting}
           >
-            {submitting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+            {submitting ? <Loader size={12} color="currentColor" /> : <Check size={14} aria-hidden />}
             {t('suggestion.acceptApply')}
           </Button>
           {hasNext && (
@@ -356,7 +325,7 @@ export default function TermMappingSuggestionReview({
               disabled={disabled || submitting}
             >
               {t('suggestion.acceptNext')}
-              <ChevronRight className="ml-1 h-4 w-4" />
+              <ChevronRight size={14} aria-hidden />
             </Button>
           )}
         </div>

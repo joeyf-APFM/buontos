@@ -3,7 +3,7 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId', '/data-products', '/data-products/:productId', '/my-products', '/my-products/:productId', '/data-contracts', '/data-contracts/:contractId', '/my-requests', '/business-owners', '/owner-consumers', '/marketplace', '/search', '/search/llm', '/search/index']);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);
@@ -19,7 +19,9 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/data-catalog/main/sales/orders')).toBe(true);
     expect(isFullBleed('/data-catalogue')).toBe(false);
     expect(isFullBleed('/Data-Catalog')).toBe(false);
-    expect(isFullBleed('/data-contracts')).toBe(false);
+    // The contract list (wave 2 Task 6) and a contract (Task 9)
+    expect(isFullBleed('/data-contracts')).toBe(true);
+    expect(isFullBleed('/data-contracts/c1')).toBe(true);
   });
 
   it('matches the Schema Importer route, but not the importer inside the Concepts layout', () => {
@@ -53,8 +55,28 @@ describe('isFullBleed', () => {
     expect(isFullBleed('/data-asset-reviews/r-1/assets')).toBe(false);
     expect(isFullBleed('/Data-Asset-Reviews')).toBe(false);
     expect(isFullBleed('/data-asset-review')).toBe(false);
-    // My Requests, which lists the user's reviews, is wave 2
-    expect(isFullBleed('/my-requests')).toBe(false);
+  });
+
+  it('matches the Data Products and My Products lists and a product under them, nothing deeper', () => {
+    // Wave 2 Task 4 (the lists) and Task 7 (a product)
+    expect(isFullBleed('/data-products')).toBe(true);
+    expect(isFullBleed('/data-products/')).toBe(true);
+    expect(isFullBleed('/data-products/p-1')).toBe(true);
+    expect(isFullBleed('/data-products/p-1/x')).toBe(false);
+    expect(isFullBleed('/my-products')).toBe(true);
+    expect(isFullBleed('/my-products/p-1')).toBe(true);
+    expect(isFullBleed('/my-products/p-1/x')).toBe(false);
+    expect(isFullBleed('/Data-Products')).toBe(false);
+  });
+
+  it('matches My Requests, Business Owners and Owner Consumers, nothing under them', () => {
+    // Wave 2 Task 5
+    for (const route of ['/my-requests', '/business-owners', '/owner-consumers']) {
+      expect(isFullBleed(route)).toBe(true);
+      expect(isFullBleed(`${route}/`)).toBe(true);
+      expect(isFullBleed(`${route}/x`)).toBe(false);
+    }
+    expect(isFullBleed('/My-Requests')).toBe(false);
   });
 
   it('takes route patterns, such as a detail route', () => {

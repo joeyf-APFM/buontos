@@ -1,6 +1,7 @@
 {
   "title": "Business Owners",
   "subtitle": "Ownership assignments tracking who is responsible for what.",
+  "listPane": "Business owner list",
   "addNew": "Assign Owner",
   "editOwner": "Edit Assignment",
   "removeOwner": "Remove Owner",
@@ -60,6 +61,7 @@
     "previousOwners": "Previous Owners",
     "noOwners": "No owners assigned",
     "assignOwner": "Assign Owner",
-    "history": "Show History"
+    "history": "Show History",
+    "removeOwnerNamed": "Remove {{name}}"
   }
 }

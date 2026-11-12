@@ -1,21 +1,16 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Database, Search, Bell, X, LayoutList, Network, Package, Grid2X2, ExternalLink } from 'lucide-react';
+import { ActionIcon, Alert, CloseButton, Loader, Popover, Select, Switch, TextInput, UnstyledButton } from '@mantine/core';
+import { AlertCircle, Database, Search, Bell, LayoutList, Network, Package, Grid2X2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDomains } from '@/hooks/use-domains';
 import { type DataProduct } from '@/types/data-product';
 import { type DataDomain } from '@/types/data-domain';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useUserStore } from '@/stores/user-store';
-import { useViewModeStore } from '@/stores/view-mode-store';
-import { cn } from '@/lib/utils';
+import { useViewModeStore, type TilesPerRow } from '@/stores/view-mode-store';
+import { FilterBar, PageHeader, PageLayout, Pane, PaneStack } from '@/mantine/page';
 import EntityInfoDialog from '@/components/metadata/entity-info-dialog';
 import SubscribeDialog from '@/components/data-products/subscribe-dialog';
 import ApprovalWizardDialog from '@/components/workflows/approval-wizard-dialog';
@@ -26,29 +21,94 @@ import { QualityBadge } from '@/components/quality/quality-badge';
 import CertificationBadge from '@/components/common/certification-badge';
 import PublicationBadge from '@/components/common/publication-badge';
 import { PUBLICATION_SCOPE_LABELS, type CertificationLevel } from '@/types/lifecycle';
+import classes from './marketplace-view.module.css';
 
-interface MarketplaceViewProps {
-  className?: string;
+/**
+ * A domain chip, a toggle, with its preview: a hover card that opens on hover and on focus
+ * (as the Radix HoverCard did), 300ms after, and closes 100ms after the
+ * pointer leaves both the chip and the card, or the chip loses focus.
+ */
+function DomainChip({ name, selected, onToggle, children }: { name: string; selected: boolean; onToggle: () => void; children: ReactNode }) {
+  const [opened, setOpened] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const later = (open: boolean, delay: number) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setOpened(open), delay);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const show = () => later(true, 300);
+  const hide = () => later(false, 100);
+  const dismiss = () => {
+    clearTimeout(timer.current);
+    setOpened(false);
+  };
+  // Escape on the chip closes the preview at once, as the Radix HoverCard
+  // did; focus stays on the chip, and an open preview keeps the key to
+  // itself so nothing else closes (Mantine's Popover only hears Escape
+  // inside its dropdown)
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || !opened) return;
+    e.stopPropagation();
+    dismiss();
+  };
+  return (
+    // withRoles off: the chip stays a plain toggle, as under the Radix HoverCard
+    <Popover opened={opened} onClose={dismiss} position="bottom-start" width={288} shadow="md" withRoles={false}>
+      <Popover.Target>
+        <Button
+          variant={selected ? 'default' : 'outline'}
+          size="sm"
+          type="button"
+          aria-pressed={selected}
+          onClick={onToggle}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          onFocus={show}
+          onBlur={hide}
+          onKeyDown={onKeyDown}
+          className={classes.pill}
+        >
+          {name}
+        </Button>
+      </Popover.Target>
+      <Popover.Dropdown className={classes.domainCard} onMouseEnter={show} onMouseLeave={hide}>
+        {children}
+      </Popover.Dropdown>
+    </Popover>
+  );
 }
 
-export default function MarketplaceView({ className }: MarketplaceViewProps) {
-  const { t } = useTranslation(['home', 'common']);
+/**
+ * Marketplace (/marketplace) on the page kit (wave 2 Task 16): the greeting
+ * as the kit header with the tagline under it, the search and the
+ * publication scope in the filter bar, then two stacked panes: the domain
+ * browser (domain chips with their hover cards, or the domain graph) and the
+ * published products' cards, 1 to 4 per row. The view mode and the tiles per
+ * row persist (view-mode-store). A product's card opens its info dialog,
+ * whose Subscribe starts the subscription wizard or the subscribe dialog;
+ * Open in details goes to the product.
+ */
+export default function MarketplaceView() {
+  const { t } = useTranslation(['home', 'metadata', 'common']);
   const navigate = useNavigate();
   const { domains, loading: domainsLoading, getDomainName } = useDomains();
   const { userInfo } = useUserStore();
   const { domainBrowserStyle, setDomainBrowserStyle, tilesPerRow, setTilesPerRow } = useViewModeStore();
-  
-  // Compute grid class based on tiles per row setting
-  const gridClass = useMemo(() => {
-    switch (tilesPerRow) {
-      case 1: return 'grid grid-cols-1 gap-4';
-      case 2: return 'grid grid-cols-1 sm:grid-cols-2 gap-4';
-      case 3: return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
-      case 4: 
-      default: return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
-    }
-  }, [tilesPerRow]);
-  
+
+  const tileOptions = useMemo(() => [
+    { value: '1', label: t('marketplace.tilesPerRow.one') },
+    { value: '2', label: t('marketplace.tilesPerRow.two') },
+    { value: '3', label: t('marketplace.tilesPerRow.three') },
+    { value: '4', label: t('marketplace.tilesPerRow.four') },
+  ], [t]);
+
+  const scopeOptions = useMemo(() => [
+    { value: 'all', label: t('marketplace.scopeFilter.all') },
+    { value: 'domain', label: PUBLICATION_SCOPE_LABELS.domain },
+    { value: 'organization', label: PUBLICATION_SCOPE_LABELS.organization },
+    { value: 'external', label: PUBLICATION_SCOPE_LABELS.external },
+  ], [t]);
+
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   // Multi-domain filter (#520 story 10): the marketplace filters by one or MORE
@@ -74,6 +134,10 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
   const [allProducts, setAllProducts] = useState<DataProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
+  // Retry asks for the list again
+  const [productsReload, setProductsReload] = useState(0);
+  // Only the latest domain lookup may show: an earlier one that answers late is dropped
+  const domainRequest = useRef(0);
   
   // Subscribed products state
   const [, setSubscribedProducts] = useState<DataProduct[]>([]);
@@ -105,8 +169,10 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
     };
   }, []);
 
-  // Fetch published products (optional server-side scope filter)
+  // Fetch published products (optional server-side scope filter); an answer
+  // for an earlier scope that arrives late is dropped
   useEffect(() => {
+    let cancelled = false;
     const loadProducts = async () => {
       try {
         setProductsLoading(true);
@@ -115,18 +181,24 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
         const resp = await fetch(`/api/data-products/published${params}`);
         if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
         const data = await resp.json();
+        if (cancelled) return;
         setAllProducts(Array.isArray(data) ? data : []);
         setProductsError(null);
       } catch (e: unknown) {
+        if (cancelled) return;
         const message = e instanceof Error ? e.message : t('marketplace.loadError');
         setProductsError(message);
         setAllProducts([]);
       } finally {
-        setProductsLoading(false);
+        if (!cancelled) setProductsLoading(false);
       }
     };
     loadProducts();
-  }, [scopeFilter]);
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeFilter, productsReload]);
 
   // Fetch subscribed products
   const loadSubscribedProducts = useCallback(async () => {
@@ -160,17 +232,18 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
 
   // Load domain details when in graph mode and domain is selected
   const loadDomainDetails = useCallback(async (domainId: string) => {
+    const id = ++domainRequest.current;
     try {
       setDomainDetailsLoading(true);
       const resp = await fetch(`/api/data-domains/${domainId}`);
       if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
       const data: DataDomain = await resp.json();
-      setSelectedDomainDetails(data);
+      if (id === domainRequest.current) setSelectedDomainDetails(data);
     } catch (e) {
       console.error('Failed to load domain details:', e);
-      setSelectedDomainDetails(null);
+      if (id === domainRequest.current) setSelectedDomainDetails(null);
     } finally {
-      setDomainDetailsLoading(false);
+      if (id === domainRequest.current) setDomainDetailsLoading(false);
     }
   }, []);
 
@@ -401,237 +474,207 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
     navigate(`/my-products/${productId}`);
   };
 
-  // Render product card
+  // A product's card: the name opens its info dialog (as a click anywhere on
+  // the card does), Open in details goes to the product
   const renderProductCard = (product: DataProduct, isSubscribed: boolean = false) => {
     const domainRaw = product?.domain;
     const domainStr = domainRaw != null ? String(domainRaw) : '';
     const domainLabel = getDomainName(domainStr) || domainStr || t('marketplace.products.unknown');
     const description = product.description?.purpose || product.description?.usage || '';
     const owner = product.team?.members?.[0]?.username || product.team?.name || t('marketplace.products.unknown');
+    const name = product.name || t('marketplace.products.untitled');
+    const titleId = `marketplace-product-${product.id || product.name}`;
 
     return (
-      <Card 
-        key={product.id || product.name} 
-        className={cn(
-          "cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
-          isSubscribed && "border-primary/20 bg-primary/5"
-        )}
+      // The click is the title button's, bubbled, or a pointer's anywhere on the card
+      <article
+        key={product.id || product.name}
+        className={classes.card}
+        data-subscribed={isSubscribed || undefined}
+        aria-labelledby={titleId}
         onClick={() => handleProductClick(product)}
       >
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Package className="h-4 w-4 text-primary flex-shrink-0" />
-              <CardTitle className="text-base truncate">{product.name || t('marketplace.products.untitled')}</CardTitle>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {isSubscribed && (
-                <Bell className="h-4 w-4 text-primary" />
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-primary/10"
-                onClick={(e) => handleOpenProductDetails(e, product.id || '')}
-                title={t('marketplace.openInDetails')}
-              >
-                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-              </Button>
-            </div>
-          </div>
-          {description && (
-            <CardDescription className="line-clamp-2 text-sm">{description}</CardDescription>
+        <div className={classes.cardHead}>
+          <Package aria-hidden className={classes.cardIcon} />
+          <UnstyledButton id={titleId} className={classes.cardTitle} title={name}>
+            {name}
+          </UnstyledButton>
+          {isSubscribed && (
+            <Bell role="img" aria-label={t('metadata:info.subscribed')} className={classes.subscribed} />
           )}
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs">
-              {domainLabel}
-            </Badge>
-            {product.status && (
-              <Badge variant="outline" className="text-xs">
-                {product.status}
-              </Badge>
-            )}
-            <PublicationBadge
-              publicationScope={product.publication_scope}
-              publishedAt={product.published_at ?? undefined}
-              publishedBy={product.published_by ?? undefined}
-            />
-            <CertificationBadge
-              certificationLevel={product.certification_level}
-              inheritedCertificationLevel={product.inherited_certification_level}
-              certifiedAt={product.certified_at ?? undefined}
-              certifiedBy={product.certified_by ?? undefined}
-              levels={certificationLevels}
-              size="sm"
-            />
-            {product.id && (
-              <RatingBadge
-                entityType="data_product"
-                entityId={product.id}
-                size="sm"
-              />
-            )}
-            {product.id && (
-              <QualityBadge
-                entityType="data_product"
-                entityId={product.id}
-                productAggregation
-                size="sm"
-              />
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground mt-2 truncate">
-            {t('marketplace.products.owner')}: {owner}
-          </div>
-        </CardContent>
-      </Card>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            className={classes.open}
+            onClick={(e) => handleOpenProductDetails(e, product.id || '')}
+            aria-label={t('marketplace.openInDetails')}
+            title={t('marketplace.openInDetails')}
+          >
+            <ExternalLink aria-hidden />
+          </ActionIcon>
+        </div>
+        {description && <p className={`${classes.muted} ${classes.clamp2}`} title={description}>{description}</p>}
+        <div className={classes.cardBadges}>
+          <Badge variant="secondary">{domainLabel}</Badge>
+          {product.status && <Badge variant="outline">{product.status}</Badge>}
+          <PublicationBadge
+            publicationScope={product.publication_scope}
+            publishedAt={product.published_at ?? undefined}
+            publishedBy={product.published_by ?? undefined}
+          />
+          <CertificationBadge
+            certificationLevel={product.certification_level}
+            inheritedCertificationLevel={product.inherited_certification_level}
+            certifiedAt={product.certified_at ?? undefined}
+            certifiedBy={product.certified_by ?? undefined}
+            levels={certificationLevels}
+            size="sm"
+          />
+          {product.id && <RatingBadge entityType="data_product" entityId={product.id} size="sm" />}
+          {product.id && <QualityBadge entityType="data_product" entityId={product.id} productAggregation size="sm" />}
+        </div>
+        <p className={classes.owner} title={owner}>{t('marketplace.products.owner')}: {owner}</p>
+      </article>
     );
   };
 
+  const title = firstName ? t('marketplace.welcomeWithName', { name: firstName }) : t('marketplace.welcome');
+  const filtersSet = !!searchQuery || selectedDomainIds.length > 0 || scopeFilter !== 'all';
+
   return (
-    <div className={cn("space-y-6", className)}>
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-lg p-6">
-        <h1 className="text-3xl font-bold tracking-tight">
-          {firstName 
-            ? t('marketplace.welcomeWithName', { name: firstName }) 
-            : t('marketplace.welcome')}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {t('marketplace.tagline')}
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder={t('marketplace.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-12 text-base"
-        />
-        {searchQuery && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-            onClick={() => setSearchQuery('')}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Domain Browser */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-medium">{t('marketplace.browseDataDomains')}</div>
-          <div className="flex items-center gap-4">
-            {/* Exact match toggle - only show when at least one domain is selected */}
-            {selectedDomainIds.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{t('marketplace.exactMatchOnly')}</span>
-                <Switch 
-                  checked={exactMatchesOnly} 
-                  onCheckedChange={(v) => setExactMatchesOnly(!!v)} 
+    <>
+    <PageLayout
+      header={
+        <>
+          <PageHeader title={title} />
+          <p className={classes.subtitle}>{t('marketplace.tagline')}</p>
+        </>
+      }
+      filters={
+        <FilterBar>
+          <TextInput
+            type="search"
+            placeholder={t('marketplace.searchPlaceholder')}
+            // The field was named by its placeholder; it keeps that name
+            aria-label={t('marketplace.searchPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+            leftSection={<Search aria-hidden className={classes.searchIcon} />}
+            rightSection={searchQuery ? (
+              <CloseButton size="sm" aria-label={t('common:actions.clear')} onClick={() => setSearchQuery('')} />
+            ) : null}
+            className={classes.search}
+          />
+          <Select
+            size="xs"
+            aria-label={t('marketplace.scopeFilter.label')}
+            placeholder={t('marketplace.scopeFilter.placeholder')}
+            data={scopeOptions}
+            value={scopeFilter}
+            onChange={(v) => v && setScopeFilter(v)}
+            allowDeselect={false}
+            className={classes.scope}
+          />
+        </FilterBar>
+      }
+    >
+      {/* Under the filter bar's rule, the panes start 12px down */}
+      <div className={classes.stack}>
+      <PaneStack>
+        {/* Browse Data Domains */}
+        <Pane
+          title={t('marketplace.browseDataDomains')}
+          actions={
+            <>
+              {/* Exact match - only when at least one domain is selected */}
+              {selectedDomainIds.length > 0 && (
+                <Switch
+                  size="xs"
+                  label={t('marketplace.exactMatchOnly')}
+                  labelPosition="left"
+                  checked={exactMatchesOnly}
+                  onChange={(e) => setExactMatchesOnly(e.currentTarget.checked)}
+                  classNames={{ label: classes.switchLabel }}
                 />
+              )}
+              <div className={classes.segmented}>
+                <Button
+                  variant={domainBrowserStyle === 'pills' ? 'default' : 'ghost'}
+                  size="sm"
+                  type="button"
+                  aria-pressed={domainBrowserStyle === 'pills'}
+                  onClick={() => setDomainBrowserStyle('pills')}
+                  title={t('marketplace.domainView.pills')}
+                >
+                  <LayoutList aria-hidden />
+                  {t('marketplace.domainView.pills')}
+                </Button>
+                <Button
+                  variant={domainBrowserStyle === 'graph' ? 'default' : 'ghost'}
+                  size="sm"
+                  type="button"
+                  aria-pressed={domainBrowserStyle === 'graph'}
+                  onClick={() => setDomainBrowserStyle('graph')}
+                  title={t('marketplace.domainView.graph')}
+                >
+                  <Network aria-hidden />
+                  {t('marketplace.domainView.graph')}
+                </Button>
               </div>
-            )}
-            {/* View style toggle */}
-            <div className="inline-flex items-center gap-1 p-0.5 bg-muted rounded-md">
-              <Button
-                variant={domainBrowserStyle === 'pills' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setDomainBrowserStyle('pills')}
-                className="h-7 px-2 gap-1"
-                title={t('marketplace.domainView.pills')}
-              >
-                <LayoutList className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:inline text-xs">{t('marketplace.domainView.pills')}</span>
-              </Button>
-              <Button
-                variant={domainBrowserStyle === 'graph' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setDomainBrowserStyle('graph')}
-                className="h-7 px-2 gap-1"
-                title={t('marketplace.domainView.graph')}
-              >
-                <Network className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:inline text-xs">{t('marketplace.domainView.graph')}</span>
-              </Button>
+            </>
+          }
+        >
+          {domainsLoading || domainDetailsLoading ? (
+            <div className={classes.placeholder}>
+              <Loader size={14} />
+              <span>{t('marketplace.loadingDomains')}</span>
             </div>
-          </div>
-        </div>
-
-        {domainsLoading || domainDetailsLoading ? (
-          <div className="flex items-center gap-2 text-muted-foreground h-[220px] justify-center border rounded-lg bg-muted/20">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">{t('marketplace.loadingDomains')}</span>
-          </div>
-        ) : domainBrowserStyle === 'pills' ? (
-          /* Pills View */
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={selectedDomainIds.length === 0 ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedDomainIds([])}
-              className="rounded-full"
-            >
-              {t('marketplace.allDomains')}
-            </Button>
-            {sortedDomains.map(domain => {
-              const parentDomain = domain.parent_id 
-                ? domains.find(d => d.id === domain.parent_id) 
-                : null;
-              return (
-                <HoverCard key={domain.id} openDelay={300} closeDelay={100}>
-                  <HoverCardTrigger asChild>
-                    <Button
-                      variant={selectedDomainIds.includes(domain.id) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => toggleDomain(domain.id)}
-                      className="rounded-full"
-                    >
-                      {domain.name}
-                    </Button>
-                  </HoverCardTrigger>
-                  <HoverCardContent side="bottom" align="start" className="w-72">
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <Database className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+          ) : domainBrowserStyle === 'pills' ? (
+            <div className={classes.pills}>
+              <Button
+                variant={selectedDomainIds.length === 0 ? 'default' : 'outline'}
+                size="sm"
+                type="button"
+                aria-pressed={selectedDomainIds.length === 0}
+                onClick={() => setSelectedDomainIds([])}
+                className={classes.pill}
+              >
+                {t('marketplace.allDomains')}
+              </Button>
+              {sortedDomains.map(domain => {
+                const parentDomain = domain.parent_id
+                  ? domains.find(d => d.id === domain.parent_id)
+                  : null;
+                const selected = selectedDomainIds.includes(domain.id);
+                return (
+                  <DomainChip key={domain.id} name={domain.name} selected={selected} onToggle={() => toggleDomain(domain.id)}>
+                      <div className={classes.domainHead}>
+                        <Database aria-hidden className={classes.domainIcon} />
                         <div>
-                          <h4 className="text-sm font-semibold">{domain.name}</h4>
+                          <h4 className={classes.domainName}>{domain.name}</h4>
                           {parentDomain && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className={classes.muted}>
                               {t('marketplace.domainInfo.parentDomain')}: {parentDomain.name}
                             </p>
                           )}
                         </div>
                       </div>
                       {domain.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-3">
-                          {domain.description}
-                        </p>
+                        <p className={`${classes.muted} ${classes.clamp3}`}>{domain.description}</p>
                       )}
                       {domain.children_count !== undefined && domain.children_count > 0 && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className={classes.muted}>
                           {t('marketplace.domainInfo.childDomains', { count: domain.children_count })}
                         </p>
                       )}
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-              );
-            })}
-          </div>
-        ) : (
-          /* Graph View */
-          selectedDomainDetails ? (
-            <div className={`transition-opacity duration-300 ${graphFadeIn ? 'opacity-100' : 'opacity-0'}`}>
+                  </DomainChip>
+                );
+              })}
+            </div>
+          ) : selectedDomainDetails ? (
+            /* Graph View */
+            <div className={classes.fade} data-shown={graphFadeIn || undefined}>
               <DataDomainMiniGraph
                 currentDomain={selectedDomainDetails}
                 // Node click focuses the graph AND includes that domain in the filter.
@@ -642,79 +685,69 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
               />
             </div>
           ) : (
-            <div className="h-[220px] border rounded-lg overflow-hidden bg-muted/20 w-full flex items-center justify-center text-muted-foreground">
-              {t('marketplace.selectDomainForGraph')}
-            </div>
-          )
-        )}
-      </div>
+            <div className={classes.placeholder}>{t('marketplace.selectDomainForGraph')}</div>
+          )}
+        </Pane>
 
-      {/* Scope filter & tiles per row */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Select value={scopeFilter} onValueChange={setScopeFilter}>
-              <SelectTrigger className="w-[180px] h-7 text-xs">
-                <SelectValue placeholder={t('marketplace.scopeFilter.placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('marketplace.scopeFilter.all')}</SelectItem>
-                <SelectItem value="domain">{PUBLICATION_SCOPE_LABELS.domain}</SelectItem>
-                <SelectItem value="organization">{PUBLICATION_SCOPE_LABELS.organization}</SelectItem>
-                <SelectItem value="external">{PUBLICATION_SCOPE_LABELS.external}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-4 flex-wrap">
-            {/* Tiles Per Row Selector */}
-            <div className="flex items-center gap-2">
-              <Grid2X2 className="h-4 w-4 text-muted-foreground" />
+        {/* The published products, with tiles per row */}
+        <Pane
+          title={t('marketplace.assetTypes.products')}
+          actions={
+            <>
+              {!productsLoading && !matchesLoading && !productsError && filteredProducts.length > 0 && (
+                <span className={classes.count}>
+                  {t('marketplace.products.available', { count: filteredProducts.length })}
+                </span>
+              )}
+              <Grid2X2 aria-hidden className={classes.tilesIcon} />
               <Select
+                size="xs"
+                w={100}
+                aria-label={t('marketplace.tilesPerRow.label')}
+                placeholder={t('marketplace.tilesPerRow.placeholder')}
+                data={tileOptions}
                 value={String(tilesPerRow)}
-                onValueChange={(v) => setTilesPerRow(Number(v) as 1 | 2 | 3 | 4)}
-              >
-                <SelectTrigger className="w-[100px] h-7 text-xs">
-                  <SelectValue placeholder={t('marketplace.tilesPerRow.placeholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">{t('marketplace.tilesPerRow.one')}</SelectItem>
-                  <SelectItem value="2">{t('marketplace.tilesPerRow.two')}</SelectItem>
-                  <SelectItem value="3">{t('marketplace.tilesPerRow.three')}</SelectItem>
-                  <SelectItem value="4">{t('marketplace.tilesPerRow.four')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Products */}
-        <div className="mt-4">
+                onChange={(v) => v && setTilesPerRow(Number(v) as TilesPerRow)}
+                allowDeselect={false}
+                classNames={{ option: classes.option }}
+              />
+            </>
+          }
+        >
           {productsLoading || matchesLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className={classes.loading}>
+              <Loader size={28} />
             </div>
           ) : productsError ? (
-            <Alert variant="destructive">
-              <AlertDescription>{productsError}</AlertDescription>
-            </Alert>
+            <div className={classes.errorState}>
+              <Alert
+                color="red"
+                variant="light"
+                icon={<AlertCircle />}
+                title={t('marketplace.loadError')}
+                className={classes.alert}
+              >
+                <span className={classes.alertMessage}>{productsError}</span>
+              </Alert>
+              <Button variant="outline" type="button" onClick={() => setProductsReload((n) => n + 1)}>
+                {t('common:retry')}
+              </Button>
+            </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <div className={classes.empty}>
+              <Package aria-hidden className={classes.emptyIcon} />
               <p>{t('marketplace.products.noProducts')}</p>
-              {(searchQuery || selectedDomainIds.length > 0 || scopeFilter !== 'all') && (
-                <p className="text-sm mt-1">{t('marketplace.products.adjustFilters')}</p>
-              )}
+              {filtersSet && <p className={classes.muted}>{t('marketplace.products.adjustFilters')}</p>}
             </div>
           ) : (
-            <>
-              <div className="text-sm text-muted-foreground mb-4">
-                {t('marketplace.products.available', { count: filteredProducts.length })}
-              </div>
-              <div className={gridClass}>
-                {filteredProducts.map(p => renderProductCard(p, subscribedProductIds.has(p.id || '')))}
-              </div>
-            </>
+            <div className={classes.grid} data-tiles={tilesPerRow}>
+              {filteredProducts.map(p => renderProductCard(p, subscribedProductIds.has(p.id || '')))}
+            </div>
           )}
-        </div>
+        </Pane>
+      </PaneStack>
+      </div>
+    </PageLayout>
 
       {/* Info Dialog - Products */}
       {selectedProduct && (
@@ -774,7 +807,7 @@ export default function MarketplaceView({ className }: MarketplaceViewProps) {
           onSuccess={handleProductSubscriptionSuccess}
         />
       )}
-    </div>
+    </>
   );
 }
 

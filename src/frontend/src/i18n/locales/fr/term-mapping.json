@@ -26,7 +26,8 @@
     "shippedTaxonomies": "Taxonomies livrées",
     "reviewsLinkPrefix": "Les revues des stewards se trouvent dans l'espace",
     "reviewsLinkText": "Revues des actifs",
-    "reviewsLinkSuffix": "Chaque suggestion devient un ReviewedAsset là-bas ; les décisions reviennent automatiquement dans cette exécution."
+    "reviewsLinkSuffix": "Chaque suggestion devient un ReviewedAsset là-bas ; les décisions reviennent automatiquement dans cette exécution.",
+    "paneLabel": "Détail de l’exécution"
   },
   "stats": {
     "targets": "Cibles",

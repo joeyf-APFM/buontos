@@ -2,7 +2,7 @@
  * A request refused with the blocked status change error (`status_change_blocked`
  * with its parameters) shows it in the UI language (#1078).
  */
-import { screen, fireEvent } from '@testing-library/react';
+import { act, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import i18n from '@/i18n/config';
 import { renderWithProviders } from '@/test/utils';
@@ -40,7 +40,9 @@ const BLOCKED_PARAMS = {
 
 describe('RequestProductActionDialog blocked status change', () => {
   afterEach(async () => {
-    await i18n.changeLanguage('en');
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
   });
 
   it('shows the error in the UI language', async () => {

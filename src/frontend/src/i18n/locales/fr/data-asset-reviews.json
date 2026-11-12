@@ -190,6 +190,7 @@
     "activeSubscriptions": "Abonnements actifs",
     "accessRequestsTab": "Demandes d'accès",
     "subscriptionsTab": "Mes abonnements",
+    "summary": "Résumé",
     "noSubscriptions": "Vous n'êtes encore abonné à aucun produit de données.",
     "product": "Produit",
     "loadFailed": "Échec du chargement",

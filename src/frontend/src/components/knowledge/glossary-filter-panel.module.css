@@ -1,0 +1,229 @@
+/*
+ * Explore's filters (glossary-filter-panel.tsx) on Mantine, wave 2 Task 13a:
+ * a flush kit pane with its own head (the Filter by Source toggle, All /
+ * None, and the Name / Size sort), then, while it's open, the scheme search,
+ * the scheme checkboxes by type, and the display options ruled off below.
+ */
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px 0 10px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--aura-navy);
+}
+
+.toggle:hover {
+  color: var(--aura-accent);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.toggle > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.headActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Name / Size, ruled off from All / None */
+.sort {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--aura-border);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.search {
+  width: 200px;
+  max-width: 100%;
+}
+
+/* A long list of schemes scrolls inside the pane */
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 224px;
+  overflow-y: auto;
+}
+
+.typeRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The type's icon and count; its name in the tooltip */
+.typeMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding-top: 4px;
+  border-radius: 3px;
+  color: var(--aura-text-secondary);
+}
+
+.typeMark:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.typeMark > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* A scheme: its checkbox, name and count, then its actions */
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  opacity: 0.7;
+}
+
+.chip[data-visible] {
+  border-color: var(--aura-accent-subtle);
+  background: var(--aura-accent-subtle);
+  opacity: 1;
+}
+
+.chip:hover {
+  border-color: var(--aura-border-strong);
+}
+
+.chipCheck {
+  min-width: 0;
+}
+
+.chipLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+.chipName {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipAction > svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* A disabled Delete, with the reason under it */
+.disabledItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.disabledReason {
+  font-size: 11px;
+}
+
+/* The display options, ruled off from the schemes */
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+}
+
+/* A Select with its label beside it */
+.inlineField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inlineField .inlineLabel {
+  margin: 0;
+}
+
+.groupByField {
+  width: 130px;
+}
+
+.languageField {
+  width: 120px;
+}
+
+.inlineLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+.optionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.optionLabel > svg {
+  width: 14px;
+  height: 14px;
+}

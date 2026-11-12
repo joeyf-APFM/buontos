@@ -1,0 +1,111 @@
+/*
+ * A concept's neighbourhood (wave 2 Task 15): its chrome around the reactflow
+ * canvas, which keeps its library. The canvas sits on the canvas colour in
+ * its pane; the node cards are 170 x 56 with a 1px border, the current one
+ * in the accent. The list view is one 28px row per neighbour.
+ */
+.graph {
+  background: var(--aura-canvas);
+  border-radius: 4px;
+}
+
+.node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--aura-text-body);
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.node:hover {
+  border-color: var(--aura-border-strong);
+}
+
+.node[data-current] {
+  cursor: default;
+  border-color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.node[data-placeholder] {
+  cursor: default;
+  border-style: dashed;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface-strong);
+}
+
+.nodeLabel {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.nodeType {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--aura-text-secondary);
+}
+
+.node[data-current] .nodeType {
+  color: var(--aura-accent);
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 4px;
+  color: var(--aura-text-secondary);
+}
+
+.list {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.predicate {
+  flex: none;
+  width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.target {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+button.target {
+  color: var(--aura-accent);
+}
+
+button.target:hover {
+  text-decoration: underline;
+}

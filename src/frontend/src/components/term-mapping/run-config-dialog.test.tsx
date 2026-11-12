@@ -1,8 +1,7 @@
-import type React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '@/test/utils';
+import { renderWithMantine } from '@/test/utils';
 import RunConfigDialog from './run-config-dialog';
 
 const mockGet = vi.fn();
@@ -11,14 +10,6 @@ vi.mock('@/hooks/use-api', () => ({
   useApi: () => ({ get: mockGet, post: mockPost }),
 }));
 
-// Render Radix Popover content inline: opening it through jsdom pointer events
-// is environment-dependent (it never opened on the CI runner). What this file
-// tests is the options list and the payload, not the popover mechanics.
-vi.mock('@/components/ui/popover', () => ({
-  Popover: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  PopoverTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  PopoverContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-}));
 
 const ASSET_TYPES = [
   { id: '1', name: 'Table', status: 'active', is_system: true, asset_count: 3 },
@@ -42,7 +33,7 @@ describe('RunConfigDialog asset-type multi-select', () => {
   it('lists asset types from the API and sends selected names in the run payload', async () => {
     const user = userEvent.setup();
     const onCreated = vi.fn();
-    renderWithProviders(<RunConfigDialog isOpen onOpenChange={vi.fn()} onCreated={onCreated} />);
+    renderWithMantine(<RunConfigDialog isOpen onOpenChange={vi.fn()} onCreated={onCreated} />);
 
     await waitFor(() =>
       expect(mockGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/asset-types/)),
@@ -50,12 +41,15 @@ describe('RunConfigDialog asset-type multi-select', () => {
     // Default selection is preserved.
     expect(within(screen.getByTestId('tm-asset-types-selected')).getByText('Column')).toBeInTheDocument();
 
-    const listbox = await screen.findByRole('listbox');
-    expect(within(listbox).getByRole('option', { name: 'Table' })).toBeInTheDocument();
-    expect(within(listbox).getByRole('option', { name: 'View' })).toBeInTheDocument();
-    expect(within(listbox).queryByRole('option', { name: 'LegacyThing' })).not.toBeInTheDocument();
+    // The picker (a Mantine Combobox since wave 2 Task 14) opens its list
+    const picker = await screen.findByRole('combobox', { name: /Asset types to match/ });
+    await user.click(picker);
+    const listbox = document.getElementById(picker.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(within(listbox).getByRole('option', { name: 'Table', hidden: true })).toBeInTheDocument();
+    expect(within(listbox).getByRole('option', { name: 'View', hidden: true })).toBeInTheDocument();
+    expect(within(listbox).queryByRole('option', { name: 'LegacyThing', hidden: true })).not.toBeInTheDocument();
 
-    await user.click(within(listbox).getByRole('option', { name: 'Table' }));
+    await user.click(within(listbox).getByRole('option', { name: 'Table', hidden: true }));
 
     await user.click(screen.getByRole('button', { name: 'Create run' }));
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
@@ -66,7 +60,7 @@ describe('RunConfigDialog asset-type multi-select', () => {
 
   it('removing a chip drops the name from the payload', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RunConfigDialog isOpen onOpenChange={vi.fn()} onCreated={vi.fn()} />);
+    renderWithMantine(<RunConfigDialog isOpen onOpenChange={vi.fn()} onCreated={vi.fn()} />);
     await waitFor(() => expect(screen.getByText('X')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: 'Remove Column' }));

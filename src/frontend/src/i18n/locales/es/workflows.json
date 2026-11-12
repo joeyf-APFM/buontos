@@ -444,6 +444,7 @@
       "otherGroupOrSp": "Otro grupo o entidad de servicio",
       "groupOption": "Grupo (nombre para mostrar)",
       "servicePrincipalOption": "Entidad de servicio (nombre para mostrar o applicationId)",
+      "principalType": "Tipo de principal",
       "groupPlaceholder": "p. ej., sales_consumers",
       "spPlaceholder": "p. ej., 11111111-2222-3333-4444-555555555555",
       "validationNote": "Se valida con el directorio del workspace antes de registrar la solicitud.",

@@ -1,14 +1,15 @@
 [
   "button \"Back to List\"",
-  "button \"Clone for Editing\"",
   "button \"Comments\"",
-  "button \"Create New Version\"",
   "button \"Export ODCS\"",
   "button \"L\"",
   "button \"M\"",
-  "button \"Profile with DQX\"",
+  "button \"Not assessed Maturity\"",
+  "button \"Re-evaluate maturity\"",
+  "button \"Refresh\"",
   "button \"Request...\"",
   "button \"S\"",
   "link \"Build\"",
+  "link \"Data Contracts\"",
   "link \"Home\""
 ]

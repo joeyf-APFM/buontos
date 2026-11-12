@@ -1,0 +1,47 @@
+/*
+ * The compact segmented size toggle (S | L), wave 2 Task 12a: a 28px
+ * control of 26px segments in a 1px frame, the pressed one filled in the
+ * accent.
+ */
+.group {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  height: 28px;
+  overflow: hidden;
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+/* `button.` outranks Mantine's UnstyledButton reset (R10) */
+button.option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--aura-text-secondary);
+  cursor: pointer;
+}
+
+button.option + button.option {
+  border-left: 1px solid var(--aura-border);
+}
+
+button.option:hover:not([aria-pressed='true']) {
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-body);
+}
+
+button.option[aria-pressed='true'] {
+  background: var(--aura-accent);
+  color: #fff;
+}
+
+button.option:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}

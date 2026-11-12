@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useId, useMemo, useRef } from 'react';
 import { Column, ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, PlusCircle, AlertCircle, ArrowUpDown } from 'lucide-react';
-import { ActionIcon, Alert, Loader, Menu, Modal, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Alert, Loader, Menu, UnstyledButton } from '@mantine/core';
 import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
@@ -15,16 +15,17 @@ import { FeatureAccessLevel } from '@/types/settings';
 import SettingsPageWrapper from '@/components/settings/settings-page-wrapper';
 import { useTranslation } from 'react-i18next';
 import { AssetTypeFormDialog } from '@/components/asset-types/asset-type-form-dialog';
-import { PageHeader, PageLayout, Pane } from '@/mantine/page';
-import { alertDialogRole } from '@/mantine/alert-dialog-role';
+import { Dialog, PageHeader, PageLayout, Pane } from '@/mantine/page';
+import { focusIsFree } from '@/mantine/focus-free';
+import list from '@/components/common/list-page.module.css';
 import classes from './asset-types.module.css';
 
 /** A header label that sorts its column, in the grid's header-label look. */
 function SortButton({ column, label }: { column: Column<AssetTypeRead, unknown>; label: string }) {
   return (
-    <UnstyledButton className={classes.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+    <UnstyledButton className={list.sort} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
       {label}
-      <ArrowUpDown aria-hidden className={classes.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
+      <ArrowUpDown aria-hidden className={list.sortIcon} data-active={column.getIsSorted() ? '' : undefined} />
     </UnstyledButton>
   );
 }
@@ -111,6 +112,8 @@ export default function AssetTypesView() {
   const focusTarget = useRef<FocusTarget>(ADD);
   const focusPending = useRef(false);
   const dialogGone = useRef(true);
+  // The content of the dialog that closed last, for focusIsFree
+  const closedDialog = useRef<HTMLElement | null>(null);
   const awaitingReload = useRef(false);
   const [focusRequest, setFocusRequest] = useState(0);
   /** A dialog opens from `target`: focus returns there (or near) once, later. */
@@ -118,6 +121,7 @@ export default function AssetTypesView() {
     focusTarget.current = target;
     focusPending.current = true;
     dialogGone.current = false;
+    closedDialog.current = null;
   }, []);
   const maybeReturnFocus = useCallback(() => {
     if (!focusPending.current || !dialogGone.current || awaitingReload.current) return;
@@ -171,9 +175,7 @@ export default function AssetTypesView() {
   // has moved it during a slow reload, it stays where they put it
   useEffect(() => {
     if (focusRequest === 0) return;
-    const active = document.activeElement;
-    const free = !active || active === document.body || active.closest('[data-modal-content]') !== null;
-    if (!free) return;
+    if (!focusIsFree(closedDialog.current)) return;
     const target = focusTarget.current;
     const area = tableArea.current;
     const find = (selector: string) => {
@@ -194,7 +196,8 @@ export default function AssetTypesView() {
   }, [focusRequest, titleId]);
 
   /** A dialog's exit transition has ended: focus goes back, unless a reload is on its way. */
-  const dialogExited = useCallback(() => {
+  const dialogExited = useCallback((content: HTMLElement | null) => {
+    closedDialog.current = content;
     dialogGone.current = true;
     maybeReturnFocus();
   }, [maybeReturnFocus]);
@@ -359,7 +362,7 @@ export default function AssetTypesView() {
         }
       >
         <Pane flush aria-label={t('listPane')}>
-          <div ref={tableArea} className={classes.body}>{content}</div>
+          <div ref={tableArea} className={list.body}>{content}</div>
         </Pane>
       </PageLayout>
 
@@ -371,25 +374,18 @@ export default function AssetTypesView() {
         onExited={dialogExited}
       />
 
-      {/* As the Radix AlertDialog: an alertdialog (alertDialogRole), no close
-          button, a click outside leaves it open, Escape closes it, and Cancel
-          has focus */}
-      <Modal.Root
+      {/* As the Radix AlertDialog: an alertdialog with no close button, a
+          click outside leaves it open, Escape closes it, and Cancel has focus */}
+      <Dialog
         opened={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        size={512}
-        centered
-        closeOnClickOutside={false}
-        returnFocus={false}
-        onExitTransitionEnd={dialogExited}
-      >
-        <Modal.Overlay />
-        <Modal.Content ref={alertDialogRole} className={classes.dialog}>
-          <Modal.Header className={classes.dialogHeader}>
-            <Modal.Title className={classes.dialogTitle}>{t('deleteDialog.title')}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body className={classes.dialogDescription}>{t('deleteDialog.description')}</Modal.Body>
-          <div className={classes.dialogFooter}>
+        role="alertdialog"
+        size="sm"
+        title={t('deleteDialog.title')}
+        description={t('deleteDialog.description')}
+        onExited={dialogExited}
+        footer={
+          <>
             <Button variant="outline" data-autofocus onClick={() => { setIsDeleteDialogOpen(false); setDeletingId(null); }}>
               {t('deleteDialog.cancel')}
             </Button>
@@ -404,9 +400,9 @@ export default function AssetTypesView() {
             >
               {apiIsLoading ? <Loader size={12} color="currentColor" /> : null} {t('deleteDialog.delete')}
             </Button>
-          </div>
-        </Modal.Content>
-      </Modal.Root>
+          </>
+        }
+      />
     </SettingsPageWrapper>
   );
 }

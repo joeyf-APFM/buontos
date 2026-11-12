@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Loader2 } from 'lucide-react';
 
 type FilePreviewSource = {
@@ -64,58 +64,53 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({ open, onOp
   }, [url, fetchUrl]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="relative min-h-[320px] flex items-center justify-center">
-          {url ? (
-            isImage(ct) ? (
-              <img
-                src={url}
-                alt={title}
-                className="max-h-[70vh] max-w-full rounded"
-                onLoad={() => { setLoading(false); setErrorMsg(null); }}
-                onError={() => { setLoading(false); setErrorMsg(t('data-catalog:preview.loadImageFailed')); }}
-              />
-            ) : isPdf(ct) ? (
-              <object
-                data={url}
-                type="application/pdf"
-                className="w-full h-[70vh] rounded"
-                onLoad={() => { setLoading(false); setErrorMsg(null); }}
-              >
-                <p className="text-sm text-muted-foreground">{t('data-catalog:preview.pdfNotSupported')} <a className="underline" href={url} target="_blank" rel="noreferrer">{t('common:actions.open')}</a></p>
-              </object>
-            ) : isText(ct) ? (
-              <iframe
-                src={url}
-                title={t('data-catalog:preview.textPreviewTitle')}
-                className="w-full h-[70vh] rounded bg-background"
-                onLoad={() => { setLoading(false); setErrorMsg(null); }}
-              />
-            ) : (
-              <div className="text-sm text-muted-foreground">{t('data-catalog:preview.noInlinePreview')} {url && (<a className="underline ml-1" href={url} target="_blank" rel="noreferrer">{t('common:actions.download')}</a>)}
-              </div>
-            )
-          ) : (!fetching && !loading && !fetchUrl) ? (
-            <div className="text-sm text-muted-foreground">
-              {t('data-catalog:preview.noPreviewUrl', { filename: source?.originalFilename, path: source?.storagePath })}
+    <Dialog opened={open} onClose={() => onOpenChange(false)} size="xl" title={title}>
+      <div className="relative min-h-[320px] flex items-center justify-center">
+        {url ? (
+          isImage(ct) ? (
+            <img
+              src={url}
+              alt={title}
+              className="max-h-[70vh] max-w-full rounded"
+              onLoad={() => { setLoading(false); setErrorMsg(null); }}
+              onError={() => { setLoading(false); setErrorMsg(t('data-catalog:preview.loadImageFailed')); }}
+            />
+          ) : isPdf(ct) ? (
+            <object
+              data={url}
+              type="application/pdf"
+              className="w-full h-[70vh] rounded"
+              onLoad={() => { setLoading(false); setErrorMsg(null); }}
+            >
+              <p className="text-sm text-muted-foreground">{t('data-catalog:preview.pdfNotSupported')} <a className="underline" href={url} target="_blank" rel="noreferrer">{t('common:actions.open')}</a></p>
+            </object>
+          ) : isText(ct) ? (
+            <iframe
+              src={url}
+              title={t('data-catalog:preview.textPreviewTitle')}
+              className="w-full h-[70vh] rounded bg-background"
+              onLoad={() => { setLoading(false); setErrorMsg(null); }}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">{t('data-catalog:preview.noInlinePreview')} {url && (<a className="underline ml-1" href={url} target="_blank" rel="noreferrer">{t('common:actions.download')}</a>)}
             </div>
-          ) : null}
-          {(fetching || loading) && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            </div>
-          )}
-          {!fetching && !loading && errorMsg && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-sm text-destructive bg-background/80 p-2 rounded">{errorMsg}</div>
-            </div>
-          )}
-        </div>
-      </DialogContent>
+          )
+        ) : (!fetching && !loading && !fetchUrl) ? (
+          <div className="text-sm text-muted-foreground">
+            {t('data-catalog:preview.noPreviewUrl', { filename: source?.originalFilename, path: source?.storagePath })}
+          </div>
+        ) : null}
+        {(fetching || loading) && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        )}
+        {!fetching && !loading && errorMsg && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-sm text-destructive bg-background/80 p-2 rounded">{errorMsg}</div>
+          </div>
+        )}
+      </div>
     </Dialog>
   );
 };

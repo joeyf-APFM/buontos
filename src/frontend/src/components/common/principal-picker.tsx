@@ -72,6 +72,8 @@ interface CommonProps {
   id?: string;
   /** Optional aria-label when no surrounding <Label htmlFor=...> exists. */
   'aria-label'?: string;
+  /** The id of a hint that describes the input. */
+  'aria-describedby'?: string;
   className?: string;
 }
 
@@ -223,6 +225,7 @@ export function PrincipalPicker(props: PrincipalPickerProps) {
             onPick={addPrincipal}
             onSearchFail={markDegraded}
             ariaLabel={props['aria-label']}
+            ariaDescribedBy={props['aria-describedby']}
           />
         ) : (
           <ManualInput
@@ -231,6 +234,7 @@ export function PrincipalPicker(props: PrincipalPickerProps) {
             disabled={disabled}
             onAdd={addManual}
             ariaLabel={props['aria-label']}
+            ariaDescribedBy={props['aria-describedby']}
           />
         )}
         {configured && (
@@ -332,6 +336,7 @@ interface ConfiguredInputProps {
   onPick: (p: Principal) => void;
   onSearchFail: () => void;
   ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 function ConfiguredInput({
@@ -343,6 +348,7 @@ function ConfiguredInput({
   onPick,
   onSearchFail,
   ariaLabel,
+  ariaDescribedBy,
 }: ConfiguredInputProps) {
   const { t } = useTranslation('common');
   const [query, setQuery] = useState('');
@@ -388,6 +394,7 @@ function ConfiguredInput({
           disabled={disabled}
           placeholder={placeholder ?? t('common:principalPicker.searchDirectory')}
           aria-label={ariaLabel}
+          aria-describedby={ariaDescribedBy}
           onChange={(e) => {
             setQuery(e.target.value);
             // Any new keystroke is a fresh user intent to see results.
@@ -437,9 +444,10 @@ interface ManualInputProps {
   disabled?: boolean;
   onAdd: (raw: string) => void;
   ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
-function ManualInput({ id, placeholder, disabled, onAdd, ariaLabel }: ManualInputProps) {
+function ManualInput({ id, placeholder, disabled, onAdd, ariaLabel, ariaDescribedBy }: ManualInputProps) {
   const { t } = useTranslation('common');
   const [value, setValue] = useState('');
 
@@ -466,6 +474,7 @@ function ManualInput({ id, placeholder, disabled, onAdd, ariaLabel }: ManualInpu
       disabled={disabled}
       placeholder={placeholder ?? t('common:principalPicker.typeAndEnter')}
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={onKeyDown}
       onBlur={commit}

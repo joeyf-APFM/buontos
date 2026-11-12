@@ -1,32 +1,11 @@
 /*
- * The asset type form on a Mantine Modal with Mantine fields: the Task 7
- * dialog look (8px corners, 16px padding, the floating shadow, a 14px navy
- * title), as the import preview dialog
- * (components/schema-importer/import-preview-dialog.module.css), with 28px
- * fields 12px apart.
+ * The asset type form's fields, in the kit Dialog (mantine/page/dialog.tsx,
+ * which has the dialog look): 28px fields 12px apart.
  */
-.content {
-  composes: content from '../schema-importer/import-preview-dialog.module.css';
-}
-
-.header {
-  composes: header from '../schema-importer/import-preview-dialog.module.css';
-}
-
-.title {
-  composes: title from '../schema-importer/import-preview-dialog.module.css';
-}
-
-/* The description: Mantine's Modal body, so it describes the dialog */
-.description {
-  composes: description from '../schema-importer/import-preview-dialog.module.css';
-}
-
 .form {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 16px 16px;
 }
 
 /* Field labels: 12px in the body colour, as the ui Label (components/ui/label.tsx) */
@@ -50,11 +29,4 @@
 .option {
   white-space: normal;
   overflow-wrap: anywhere;
-}
-
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 4px;
 }

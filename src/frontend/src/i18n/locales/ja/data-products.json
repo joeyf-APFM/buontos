@@ -1,6 +1,7 @@
 {
   "title": "データ製品",
   "subtitle": "データ製品を管理",
+  "listPane": "データプロダクト一覧",
   "newProduct": "新規データ製品",
   "importProduct": "インポート",
   "searchPlaceholder": "データ製品を検索...",
@@ -148,6 +149,7 @@
   "details": {
     "backToList": "リストに戻る",
     "edit": "編集",
+    "editDescription": "説明を編集",
     "delete": "削除",
     "subscribe": "購読",
     "unsubscribe": "購読解除",
@@ -271,6 +273,7 @@
       "assetsLinkedTitle": "アセットをリンクしました",
       "assetsLinked": "{{count}} 件のアセットを {{portName}} にリンクしました",
       "assetUnlinked": "アセットのリンクを解除しました",
+      "unlinkAsset": "{{name}} のリンクを解除",
       "linkAssetsFailed": "アセットのリンクに失敗しました",
       "unlinkAssetFailed": "アセットのリンク解除に失敗しました"
     },
@@ -1163,11 +1166,14 @@
     "retry": "再試行",
     "untitled": "無題",
     "productsAvailable_one": "{{count}} 件の製品が利用可能",
-    "productsAvailable_other": "{{count}} 件の製品が利用可能"
+    "productsAvailable_other": "{{count}} 件の製品が利用可能",
+    "productsPane": "サブスクライブ済みのプロダクト",
+    "tilesPerRow": "1 行あたりのタイル数"
   },
   "ownerConsumers": {
     "breadcrumb": "消費者",
     "totalProducts": "製品の合計",
+    "summary": "概要",
     "activeProducts": "アクティブな製品",
     "totalSubscribers": "購読者の合計",
     "products": "製品",

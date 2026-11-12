@@ -201,8 +201,8 @@
       "subscriptions": "My Data"
     },
     "products": {
-      "available": "{{count}} product available",
-      "available_plural": "{{count}} products available",
+      "available_one": "{{count}} product available",
+      "available_other": "{{count}} products available",
       "subscribed": "{{count}} subscribed product",
       "subscribed_plural": "{{count}} subscribed products",
       "noProducts": "No data products found.",
@@ -247,11 +247,13 @@
       "one": "1 per row",
       "two": "2 per row",
       "three": "3 per row",
-      "four": "4 per row"
+      "four": "4 per row",
+      "label": "Tiles per row"
     },
     "scopeFilter": {
       "placeholder": "Scope",
-      "all": "All Scopes"
+      "all": "All Scopes",
+      "label": "Publication scope"
     },
     "openInDetails": "Open in details view",
     "loadError": "Failed to load products"

@@ -191,7 +191,7 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
                   level: FeatureAccessLevel.READ_WRITE, icon: FilePlus2,
                 },
                 {
-                  id: 'define-generate', labelKey: 'shell:items.generateOntology', path: '/concepts/define?open=generate', permissionId: 'semantic-models',
+                  id: 'define-generate', labelKey: 'shell:items.generateOntology', path: '/concepts/define?open=generate', permissionId: 'ontology',
                   level: FeatureAccessLevel.READ_WRITE, icon: WandSparkles,
                 },
                 {

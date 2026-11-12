@@ -1,22 +1,8 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Loader, Select } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Dialog } from '@/mantine/page';
 import { useTranslation } from 'react-i18next';
+import { SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
 import type { CertificationLevel } from '@/types/lifecycle';
 import { PUBLICATION_SCOPE_LABELS, type PublicationScope } from '@/types/lifecycle';
 
@@ -47,32 +33,16 @@ export function DirectCertifyDialog({
 }: DirectCertifyDialogProps) {
   const { t } = useTranslation('common');
   const sorted = [...certificationLevels].sort((a, b) => a.level_order - b.level_order);
+  const options = uniqueOptions(sorted.map((lvl) => ({ value: String(lvl.level_order), label: lvl.name })));
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title || t('common:lifecycleDialogs.certifyTitle')}</DialogTitle>
-          <DialogDescription>{description || t('common:lifecycleDialogs.certifyDescription')}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2 py-2">
-          <Label>{t('common:lifecycleDialogs.certificationLevel')}</Label>
-          <Select
-            value={selectedLevelOrder != null ? String(selectedLevelOrder) : ''}
-            onValueChange={(v) => onSelectedLevelOrderChange(v ? parseInt(v, 10) : null)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t('common:lifecycleDialogs.selectLevel')} />
-            </SelectTrigger>
-            <SelectContent>
-              {sorted.map((lvl) => (
-                <SelectItem key={lvl.id} value={String(lvl.level_order)}>
-                  {lvl.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="sm"
+      title={title || t('common:lifecycleDialogs.certifyTitle')}
+      description={description || t('common:lifecycleDialogs.certifyDescription')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel')}
           </Button>
@@ -80,11 +50,21 @@ export function DirectCertifyDialog({
             onClick={onConfirm}
             disabled={isSubmitting || selectedLevelOrder == null || sorted.length === 0}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSubmitting && <Loader size={12} color="currentColor" />}
             {t('common:actions.confirm')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <Select
+        label={t('common:lifecycleDialogs.certificationLevel')}
+        placeholder={t('common:lifecycleDialogs.selectLevel')}
+        data={options}
+        value={selectedLevelOrder != null ? String(selectedLevelOrder) : null}
+        onChange={(v) => v && onSelectedLevelOrderChange(parseInt(v, 10))}
+        allowDeselect={false}
+        classNames={SELECT_CLASSES}
+      />
     </Dialog>
   );
 }
@@ -111,38 +91,34 @@ export function DirectPublishDialog({
   onConfirm,
 }: DirectPublishDialogProps) {
   const { t } = useTranslation('common');
+  const options = PUBLICATION_SCOPES.map((scope) => ({ value: scope, label: PUBLICATION_SCOPE_LABELS[scope] }));
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title || t('common:lifecycleDialogs.publishTitle')}</DialogTitle>
-          <DialogDescription>{description || t('common:lifecycleDialogs.publishDescription')}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2 py-2">
-          <Label>{t('common:lifecycleDialogs.publicationScope')}</Label>
-          <Select value={selectedScope} onValueChange={(v) => onSelectedScopeChange(v as PublicationScope)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PUBLICATION_SCOPES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {PUBLICATION_SCOPE_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      size="sm"
+      title={title || t('common:lifecycleDialogs.publishTitle')}
+      description={description || t('common:lifecycleDialogs.publishDescription')}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={onConfirm} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSubmitting && <Loader size={12} color="currentColor" />}
             {t('common:actions.confirm')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <Select
+        label={t('common:lifecycleDialogs.publicationScope')}
+        data={options}
+        value={selectedScope}
+        onChange={(v) => v && onSelectedScopeChange(v as PublicationScope)}
+        allowDeselect={false}
+        classNames={SELECT_CLASSES}
+      />
     </Dialog>
   );
 }

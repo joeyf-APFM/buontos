@@ -108,6 +108,9 @@ export default function AssetDetailView() {
   const canWrite = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
   const canAdmin = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.ADMIN);
   const canEditSemanticLinks = !permissionsLoading && hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
+  // The notes, costs and quality routes check data-domains
+  const canWriteDomains = !permissionsLoading && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
+  const canEditPanels = canWrite && canWriteDomains;
 
   const entityType = asset?.asset_type_name || 'Asset';
 
@@ -510,7 +513,7 @@ export default function AssetDetailView() {
               then the ratings, costs and quality panes */}
           <PaneStack>
             <OwnershipPanel objectType="asset" objectId={assetId!} canAssign={canWrite} />
-            <EntityMetadataPanel entityId={assetId!} entityType="asset" />
+            <EntityMetadataPanel entityId={assetId!} entityType="asset" canEdit={canEditPanels} />
             <RatingPanel
               entityType="asset"
               entityId={assetId!}
@@ -519,8 +522,8 @@ export default function AssetDetailView() {
               allowSubmit
               pane
             />
-            <EntityCostsPanel entityId={assetId!} entityType="asset" pane />
-            <EntityQualityPanel entityId={assetId!} entityType="asset" pane />
+            <EntityCostsPanel entityId={assetId!} entityType="asset" pane canEdit={canEditPanels} />
+            <EntityQualityPanel entityId={assetId!} entityType="asset" pane canEdit={canEditPanels} />
           </PaneStack>
         </div>
       </PageLayout>

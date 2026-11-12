@@ -45,6 +45,7 @@
     "startPath": "Start path",
     "pathExplorer": "Path Explorer",
     "pathExplorerDesc": "Click objects to extend the path horizontally.",
+    "pathLoadFailed": "Could not load the path.",
     "directionFilter": "Direction Filter",
     "everything": "Everything",
     "incomingOnly": "Incoming Only",
@@ -122,7 +123,9 @@
       "assignError": "Please select both an entity type and specific entity.",
       "assignFailed": "Failed to assign concept to object.",
       "navigationError": "Cannot navigate to {{entityType}}"
-    }
+    },
+    "searchPane": "Concept search",
+    "relationsPane": "Concept relations"
   },
   "properties": {
     "searchAndSelect": "Search and select a property:",
@@ -155,7 +158,9 @@
       "selectPropertyTarget": "Please select a contract, schema, and property.",
       "linkedSuccess": "Property linked successfully.",
       "assignFailed": "Failed to assign property to object."
-    }
+    },
+    "searchPane": "Property search",
+    "relationsPane": "Property links"
   },
   "llm": {
     "title": "Ask {{shortName}}",
@@ -189,8 +194,10 @@
       "sessionDeleted": "Session deleted",
       "sessionDeletedDesc": "The conversation has been removed.",
       "loadSessionFailed": "Failed to load session",
+      "loadSessionFailedTitle": "Could not load the conversation.",
       "deleteSessionFailed": "Failed to delete session",
-      "loadFailed": "Failed to load LLM search. Please try again later."
+      "loadFailed": "Failed to load LLM search. Please try again later.",
+      "loadFailedTitle": "Could not load Ask Ontos."
     },
     "debug": {
       "title": "Debug",
@@ -216,7 +223,11 @@
       "modeDisabled": "Debug mode disabled",
       "modeEnabledDesc": "LLM intermediate steps will be shown",
       "clickToDisable": "Click to disable debug mode"
-    }
+    },
+    "you": "You",
+    "messagesLabel": "Messages",
+    "send": "Send",
+    "deleteSession": "Delete conversation: {{title}}"
   },
   "copilot": {
     "title": "Ask {{shortName}}",
@@ -237,5 +248,9 @@
     "chat_timeout": "The request timed out. Please try a simpler question or try again later (error id {{errorId}}).",
     "chat_connection_failed": "I had trouble connecting to a required service. Please try again in a moment (error id {{errorId}}).",
     "chat_failed": "I encountered an error while processing your request. Please try rephrasing your question or try again. The details are in the server log (error id {{errorId}})."
+  },
+  "states": {
+    "searchFailed": "The search failed.",
+    "loadFailed": "Could not load the details."
   }
 }

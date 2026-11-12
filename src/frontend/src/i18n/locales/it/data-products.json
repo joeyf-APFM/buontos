@@ -1,6 +1,7 @@
 {
   "title": "Prodotti Dati",
   "subtitle": "Gestisci i tuoi prodotti dati",
+  "listPane": "Elenco dei prodotti dati",
   "newProduct": "Nuovo Prodotto Dati",
   "importProduct": "Importa",
   "searchPlaceholder": "Cerca prodotti dati...",
@@ -148,6 +149,7 @@
   "details": {
     "backToList": "Torna alla Lista",
     "edit": "Modifica",
+    "editDescription": "Modifica descrizione",
     "delete": "Elimina",
     "subscribe": "Iscriviti",
     "unsubscribe": "Annulla Iscrizione",
@@ -271,6 +273,7 @@
       "assetsLinkedTitle": "Asset collegati",
       "assetsLinked": "{{count}} asset collegati a {{portName}}",
       "assetUnlinked": "Asset scollegato",
+      "unlinkAsset": "Scollega {{name}}",
       "linkAssetsFailed": "Impossibile collegare gli asset",
       "unlinkAssetFailed": "Impossibile scollegare l'asset"
     },
@@ -1163,11 +1166,14 @@
     "retry": "Riprova",
     "untitled": "Senza titolo",
     "productsAvailable_one": "{{count}} prodotto disponibile",
-    "productsAvailable_other": "{{count}} prodotti disponibili"
+    "productsAvailable_other": "{{count}} prodotti disponibili",
+    "productsPane": "Prodotti sottoscritti",
+    "tilesPerRow": "Riquadri per riga"
   },
   "ownerConsumers": {
     "breadcrumb": "Consumatori",
     "totalProducts": "Prodotti totali",
+    "summary": "Riepilogo",
     "activeProducts": "Prodotti attivi",
     "totalSubscribers": "Sottoscrittori totali",
     "products": "Prodotti",

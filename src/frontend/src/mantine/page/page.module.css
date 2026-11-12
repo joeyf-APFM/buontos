@@ -171,6 +171,19 @@
   gap: 6px;
 }
 
+/* PageHeader's wrapActions: the title keeps its width up to 45%, and the
+   actions fill the rest of the line, wrapping from the end */
+.header[data-wrap-actions] .title {
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+
+.header[data-wrap-actions] .headerEnd {
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Filter bar */
 .bar {
   display: flex;

@@ -201,8 +201,7 @@
       "subscriptions": "マイデータ"
     },
     "products": {
-      "available": "{{count}}個の製品が利用可能",
-      "available_plural": "{{count}}個の製品が利用可能",
+      "available_other": "{{count}}個の製品が利用可能",
       "subscribed": "{{count}}個の購読済み製品",
       "subscribed_plural": "{{count}}個の購読済み製品",
       "noProducts": "データ製品が見つかりません。",
@@ -247,11 +246,13 @@
       "one": "1列",
       "two": "2列",
       "three": "3列",
-      "four": "4列"
+      "four": "4列",
+      "label": "1行あたりのタイル数"
     },
     "scopeFilter": {
       "placeholder": "スコープ",
-      "all": "すべてのスコープ"
+      "all": "すべてのスコープ",
+      "label": "公開範囲"
     },
     "openInDetails": "詳細ビューで開く",
     "loadError": "製品の読み込みに失敗しました"

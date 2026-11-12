@@ -1,0 +1,285 @@
+/*
+ * My Products (/my-products) on the page kit (wave 2 Task 4): the kit header
+ * and its description, the search in the filter bar, then two stacked panes,
+ * the domain browser and the subscribed products' cards. The domain graph
+ * (components/data-domains) keeps its own look.
+ */
+
+/* Under the title, in text-secondary */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The search fills the filter bar */
+.search {
+  flex: 1;
+  min-width: 0;
+}
+
+.searchIcon {
+  width: 14px;
+  height: 14px;
+}
+
+/* The panes, 12px under the filter bar's rule */
+.stack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding-top: 12px;
+}
+
+.switchLabel {
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+/* The List / Graph switch: two buttons in one 1px frame */
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px;
+  background: var(--aura-canvas);
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+}
+
+/* The domains as pills, wrapping */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  border-radius: 999px;
+  max-width: 100%;
+}
+
+/* A domain's hover card */
+.domainCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.domainHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.domainIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  color: var(--aura-accent);
+}
+
+.domainName {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  margin: 0;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.clamp2,
+.clamp3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.clamp2 {
+  -webkit-line-clamp: 2;
+}
+
+.clamp3 {
+  -webkit-line-clamp: 3;
+}
+
+/* The domain graph fades in when its domain changes */
+.fade {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.fade[data-shown] {
+  opacity: 1;
+}
+
+.graphPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  color: var(--aura-text-secondary);
+  background: var(--aura-canvas);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.count {
+  color: var(--aura-text-muted);
+  white-space: nowrap;
+}
+
+.tilesIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--aura-text-muted);
+}
+
+.option {
+  white-space: nowrap;
+}
+
+/* The cards: 1 to 4 per row by the user's choice, fewer in a narrow window
+   (the breakpoints the page had: 640, 1024 and 1280px) */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .grid:not([data-tiles='1']) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid[data-tiles='3'],
+  .grid[data-tiles='4'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid[data-tiles='4'] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* A subscribed product: a bordered tile in the accent's tint */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: var(--aura-accent-subtle);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+  transition: border-color 150ms ease;
+}
+
+.card:hover {
+  border-color: var(--aura-accent);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cardIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--aura-accent);
+}
+
+/* A long name ends in an ellipsis; its title has the whole name */
+.cardTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+button.open {
+  flex: none;
+  color: var(--aura-text-muted);
+}
+
+button.open:hover {
+  color: var(--aura-accent);
+}
+
+.open svg {
+  width: 13px;
+  height: 13px;
+}
+
+.cardBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.owner {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+/* The empty states: an icon, a line or two, and the next step */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.empty[data-dashed] {
+  border: 1px dashed var(--aura-border-strong);
+  border-radius: 6px;
+}
+
+.emptyIcon {
+  width: 40px;
+  height: 40px;
+  color: var(--aura-text-muted);
+}
+
+.emptyIcon[data-faint] {
+  opacity: 0.4;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}

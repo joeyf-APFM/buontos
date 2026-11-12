@@ -1,20 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Collapse, Loader, UnstyledButton } from '@mantine/core'
 import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
   ChevronRight,
   Link as LinkIcon,
-  Loader2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status'
 import { useApi } from '@/hooks/use-api'
+import panel from '@/components/common/panel.module.css'
+import classes from './concept-relations-panel.module.css'
 
 interface NeighborItem {
   direction: 'outgoing' | 'incoming' | 'predicate'
@@ -29,7 +27,7 @@ interface ConceptRelationsPanelProps {
   conceptIri: string
   onNavigate: (iri: string) => void
   // When set, the relations list scrolls internally past this row count
-  // instead of growing the page (rows are ~32px high).
+  // instead of growing the page (rows are 28px high).
   maxVisibleRows?: number
   // Optional cap on how many neighbours to fetch from the backend.
   fetchLimit?: number
@@ -65,22 +63,18 @@ const PREDICATES_TO_HIDE = new Set<string>([
 // broader/narrower/related/domain/range/lineage links.
 const PREDICATE_NAMESPACES_TO_HIDE = ['http://ontos.app/ontology#']
 
-// Friendly colour scheme by relationship family. Falls back to neutral.
-const PREDICATE_COLORS: Array<[RegExp, string]> = [
-  [/subClassOf$|broader$|broaderTransitive$|subPropertyOf$|broadMatch$/i,
-    'bg-indigo-500/10 text-indigo-600 border-indigo-500/30'],
-  [/narrower$|narrowerTransitive$|narrowMatch$/i,
-    'bg-green-500/10 text-green-600 border-green-500/30'],
-  [/related$|relatedMatch$|seeAlso$/i,
-    'bg-orange-500/10 text-orange-600 border-orange-500/30'],
-  [/domain$/i, 'bg-violet-500/10 text-violet-600 border-violet-500/30'],
-  [/range$/i, 'bg-pink-500/10 text-pink-600 border-pink-500/30'],
-  [/sameAs$|equivalentClass$|equivalentProperty$|exactMatch$|closeMatch$/i,
-    'bg-cyan-500/10 text-cyan-600 border-cyan-500/30'],
-  [/disjointWith$|complementOf$/i,
-    'bg-red-500/10 text-red-600 border-red-500/30'],
-  [/inverseOf$/i, 'bg-amber-500/10 text-amber-600 border-amber-500/30'],
-  [/isDefinedBy$/i, 'bg-slate-500/10 text-slate-600 border-slate-500/30'],
+// Each relationship family's Aura tone (wave 2 Task 15; were Tailwind colours).
+// Falls back to neutral.
+const PREDICATE_TONES: Array<[RegExp, StatusTone]> = [
+  [/subClassOf$|broader$|broaderTransitive$|subPropertyOf$|broadMatch$/i, 'info'],
+  [/narrower$|narrowerTransitive$|narrowMatch$/i, 'good'],
+  [/related$|relatedMatch$|seeAlso$/i, 'gold'],
+  [/domain$/i, 'accent'],
+  [/range$/i, 'accent'],
+  [/sameAs$|equivalentClass$|equivalentProperty$|exactMatch$|closeMatch$/i, 'cyan'],
+  [/disjointWith$|complementOf$/i, 'critical'],
+  [/inverseOf$/i, 'warning'],
+  [/isDefinedBy$/i, 'neutral'],
 ]
 
 const localName = (iri: string): string => {
@@ -91,11 +85,11 @@ const localName = (iri: string): string => {
   return path || iri
 }
 
-const colourFor = (predicate: string): string => {
-  for (const [re, cls] of PREDICATE_COLORS) {
-    if (re.test(predicate)) return cls
+const toneFor = (predicate: string): StatusTone => {
+  for (const [re, tone] of PREDICATE_TONES) {
+    if (re.test(predicate)) return tone
   }
-  return ''
+  return 'neutral'
 }
 
 interface NormalizedRelation {
@@ -121,8 +115,10 @@ export default function ConceptRelationsPanel({
   const [neighbors, setNeighbors] = useState<NeighborItem[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [open, setOpen] = useState(true)
+  const titleId = useId()
+  const bodyId = useId()
 
-  const ROW_HEIGHT_PX = 32
+  const ROW_HEIGHT_PX = 28
   const listMaxHeight = maxVisibleRows
     ? { maxHeight: ROW_HEIGHT_PX * maxVisibleRows }
     : undefined
@@ -141,7 +137,7 @@ export default function ConceptRelationsPanel({
         )}&limit=${fetchLimit}`
         const res = await get<NeighborItem[]>(url)
         if (cancelled) return
-        setNeighbors(res.data || [])
+        setNeighbors(Array.isArray(res.data) ? res.data : [])
       } catch (err) {
         console.error('ConceptRelationsPanel: failed to load neighbors', err)
         if (!cancelled) setNeighbors([])
@@ -214,7 +210,6 @@ export default function ConceptRelationsPanel({
 
   const renderRow = useCallback(
     (r: NormalizedRelation) => {
-      const colour = colourFor(r.predicate)
       const DirIcon = r.direction === 'outgoing' ? ArrowRight : ArrowLeft
       const dirTooltip =
         r.direction === 'outgoing'
@@ -228,33 +223,27 @@ export default function ConceptRelationsPanel({
         <div
           key={r.key}
           data-testid={`relation-${r.direction}-${r.predicateShort}-${r.targetLabel}`}
-          className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50"
+          className={classes.row}
         >
           <Badge
             variant="outline"
-            className={`text-[10px] font-mono ${colour}`}
+            className={classes.predicate}
+            style={badgeToneStyle(toneFor(r.predicate))}
             title={r.predicate}
           >
             {r.predicateShort}
           </Badge>
-          <DirIcon
-            className="h-3 w-3 text-muted-foreground shrink-0"
-            aria-label={dirTooltip}
-          />
+          <DirIcon className={classes.direction} aria-label={dirTooltip} />
           {r.isResource && r.targetIri ? (
-            <button
-              type="button"
-              className="text-sm text-primary hover:underline text-left truncate"
+            <UnstyledButton
+              className={classes.target}
               onClick={() => onNavigate(r.targetIri!)}
               title={r.targetIri}
             >
               {r.targetLabel}
-            </button>
+            </UnstyledButton>
           ) : (
-            <span
-              className="text-sm text-muted-foreground truncate"
-              title={r.targetLabel}
-            >
+            <span className={`${classes.target} ${classes.literal}`} title={r.targetLabel}>
               {r.targetLabel}
             </span>
           )}
@@ -264,21 +253,22 @@ export default function ConceptRelationsPanel({
     [onNavigate, t],
   )
 
-  // Just the relations list body — reused by both the standalone card and the
+  // Just the relations list body — reused by both the standalone panel and the
   // embedded (shared Relations/Graph block) mode.
   const listBody = (
     <div
-      className={`px-2 py-1 ${maxVisibleRows ? 'overflow-y-auto' : ''}`}
+      className={classes.list}
+      data-capped={maxVisibleRows ? '' : undefined}
       style={listMaxHeight}
       data-testid="concept-relations-list"
     >
       {isLoading && relations.length === 0 ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2 px-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <p className={classes.state}>
+          <Loader size={12} color="currentColor" />
           {t('semantic-models:relations.loading', { defaultValue: 'Loading relations...' })}
-        </div>
+        </p>
       ) : relations.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-2 px-2">
+        <p className={classes.state}>
           {t('semantic-models:relations.empty', {
             defaultValue:
               'No concept-to-concept relations yet. Add broader / narrower / related links, or see the Linked Objects panel for assets and products linked to this concept.',
@@ -290,49 +280,47 @@ export default function ConceptRelationsPanel({
     </div>
   )
 
-  // Embedded: no card/header/collapsible — the parent block owns those.
+  // Embedded: no frame/header/fold — the parent block owns those.
   if (embedded) {
     return listBody
   }
 
+  // Standalone: a flush panel (components/common/panel.module.css) whose head
+  // folds the list
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="border rounded-lg">
-        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50">
-          <div className="flex items-center gap-2">
-            {open ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            <LinkIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium text-sm">
-              {t('semantic-models:relations.title', {
-                defaultValue: 'Relations',
-              })}
-            </span>
-            <Badge variant="secondary" className="text-xs">
-              {counts.total}
-            </Badge>
+    <section className={panel.pane} data-flush aria-labelledby={titleId}>
+      <div className={panel.head}>
+        <h3 id={titleId} className={panel.title}>
+          <UnstyledButton
+            className={classes.fold}
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {open ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+            <LinkIcon aria-hidden />
+            {t('semantic-models:relations.title', {
+              defaultValue: 'Relations',
+            })}
+            <Badge variant="secondary">{counts.total}</Badge>
             {counts.total > 0 && (
-              <span className="text-[11px] text-muted-foreground inline-flex items-center gap-2 ml-1">
-                <span className="inline-flex items-center gap-1">
-                  <ArrowRight className="h-3 w-3" />
+              <span className={classes.counts}>
+                <span>
+                  <ArrowRight aria-hidden />
                   {counts.outgoing}
                 </span>
-                <span className="inline-flex items-center gap-1">
-                  <ArrowLeft className="h-3 w-3" />
+                <span>
+                  <ArrowLeft aria-hidden />
                   {counts.incoming}
                 </span>
               </span>
             )}
-          </div>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <div className="border-t">{listBody}</div>
-        </CollapsibleContent>
+          </UnstyledButton>
+        </h3>
       </div>
-    </Collapsible>
+      <Collapse in={open} id={bodyId} transitionDuration={0}>
+        {listBody}
+      </Collapse>
+    </section>
   )
 }

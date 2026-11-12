@@ -183,6 +183,7 @@
     "browserTitle": "Navigateur de hiérarchie",
     "browserSubtitle": "Naviguez dans les hiérarchies de données, des systèmes et domaines jusqu'aux tables et colonnes",
     "browse": "Parcourir",
+    "detailPane": "Détail de la hiérarchie",
     "filterPlaceholder": "Filtrer...",
     "noMatches": "Aucune correspondance trouvée",
     "noRoots": "Aucune entité racine trouvée",
@@ -203,8 +204,7 @@
     "heading": "Hiérarchie",
     "noChildren": "Aucun enfant dans la hiérarchie",
     "noChildrenFound": "Aucun enfant trouvé",
-    "expand": "Développer",
-    "collapse": "Réduire",
+    "childrenLoadFailed": "Impossible de charger les éléments enfants.",
     "levelsOption": "{{count}} niveaux",
     "allLevels": "Tous",
     "rootType": {

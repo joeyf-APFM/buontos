@@ -448,7 +448,8 @@
     "selectTypeToBrowse": "Wählen Sie einen Asset-Typ zum Durchsuchen aus",
     "linkEmpty": "Assets verknüpfen",
     "linkCount_one": "{{count}} Asset verknüpfen",
-    "linkCount_other": "{{count}} Assets verknüpfen"
+    "linkCount_other": "{{count}} Assets verknüpfen",
+    "removeSelected": "{{name}} entfernen"
   },
   "addRelationship": {
     "title": "Beziehung hinzufügen",

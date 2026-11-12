@@ -1,0 +1,117 @@
+/*
+ * The access grants of a product (wave 2, Task 7): a kit Pane, its count,
+ * expiring badge, refresh and disclosure in the head; the pending requests
+ * and the active grants in 28px rows.
+ */
+
+.lead {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+}
+
+.badge {
+  gap: 4px;
+}
+
+/* Badges with a tooltip are focus stops, so the keyboard reaches the tooltip */
+.badge:focus-visible,
+.focusable:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+/* The loading rows, inside the pane (no frame of their own) */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+}
+
+.mark {
+  width: 12px;
+  height: 12px;
+  color: var(--tone-mark, currentColor);
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.sectionTitle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sectionTitle[data-tone='warning'] svg {
+  color: var(--aura-warning);
+}
+
+.sectionTitle[data-tone='good'] svg {
+  color: var(--aura-good);
+}
+
+/* 28px rows with no rules between them, as the shared panels' tables */
+.table {
+  font-size: 12px;
+}
+
+.table th {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.table td {
+  height: 28px;
+  padding: 0 8px;
+}
+
+.end {
+  text-align: right;
+}
+
+.person {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 16px 0;
+  color: var(--aura-text-secondary);
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+}
+
+.emptyIcon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
+  opacity: 0.5;
+}

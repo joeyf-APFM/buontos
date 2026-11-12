@@ -444,6 +444,7 @@
       "otherGroupOrSp": "Andere groep of service principal",
       "groupOption": "Groep (weergavenaam)",
       "servicePrincipalOption": "Service principal (weergavenaam of applicationId)",
+      "principalType": "Type principal",
       "groupPlaceholder": "bijv. sales_consumers",
       "spPlaceholder": "bijv. 11111111-2222-3333-4444-555555555555",
       "validationNote": "Gevalideerd tegen de werkruimtedirectory voordat het verzoek wordt vastgelegd.",

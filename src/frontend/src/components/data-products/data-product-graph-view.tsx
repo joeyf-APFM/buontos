@@ -12,22 +12,30 @@ import ReactFlow, {
     NodeProps,
     Handle,
 } from 'reactflow';
+import { Tooltip } from '@mantine/core';
 import { DataProduct, InputPort, OutputPort } from '@/types/data-product';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, Workflow } from 'lucide-react';
 import * as dagre from 'dagre';
 import { type NavigateFunction } from 'react-router-dom';
 import { DatabaseZap } from 'lucide-react';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
+import classes from './data-product-graph-view.module.css';
 
 import 'reactflow/dist/style.css';
+
+/** A port's tooltip: its name, then its description, contract (when given) and version. */
+function PortTip({ title, description, contract, version }: { title: string; description?: string; contract?: string; version?: string }) {
+    const { t } = useTranslation(['data-products', 'common']);
+    return (
+        <div className={classes.tip}>
+            <p className={classes.tipTitle}>{title}</p>
+            {description && <p className={classes.tipMuted}>{description}</p>}
+            {contract !== undefined && <p><span className={classes.tipMuted}>{t('data-products:graphView.labels.contract')}:</span> {contract}</p>}
+            <p><span className={classes.tipMuted}>{t('common:labels.version')}:</span> {version}</p>
+        </div>
+    );
+}
 
 interface DataProductNodeData {
     label: string;
@@ -61,9 +69,22 @@ const DataProductNode: React.FC<NodeProps<DataProductNodeData>> = ({ data }) => 
                     return (
                         // Use a wrapper fragment and separate trigger div
                         <React.Fragment key={`input-frag-${portId}`}>
-                             <Tooltip>
+                             <Tooltip
+                                position="left"
+                                openDelay={100}
+                                multiline
+                                maw={280}
+                                label={
+                                    <PortTip
+                                        title={t('data-products:graphView.inputPortLabel', { name: port.name })}
+                                        description={(port as any).description}
+                                        contract={port.contractId ?? ''}
+                                        version={port.version}
+                                    />
+                                }
+                             >
                                 {/* Transparent div as trigger, positioned over the handle */}
-                                <TooltipTrigger
+                                <div
                                     style={{
                                         position: 'absolute',
                                         left: '-8px', // Position to cover handle area
@@ -74,12 +95,6 @@ const DataProductNode: React.FC<NodeProps<DataProductNodeData>> = ({ data }) => 
                                     }}
                                     onClick={(e) => e.stopPropagation()} // Keep stopPropagation
                                 />
-                                <TooltipContent side="left">
-                                    <p className="font-semibold">{t('data-products:graphView.inputPortLabel', { name: port.name })}</p>
-                                    {(port as any).description && <p className="text-xs text-muted-foreground">{(port as any).description}</p>}
-                                    <p className="text-xs"><span className="text-muted-foreground">{t('data-products:graphView.labels.contract')}:</span> {port.contractId}</p>
-                                    <p className="text-xs"><span className="text-muted-foreground">{t('common:labels.version')}:</span> {port.version}</p>
-                                </TooltipContent>
                             </Tooltip>
                             {/* Render the Handle itself */}
                             <Handle
@@ -116,9 +131,22 @@ const DataProductNode: React.FC<NodeProps<DataProductNodeData>> = ({ data }) => 
                     return (
                          // Use a wrapper fragment and separate trigger div
                         <React.Fragment key={`output-frag-${portId}`}>
-                             <Tooltip>
+                             <Tooltip
+                                position="right"
+                                openDelay={100}
+                                multiline
+                                maw={280}
+                                label={
+                                    <PortTip
+                                        title={t('data-products:graphView.outputPortLabel', { name: port.name })}
+                                        description={port.description}
+                                        contract={port.contractId || undefined}
+                                        version={port.version}
+                                    />
+                                }
+                             >
                                  {/* Transparent div as trigger, positioned over the handle */}
-                                <TooltipTrigger
+                                <div
                                     style={{
                                         position: 'absolute',
                                         right: '-8px', // Position to cover handle area
@@ -129,12 +157,6 @@ const DataProductNode: React.FC<NodeProps<DataProductNodeData>> = ({ data }) => 
                                     }}
                                     onClick={(e) => e.stopPropagation()} // Keep stopPropagation
                                 />
-                                <TooltipContent side="right">
-                                    <p className="font-semibold">{t('data-products:graphView.outputPortLabel', { name: port.name })}</p>
-                                    {port.description && <p className="text-xs text-muted-foreground">{port.description}</p>}
-                                    {port.contractId && <p className="text-xs"><span className="text-muted-foreground">{t('data-products:graphView.labels.contract')}:</span> {port.contractId}</p>}
-                                    <p className="text-xs"><span className="text-muted-foreground">{t('common:labels.version')}:</span> {port.version}</p>
-                                </TooltipContent>
                             </Tooltip>
                              {/* Render the Handle itself */}
                             <Handle
@@ -160,7 +182,7 @@ const DataProductNode: React.FC<NodeProps<DataProductNodeData>> = ({ data }) => 
             {/* </TooltipProvider> */}
 
             <div
-                className="cursor-pointer"
+                className={classes.nodeButton}
                 onClick={(e) => {
                     e.stopPropagation();
                     data.navigate(`/data-products/${data.nodeId}`);
@@ -173,16 +195,14 @@ const DataProductNode: React.FC<NodeProps<DataProductNodeData>> = ({ data }) => 
                     }
                 }}
             >
-                <Card className="w-64 shadow-md border-2 border-primary/50 bg-card hover:border-primary transition-colors">
-                    <CardContent className="p-3 text-center">
-                        <div className="text-sm font-semibold mb-1">{data.label}</div>
-                        <div className="flex justify-center items-center gap-1 text-xs">
-                             {data.productType && <Badge variant="outline">{data.productType}</Badge>}
-                             <Badge variant="secondary">{data.version}</Badge>
-                             {data.status && <Badge variant="default">{data.status}</Badge>}
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className={classes.node}>
+                    <div className={classes.nodeLabel} title={data.label}>{data.label}</div>
+                    <div className={classes.nodeBadges}>
+                         {data.productType && <Badge variant="outline">{data.productType}</Badge>}
+                         <Badge variant="secondary">{data.version}</Badge>
+                         {data.status && <Badge variant="default">{data.status}</Badge>}
+                    </div>
+                </div>
             </div>
         </>
     );
@@ -195,14 +215,10 @@ interface ExternalSourceNodeData {
 const ExternalSourceNode: React.FC<NodeProps<ExternalSourceNodeData>> = ({ data }) => {
     return (
         <>
-            <Card className="w-48 bg-muted/50 border-dashed border-muted-foreground/50">
-                <CardContent className="p-2 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                         <DatabaseZap className="h-4 w-4 text-muted-foreground" />
-                         <span className="text-xs font-mono text-muted-foreground break-all">{data.label}</span>
-                    </div>
-                </CardContent>
-            </Card>
+            <div className={classes.external}>
+                 <DatabaseZap aria-hidden className={classes.externalIcon} />
+                 <span className={classes.externalLabel}>{data.label}</span>
+            </div>
              {/* Single Source Handle for external node */}
             <Handle
                 type="source"
@@ -369,30 +385,27 @@ const DataProductGraphView: React.FC<DataProductGraphViewProps> = ({ products, v
     const graphButtonVariant = viewMode === 'graph' ? 'secondary' : 'ghost';
 
     return (
-        <div className="h-[calc(100vh-300px)] w-full border rounded-lg relative" style={{ minHeight: '600px' }}>
-            <div className="absolute top-2 right-2 z-10 flex items-center gap-1 border rounded-md p-0.5 bg-background/80 backdrop-blur-sm">
+        <div className={classes.frame}>
+            <div className={classes.switch}>
                 <Button
                     variant={tableButtonVariant}
                     size="sm"
                     onClick={() => setViewMode('table')}
-                    className="h-8 px-2"
                     title={t('data-products:graphView.switchToTableView')}
                 >
-                    <Table className="h-4 w-4" />
+                    <Table />
                 </Button>
                 <Button
                     variant={graphButtonVariant}
                     size="sm"
                     onClick={() => setViewMode('graph')}
-                    className="h-8 px-2"
                     title={t('data-products:graphView.switchToGraphView')}
                     disabled
                 >
-                    <Workflow className="h-4 w-4" />
+                    <Workflow />
                 </Button>
             </div>
-            <TooltipProvider delayDuration={100}>
-                <ReactFlow
+            <ReactFlow
                     nodes={nodes}
                     edges={edges}
                     onNodesChange={onNodesChange}
@@ -416,8 +429,7 @@ const DataProductGraphView: React.FC<DataProductGraphViewProps> = ({ products, v
                 >
                     <Controls />
                     <Background color={isDarkMode ? '#334155' : '#e2e8f0'} gap={16} />
-                </ReactFlow>
-            </TooltipProvider>
+            </ReactFlow>
         </div>
     );
 };

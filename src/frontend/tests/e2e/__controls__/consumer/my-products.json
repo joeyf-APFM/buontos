@@ -3,7 +3,7 @@
   "button \"Browse Marketplace\"",
   "button \"Graph\"",
   "button \"List\"",
-  "combobox \"\"",
+  "combobox \"Tiles per row\"",
   "link \"Build\"",
   "link \"Home\"",
   "link \"Products\"",

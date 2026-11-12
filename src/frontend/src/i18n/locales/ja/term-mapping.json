@@ -26,7 +26,8 @@
     "shippedTaxonomies": "同梱の分類体系",
     "reviewsLinkPrefix": "スチュワードレビューは",
     "reviewsLinkText": "アセットレビュー",
-    "reviewsLinkSuffix": "のワークスペースにあります。各提案はそこで 1 つの ReviewedAsset になり、決定は自動的にこの実行に反映されます。"
+    "reviewsLinkSuffix": "のワークスペースにあります。各提案はそこで 1 つの ReviewedAsset になり、決定は自動的にこの実行に反映されます。",
+    "paneLabel": "実行の詳細"
   },
   "stats": {
     "targets": "対象",

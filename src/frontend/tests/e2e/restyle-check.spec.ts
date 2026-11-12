@@ -7,8 +7,17 @@
  *   exactly. A missing file is written from the current UI. --update-snapshots
  *   never rewrites one: to re-record an inventory, delete its file.
  * - Look: a screenshot of <main> at 1280×800, with the app's top bar hidden,
- *   must match __screenshots__/restyle/<persona>/<id>.png within 1% of its pixels.
- *   Re-record with --update-snapshots, only once the inventories pass.
+ *   must match __screenshots__/restyle/<persona>/<id>.png at a colour threshold
+ *   of 0.01, within 0.2% of its pixels. Re-record with --update-snapshots, only
+ *   once the inventories pass.
+ * - Browser: the baselines are tied to the Chrome in __screenshots__/BROWSER.txt
+ *   (browser-pin.ts). Another version, or a missing pin, fails every page with
+ *   "re-baseline: …" instead of a pile of pixel diffs. To move to a new Chrome,
+ *   re-record every page, unfiltered, with --update-snapshots=all: the pin is
+ *   written only once every page has run. A filtered `all` run re-records its
+ *   pages but fails at the end and leaves BROWSER.txt alone.
+ *   The baselines are macOS-only: the Optima font exists only on macOS, and any
+ *   other OS falls back to Candara or Segoe UI, so every glyph would differ.
  *
  * Every /api call is answered by fixtures/api.ts; nothing reaches a backend.
  *
@@ -19,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { checkPin, finishPin, readPin, writePin } from './browser-pin';
 import { mockApi, unmockedRequests } from './fixtures/api';
 import { DATA_FIXTURES } from './fixtures/data';
 import { PERSONAS } from './fixtures/personas';
@@ -26,8 +36,25 @@ import { RESTYLE_PAGES, SEARCH_LIKE, SELECT_LIKE, controlInventory } from './res
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROLS_DIR = path.join(HERE, '__controls__');
+const BROWSER_FILE = path.join(HERE, '__screenshots__', 'BROWSER.txt');
+const pinText = () => (fs.existsSync(BROWSER_FILE) ? fs.readFileSync(BROWSER_FILE, 'utf8') : null);
+
+// The pin is recorded only after an `all` run that ran every page in this worker
+const PAGE_TESTS = Object.keys(PERSONAS).length * RESTYLE_PAGES.length;
+let pageTestsRun = 0;
+let pinToRecord: string | null = null;
 
 test.afterAll(() => {
+  if (pinToRecord !== null) {
+    const result = finishPin({
+      wantsRecord: true,
+      ranEveryPage: pageTestsRun === PAGE_TESTS,
+      recorded: readPin(pinText()),
+      running: pinToRecord,
+    });
+    if (result.kind === 'write') fs.writeFileSync(BROWSER_FILE, writePin(pinText(), pinToRecord));
+    if (result.kind === 'fail') throw new Error(result.message);
+  }
   if (unmockedRequests.length) {
     // eslint-disable-next-line no-console
     console.log('[restyle-check] answered with []:', [...new Set(unmockedRequests)].sort());
@@ -104,8 +131,14 @@ test.describe('controlInventory', () => {
 
 for (const persona of Object.values(PERSONAS)) {
   for (const restylePage of RESTYLE_PAGES) {
-    test(`${persona.id} ${restylePage.id} (${restylePage.route}) keeps its controls and look`, async ({ page }) => {
+    test(`${persona.id} ${restylePage.id} (${restylePage.route}) keeps its controls and look`, async ({ page, browser }, testInfo) => {
+      pageTestsRun += 1;
       test.skip(!!restylePage.skip, restylePage.skip);
+
+      // A different Chrome renders text differently: say so, rather than fail on pixels
+      const pin = checkPin(readPin(pinText()), browser.version(), testInfo.config.updateSnapshots === 'all');
+      if (pin.kind === 'fail') throw new Error(pin.message);
+      if (pin.kind === 'record') pinToRecord = browser.version();
 
       // Relative dates and clocks render from a fixed now
       await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
@@ -134,7 +167,10 @@ for (const persona of Object.values(PERSONAS)) {
       await expect(main).toHaveScreenshot([persona.id, `${restylePage.id}.png`], {
         animations: 'disabled',
         caret: 'hide',
-        maxDiffPixelRatio: 0.01,
+        // Strict enough to tell Aura's cream canvas (#FFFDF7) from white, which
+        // needs a threshold under 0.0125; 0.002 is about 1,800 pixels of <main>
+        threshold: 0.01,
+        maxDiffPixelRatio: 0.002,
         // Hides the app's top bar
         stylePath: path.join(HERE, 'restyle-capture.css'),
       });

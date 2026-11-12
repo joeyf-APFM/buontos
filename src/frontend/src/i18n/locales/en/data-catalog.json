@@ -183,6 +183,7 @@
     "browserTitle": "Hierarchy Browser",
     "browserSubtitle": "Navigate data hierarchies from systems and domains down to tables and columns",
     "browse": "Browse",
+    "detailPane": "Hierarchy detail",
     "filterPlaceholder": "Filter...",
     "noMatches": "No matches found",
     "noRoots": "No root entities found",
@@ -203,8 +204,7 @@
     "heading": "Hierarchy",
     "noChildren": "No children in the hierarchy",
     "noChildrenFound": "No children found",
-    "expand": "Expand",
-    "collapse": "Collapse",
+    "childrenLoadFailed": "Could not load the children.",
     "levelsOption": "{{count}} levels",
     "allLevels": "All",
     "rootType": {

@@ -1,0 +1,13 @@
+/* The run result summary (wave 2 Task 14): its title icon's colour, and
+   Close at the footer's start, the review actions at its end */
+.found {
+  color: var(--aura-good);
+}
+
+.none {
+  color: var(--aura-text-secondary);
+}
+
+.close {
+  margin-right: auto;
+}

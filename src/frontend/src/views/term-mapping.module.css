@@ -1,0 +1,239 @@
+/*
+ * Term Mapping (/concepts/mapping) on the page kit (wave 2 Task 14), inside
+ * the Concepts layout: the kit header with Refresh and New run, its
+ * description, then two panes side by side: Recent runs (320px) and the
+ * selected run, with its actions in the pane's head.
+ */
+.subtitle {
+  margin: -4px 0 0;
+  padding: 0 14px 8px;
+  color: var(--aura-text-secondary);
+}
+
+/* The kit's .pane flexes; doubled to outrank it, as on the Hierarchy Browser */
+.runsPane.runsPane {
+  flex: 0 0 320px;
+  width: 320px;
+}
+
+/* Under 1024px the panes stack (stackBelow="lg"): the list takes the full width */
+@media (max-width: 63.99em) {
+  .runsPane.runsPane {
+    flex: 0 0 auto;
+    width: auto;
+  }
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A run: its id and status, its comment on one line (truncated, with the
+   whole comment in its title), then when and how many */
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.run:hover {
+  background: var(--aura-canvas);
+}
+
+.run[aria-current='true'] {
+  border-color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.run:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.runHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.runId {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  color: var(--aura-text-body);
+}
+
+.runComment,
+.runMeta {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.empty {
+  margin: 0;
+  padding: 20px 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+/* The empty and loading states of either pane */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 160px;
+  color: var(--aura-text-secondary);
+}
+
+.state p {
+  margin: 0;
+}
+
+.stateIcon {
+  opacity: 0.4;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.muted {
+  margin: 0;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+/* The run's comment: prose, wrapping however long */
+.comment {
+  margin: 0;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--aura-text-body);
+  overflow-wrap: anywhere;
+}
+
+/* The eight counts: four to a row, two on a narrow window */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 48em) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.stat {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--aura-border-subtle);
+  border-radius: 4px;
+  background: var(--aura-canvas);
+}
+
+.statLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+.statValue {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.alertText {
+  overflow-wrap: anywhere;
+}
+
+/* Sources of suggestions, ruled off above */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.fieldLabel {
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aura-text-secondary);
+}
+
+.contexts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* An IRI: mono, wrapping anywhere */
+.context {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.reviewsNote {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-border-subtle);
+  font-size: 11.5px;
+  color: var(--aura-text-secondary);
+}
+
+.link {
+  color: var(--aura-accent);
+}

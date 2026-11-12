@@ -159,7 +159,10 @@
     "title": "Esquemas de conceptos",
     "glossary": "Glosario",
     "taxonomy": "Taxonomía",
-    "ontology": "Ontología"
+    "ontology": "Ontología",
+    "listPane": "Lista de esquemas",
+    "loadFailed": "No se pudieron cargar los esquemas.",
+    "actionsFor": "Acciones para {{name}}"
   },
   "actions": {
     "createConcept": "Crear concepto",
@@ -197,6 +200,9 @@
     "linkEditor": {
       "title": "Crear vínculo",
       "description": "Define una relación entre dos conceptos"
+    },
+    "deprecate": {
+      "removeSuccessor": "Quitar {{name}}"
     }
   },
   "rdfSources": {
@@ -292,7 +298,10 @@
     "selectSuperclass": "Seleccionar superclase",
     "selectParentConcept": "Seleccionar concepto superior",
     "searchClasses": "Buscar clases...",
-    "searchConceptsInScheme": "Buscar conceptos en este esquema de conceptos..."
+    "searchConceptsInScheme": "Buscar conceptos en este esquema de conceptos...",
+    "removeValue": "Quitar {{name}}",
+    "addSynonym": "Añadir sinónimo",
+    "addExample": "Añadir ejemplo"
   },
   "collectionEditor": {
     "editTitle": "Editar esquema de conceptos",
@@ -303,7 +312,8 @@
     "parentCollection": "Esquema de conceptos padre",
     "noneRootCollection": "Ninguno (esquema de conceptos raíz)",
     "editable": "Editable",
-    "editableHelp": "Permitir crear y editar conceptos en este esquema de conceptos"
+    "editableHelp": "Permitir crear y editar conceptos en este esquema de conceptos",
+    "typeInfo": "Acerca de los tipos de esquema"
   },
   "promotion": {
     "promoteConcept": "Promover concepto",
@@ -325,7 +335,9 @@
   },
   "collectionTree": {
     "readOnly": "Esquema de conceptos de solo lectura",
-    "noCollectionsYet": "Aún no hay esquemas de conceptos"
+    "noCollectionsYet": "Aún no hay esquemas de conceptos",
+    "expand": "Expandir {{name}}",
+    "collapse": "Contraer {{name}}"
   },
   "knowledgeGraph": {
     "rootFilter": {
@@ -368,7 +380,6 @@
       "conceptCount_other": "{{count}} conceptos"
     },
     "fullscreen": {
-      "description": "Vista a pantalla completa de la visualización del grafo de conceptos",
       "hint": "Haz clic en los nodos para seleccionar conceptos. Usa el desplazamiento para hacer zoom y arrastra para mover la vista."
     }
   },
@@ -469,7 +480,11 @@
       "descriptionLabel": "Descripción (opcional)",
       "descriptionPlaceholder": "Describe el propósito de este esquema de conceptos de ontología...",
       "importSummary": "Se importarán {{classes}} clases y {{properties}} propiedades."
-    }
+    },
+    "runPane": "Ejecución",
+    "results": "Resultados",
+    "connectionsFailed": "No se pudieron cargar las conexiones.",
+    "runsFailed": "No se pudieron cargar las ejecuciones recientes."
   },
   "conceptSelect": {
     "includeOtherSchemes": "Incluir otros esquemas de conceptos",
@@ -489,9 +504,17 @@
   "explore": {
     "emptyTitle": "Todavía no hay nada que explorar",
     "emptyBody": "Importa archivos o crea conceptos en la pestaña Define.",
-    "emptyCta": "Ir a Define"
+    "emptyCta": "Ir a Define",
+    "conceptsPane": "Conceptos",
+    "filtersPane": "Filtros",
+    "loadFailed": "No se pudieron cargar los conceptos."
   },
   "define": {
-    "requiresWrite": "Requiere acceso de escritura"
+    "requiresWrite": "Requiere acceso de escritura",
+    "runsFailed": "No se pudo cargar el trabajo de creación en curso.",
+    "about": "Acerca de {{name}}"
+  },
+  "summary": {
+    "title": "Resumen"
   }
 }

@@ -190,6 +190,7 @@
     "activeSubscriptions": "Active Subscriptions",
     "accessRequestsTab": "Access Requests",
     "subscriptionsTab": "My Subscriptions",
+    "summary": "Summary",
     "noSubscriptions": "You haven't subscribed to any data products yet.",
     "product": "Product",
     "loadFailed": "Failed to load",

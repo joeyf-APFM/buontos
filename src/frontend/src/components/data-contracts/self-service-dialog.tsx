@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDefaultWorkflowText } from '@/lib/workflow-default-texts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, Checkbox, Loader, Select, TextInput } from '@mantine/core';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, XCircle, CheckCircle } from 'lucide-react';
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, SELECT_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './contract-form-dialogs.module.css';
+import { AlertCircle, XCircle, CheckCircle } from 'lucide-react';
 import SchemaPropertyEditor from '@/components/data-contracts/schema-property-editor';
 import type { ColumnProperty } from '@/types/data-contract';
 import { useProjectContext } from '@/stores/project-store';
@@ -45,6 +44,7 @@ export default function SelfServiceDialog({ isOpen, onOpenChange, initialType }:
   const { t } = useTranslation(['data-contracts', 'common']);
   const defaultWorkflowText = useDefaultWorkflowText();
   const { currentProject } = useProjectContext();
+  const tableHeadingId = useId();
 
   const [createType, setCreateType] = useState<CreateType>('table');
   const [catalog, setCatalog] = useState('');
@@ -136,140 +136,133 @@ export default function SelfServiceDialog({ isOpen, onOpenChange, initialType }:
     }
   };
 
+  const typeOptions = [
+    { value: 'catalog', label: t('common:labels.catalog', 'Catalog') },
+    { value: 'schema', label: t('common:labels.schema', 'Schema') },
+    { value: 'table', label: t('common:labels.table', 'Table') },
+  ];
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
-        style={{ top: '5%', transform: 'translateX(-50%)' }}
-      >
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{t('data-contracts:selfService.title', 'Self-service data curation')}</DialogTitle>
-        </DialogHeader>
-
-        {/* Top fields outside scroll area to prevent dropdown clipping */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
-          <div>
-            <Label>{t('data-contracts:selfService.whatToCreateLabel', 'What to create')}</Label>
-            <Select value={createType} onValueChange={(v) => setCreateType(v as CreateType)}>
-              <SelectTrigger className="w-full"><SelectValue placeholder={t('common:placeholders.selectType', 'Select type')} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="catalog">{t('common:labels.catalog', 'Catalog')}</SelectItem>
-                <SelectItem value="schema">{t('common:labels.schema', 'Schema')}</SelectItem>
-                <SelectItem value="table">{t('common:labels.table', 'Table')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>{t('common:labels.catalog', 'Catalog')}</Label>
-            <Input value={catalog} onChange={(e) => setCatalog(e.target.value)} placeholder={t('data-contracts:selfService.catalogPlaceholder', 'e.g. user_jdoe')} />
-          </div>
-          <div>
-            <Label>{t('common:labels.schema', 'Schema')}</Label>
-            <Input value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t('data-contracts:selfService.schemaPlaceholder', 'e.g. sandbox')} />
-          </div>
+    <Dialog
+      opened={isOpen}
+      onClose={() => onOpenChange(false)}
+      size="lg"
+      title={t('data-contracts:selfService.title', 'Self-service data curation')}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common:actions.close', 'Close')}</Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || loading}>
+            {loading ? (<><Loader size={12} color="currentColor" /> {t('data-contracts:selfService.working', 'Working…')}</>) : t('common:actions.create', 'Create')}
+          </Button>
+        </>
+      }
+    >
+      <div className={form.form}>
+        <div className={classes.threeCol}>
+          <Select
+            label={t('data-contracts:selfService.whatToCreateLabel', 'What to create')}
+            placeholder={t('common:placeholders.selectType', 'Select type')}
+            data={typeOptions}
+            value={createType}
+            onChange={(v) => v && setCreateType(v as CreateType)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+          <TextInput
+            label={t('common:labels.catalog', 'Catalog')}
+            value={catalog}
+            onChange={(e) => setCatalog(e.currentTarget.value)}
+            placeholder={t('data-contracts:selfService.catalogPlaceholder', 'e.g. user_jdoe')}
+            classNames={FIELD_CLASSES}
+          />
+          <TextInput
+            label={t('common:labels.schema', 'Schema')}
+            value={schema}
+            onChange={(e) => setSchema(e.currentTarget.value)}
+            placeholder={t('data-contracts:selfService.schemaPlaceholder', 'e.g. sandbox')}
+            classNames={FIELD_CLASSES}
+          />
         </div>
 
-        <div className="grid gap-4 overflow-y-auto flex-1 min-h-0 pr-2">
-          {createType === 'table' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('data-contracts:selfService.tableDefinition', 'Table definition')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>{t('data-contracts:selfService.tableName', 'Table name')}</Label>
-                    <Input value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t('data-contracts:selfService.tableNamePlaceholder', 'e.g. clicks')} />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <SchemaPropertyEditor properties={columns} onChange={setColumns} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        {createType === 'table' && (
+          <section className={form.section} aria-labelledby={tableHeadingId}>
+            <h3 id={tableHeadingId} className={form.sectionTitle}>{t('data-contracts:selfService.tableDefinition', 'Table definition')}</h3>
+            <TextInput
+              className={classes.half}
+              label={t('data-contracts:selfService.tableName', 'Table name')}
+              value={tableName}
+              onChange={(e) => setTableName(e.currentTarget.value)}
+              placeholder={t('data-contracts:selfService.tableNamePlaceholder', 'e.g. clicks')}
+              classNames={FIELD_CLASSES}
+            />
+            <SchemaPropertyEditor properties={columns} onChange={setColumns} />
+          </section>
+        )}
 
-          {createType === 'table' && (
-            <div className="flex gap-2 items-center">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={createContract} onChange={(e) => setCreateContract(e.target.checked)} />
-                {t('data-contracts:selfService.createAsContract', 'Create as Data Contract')}
-              </label>
-            </div>
-          )}
+        {createType === 'table' && (
+          <Checkbox
+            checked={createContract}
+            onChange={(e) => setCreateContract(e.currentTarget.checked)}
+            label={t('data-contracts:selfService.createAsContract', 'Create as Data Contract')}
+          />
+        )}
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        {error && (
+          <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>
+            {error}
+          </Alert>
+        )}
 
-          {workflowErrors && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{t('data-contracts:selfService.validationFailedTitle', 'Pre-creation validation failed')}</AlertTitle>
-              <AlertDescription>
-                <p className="mb-2">{workflowErrors.message}</p>
-                <div className="space-y-2">
-                  {workflowErrors.workflows.map((wf, i) => {
-                  const isPassed = wf.status === 'succeeded' || wf.status === 'passed';
-                  return (
-                    <div key={i} className={`border rounded p-2 ${isPassed ? 'bg-green-50 dark:bg-green-950/20' : 'bg-destructive/5'}`}>
-                      <div className={`flex items-center gap-2 font-medium ${isPassed ? 'text-green-700 dark:text-green-400' : ''}`}>
-                        {isPassed ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-destructive" />
-                        )}
-                        {defaultWorkflowText(wf.workflow_name)}
-                        <Badge variant="outline" className="ml-auto">{wf.status}</Badge>
-                      </div>
-                      {wf.step_results && wf.step_results.filter(s => !s.passed).length > 0 && (
-                        <div className="mt-2 pl-6 space-y-1">
-                          {wf.step_results.filter(s => !s.passed).map((step, j) => (
-                            <div key={j} className="text-sm flex items-start gap-2">
-                              <XCircle className="h-3 w-3 mt-0.5 text-destructive" />
-                              <div>
-                                {step.policy_name && (
-                                  <span className="font-medium">{step.policy_name}: </span>
-                                )}
-                                {step.message || t('data-contracts:selfService.stepValidationFailed', 'Validation failed')}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+        {workflowErrors && (
+          <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('data-contracts:selfService.validationFailedTitle', 'Pre-creation validation failed')}>
+            <p className={form.muted}>{workflowErrors.message}</p>
+            <div className={classes.workflows}>
+              {(Array.isArray(workflowErrors.workflows) ? workflowErrors.workflows : []).map((wf, i) => {
+                const isPassed = wf.status === 'succeeded' || wf.status === 'passed';
+                const failedSteps = (wf.step_results ?? []).filter(s => !s.passed);
+                return (
+                  <div key={i} className={classes.workflow} data-passed={isPassed || undefined}>
+                    <div className={`${classes.workflowHead} ${isPassed ? classes.passed : ''}`}>
+                      {isPassed ? (
+                        <CheckCircle size={16} className={classes.passed} aria-hidden />
+                      ) : (
+                        <XCircle size={16} className={classes.failed} aria-hidden />
                       )}
-                      {wf.error && !wf.step_results?.length && (
-                        <p className="mt-1 text-sm pl-6">{wf.error}</p>
-                      )}
+                      {defaultWorkflowText(wf.workflow_name)}
+                      <Badge variant="outline">{wf.status}</Badge>
                     </div>
-                  );
-                })}
-                </div>
-                <p className="mt-3 text-sm">{t('data-contracts:selfService.fixIssues', 'Please fix the issues above and try again.')}</p>
-              </AlertDescription>
-            </Alert>
-          )}
+                    {failedSteps.length > 0 && (
+                      <ul className={classes.steps}>
+                        {failedSteps.map((step, j) => (
+                          <li key={j} className={classes.step}>
+                            <XCircle size={12} className={classes.failed} aria-hidden />
+                            <div>
+                              {step.policy_name && (
+                                <span className={classes.stepPolicy}>{step.policy_name}: </span>
+                              )}
+                              {step.message || t('data-contracts:selfService.stepValidationFailed', 'Validation failed')}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {wf.error && !wf.step_results?.length && (
+                      <p className={classes.workflowError}>{wf.error}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className={form.muted}>{t('data-contracts:selfService.fixIssues', 'Please fix the issues above and try again.')}</p>
+          </Alert>
+        )}
 
-          {success && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>{t('data-contracts:selfService.createdPrefix', 'Created:')} {JSON.stringify(success.created)}{success.contractId ? t('data-contracts:selfService.contractSuffix', ', contract {{id}}', { id: success.contractId }) : ''}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common:actions.close', 'Close')}</Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit || loading}>
-              {loading ? (<span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {t('data-contracts:selfService.working', 'Working…')}</span>) : t('common:actions.create', 'Create')}
-            </Button>
-          </div>
-        </div>
-
-        {/* Columns are edited inline via SchemaPropertyEditor */}
-      </DialogContent>
+        {success && (
+          <Alert color="green" variant="light" icon={<CheckCircle size={16} />}>
+            {t('data-contracts:selfService.createdPrefix', 'Created:')} {JSON.stringify(success.created)}{success.contractId ? t('data-contracts:selfService.contractSuffix', ', contract {{id}}', { id: success.contractId }) : ''}
+          </Alert>
+        )}
+      </div>
     </Dialog>
   );
 }
-

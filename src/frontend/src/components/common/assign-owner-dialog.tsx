@@ -2,9 +2,9 @@
  * Dialog for assigning a business owner to an object.
  * Used internally by OwnershipPanel.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/mantine/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PrincipalPicker } from '@/components/common/principal-picker';
 import type { OwnerObjectType } from '@/types/business-owner';
 import type { BusinessRoleRead } from '@/types/business-role';
+import classes from './panel.module.css';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AssignOwnerDialogProps {
@@ -24,9 +25,11 @@ interface AssignOwnerDialogProps {
   onSuccess: () => void;
   initialEmail?: string;
   initialName?: string;
+  /** Focus goes here once the dialog has closed, if `focusIsFree` says it may. */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
-export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, onSuccess, initialEmail, initialName }: AssignOwnerDialogProps) {
+export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, onSuccess, initialEmail, initialName, returnFocusTo }: AssignOwnerDialogProps) {
   const { t } = useTranslation('common');
   const { get: apiGet, post: apiPost } = useApi();
   const { toast } = useToast();
@@ -37,7 +40,13 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
 
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
-  const [defaultRoleId, setDefaultRoleId] = useState<string | null>(null);
+  // Prefer a role named "Business Owner", else the first active role. Derived
+  // from the loaded roles, so a reopened dialog has it again without a refetch
+  const defaultRoleId = useMemo(() => {
+    if (roles.length === 0) return null;
+    const boRole = roles.find((r) => r.name.toLowerCase() === 'business owner');
+    return boRole ? boRole.id : roles[0].id;
+  }, [roles]);
 
   useEffect(() => {
     if (open && roles.length === 0) {
@@ -46,14 +55,7 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
           if (res.data && Array.isArray(res.data)) {
             const active = res.data.filter((r) => r.status === 'active');
             setRoles(active);
-            if (active.length === 0) {
-              setNoRolesError(true);
-            } else {
-              // Prefer a role named "Business Owner", else use the first active role
-              const boRole = active.find((r) => r.name.toLowerCase() === 'business owner');
-              setDefaultRoleId(boRole ? boRole.id : active[0].id);
-              setNoRolesError(false);
-            }
+            setNoRolesError(active.length === 0);
           }
         });
     }
@@ -66,7 +68,6 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
     } else {
       setUserEmail('');
       setUserName('');
-      setDefaultRoleId(null);
       setNoRolesError(false);
     }
   }, [open, initialEmail, initialName]);
@@ -96,57 +97,56 @@ export function AssignOwnerDialog({ open, onOpenChange, objectType, objectId, on
   const isValid = userEmail.trim().length > 0 && !noRolesError && defaultRoleId != null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{t('common:assignOwner.title')}</DialogTitle>
-          <DialogDescription>
-            {t('assignDialog.description', { defaultValue: 'Assign a business owner.' })}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          {noRolesError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {t('assignDialog.noRolesError', { defaultValue: 'No business roles configured; ask an admin.' })}
-              </AlertDescription>
-            </Alert>
-          )}
-          <div className="grid gap-2">
-            <Label htmlFor="owner-email">{t('common:assignOwner.emailLabel')} *</Label>
-            <PrincipalPicker
-              id="owner-email"
-              accepts={['user']}
-              value={userEmail || null}
-              onChange={(next) => setUserEmail(next ?? '')}
-              placeholder={t('common:assignOwner.emailPlaceholder')}
-              aria-label={t('common:assignOwner.ownerUserAria')}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="owner-name">{t('common:assignOwner.nameLabel')}</Label>
-            <Input
-              id="owner-name"
-              placeholder={t('common:assignOwner.namePlaceholder')}
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <Dialog
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      returnFocusTo={returnFocusTo}
+      size="sm"
+      title={t('common:assignOwner.title')}
+      description={t('assignDialog.description', { defaultValue: 'Assign a business owner.' })}
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t('common:actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid || submitting}>
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {submitting && <Loader2 className={classes.spin} />}
             {t('common:assignOwner.title')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className={classes.form}>
+        {noRolesError && (
+          <Alert variant="destructive">
+            <AlertCircle size={16} />
+            <AlertDescription>
+              {t('assignDialog.noRolesError', { defaultValue: 'No business roles configured; ask an admin.' })}
+            </AlertDescription>
+          </Alert>
+        )}
+        <div className={classes.field}>
+          <Label htmlFor="owner-email">{t('common:assignOwner.emailLabel')} *</Label>
+          <PrincipalPicker
+            id="owner-email"
+            accepts={['user']}
+            value={userEmail || null}
+            onChange={(next) => setUserEmail(next ?? '')}
+            placeholder={t('common:assignOwner.emailPlaceholder')}
+            aria-label={t('common:assignOwner.ownerUserAria')}
+          />
+        </div>
+
+        <div className={classes.field}>
+          <Label htmlFor="owner-name">{t('common:assignOwner.nameLabel')}</Label>
+          <Input
+            id="owner-name"
+            placeholder={t('common:assignOwner.namePlaceholder')}
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+          />
+        </div>
+      </div>
     </Dialog>
   );
 }
