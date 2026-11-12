@@ -2,6 +2,8 @@
 // /api path. Detail routes there use these ids. Pages not listed here get the
 // router's empty-list answer.
 
+import { CONCEPT_DETAIL_RESTYLE } from './concept-detail';
+
 const CREATED = '2026-10-01T09:00:00Z';
 const UPDATED = '2026-11-02T15:30:00Z';
 
@@ -333,4 +335,7 @@ export const DATA_FIXTURES: Record<string, unknown> = {
     trigger: { type: 'on_create', entity_types: ['data_contract'] }, workflow_type: 'process', is_active: true,
     is_default: false, version: 1, steps: [], created_at: CREATED, updated_at: UPDATED,
   },
+
+  // Concept detail (wave 2 Task 15): the concept e2e-concept-1, for its own IRI only
+  ...CONCEPT_DETAIL_RESTYLE,
 };

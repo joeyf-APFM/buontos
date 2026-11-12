@@ -1,0 +1,105 @@
+/*
+ * A concept's relations (wave 2 Task 15): one 28px row per relation, the
+ * predicate as a mono chip in its family's tone, the direction, then the
+ * target, ellipsed with its IRI in the title. The list scrolls inside its
+ * pane past the row cap.
+ */
+.list {
+  padding: 4px 0;
+}
+
+.list[data-capped] {
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.row:hover {
+  background: var(--aura-surface-strong);
+}
+
+.predicate {
+  flex: none;
+  max-width: 40%;
+  font-family: var(--aura-font-mono);
+}
+
+.direction {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.target {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+button.target {
+  color: var(--aura-accent);
+}
+
+button.target:hover {
+  text-decoration: underline;
+}
+
+.literal {
+  color: var(--aura-text-secondary);
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 4px;
+  color: var(--aura-text-secondary);
+}
+
+/* The standalone panel's fold: chevron, icon, title, count */
+.fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.fold > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--aura-text-secondary);
+}
+
+.counts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.counts svg {
+  width: 12px;
+  height: 12px;
+}

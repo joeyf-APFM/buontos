@@ -9,6 +9,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { AppMantineProvider } from '@/mantine/provider';
+import kit from '@/mantine/page/page.module.css';
 
 const get = vi.fn();
 vi.mock('@/hooks/use-api', () => ({
@@ -79,11 +81,13 @@ let current = concept();
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/concepts/${encodeURIComponent(IRI)}`]}>
-      <Routes>
-        <Route path="/concepts/*" element={<ConceptDetailView />} />
-      </Routes>
-    </MemoryRouter>,
+    <AppMantineProvider>
+      <MemoryRouter initialEntries={[`/concepts/${encodeURIComponent(IRI)}`]}>
+        <Routes>
+          <Route path="/concepts/*" element={<ConceptDetailView />} />
+        </Routes>
+      </MemoryRouter>
+    </AppMantineProvider>,
   );
 }
 
@@ -136,16 +140,18 @@ describe('ConceptDetailView layout', () => {
       renderPage();
       const { stack, summary, names } = await panelOrder();
 
-      // Single column: a flex column stack, no multi-column grid.
-      expect(stack.className).toContain('flex-col');
-      expect(stack.className).not.toMatch(/grid-cols-2/);
-      // Summary panel is the very first panel.
-      expect(stack.firstElementChild).toBe(summary);
+      // Single column: the kit's PaneStack (wave 2 Task 15, was a Tailwind
+      // flex column), its panes its direct children
+      const panes = stack.querySelector(`.${kit.stack}`)!;
+      expect(panes).not.toBeNull();
+      // Summary panel is in the very first pane.
+      expect(panes.firstElementChild!.contains(summary)).toBe(true);
       expect(names).toEqual(EXPECTED_ORDER);
-      // Turtle is the Advanced-only panel directly above Metadata.
-      const turtle = stack.querySelector('[data-panel="turtle"]')!;
+      // Turtle is the Advanced-only pane directly above Metadata.
+      const turtle = stack.querySelector('[data-panel="turtle"]')!.closest('section')!;
       expect(turtle.className).toContain('adv-only');
-      expect(stack.lastElementChild).toBe(stack.querySelector('[data-panel="metadata"]'));
+      expect(turtle.nextElementSibling).toBe(panes.lastElementChild);
+      expect(panes.lastElementChild!.contains(stack.querySelector('[data-panel="metadata"]'))).toBe(true);
     });
   }
 
@@ -160,8 +166,9 @@ describe('ConceptDetailView layout', () => {
       'Retail shopper',
       'Wholesale account',
     ]);
-    // Title, status chain and IRI chip are hosted by the summary too.
-    expect(within(summary).getByText('Customer')).toBeInTheDocument();
+    // The status chain and IRI chip are hosted by the summary too; the title
+    // is the kit page header's (wave 2 Task 15)
+    expect(screen.getByRole('heading', { level: 1, name: 'Customer' })).toBeInTheDocument();
     expect(within(summary).getByTestId('concept-status')).toHaveTextContent('draft');
     expect(within(summary).getByTestId('concept-summary-iri')).toHaveTextContent(IRI);
   });

@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
+import { Alert, Collapse, Loader, Skeleton, Textarea, UnstyledButton } from '@mantine/core';
 import {
   ArrowLeft,
   AlertCircle,
-  Loader2,
+  ChevronDown,
+  ChevronRight,
   Pencil,
   Trash2,
   Network,
@@ -13,28 +15,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { PrincipalPicker } from '@/components/common/principal-picker';
-import {
-  SkeletonLine,
-  PanelSkeleton,
-} from '@/components/common/list-view-skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { badgeToneStyle } from '@/components/common/aura-status';
+import { statusTone } from '@/components/knowledge/concept-tones';
 import type {
   KnowledgeCollection,
   OntologyConcept,
@@ -66,6 +49,11 @@ import {
 } from '@/components/concepts/request-concept-action-dialog';
 import { ConceptSummaryPanel } from '@/components/concepts/concept-summary-panel';
 import { CommentSidebar } from '@/components/comments';
+import { DetailsGrid, Dialog, PageHeader, PageLayout, Pane, PaneStack, type DetailsRow } from '@/mantine/page';
+import panel from '@/components/common/panel.module.css';
+import common from '@/components/common/detail-page.module.css';
+import form from '@/components/common/dialog-form.module.css';
+import classes from './concept-detail.module.css';
 
 // Bound list-like sections to ~10 rows of vertical real-estate via internal
 // scrolling, so the page stays compact regardless of how many relations or
@@ -195,7 +183,9 @@ export default function ConceptDetailView() {
   // read-only versioning note doesn't flash before the scheme is known.
   const [collectionsLoaded, setCollectionsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // A failed load (with Retry) is told apart from a concept that isn't there
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   // "Save new version" dialog (versioning contract §4) + a nonce that forces the
   // version-history panel to refetch after a successful publish.
@@ -206,6 +196,7 @@ export default function ConceptDetailView() {
   // or if the concept has no version rows yet.
   const [currentVersion, setCurrentVersion] = useState<number | null>(null);
   const [neighbourhoodOpen, setNeighbourhoodOpen] = useState(true);
+  const relationsBodyId = useId();
   // Relations and the neighbourhood graph are the same /neighbors data rendered
   // two ways, so they share ONE block with a List (relations) / Graph switch.
   // Defaults to the relations list (per wireframe); graph is opt-in.
@@ -235,14 +226,21 @@ export default function ConceptDetailView() {
   const [requestChangesOpen, setRequestChangesOpen] = useState(false);
   const [requestChangesComment, setRequestChangesComment] = useState('');
   const [isCommentSidebarOpen, setIsCommentSidebarOpen] = useState(false);
+  // The dialogs the Request dialog hands over to give focus back to Request:
+  // their opener (a button in the Request dialog) is gone by then
+  const requestButtonRef = useRef<HTMLButtonElement>(null);
   const selectedLanguage = i18n.language?.split('-')[0] || 'en';
 
   // Fetch the focused concept by IRI. This is intentionally separated from
   // the (lazier) neighbourhood load so the header renders ASAP.
+  // Each load's turn: an answer for an IRI the page has moved on from is dropped
+  const loadSeq = useRef(0);
   const fetchConcept = useCallback(async () => {
     if (!conceptIri) return;
+    const seq = ++loadSeq.current;
     setIsLoading(true);
     setError(null);
+    setNotFound(false);
     try {
       // Query-param form (``?iri=``) is required because some HTTP proxies
       // collapse ``%2F%2F`` in path segments, mangling IRIs like
@@ -250,17 +248,25 @@ export default function ConceptDetailView() {
       const res = await get<{ concept?: OntologyConcept }>(
         `/api/semantic-models/concepts/by-iri?iri=${encodeURIComponent(conceptIri)}`,
       );
+      if (seq !== loadSeq.current) return;
+      // A 404 ("Concept not found") or an answer without one: nothing to retry
+      if ((res.error && /not found/i.test(res.error)) || (!res.error && !res.data?.concept)) {
+        setNotFound(true);
+        setConcept(null);
+        return;
+      }
       if (res.error || !res.data?.concept) {
-        setError(res.error || t('semantic-models:details.notFound'));
+        setError(res.error || t('semantic-models:details.loadError'));
         setConcept(null);
         return;
       }
       setConcept(res.data.concept);
     } catch (err: any) {
+      if (seq !== loadSeq.current) return;
       setError(err?.message || t('semantic-models:details.loadError'));
       setConcept(null);
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeq.current) setIsLoading(false);
     }
   }, [conceptIri, get, t]);
 
@@ -754,47 +760,50 @@ export default function ConceptDetailView() {
     }
   };
 
-  // Mirrors the rendered concept detail: real back button, title block,
-  // compact definition card, and two side panels (ownership/metadata + links).
+  const backButton = (
+    <Button variant="outline" size="sm" onClick={() => navigate('/concepts/browser')}>
+      <ArrowLeft aria-hidden />
+      {t('semantic-models:details.backToList', 'Back to Concepts')}
+    </Button>
+  );
+
+  // Mirrors the rendered concept detail: the header line, then the panes
   if (isLoading && !concept) {
     return (
-      <div className="py-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className={classes.skeleton} aria-busy="true">
+        <div className={classes.skeletonHead}>
           <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft aria-hidden />
             {t('semantic-models:details.backToList', 'Back to Concepts')}
           </Button>
-          <div className="flex items-center gap-2">
-            <SkeletonLine height="h-9" width="w-24" />
-            <SkeletonLine height="h-9" width="w-24" />
-          </div>
+          <Skeleton height={28} width={200} />
         </div>
-        <SkeletonLine height="h-9" width="w-2/3" />
-        <SkeletonLine height="h-3" width="w-1/2" />
-        <PanelSkeleton rows={2} rowHeight="h-10" />
-        <PanelSkeleton rows={3} rowHeight="h-9" />
+        <Skeleton height={20} width="60%" />
+        <Skeleton height={120} />
+        <Skeleton height={96} />
+        <Skeleton height={96} />
       </div>
     );
   }
 
-  if (error || !concept) {
+  if (error || notFound || !concept) {
     return (
-      <div className="py-6 space-y-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/concepts/browser')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('semantic-models:details.backToList', 'Back to Concepts')}
-        </Button>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('common:toast.error')}</AlertTitle>
-          <AlertDescription>
-            {error || t('semantic-models:details.notFound', 'Concept not found')}
-          </AlertDescription>
-        </Alert>
+      <div className={classes.state}>
+        <div className={classes.stateBack}>{backButton}</div>
+        {error ? (
+          <Alert color="red" variant="light" icon={<AlertCircle size={16} />} title={t('common:toast.error')}>
+            <span className={classes.alertMessage}>{error}</span>
+            <div className={classes.alertActions}>
+              <Button variant="outline" size="sm" onClick={() => void fetchConcept()}>
+                {t('common:retry')}
+              </Button>
+            </div>
+          </Alert>
+        ) : (
+          <Alert color="gray" variant="light" icon={<AlertCircle size={16} />}>
+            {t('semantic-models:details.notFound', 'Concept not found')}
+          </Alert>
+        )}
       </div>
     );
   }
@@ -830,345 +839,259 @@ export default function ConceptDetailView() {
     : null;
   const hasRequestActions = requestTransitions.length > 0 || requestNewVersion != null;
 
+  // A concept named by its IRI's last segment, the full IRI in its title
+  const conceptChip = (iri: string) => (
+    <UnstyledButton key={iri} className={classes.chip} title={iri} onClick={() => handleNavigateToConcept(iri)}>
+      {iri.split(/[/#]/).pop() || iri}
+    </UnstyledButton>
+  );
+
+  // Details: scheme/source/imported/created; the type and raw IRI are Advanced only
+  const detailRows: DetailsRow[] = [
+    ...(collection?.label
+      ? [{ label: t('semantic-models:fields.scheme', 'Concept scheme'), value: <span className={panel.grow} title={collection.label}>{collection.label}</span> }]
+      : []),
+    // Without a scheme record the "Concept scheme" row above is absent, so
+    // this row carries the (prettified) source key instead.
+    ...(concept.source_context && !collection?.label
+      ? [{ label: t('semantic-models:fields.source', 'Source'), value: <span className={panel.grow} title={schemeLabel}>{schemeLabel}</span> }]
+      : []),
+    ...(concept.source_file
+      ? [{ label: t('semantic-models:fields.sourceFile', 'Imported from'), value: <span className={panel.grow} title={concept.source_file}>{concept.source_file}</span> }]
+      : []),
+    ...(concept.created_at
+      ? [{ label: t('semantic-models:fields.created', 'Created'), value: new Date(concept.created_at).toLocaleDateString() }]
+      : []),
+  ];
+  const advancedRows: DetailsRow[] = [
+    { label: t('semantic-models:fields.type', 'Type'), value: <span className={classes.code}>{concept.concept_type}</span> },
+    { label: 'IRI', value: <span className={classes.code} title={concept.iri}>{concept.iri}</span> },
+  ];
+
+  const parents = concept.parent_concepts ?? [];
+  const children = concept.child_concepts ?? [];
+
   return (
-    <div className="py-4 space-y-3">
-      {/* Top action row: back + status/edit/delete + mode switch. */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/concepts/browser')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('semantic-models:details.backToList', 'Back to Concepts')}
-        </Button>
-        <div className="flex items-center gap-2">
-          {/* Single "Request" entry point (mirrors data products): opens the
-              action-picker dialog offering the direct next lifecycle step(s)
-              (Request review on a draft, wizard / dialog flow unchanged; then
-              approve / request changes / publish / certify / deprecate /
-              archive for users who may run them today) plus "New version".
-              "Save new version" is available for any non-retired editable
-              concept, NOT just drafts, and stays disabled while the concept is
-              draft / under review. Properties have no lifecycle actions or
-              version publishing. */}
-          {!isProperty && hasRequestActions && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={statusBusy}
-              onClick={() => setRequestDialogOpen(true)}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {t('semantic-models:lifecycle.request', 'Request')}
-            </Button>
-          )}
-          {currentStatus === 'under_review' && canWrite && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={statusBusy}
-              onClick={handleWithdrawReview}
-            >
-              {t('semantic-models:lifecycle.withdrawReview', 'Withdraw Review')}
-            </Button>
-          )}
-          {/* Edit/Delete stay draft-only (isEditable). */}
-          {isEditable && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setEditorOpen(true)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                {t('common:actions.edit')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={handleDelete}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {t('common:actions.delete')}
-              </Button>
-            </>
-          )}
-          <CommentSidebar
-            entityType="ontology_concept"
-            entityId={concept.iri}
-            isOpen={isCommentSidebarOpen}
-            onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
-            className="h-8"
-          />
-        </div>
-      </div>
-
-      {/* Single-column panel stack (mirrors the Data Contracts detail page):
-          one full-width panel per row, in this order:
-          Summary, Definition, Owners, Details, Hierarchy, Linked assets,
-          Version history, Relations / neighbourhood graph,
-          Turtle (Advanced only), Metadata (always last in Simple + Advanced). */}
-      <div className="flex flex-col gap-4" data-testid="concept-panels">
-        <ConceptSummaryPanel
-          concept={concept}
+    <PageLayout
+      header={
+        <PageHeader
           title={conceptTitle}
-          currentVersion={currentVersion}
-          schemeLabel={schemeLabel}
-        />
-
-          {/* Definition + property domain/range in one compact full-width card
-            so short definitions don't get an entire page section to
-            themselves. */}
-        {(conceptDefinition || hasDomainRange) && (
-          <section className="rounded-lg border bg-card p-3 space-y-2" data-panel="definition">
-            {conceptDefinition && (
-              <p className="text-sm whitespace-pre-line">{conceptDefinition}</p>
-            )}
-            {hasDomainRange && (
-              <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
-                {concept.domain && (
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-muted-foreground uppercase tracking-wide">
-                      {t('semantic-models:fields.domain')}:
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => handleNavigateToConcept(concept.domain!)}
-                    >
-                      {concept.domain.split(/[/#]/).pop() || concept.domain}
-                    </Badge>
-                  </span>
-                )}
-                {concept.range && (
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-muted-foreground uppercase tracking-wide">
-                      {t('semantic-models:fields.range')}:
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => handleNavigateToConcept(concept.range!)}
-                    >
-                      {concept.range.split(/[/#]/).pop() || concept.range}
-                    </Badge>
-                  </span>
-                )}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Owners panel */}
-        <div data-panel="ownership">
-          <OwnershipPanel
-            objectType="business_term"
-            objectId={concept.iri}
-            canAssign={canLinkEntities}
-          />
-        </div>
-
-        {/* Details: scheme/source/created, plus IRI + type in advanced. */}
-        <div className="rounded-lg border bg-card p-3" data-panel="details">
-          <h3 className="text-sm font-medium mb-2">
-            {t('semantic-models:details.title', 'Details')}
-          </h3>
-          <dl className="text-sm divide-y">
-            {collection?.label && (
-              <div className="flex justify-between gap-3 py-1.5">
-                <dt className="text-muted-foreground">
-                  {t('semantic-models:fields.scheme', 'Concept scheme')}
-                </dt>
-                <dd className="font-medium text-right truncate">{collection.label}</dd>
-              </div>
-            )}
-            {/* Without a scheme record the "Concept scheme" row above is absent, so
-                this row carries the (prettified) source key instead. */}
-            {concept.source_context && !collection?.label && (
-              <div className="flex justify-between gap-3 py-1.5">
-                <dt className="text-muted-foreground">
-                  {t('semantic-models:fields.source', 'Source')}
-                </dt>
-                <dd className="font-medium text-right truncate">
-                  {schemeLabel}
-                </dd>
-              </div>
-            )}
-            {concept.source_file && (
-              <div className="flex justify-between gap-3 py-1.5">
-                <dt className="text-muted-foreground">
-                  {t('semantic-models:fields.sourceFile', 'Imported from')}
-                </dt>
-                <dd className="font-medium text-right truncate">
-                  {concept.source_file}
-                </dd>
-              </div>
-            )}
-            {concept.created_at && (
-              <div className="flex justify-between gap-3 py-1.5">
-                <dt className="text-muted-foreground">
-                  {t('semantic-models:fields.created', 'Created')}
-                </dt>
-                <dd className="font-medium text-right">
-                  {new Date(concept.created_at).toLocaleDateString()}
-                </dd>
-              </div>
-            )}
-            {/* Advanced-only: the ontology layer (type + raw IRI). */}
-            <div className="adv-only flex justify-between gap-3 py-1.5">
-              <dt className="text-muted-foreground">
-                {t('semantic-models:fields.type', 'Type')}
-              </dt>
-              <dd className="font-mono text-xs text-right truncate">
-                {concept.concept_type}
-              </dd>
-            </div>
-            <div className="adv-only flex justify-between gap-3 py-1.5">
-              <dt className="text-muted-foreground">IRI</dt>
-              <dd className="font-mono text-xs text-right truncate" title={concept.iri}>
-                {concept.iri}
-              </dd>
-            </div>
-          </dl>
-        </div>
-
-        {/* Hierarchy: broader (parents) / narrower (children) concepts.
-            Relations moved into the shared "Relations / Graph" block below
-            (they were the same /neighbors data rendered twice). */}
-        <div className="rounded-lg border bg-card p-3" data-panel="hierarchy">
-          <h3 className="text-sm font-medium mb-2">
-            {t('semantic-models:hierarchy.title', 'Hierarchy')}
-          </h3>
-          {(concept.parent_concepts?.length ?? 0) === 0
-            && (concept.child_concepts?.length ?? 0) === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {t('semantic-models:hierarchy.none', 'No broader or narrower concepts.')}
-            </p>
-          ) : (
-            <div className="space-y-2 text-sm">
-              {(concept.parent_concepts?.length ?? 0) > 0 && (
-                <div className="flex gap-2">
-                  <span className="w-16 shrink-0 text-xs text-muted-foreground pt-0.5">
-                    {t('semantic-models:hierarchy.parent', 'Parent')}
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {concept.parent_concepts.map((iri) => (
-                      <Badge
-                        key={iri}
-                        variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => handleNavigateToConcept(iri)}
-                      >
-                        {iri.split(/[/#]/).pop() || iri}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {(concept.child_concepts?.length ?? 0) > 0 && (
-                <div className="flex gap-2">
-                  <span className="w-16 shrink-0 text-xs text-muted-foreground pt-0.5">
-                    {t('semantic-models:hierarchy.children', 'Children')}
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {concept.child_concepts.map((iri) => (
-                      <Badge
-                        key={iri}
-                        variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => handleNavigateToConcept(iri)}
-                      >
-                        {iri.split(/[/#]/).pop() || iri}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Linked assets */}
-        <div data-panel="linked-assets">
-          <LinkedObjectsPanel
-            conceptIri={concept.iri}
-            conceptLabel={conceptTitle}
-            canAssign={canLinkEntities}
-            onChanged={fetchConcept}
-            maxVisibleRows={MAX_VISIBLE_ROWS}
-          />
-        </div>
-
-        {/* Version history: live, drives versioning
-            contract §1 + §2. Shown for every concept type. On a read-only
-            (imported / non-editable) scheme it stays visible but read-only,
-            with a note instead of silently hiding the version controls. */}
-        <div id="concept-version-history" data-panel="version-history">
-          <VersionHistoryPanel
-            conceptIri={concept.iri}
-            refreshNonce={versionRefreshNonce}
-            readOnlyNote={
-              versioningReadOnly
-                ? t(
-                    'semantic-models:versionHistory.readOnlyNote',
-                    'Versioning applies to governed (editable) concept schemes. This concept comes from a read-only source, so new versions cannot be saved here.',
-                  )
-                : undefined
-            }
-          />
-        </div>
-
-        {/* Relations + neighbourhood graph: ONE block, two views over
-            the same /neighbors data. List = relations; Graph = node-link. */}
-        <Collapsible open={neighbourhoodOpen} onOpenChange={setNeighbourhoodOpen}>
-          <div className="border rounded-lg bg-card" data-panel="relations">
-            <div className="flex items-center justify-between p-3 hover:bg-muted/50">
-              <CollapsibleTrigger className="flex items-center gap-2 flex-1 text-left">
-                {neighbourhoodOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                <Network className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-sm">
-                  {t('semantic-models:relations.title', { defaultValue: 'Relations' })}
-                </span>
-              </CollapsibleTrigger>
-              {neighbourhoodOpen && (
-                <div
-                  role="tablist"
-                  aria-label={t('semantic-models:relations.viewLabel', 'Relations view')}
-                  className="inline-flex items-center gap-1 rounded-md border bg-card p-0.5"
+          badges={
+            !isProperty && concept.status ? (
+              <Badge variant="outline" style={badgeToneStyle(statusTone(concept.status))}>
+                {t(`semantic-models:status.${concept.status}`, concept.status as string)}
+              </Badge>
+            ) : undefined
+          }
+          wrapActions
+          actions={
+            <>
+              {backButton}
+              {/* Single "Request" entry point (mirrors data products): opens the
+                  action-picker dialog offering the direct next lifecycle step(s)
+                  (Request review on a draft, wizard / dialog flow unchanged; then
+                  approve / request changes / publish / certify / deprecate /
+                  archive for users who may run them today) plus "New version".
+                  "Save new version" is available for any non-retired editable
+                  concept, NOT just drafts, and stays disabled while the concept is
+                  draft / under review. Properties have no lifecycle actions or
+                  version publishing. */}
+              {!isProperty && hasRequestActions && (
+                <Button
+                  ref={requestButtonRef}
+                  variant="outline"
+                  size="sm"
+                  disabled={statusBusy}
+                  onClick={() => setRequestDialogOpen(true)}
                 >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={relationsView === 'list'}
-                    onClick={() => setRelationsView('list')}
-                    className={
-                      relationsView === 'list'
-                        ? 'rounded px-2 py-0.5 text-xs bg-accent text-accent-foreground font-medium'
-                        : 'rounded px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground'
-                    }
-                  >
-                    {t('semantic-models:neighborhood.list', 'List')}
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={relationsView === 'graph'}
-                    onClick={() => setRelationsView('graph')}
-                    className={
-                      relationsView === 'graph'
-                        ? 'rounded px-2 py-0.5 text-xs bg-accent text-accent-foreground font-medium'
-                        : 'rounded px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground'
-                    }
-                  >
-                    {t('semantic-models:neighborhood.graph', 'Graph')}
-                  </button>
+                  <Send aria-hidden />
+                  {t('semantic-models:lifecycle.request', 'Request')}
+                </Button>
+              )}
+              {currentStatus === 'under_review' && canWrite && (
+                <Button variant="outline" size="sm" disabled={statusBusy} onClick={handleWithdrawReview}>
+                  {t('semantic-models:lifecycle.withdrawReview', 'Withdraw Review')}
+                </Button>
+              )}
+              {/* Edit/Delete stay draft-only (isEditable). */}
+              {isEditable && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setEditorOpen(true)}>
+                    <Pencil aria-hidden />
+                    {t('common:actions.edit')}
+                  </Button>
+                  <Button variant="outline" size="sm" className={common.danger} onClick={handleDelete}>
+                    <Trash2 aria-hidden />
+                    {t('common:actions.delete')}
+                  </Button>
+                </>
+              )}
+              <CommentSidebar
+                entityType="ontology_concept"
+                entityId={concept.iri}
+                isOpen={isCommentSidebarOpen}
+                onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+              />
+            </>
+          }
+        />
+      }
+    >
+      {/* One column of panes (mirrors the Data Contracts detail page), in this
+          order: Summary, Definition, Owners, Details, Hierarchy, Linked
+          entities, Version history, Relations / neighbourhood graph, Turtle
+          (Advanced only), Metadata (always last in Simple + Advanced). */}
+      <div className={classes.body} data-testid="concept-panels">
+        <PaneStack>
+          <Pane title={t('semantic-models:summary.title', 'Summary')}>
+            <ConceptSummaryPanel concept={concept} currentVersion={currentVersion} schemeLabel={schemeLabel} />
+          </Pane>
+
+          {/* Definition + property domain/range in one compact pane, so short
+              definitions don't get an entire page section to themselves. */}
+          {(conceptDefinition || hasDomainRange) && (
+            <Pane title={t('semantic-models:fields.definition', 'Definition')}>
+              <div data-panel="definition">
+                {conceptDefinition && <p className={classes.definition}>{conceptDefinition}</p>}
+                {hasDomainRange && (
+                  <div className={classes.domainRange}>
+                    {concept.domain && (
+                      <span className={classes.pair}>
+                        <span className={classes.pairLabel}>{t('semantic-models:fields.domain')}:</span>
+                        {conceptChip(concept.domain)}
+                      </span>
+                    )}
+                    {concept.range && (
+                      <span className={classes.pair}>
+                        <span className={classes.pairLabel}>{t('semantic-models:fields.range')}:</span>
+                        {conceptChip(concept.range)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Pane>
+          )}
+
+          <Pane aria-label={t('business-owners:panel.title', 'Owners')}>
+            <div data-panel="ownership">
+              <OwnershipPanel flush objectType="business_term" objectId={concept.iri} canAssign={canLinkEntities} />
+            </div>
+          </Pane>
+
+          <Pane title={t('semantic-models:details.title', 'Details')}>
+            <div data-panel="details">
+              {detailRows.length > 0 && <DetailsGrid rows={detailRows} />}
+              {/* Advanced only: the ontology layer (type + raw IRI). */}
+              <div className="adv-only">
+                <DetailsGrid rows={advancedRows} />
+              </div>
+            </div>
+          </Pane>
+
+          {/* Hierarchy: broader (parents) / narrower (children) concepts.
+              Relations live in the shared "Relations / Graph" block below
+              (they were the same /neighbors data rendered twice). */}
+          <Pane title={t('semantic-models:hierarchy.title', 'Hierarchy')}>
+            <div data-panel="hierarchy">
+              {parents.length === 0 && children.length === 0 ? (
+                <p className={classes.muted}>
+                  {t('semantic-models:hierarchy.none', 'No broader or narrower concepts.')}
+                </p>
+              ) : (
+                <div className={classes.hierarchy}>
+                  {parents.length > 0 && (
+                    <div className={classes.hierarchyRow}>
+                      <span className={classes.hierarchyLabel}>{t('semantic-models:hierarchy.parent', 'Parent')}</span>
+                      <div className={classes.chips}>{parents.map(conceptChip)}</div>
+                    </div>
+                  )}
+                  {children.length > 0 && (
+                    <div className={classes.hierarchyRow}>
+                      <span className={classes.hierarchyLabel}>{t('semantic-models:hierarchy.children', 'Children')}</span>
+                      <div className={classes.chips}>{children.map(conceptChip)}</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            <CollapsibleContent>
-              <div className="border-t">
+          </Pane>
+
+          <Pane aria-label={t('semantic-models:linkedObjects.title', 'Linked Entities')}>
+            <div data-panel="linked-assets">
+              <LinkedObjectsPanel
+                conceptIri={concept.iri}
+                conceptLabel={conceptTitle}
+                canAssign={canLinkEntities}
+                onChanged={fetchConcept}
+                maxVisibleRows={MAX_VISIBLE_ROWS}
+              />
+            </div>
+          </Pane>
+
+          {/* Version history: live, drives versioning contract §1 + §2. Shown
+              for every concept type. On a read-only (imported / non-editable)
+              scheme it stays visible but read-only, with a note instead of
+              silently hiding the version controls. */}
+          <Pane aria-label={t('semantic-models:versionHistory.title', 'Version history')}>
+            <div id="concept-version-history" data-panel="version-history">
+              <VersionHistoryPanel
+                conceptIri={concept.iri}
+                refreshNonce={versionRefreshNonce}
+                readOnlyNote={
+                  versioningReadOnly
+                    ? t(
+                        'semantic-models:versionHistory.readOnlyNote',
+                        'Versioning applies to governed (editable) concept schemes. This concept comes from a read-only source, so new versions cannot be saved here.',
+                      )
+                    : undefined
+                }
+              />
+            </div>
+          </Pane>
+
+          {/* Relations + neighbourhood graph: ONE block, two views over the
+              same /neighbors data. List = relations; Graph = node-link. */}
+          <Pane aria-label={t('semantic-models:relations.title', { defaultValue: 'Relations' })}>
+            <div className={panel.pane} data-flush data-panel="relations">
+              <div className={panel.head}>
+                <h3 className={panel.title}>
+                  <UnstyledButton
+                    className={classes.fold}
+                    aria-expanded={neighbourhoodOpen}
+                    aria-controls={relationsBodyId}
+                    onClick={() => setNeighbourhoodOpen((open) => !open)}
+                  >
+                    {neighbourhoodOpen ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+                    <Network aria-hidden />
+                    {t('semantic-models:relations.title', { defaultValue: 'Relations' })}
+                  </UnstyledButton>
+                </h3>
+                {neighbourhoodOpen && (
+                  <div className={panel.actions}>
+                    <div
+                      role="tablist"
+                      aria-label={t('semantic-models:relations.viewLabel', 'Relations view')}
+                      className={classes.switch}
+                    >
+                      {(['list', 'graph'] as const).map((view) => (
+                        <UnstyledButton
+                          key={view}
+                          role="tab"
+                          aria-selected={relationsView === view}
+                          className={classes.switchTab}
+                          onClick={() => setRelationsView(view)}
+                        >
+                          {view === 'list'
+                            ? t('semantic-models:neighborhood.list', 'List')
+                            : t('semantic-models:neighborhood.graph', 'Graph')}
+                        </UnstyledButton>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Collapse in={neighbourhoodOpen} id={relationsBodyId} transitionDuration={0}>
                 {relationsView === 'list' ? (
                   <ConceptRelationsPanel
                     conceptIri={concept.iri}
@@ -1177,42 +1100,42 @@ export default function ConceptDetailView() {
                     embedded
                   />
                 ) : (
-                  <ConceptNeighborhoodGraph
-                    concept={concept}
-                    onNavigate={handleNavigateToConcept}
-                    view="graph"
-                  />
+                  <ConceptNeighborhoodGraph concept={concept} onNavigate={handleNavigateToConcept} view="graph" />
                 )}
-              </div>
-            </CollapsibleContent>
+              </Collapse>
+            </div>
+          </Pane>
+
+          {/* Advanced only: RDF (Turtle) serialization — sits directly above
+              Metadata so toggling Advanced only inserts it there and never
+              reshuffles Version history / Relations above it. */}
+          <Pane aria-label={t('semantic-models:advanced.turtle', 'RDF (Turtle)')} className="adv-only">
+            <div data-panel="turtle">
+              <TurtleSerializationPanel conceptIri={concept.iri} />
+            </div>
+          </Pane>
+
+          {/* Metadata (notes / links / documents) — ALWAYS the last pane (in
+              both Simple and Advanced view). */}
+          <Pane aria-label={t('metadata:title', 'Metadata')}>
+            <div data-panel="metadata">
+              <EntityMetadataPanel flush entityType="concept" entityId={concept.iri} canEdit={canWrite && canWriteDomains} />
+            </div>
+          </Pane>
+        </PaneStack>
+
+        {concept.created_at && (
+          <p className={classes.footer}>
+            {t('semantic-models:details.created')}: {new Date(concept.created_at).toLocaleDateString()}
+          </p>
+        )}
+
+        {isLoading && (
+          <div className={classes.refreshing} role="status">
+            <Loader size={12} color="currentColor" /> {t('semantic-models:details.refreshing')}
           </div>
-        </Collapsible>
-
-        {/* Advanced-only: RDF (Turtle) serialization — sits directly above
-            Metadata so toggling Advanced only inserts it there and never
-            reshuffles Version history / Relations above it. */}
-        <div className="adv-only" data-panel="turtle">
-          <TurtleSerializationPanel conceptIri={concept.iri} />
-        </div>
-
-        {/* Metadata (notes / links / documents) — full width, ALWAYS the last
-            panel (in both Simple and Advanced view). */}
-        <div data-panel="metadata">
-          <EntityMetadataPanel entityType="concept" entityId={concept.iri} canEdit={canWrite && canWriteDomains} />
-        </div>
+        )}
       </div>
-
-      {concept.created_at && (
-        <p className="text-xs text-muted-foreground">
-          {t('semantic-models:details.created')}: {new Date(concept.created_at).toLocaleDateString()}
-        </p>
-      )}
-
-      {isLoading && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" /> {t('semantic-models:details.refreshing')}
-        </div>
-      )}
 
       <ConceptEditorDialog
         open={editorOpen}
@@ -1292,131 +1215,111 @@ export default function ConceptDetailView() {
         />
       )}
 
-      <Dialog open={submitReviewOpen} onOpenChange={setSubmitReviewOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {t('semantic-models:submitReview.title', 'Submit for Review')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('semantic-models:submitReview.description', 'Assign an optional reviewer and add notes.')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {/* Informational banner: does an approval workflow gate this
-                submission? Purely advisory — the fields/button are unchanged. */}
-            {submitPreview === null ? (
-              submitPreviewLoading ? (
-                <p className="text-xs text-muted-foreground">
-                  {t('semantic-models:submitReview.checking', 'Checking for approval workflow…')}
-                </p>
-              ) : null
-            ) : submitPreview.governed ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {submitPreview.workflow_count > 1
-                    ? t(
-                        'semantic-models:submitReview.governedBannerMulti',
-                        'This concept is governed by {{count}} approval workflows. Submitting will start that approval — it moves to Under Review and awaits approver sign-off.',
-                        { count: submitPreview.workflow_count },
-                      )
-                    : t(
-                        'semantic-models:submitReview.governedBanner',
-                        "This concept is governed by the '{{workflow}}' approval workflow. Submitting will start that approval — it moves to Under Review and awaits approver sign-off.",
-                        { workflow: submitPreview.workflow_names[0] ?? '' },
-                      )}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  'semantic-models:submitReview.ungovernedBanner',
-                  'No approval workflow is attached. Submitting moves this concept straight to Under Review; any user with write access can then approve it.',
-                )}
-              </p>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="reviewer-email">
-                {t('semantic-models:submitReview.reviewer', 'Reviewer (optional)')}
-              </Label>
-              <PrincipalPicker
-                id="reviewer-email"
-                accepts={['user', 'group']}
-                value={reviewerEmail}
-                onChange={(next) => setReviewerEmail(next ?? null)}
-                placeholder={t('semantic-models:submitReview.reviewerPlaceholder', 'Select a reviewer...')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="review-notes">
-                {t('semantic-models:submitReview.notes', 'Notes (optional)')}
-              </Label>
-              <Textarea
-                id="review-notes"
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder={t('semantic-models:submitReview.notesPlaceholder', 'Add context or instructions...')}
-                className="min-h-24 resize-none"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSubmitReviewOpen(false)}
-              disabled={statusBusy}
-            >
+      <Dialog
+        opened={submitReviewOpen}
+        onClose={() => setSubmitReviewOpen(false)}
+        size="sm"
+        title={t('semantic-models:submitReview.title', 'Submit for Review')}
+        description={t('semantic-models:submitReview.description', 'Assign an optional reviewer and add notes.')}
+        returnFocusTo={requestButtonRef}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setSubmitReviewOpen(false)} disabled={statusBusy}>
               {t('common:actions.cancel', 'Cancel')}
             </Button>
-            <Button
-              type="button"
-              onClick={handleSubmitReview}
-              disabled={statusBusy}
-            >
-              {statusBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="button" onClick={handleSubmitReview} disabled={statusBusy}>
+              {statusBusy && <Loader size={12} color="currentColor" />}
               {t('semantic-models:submitReview.submit', 'Submit')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </>
+        }
+      >
+        <div className={form.form}>
+          {/* Informational banner: does an approval workflow gate this
+              submission? Purely advisory — the fields/button are unchanged. */}
+          {submitPreview === null ? (
+            submitPreviewLoading ? (
+              <p className={form.muted}>
+                {t('semantic-models:submitReview.checking', 'Checking for approval workflow…')}
+              </p>
+            ) : null
+          ) : submitPreview.governed ? (
+            <Alert color="blue" variant="light" icon={<AlertCircle size={16} />}>
+              {submitPreview.workflow_count > 1
+                ? t(
+                    'semantic-models:submitReview.governedBannerMulti',
+                    'This concept is governed by {{count}} approval workflows. Submitting will start that approval — it moves to Under Review and awaits approver sign-off.',
+                    { count: submitPreview.workflow_count },
+                  )
+                : t(
+                    'semantic-models:submitReview.governedBanner',
+                    "This concept is governed by the '{{workflow}}' approval workflow. Submitting will start that approval — it moves to Under Review and awaits approver sign-off.",
+                    { workflow: submitPreview.workflow_names[0] ?? '' },
+                  )}
+            </Alert>
+          ) : (
+            <p className={form.muted}>
+              {t(
+                'semantic-models:submitReview.ungovernedBanner',
+                'No approval workflow is attached. Submitting moves this concept straight to Under Review; any user with write access can then approve it.',
+              )}
+            </p>
+          )}
+          <div>
+            <label htmlFor="reviewer-email" className={form.label}>
+              {t('semantic-models:submitReview.reviewer', 'Reviewer (optional)')}
+            </label>
+            <PrincipalPicker
+              id="reviewer-email"
+              accepts={['user', 'group']}
+              value={reviewerEmail}
+              onChange={(next) => setReviewerEmail(next ?? null)}
+              placeholder={t('semantic-models:submitReview.reviewerPlaceholder', 'Select a reviewer...')}
+            />
+          </div>
+          <Textarea
+            id="review-notes"
+            label={t('semantic-models:submitReview.notes', 'Notes (optional)')}
+            value={reviewNotes}
+            onChange={(e) => setReviewNotes(e.currentTarget.value)}
+            placeholder={t('semantic-models:submitReview.notesPlaceholder', 'Add context or instructions...')}
+            minRows={4}
+            autosize
+          />
+        </div>
       </Dialog>
 
       {/* Reviewer "Request changes" — send the concept back to the owner with a
           comment (the ping-pong send-back), works with or without a workflow. */}
-      <Dialog open={requestChangesOpen} onOpenChange={setRequestChangesOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {t('semantic-models:requestChanges.title', 'Request changes')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('semantic-models:requestChanges.description', 'Send this concept back to the owner as a draft, with your comment.')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="request-changes-comment">
-              {t('semantic-models:requestChanges.comment', 'Comment for the owner')}
-            </Label>
-            <Textarea
-              id="request-changes-comment"
-              value={requestChangesComment}
-              onChange={(e) => setRequestChangesComment(e.target.value)}
-              placeholder={t('semantic-models:requestChanges.placeholder', 'What should change before this can be approved?')}
-              rows={3}
-            />
-          </div>
-          <DialogFooter>
+      <Dialog
+        opened={requestChangesOpen}
+        onClose={() => setRequestChangesOpen(false)}
+        size="sm"
+        title={t('semantic-models:requestChanges.title', 'Request changes')}
+        description={t('semantic-models:requestChanges.description', 'Send this concept back to the owner as a draft, with your comment.')}
+        returnFocusTo={requestButtonRef}
+        footer={
+          <>
             <Button type="button" variant="outline" onClick={() => setRequestChangesOpen(false)} disabled={statusBusy}>
               {t('common:actions.cancel', 'Cancel')}
             </Button>
             <Button type="button" onClick={handleRequestChanges} disabled={statusBusy}>
-              {statusBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {statusBusy && <Loader size={12} color="currentColor" />}
               {t('semantic-models:requestChanges.submit', 'Send back')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </>
+        }
+      >
+        <Textarea
+          id="request-changes-comment"
+          label={t('semantic-models:requestChanges.comment', 'Comment for the owner')}
+          value={requestChangesComment}
+          onChange={(e) => setRequestChangesComment(e.currentTarget.value)}
+          placeholder={t('semantic-models:requestChanges.placeholder', 'What should change before this can be approved?')}
+          minRows={3}
+          autosize
+        />
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }
