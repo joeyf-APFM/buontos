@@ -430,6 +430,8 @@ export default function LLMSearch() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Only the latest session pick may show: an earlier one that answers late is dropped
   const sessionRequest = useRef(0);
+  // The session whose messages are on their way
+  const pendingSessionId = useRef<string | null>(null);
   const { toast } = useToast();
 
   // Hidden keyboard shortcut: Ctrl+Shift+D to toggle debug mode
@@ -512,35 +514,42 @@ export default function LLMSearch() {
     setIsLoading(true);
     setError(null);
     setFailedSessionId(null);
+    // The conversation this question belongs to: if the user opens another
+    // (or a new one) before the answer comes, the answer stays out of it
+    const conversation = sessionRequest.current;
 
     try {
       const response = await sendMessage(messageContent, currentSessionId, debugMode);
 
-      // Update session ID
-      setCurrentSessionId(response.session_id);
+      if (conversation === sessionRequest.current) {
+        // Update session ID
+        setCurrentSessionId(response.session_id);
 
-      // Add assistant message
-      setMessages((prev) => [...prev, response.message]);
+        // Add assistant message
+        setMessages((prev) => [...prev, response.message]);
 
-      // Store debug info keyed by the assistant message ID
-      if (response.debug && response.message.id) {
-        setDebugInfoMap((prev) => ({ ...prev, [response.message.id]: response.debug! }));
+        // Store debug info keyed by the assistant message ID
+        if (response.debug && response.message.id) {
+          setDebugInfoMap((prev) => ({ ...prev, [response.message.id]: response.debug! }));
+        }
       }
 
-      // Refresh sessions list
+      // Refresh sessions list (the sent conversation shows in History either way)
       const updatedSessions = await fetchSessions();
       setSessions(Array.isArray(updatedSessions) ? updatedSessions : []);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('search:copilot.messageSendFailed');
-      setError(errorMessage);
       toast({
         title: t('common:toast.error'),
         description: errorMessage,
         variant: 'destructive',
       });
-      // Remove the user message on error
-      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      if (conversation === sessionRequest.current) {
+        setError(errorMessage);
+        // Remove the user message on error
+        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      }
     } finally {
       setIsLoading(false);
       // After the composer is enabled again
@@ -577,25 +586,31 @@ export default function LLMSearch() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);
+    // As in handleSend: an answer after a switch of conversation stays out of it
+    const conversation = sessionRequest.current;
 
     try {
       const response = await sendMessage(content, currentSessionId, debugMode);
-      setCurrentSessionId(response.session_id);
-      setMessages((prev) => [...prev, response.message]);
-      if (response.debug && response.message.id) {
-        setDebugInfoMap((prev) => ({ ...prev, [response.message.id]: response.debug! }));
+      if (conversation === sessionRequest.current) {
+        setCurrentSessionId(response.session_id);
+        setMessages((prev) => [...prev, response.message]);
+        if (response.debug && response.message.id) {
+          setDebugInfoMap((prev) => ({ ...prev, [response.message.id]: response.debug! }));
+        }
       }
       const updatedSessions = await fetchSessions();
       setSessions(Array.isArray(updatedSessions) ? updatedSessions : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('search:copilot.messageSendFailed');
-      setError(errorMessage);
       toast({
         title: t('common:toast.error'),
         description: errorMessage,
         variant: 'destructive',
       });
-      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      if (conversation === sessionRequest.current) {
+        setError(errorMessage);
+        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      }
     } finally {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 0);
@@ -611,12 +626,14 @@ export default function LLMSearch() {
   // Handle session selection; a slower answer for an earlier pick is dropped
   const handleSelectSession = async (sessionId: string) => {
     const id = ++sessionRequest.current;
+    pendingSessionId.current = sessionId;
     setFailedSessionId(null);
     try {
       const response = await fetch(`/api/llm-search/sessions/${sessionId}`);
       if (!response.ok) throw new Error('Failed to load session');
       const session = await response.json();
       if (id !== sessionRequest.current) return;
+      pendingSessionId.current = null;
       setCurrentSessionId(session.id);
       const loaded: ChatMessage[] = Array.isArray(session.messages) ? session.messages : [];
       setMessages(loaded.filter((m: ChatMessage) =>
@@ -624,6 +641,7 @@ export default function LLMSearch() {
       ));
     } catch (err) {
       if (id !== sessionRequest.current) return;
+      pendingSessionId.current = null;
       setFailedSessionId(sessionId);
       toast({
         title: t('common:toast.error'),
@@ -638,9 +656,15 @@ export default function LLMSearch() {
     try {
       await deleteSession(sessionId);
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      if (currentSessionId === sessionId) {
+      // The open session, one still loading, or one whose load failed: drop
+      // any answer on its way, and its Retry and debug details
+      if (currentSessionId === sessionId || failedSessionId === sessionId || pendingSessionId.current === sessionId) {
+        sessionRequest.current += 1;
+        pendingSessionId.current = null;
         setCurrentSessionId(undefined);
         setMessages([]);
+        setFailedSessionId(null);
+        setDebugInfoMap({});
       }
       toast({
         title: t('search:llm.messages.sessionDeleted'),

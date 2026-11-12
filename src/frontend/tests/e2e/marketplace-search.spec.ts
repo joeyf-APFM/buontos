@@ -201,10 +201,20 @@ test.describe('marketplace', () => {
     await expect(main.getByRole('region', { name: 'Browse Data Domains' })).toBeVisible();
     await expect(main.getByRole('region', { name: 'Data Products' })).toBeVisible();
     // The domain chip's preview opens on hover, as a Mantine HoverCard
-    await main.getByRole('region', { name: 'Browse Data Domains' }).getByRole('button', { name: 'Orders', exact: true }).hover();
-    const card = page.locator('.mantine-HoverCard-dropdown');
+    const chip = main.getByRole('region', { name: 'Browse Data Domains' }).getByRole('button', { name: 'Orders', exact: true });
+    const card = page.locator('.mantine-Popover-dropdown, .mantine-HoverCard-dropdown').filter({ hasText: 'Parent: Sales' });
+    await chip.hover();
     await expect(card).toBeVisible();
-    await expect(card).toContainText('Parent: Sales');
+    await page.mouse.move(0, 0);
+    await expect(card).toBeHidden();
+    // And by keyboard, as the Radix HoverCard did: focus opens it, blur closes it
+    const sales = main.getByRole('region', { name: 'Browse Data Domains' }).getByRole('button', { name: 'Sales', exact: true });
+    await sales.focus();
+    await page.keyboard.press('Tab');
+    await expect(chip).toBeFocused();
+    await expect(card).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(card).toBeHidden();
   });
 
   test('long names and descriptions truncate with a title in every view mode, with no page scroll', async ({ page }) => {

@@ -225,7 +225,7 @@ describe('marketplace on the page kit', () => {
 
       // The products: tiles per row, then each card's title and Open in details
       const products = pane('Data Products');
-      expect(within(products).getByText('3 product available')).toBeInTheDocument();
+      expect(within(products).getByText('3 products available')).toBeInTheDocument();
       const tiles = selectField(products, 'Tiles per row');
       expect(await optionNames(user, tiles)).toEqual(['1 per row', '2 per row', '3 per row', '4 per row']);
       expect(within(products).getAllByRole('button', { name: 'Open in details view' })).toHaveLength(3);
@@ -293,6 +293,8 @@ describe('marketplace on the page kit', () => {
     expect(names()).toEqual(['Sales orders', 'Store visits']);
     await user.click(within(domains).getByRole('switch', { name: 'Exact match only' }));
     expect(names()).toEqual(['Sales orders']);
+    // One product: the count's singular
+    expect(within(products).getByText('1 product available')).toBeInTheDocument();
     // A second chip adds to the filter; All Domains clears it
     await user.click(within(domains).getByRole('button', { name: 'People' }));
     expect(names()).toEqual(['Sales orders', LONG_NAME]);

@@ -201,8 +201,8 @@
       "subscriptions": "Mijn Data"
     },
     "products": {
-      "available": "{{count}} product beschikbaar",
-      "available_plural": "{{count}} producten beschikbaar",
+      "available_one": "{{count}} product beschikbaar",
+      "available_other": "{{count}} producten beschikbaar",
       "subscribed": "{{count}} geabonneerd product",
       "subscribed_plural": "{{count}} geabonneerde producten",
       "noProducts": "Geen dataproducten gevonden.",

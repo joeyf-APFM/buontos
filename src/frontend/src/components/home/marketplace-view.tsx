@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionIcon, Alert, CloseButton, HoverCard, Loader, Select, Switch, TextInput, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Alert, CloseButton, Loader, Popover, Select, Switch, TextInput, UnstyledButton } from '@mantine/core';
 import { AlertCircle, Database, Search, Bell, LayoutList, Network, Package, Grid2X2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDomains } from '@/hooks/use-domains';
@@ -22,6 +22,47 @@ import CertificationBadge from '@/components/common/certification-badge';
 import PublicationBadge from '@/components/common/publication-badge';
 import { PUBLICATION_SCOPE_LABELS, type CertificationLevel } from '@/types/lifecycle';
 import classes from './marketplace-view.module.css';
+
+/**
+ * A domain chip, a toggle, with its preview: a hover card that opens on hover and on focus
+ * (as the Radix HoverCard did), 300ms after, and closes 100ms after the
+ * pointer leaves both the chip and the card, or the chip loses focus.
+ */
+function DomainChip({ name, selected, onToggle, children }: { name: string; selected: boolean; onToggle: () => void; children: ReactNode }) {
+  const [opened, setOpened] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const later = (open: boolean, delay: number) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setOpened(open), delay);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const show = () => later(true, 300);
+  const hide = () => later(false, 100);
+  return (
+    // withRoles off: the chip stays a plain toggle, as under the Radix HoverCard
+    <Popover opened={opened} position="bottom-start" width={288} shadow="md" withRoles={false}>
+      <Popover.Target>
+        <Button
+          variant={selected ? 'default' : 'outline'}
+          size="sm"
+          type="button"
+          aria-pressed={selected}
+          onClick={onToggle}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          onFocus={show}
+          onBlur={hide}
+          className={classes.pill}
+        >
+          {name}
+        </Button>
+      </Popover.Target>
+      <Popover.Dropdown className={classes.domainCard} onMouseEnter={show} onMouseLeave={hide}>
+        {children}
+      </Popover.Dropdown>
+    </Popover>
+  );
+}
 
 /**
  * Marketplace (/marketplace) on the page kit (wave 2 Task 16): the greeting
@@ -593,20 +634,7 @@ export default function MarketplaceView() {
                   : null;
                 const selected = selectedDomainIds.includes(domain.id);
                 return (
-                  <HoverCard key={domain.id} openDelay={300} closeDelay={100} position="bottom-start" width={288} shadow="md">
-                    <HoverCard.Target>
-                      <Button
-                        variant={selected ? 'default' : 'outline'}
-                        size="sm"
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => toggleDomain(domain.id)}
-                        className={classes.pill}
-                      >
-                        {domain.name}
-                      </Button>
-                    </HoverCard.Target>
-                    <HoverCard.Dropdown className={classes.domainCard}>
+                  <DomainChip key={domain.id} name={domain.name} selected={selected} onToggle={() => toggleDomain(domain.id)}>
                       <div className={classes.domainHead}>
                         <Database aria-hidden className={classes.domainIcon} />
                         <div>
@@ -626,8 +654,7 @@ export default function MarketplaceView() {
                           {t('marketplace.domainInfo.childDomains', { count: domain.children_count })}
                         </p>
                       )}
-                    </HoverCard.Dropdown>
-                  </HoverCard>
+                  </DomainChip>
                 );
               })}
             </div>

@@ -201,8 +201,8 @@
       "subscriptions": "My Data"
     },
     "products": {
-      "available": "{{count}} product available",
-      "available_plural": "{{count}} products available",
+      "available_one": "{{count}} product available",
+      "available_other": "{{count}} products available",
       "subscribed": "{{count}} subscribed product",
       "subscribed_plural": "{{count}} subscribed products",
       "noProducts": "No data products found.",

@@ -230,6 +230,24 @@ describe('search on the page kit', () => {
     expect(tailwindIn(container)).toEqual([]);
   });
 
+  it('clicking the active tab leaves the URL, its query and the history as they were', async () => {
+    const user = userEvent.setup();
+    renderPage('/search/index?query=sales');
+    await screen.findByRole('link', { name: /Sales orders/ });
+    await waitFor(() => expect(location.search).toBe('?query=sales'));
+    const entries = window.history.length;
+    await user.click(screen.getByRole('tab', { name: 'Index Search' }));
+    expect(location.pathname).toBe('/search/index');
+    expect(location.search).toBe('?query=sales');
+    expect(window.history.length).toBe(entries);
+    // On Ask Ontos too: no duplicate entry
+    await user.click(screen.getByRole('tab', { name: 'Ask Ontos' }));
+    expect(location.pathname).toBe('/search/llm');
+    const onLlm = window.history.length;
+    await user.click(screen.getByRole('tab', { name: 'Ask Ontos' }));
+    expect(window.history.length).toBe(onLlm);
+  });
+
   it('the tab names use the short name from UI customization', async () => {
     useUICustomizationStore.setState({ appShortName: 'Nimbus' });
     renderPage();
@@ -392,6 +410,85 @@ describe('search on the page kit', () => {
 
     await user.click(off);
     expect(within(chat()).queryByRole('button', { name: 'Click to disable debug mode' })).toBeNull();
+  });
+
+  it('a send that answers after another session is picked stays out of that session', async () => {
+    let answer: (r: Response) => void = () => {};
+    const user = userEvent.setup();
+    renderPage();
+    const field = await screen.findByRole('textbox', { name: 'Ask a question about your data...' });
+    await user.type(field, 'Slow one');
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await within(log()).findByText('Thinking...');
+    // While it is on its way, open session s1
+    await user.click(within(await openHistory(user)).getByRole('button', { name: 'Customer data' }));
+    await within(log()).findByText('Where is customer data?');
+    const sessionsBefore = calls('/api/llm-search/sessions').length;
+    await act(async () => {
+      answer(json({ session_id: 's-other', message: { id: 'late', role: 'assistant', content: 'Late answer', timestamp: '2026-11-09T11:01:00Z' }, tool_calls_executed: 0, sources: [] }));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    // s1's log is as it was, and the next question goes to s1
+    expect(within(log()).queryByText('Late answer')).toBeNull();
+    expect(within(log()).queryByText('Slow one')).toBeNull();
+    expect(within(log()).getByText('Where is customer data?')).toBeInTheDocument();
+    // The history still learns of the sent conversation
+    await waitFor(() => expect(calls('/api/llm-search/sessions').length).toBe(sessionsBefore + 1));
+    await user.type(composer(), 'Next');
+    await user.keyboard('{Enter}');
+    await within(log()).findByText('Here you are. (Next)');
+    const last = calls('/api/llm-search/chat', 'POST').slice(-1)[0];
+    expect(JSON.parse(String(last[1]!.body))).toMatchObject({ content: 'Next', session_id: 's1' });
+  });
+
+  it('a send that fails after New Conversation shows no error there', async () => {
+    let answer: (r: Response) => void = () => {};
+    const user = userEvent.setup();
+    renderPage();
+    const field = await screen.findByRole('textbox', { name: 'Ask a question about your data...' });
+    await user.type(field, 'Doomed');
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await within(log()).findByText('Thinking...');
+    await user.click(within(await openHistory(user)).getByRole('button', { name: 'New Conversation' }));
+    await act(async () => {
+      answer(json({ detail: 'Too late' }, 500));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(within(chat()).queryByRole('alert')).toBeNull();
+    expect(within(log()).getByText('How can I help you today?')).toBeInTheDocument();
+  });
+
+  it('deleting a session that is loading, or failed to load, drops it', async () => {
+    const user = userEvent.setup();
+    heldSession = {};
+    renderPage();
+    // A pick still on its way, then its session is deleted
+    await user.click(within(await openHistory(user)).getByRole('button', { name: 'Customer data' }));
+    await waitFor(() => expect(heldSession!.release).toBeDefined());
+    const pending = heldSession!;
+    heldSession = null;
+    await user.click(within(await openHistory(user)).getByRole('button', { name: 'Delete conversation: Customer data' }));
+    await waitFor(() => expect(calls('/api/llm-search/sessions/s1', 'DELETE')).toHaveLength(1));
+    await act(async () => {
+      pending.release!();
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(within(log()).queryByText('Where is customer data?')).toBeNull();
+    expect(within(log()).getByText('How can I help you today?')).toBeInTheDocument();
+    cleanup();
+
+    // A failed load's Retry goes with its session
+    failing.add('/api/llm-search/sessions/s1');
+    renderPage();
+    await user.click(within(await openHistory(user)).getByRole('button', { name: 'Customer data' }));
+    expect(await within(log()).findByRole('alert')).toHaveTextContent('Failed to load session');
+    failing.delete('/api/llm-search/sessions/s1');
+    await user.click(within(await openHistory(user)).getByRole('button', { name: 'Delete conversation: Customer data' }));
+    await waitFor(() => expect(within(log()).queryByRole('alert')).toBeNull());
+    expect(within(log()).getByText('How can I help you today?')).toBeInTheDocument();
   });
 
   it('a session that answers after New Conversation is dropped', async () => {

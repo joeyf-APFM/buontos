@@ -201,8 +201,7 @@
       "subscriptions": "マイデータ"
     },
     "products": {
-      "available": "{{count}}個の製品が利用可能",
-      "available_plural": "{{count}}個の製品が利用可能",
+      "available_other": "{{count}}個の製品が利用可能",
       "subscribed": "{{count}}個の購読済み製品",
       "subscribed_plural": "{{count}}個の購読済み製品",
       "noProducts": "データ製品が見つかりません。",
