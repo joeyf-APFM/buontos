@@ -25,6 +25,31 @@
 5. **Warehouse size:** proposed the smallest serverless size, with auto-stop at 10 minutes.
 6. **The Lakebase branch id and warehouse name:** proposed `nucleus` and `nucleus-warehouse`.
 
+## Discovery (read-only, 2026-11-12)
+- **Deploy SHA:** `development` at `00f678d1` (pushed 2026-11-12).
+- **How prod deploys:**
+  - Prod does not deploy from the repo's `src/app.yaml`.
+  - It uses `Business Catalog/builder/ontos/deploy_apfm_ontos.sh`, which stages `git archive development src` and builds the frontend locally.
+  - It writes its own `apfm-ontos.app.yaml` into the stage, then creates and deploys as `apfm-ontos-sp` with a one-hour secret.
+  - Nucleus copies this as `deploy_nucleus.sh`, `nucleus.app.yaml` and `nucleus.app.json`, all in that private folder. The repo's own `src/app.yaml` hard-coding (Part B step 5) therefore doesn't block the preview; fix it separately.
+- **The Lakebase project is `projects/apfm-ontos`, not `ontos-db`.**
+  - It has one branch, `production` (1 of 10), with endpoint `primary` and database `databricks-postgres`, schema `app_ontos`.
+- **apfm-ontos resources:**
+  - `sql-warehouse` 89da3b647c7cf4c6: serverless PRO, 2X-Small, 1–2 clusters, auto-stop 10 minutes.
+  - `volume` insights.ontos.ontos (WRITE_VOLUME).
+  - `postgres` on the production branch.
+  - `model` system.ai.claude-opus-5-5 (EXECUTE).
+  - The app is MEDIUM compute, and its app SP client is 37371d92-….
+- **`user_api_scopes`:** none are declared. The effective scopes are only the defaults (`iam.access-control:read`, `iam.current-user:read`), so there are no scope changes to match.
+- **apfm-ontos permissions:** DataServicesAdmins, brian.flynn, admins and apfm-ontos-sp, all CAN_MANAGE.
+- **Groups:** `NucleusOntosReviewers` doesn't exist yet. `DataServicesAdmins` exists (id 1035283667777802).
+- **The app name `nucleus` is free.**
+- **Env differences in prod's app.yaml to carry over:**
+  - `APP_ADMIN_DEFAULT_GROUPS=["DataServicesAdmins"]`;
+  - `DATABRICKS_CATALOG=insights` and `DATABRICKS_SCHEMA=ontos`;
+  - `LLM_ENDPOINT` from `model`, plus `LLM_BASE_URL` on the AI gateway;
+  - `SKIP_FRONTEND_BUILD=1`.
+
 ## Steps
 
 ### Part A: Code first. The app deploys only from code that's in the repo.
