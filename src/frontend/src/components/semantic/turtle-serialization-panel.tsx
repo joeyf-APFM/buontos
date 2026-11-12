@@ -2,7 +2,7 @@
  * Read-only Turtle serialization viewer for a concept's RDF triples.
  * Advanced view only. Fetches triples via SPARQL query and displays as Turtle syntax.
  */
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionIcon, Alert, Loader } from '@mantine/core';
 import { useApi } from '@/hooks/use-api';
@@ -24,7 +24,6 @@ export function TurtleSerializationPanel({ conceptIri }: TurtleSerializationPane
   const [turtleText, setTurtleText] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const titleId = useId();
   // Retry bumps it, to fetch again
   const [attempt, setAttempt] = useState(0);
 
@@ -114,9 +113,9 @@ export function TurtleSerializationPanel({ conceptIri }: TurtleSerializationPane
 
   // A flush panel (components/common/panel.module.css): the page's Pane frames it
   return (
-    <div className={panel.pane} data-flush aria-labelledby={titleId}>
+    <div className={panel.pane} data-flush>
       <div className={panel.head}>
-        <h3 id={titleId} className={panel.title}>
+        <h3 className={panel.title}>
           {t('semantic-models:advanced.turtle', 'RDF (Turtle)')}
         </h3>
         {!loading && !error && turtleText && (

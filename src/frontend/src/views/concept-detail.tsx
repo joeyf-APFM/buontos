@@ -60,6 +60,9 @@ import classes from './concept-detail.module.css';
 // linked objects a concept has.
 const MAX_VISIBLE_ROWS = 10;
 
+// The detail of the backend's 404 for an IRI it doesn't know
+const CONCEPT_NOT_FOUND = 'Concept not found';
+
 // Lifecycle transitions valid from each status, mirroring the backend
 // VALID_TRANSITIONS (semantic_models_manager). Each maps to a by-iri action
 // endpoint. draft->under_review is "submit-review"; the rest match their verb.
@@ -249,8 +252,10 @@ export default function ConceptDetailView() {
         `/api/semantic-models/concepts/by-iri?iri=${encodeURIComponent(conceptIri)}`,
       );
       if (seq !== loadSeq.current) return;
-      // A 404 ("Concept not found") or an answer without one: nothing to retry
-      if ((res.error && /not found/i.test(res.error)) || (!res.error && !res.data?.concept)) {
+      // The backend's own 404 detail (semantic_models_routes.py), or an answer
+      // without a concept: nothing to retry. useApi gives no status, and any
+      // other error (a generic "Not Found" from an unrouted path) keeps Retry.
+      if (res.error === CONCEPT_NOT_FOUND || (!res.error && !res.data?.concept)) {
         setNotFound(true);
         setConcept(null);
         return;

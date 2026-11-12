@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Loader, UnstyledButton } from '@mantine/core';
 import { AlertCircle, History } from 'lucide-react';
@@ -173,7 +173,6 @@ export function VersionHistoryPanel({
   );
 
   const title = t('semantic-models:versionHistory.title', 'Version history');
-  const titleId = useId();
 
   // Newest-first. is_current entry sorts to the top regardless of ordering.
   // Computed unconditionally (empty when not loaded) so the pagination hook
@@ -191,9 +190,9 @@ export function VersionHistoryPanel({
 
   // A flush panel (components/common/panel.module.css): the page's Pane frames it
   const frame = (body: ReactNode) => (
-    <div className={panel.pane} data-flush aria-labelledby={titleId}>
+    <div className={panel.pane} data-flush>
       <div className={panel.head}>
-        <h3 id={titleId} className={panel.title}>
+        <h3 className={panel.title}>
           <History aria-hidden />
           {title}
         </h3>

@@ -77,6 +77,7 @@ const VERSIONS = {
 let fetchMock: ReturnType<typeof vi.fn>;
 let current: Record<string, unknown> | null = concept();
 let conceptStatus = 200;
+let conceptDetail = 'The graph store is down';
 let editable = true;
 let links: unknown[] = LINKS;
 let neighbors: unknown[] = NEIGHBORS;
@@ -87,7 +88,7 @@ function mockBackend() {
     const method = init?.method ?? 'GET';
     switch (url.pathname) {
       case '/api/semantic-models/concepts/by-iri':
-        if (conceptStatus !== 200) return json({ detail: 'The graph store is down' }, conceptStatus);
+        if (conceptStatus !== 200) return json({ detail: conceptDetail }, conceptStatus);
         return json(current ? { concept: current } : {});
       case '/api/knowledge/collections':
         return json({ collections: [{ iri: SCHEME, label: 'Sales Glossary', is_editable: editable, source_key: SCHEME, child_collections: [] }] });
@@ -175,6 +176,7 @@ function expectNoOldMarkup(root: HTMLElement) {
 beforeEach(() => {
   current = concept();
   conceptStatus = 200;
+  conceptDetail = 'The graph store is down';
   editable = true;
   links = LINKS;
   neighbors = NEIGHBORS;
@@ -385,6 +387,28 @@ describe('concept-detail states (Review Focus 2)', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Back to Concepts' }));
     expect(location.pathname).toBe('/concepts/browser');
+  });
+
+  // Review fix round 1, finding 3: only the backend's own "Concept not found"
+  // is a missing concept; another 404 (an unrouted path mid-deploy) keeps Retry
+  it('the backend\'s 404 "Concept not found" is the notice, with no Retry', async () => {
+    conceptStatus = 404;
+    conceptDetail = 'Concept not found';
+    renderPage();
+    expect(await screen.findByText('Concept not found')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it('a generic 404 "Not Found" is a failed load, with Retry', async () => {
+    const user = userEvent.setup();
+    conceptStatus = 404;
+    conceptDetail = 'Not Found';
+    renderPage();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Not Found');
+    conceptStatus = 200;
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await loaded();
   });
 
   it('empty sections keep their text and their actions', async () => {

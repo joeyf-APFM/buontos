@@ -27,7 +27,7 @@ interface ConceptRelationsPanelProps {
   conceptIri: string
   onNavigate: (iri: string) => void
   // When set, the relations list scrolls internally past this row count
-  // instead of growing the page (rows are ~32px high).
+  // instead of growing the page (rows are 28px high).
   maxVisibleRows?: number
   // Optional cap on how many neighbours to fetch from the backend.
   fetchLimit?: number
@@ -118,7 +118,7 @@ export default function ConceptRelationsPanel({
   const titleId = useId()
   const bodyId = useId()
 
-  const ROW_HEIGHT_PX = 32
+  const ROW_HEIGHT_PX = 28
   const listMaxHeight = maxVisibleRows
     ? { maxHeight: ROW_HEIGHT_PX * maxVisibleRows }
     : undefined

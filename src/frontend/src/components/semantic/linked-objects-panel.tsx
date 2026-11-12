@@ -54,7 +54,7 @@ interface LinkedObjectsPanelProps {
   canAssign: boolean
   onChanged?: () => void
   // When set, the linked-objects list scrolls internally past this row
-  // count instead of growing the page (rows are ~32px high).
+  // count instead of growing the page (rows are 28px high).
   maxVisibleRows?: number
 }
 
@@ -98,7 +98,7 @@ export default function LinkedObjectsPanel({
   onChanged,
   maxVisibleRows,
 }: LinkedObjectsPanelProps) {
-  const ROW_HEIGHT_PX = 32
+  const ROW_HEIGHT_PX = 28
   const listMaxHeight = maxVisibleRows
     ? { maxHeight: ROW_HEIGHT_PX * maxVisibleRows }
     : undefined
@@ -111,7 +111,6 @@ export default function LinkedObjectsPanel({
   const [links, setLinks] = useState<EnrichedSemanticLink[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [open, setOpen] = useState(true)
-  const titleId = useId()
   const bodyId = useId()
   const addButtonRef = useRef<HTMLButtonElement>(null)
   // Where focus goes once the remove confirm has closed: its opener (the
@@ -236,13 +235,20 @@ export default function LinkedObjectsPanel({
     fetchLinks()
   }, [fetchLinks])
 
+  // Each entity-type load's turn: an answer for a type the user has moved on
+  // from is dropped, so the list never offers another type's entities
+  const entitiesSeq = useRef(0)
   const loadEntitiesForType = useCallback(
     async (entityType: string) => {
+      const seq = ++entitiesSeq.current
+      const keep = (entities: typeof availableEntities) => {
+        if (seq === entitiesSeq.current) setAvailableEntities(entities)
+      }
       try {
         if (entityType === 'asset') {
           // /api/assets returns a PaginatedAssetSummary { items, total, ... }
           const res = await get<{ items: any[] }>('/api/assets?limit=500')
-          setAvailableEntities(Array.isArray(res.data?.items) ? res.data.items : [])
+          keep(Array.isArray(res.data?.items) ? res.data.items : [])
           return
         }
 
@@ -255,14 +261,14 @@ export default function LinkedObjectsPanel({
             endpoint = '/api/data-contracts'
             break
           default:
-            setAvailableEntities([])
+            keep([])
             return
         }
         const res = await get<any[]>(endpoint)
-        setAvailableEntities(Array.isArray(res.data) ? res.data : [])
+        keep(Array.isArray(res.data) ? res.data : [])
       } catch (error) {
         console.error('LinkedObjectsPanel: failed to load entities for', entityType, error)
-        setAvailableEntities([])
+        keep([])
       }
     },
     [get]
@@ -271,6 +277,8 @@ export default function LinkedObjectsPanel({
   const handleEntityTypeChange = (entityType: string) => {
     setSelectedEntityType(entityType)
     setSelectedEntityId('')
+    // The last type's entities go at once, not when the new answer lands
+    setAvailableEntities([])
     loadEntitiesForType(entityType)
   }
 
@@ -561,9 +569,9 @@ export default function LinkedObjectsPanel({
 
   return (
     <>
-      <div className={panel.pane} data-flush aria-labelledby={titleId}>
+      <div className={panel.pane} data-flush>
         <div className={panel.head}>
-          <h3 id={titleId} className={panel.title}>
+          <h3 className={panel.title}>
             <UnstyledButton
               className={classes.fold}
               aria-expanded={open}

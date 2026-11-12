@@ -16,6 +16,7 @@ import { RequestConceptActionDialog } from '@/components/concepts/request-concep
 import { PublishVersionDialog } from './publish-version-dialog';
 import { DeprecateConceptDialog } from './deprecate-concept-dialog';
 import ConceptSelectDialog from './concept-select-dialog';
+import LinkedObjectsPanel from './linked-objects-panel';
 
 const { toast, get, post } = vi.hoisted(() => ({ toast: vi.fn(), get: vi.fn(), post: vi.fn() }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
@@ -241,5 +242,64 @@ describe('ConceptSelectDialog on the kit', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Select Business Concept' });
     await user.click((await within(dialog).findAllByRole('button', { name: 'Select' }))[0]);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add more' })).toHaveFocus());
+  });
+});
+
+// Review fix round 1, finding 1: the Add dialog's entity list follows the
+// entity type picked last; an answer for a type left behind is dropped
+describe('LinkedObjectsPanel Add dialog entity list', () => {
+  type Answer = { data: unknown };
+  let pending: Record<string, (answer: Answer) => void>;
+  beforeEach(() => {
+    pending = {};
+    get.mockImplementation((url: string) => {
+      if (url === '/api/data-products' || url.startsWith('/api/assets?')) {
+        return new Promise<Answer>((resolve) => { pending[url.startsWith('/api/assets') ? 'assets' : 'products'] = resolve; });
+      }
+      return Promise.resolve({ data: [] });
+    });
+  });
+
+  const PRODUCTS = { data: [{ id: 'p1', name: 'Sales orders' }] };
+  const ASSETS = { data: { items: [{ id: 'a1', name: 'customers_table', asset_type_name: 'Table' }] } };
+
+  async function openAdd(user: ReturnType<typeof userEvent.setup>) {
+    renderWithMantine(<LinkedObjectsPanel conceptIri={IRI} conceptLabel="Customer" canAssign />);
+    await user.click(await screen.findByRole('button', { name: 'Add' }));
+    return screen.findByRole('dialog', { name: 'search:concepts.assignDialog.title' }).catch(() => screen.findByRole('dialog'));
+  }
+
+  it('clears the list when the type changes, before the new answer', async () => {
+    const user = userEvent.setup();
+    const dialog = await openAdd(user);
+    const type = selectField(dialog, /Entity Type|entityType/);
+    await pick(user, type, /Data Product|dataProduct/);
+    await waitFor(() => expect(pending.products).toBeDefined());
+    pending.products(PRODUCTS);
+    const products = selectField(dialog, /Data Product|dataProduct/);
+    await waitFor(async () => expect(await optionNames(user, products)).toEqual(['Sales orders']));
+
+    await pick(user, type, /^Asset$|assignDialog.asset/);
+    await waitFor(() => expect(pending.assets).toBeDefined());
+    // The assets haven't answered: no product is offered under "Asset"
+    const assets = selectField(dialog, /^Asset$|assignDialog.asset/);
+    expect(await optionNames(user, assets)).toEqual([]);
+  });
+
+  it('drops the answer for a type left behind', async () => {
+    const user = userEvent.setup();
+    const dialog = await openAdd(user);
+    const type = selectField(dialog, /Entity Type|entityType/);
+    await pick(user, type, /Data Product|dataProduct/);
+    await waitFor(() => expect(pending.products).toBeDefined());
+    await pick(user, type, /^Asset$|assignDialog.asset/);
+    await waitFor(() => expect(pending.assets).toBeDefined());
+    // The assets answer first, then the slower products
+    pending.assets(ASSETS);
+    const assets = selectField(dialog, /^Asset$|assignDialog.asset/);
+    await waitFor(async () => expect(await optionNames(user, assets)).toEqual(['customers_table· Table']));
+    pending.products(PRODUCTS);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await optionNames(user, assets)).toEqual(['customers_table· Table']);
   });
 });
