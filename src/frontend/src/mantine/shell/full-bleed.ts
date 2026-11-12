@@ -40,6 +40,8 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   '/my-requests',
   '/business-owners',
   '/owner-consumers',
+  // Marketplace (its panes stacked at their own height)
+  '/marketplace',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

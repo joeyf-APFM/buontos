@@ -247,11 +247,13 @@
       "one": "1 pro Zeile",
       "two": "2 pro Zeile",
       "three": "3 pro Zeile",
-      "four": "4 pro Zeile"
+      "four": "4 pro Zeile",
+      "label": "Kacheln pro Zeile"
     },
     "scopeFilter": {
       "placeholder": "Geltungsbereich",
-      "all": "Alle Geltungsbereiche"
+      "all": "Alle Geltungsbereiche",
+      "label": "Veröffentlichungsbereich"
     },
     "openInDetails": "In Detailansicht öffnen",
     "loadError": "Produkte konnten nicht geladen werden"

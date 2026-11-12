@@ -247,11 +247,13 @@
       "one": "1 per riga",
       "two": "2 per riga",
       "three": "3 per riga",
-      "four": "4 per riga"
+      "four": "4 per riga",
+      "label": "Riquadri per riga"
     },
     "scopeFilter": {
       "placeholder": "Ambito",
-      "all": "Tutti gli ambiti"
+      "all": "Tutti gli ambiti",
+      "label": "Ambito di pubblicazione"
     },
     "openInDetails": "Apri nella vista dettagliata",
     "loadError": "Impossibile caricare i prodotti"

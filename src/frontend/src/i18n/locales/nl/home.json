@@ -247,11 +247,13 @@
       "one": "1 per rij",
       "two": "2 per rij",
       "three": "3 per rij",
-      "four": "4 per rij"
+      "four": "4 per rij",
+      "label": "Tegels per rij"
     },
     "scopeFilter": {
       "placeholder": "Bereik",
-      "all": "Alle Bereiken"
+      "all": "Alle Bereiken",
+      "label": "Publicatiebereik"
     },
     "openInDetails": "Openen in detailweergave",
     "loadError": "Laden van producten mislukt"

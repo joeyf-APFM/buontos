@@ -247,11 +247,13 @@
       "one": "1列",
       "two": "2列",
       "three": "3列",
-      "four": "4列"
+      "four": "4列",
+      "label": "1行あたりのタイル数"
     },
     "scopeFilter": {
       "placeholder": "スコープ",
-      "all": "すべてのスコープ"
+      "all": "すべてのスコープ",
+      "label": "公開範囲"
     },
     "openInDetails": "詳細ビューで開く",
     "loadError": "製品の読み込みに失敗しました"

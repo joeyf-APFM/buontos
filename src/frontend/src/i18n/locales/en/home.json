@@ -247,11 +247,13 @@
       "one": "1 per row",
       "two": "2 per row",
       "three": "3 per row",
-      "four": "4 per row"
+      "four": "4 per row",
+      "label": "Tiles per row"
     },
     "scopeFilter": {
       "placeholder": "Scope",
-      "all": "All Scopes"
+      "all": "All Scopes",
+      "label": "Publication scope"
     },
     "openInDetails": "Open in details view",
     "loadError": "Failed to load products"

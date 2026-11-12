@@ -247,11 +247,13 @@
       "one": "1 por linha",
       "two": "2 por linha",
       "three": "3 por linha",
-      "four": "4 por linha"
+      "four": "4 por linha",
+      "label": "Blocos por linha"
     },
     "scopeFilter": {
       "placeholder": "Escopo",
-      "all": "Todos os escopos"
+      "all": "Todos os escopos",
+      "label": "Escopo de publicação"
     },
     "openInDetails": "Abrir na visualização de detalhes",
     "loadError": "Falha ao carregar produtos"
