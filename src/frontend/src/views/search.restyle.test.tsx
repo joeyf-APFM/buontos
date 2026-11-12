@@ -526,6 +526,9 @@ describe('search on the page kit', () => {
     renderPage();
     const alert = await within(log()).findByRole('alert');
     expect(alert).toHaveTextContent('Failed to load LLM search. Please try again later.');
+    // Its own title, not the details' (final review, Minor 4)
+    expect(alert).toHaveTextContent('Could not load Ask Ontos.');
+    expect(alert).not.toHaveTextContent('Could not load the details.');
     expect(consoleError).toHaveBeenCalledWith('Failed to load LLM search data:', expect.any(Error));
     consoleError.mockRestore();
     failing.delete('/api/llm-search/status');
@@ -537,6 +540,8 @@ describe('search on the page kit', () => {
     failing.add('/api/llm-search/sessions/s1');
     await user.click(within(await openHistory(user)).getByRole('button', { name: 'Customer data' }));
     expect(await within(log()).findByRole('alert')).toHaveTextContent('Failed to load session');
+    expect(within(log()).getByRole('alert')).toHaveTextContent('Could not load the conversation.');
+    expect(within(log()).getByRole('alert')).not.toHaveTextContent('Could not load the details.');
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive', description: 'Failed to load session' }));
     failing.delete('/api/llm-search/sessions/s1');
     await user.click(within(log()).getByRole('button', { name: 'Retry' }));

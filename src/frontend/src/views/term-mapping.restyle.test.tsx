@@ -293,6 +293,9 @@ describe('term-mapping Review Focus 2: empty and error states', () => {
     renderPage();
     const alert = await within(runsPane()).findByRole('alert');
     expect(alert).toHaveTextContent('Runs exploded');
+    // Its own title, not the details' (final review, Minor 4)
+    expect(alert).toHaveTextContent('Could not load the runs.');
+    expect(alert).not.toHaveTextContent('Could not load the details.');
     expect(within(runsPane()).queryByText(/No runs yet/)).toBeNull();
     expect(screen.getByRole('button', { name: 'New run' })).toBeInTheDocument();
     runs = { status: 200, body: [RUN_A] };

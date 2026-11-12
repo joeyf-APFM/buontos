@@ -384,7 +384,7 @@ export default function TermMappingView() {
     >
       <Pane title={t('recent.title')} className={classes.runsPane}>
         {runsError ? (
-          <LoadError error={runsError} onRetry={() => void fetchRuns()} />
+          <LoadError error={runsError} onRetry={() => void fetchRuns()} title={t('recent.loadFailed')} />
         ) : runsLoading && runs.length === 0 ? (
           <div className={classes.state}>
             <Loader size="sm" />

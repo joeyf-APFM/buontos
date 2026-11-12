@@ -464,7 +464,7 @@ export default function KGSearch({
         </div>
 
         {pathError !== null ? (
-          <LoadError error={pathError} onRetry={() => setPathNonce((n) => n + 1)} />
+          <LoadError error={pathError} onRetry={() => setPathNonce((n) => n + 1)} title={t('search:kg.pathLoadFailed')} />
         ) : (
           <>
             <div className={classes.list}>

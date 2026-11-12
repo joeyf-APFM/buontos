@@ -15,7 +15,8 @@
     "loading": "Loading runs…",
     "empty": "No runs yet. Start one with <strong>New run</strong>.",
     "noComment": "—",
-    "suggestionsCount": "{{count}} suggestions"
+    "suggestionsCount": "{{count}} suggestions",
+    "loadFailed": "Could not load the runs."
   },
   "runResult": {
     "title": "Run complete",

@@ -112,8 +112,11 @@ export function SearchPane({
   );
 }
 
-/** A failed load of the selected item's details: the error, then Retry. */
-export function LoadError({ error, onRetry }: { error: string; onRetry: () => void }) {
+/**
+ * A failed load: the error, then Retry. The title says what failed to load,
+ * by default the selected item's details.
+ */
+export function LoadError({ error, onRetry, title }: { error: string; onRetry: () => void; title?: string }) {
   const { t } = useTranslation(['search', 'common']);
   return (
     <div className={classes.state}>
@@ -121,7 +124,7 @@ export function LoadError({ error, onRetry }: { error: string; onRetry: () => vo
         color="red"
         variant="light"
         icon={<AlertCircle />}
-        title={t('search:states.loadFailed', 'Could not load the details.')}
+        title={title ?? t('search:states.loadFailed', 'Could not load the details.')}
         className={classes.alert}
       >
         {error && <span className={classes.alertMessage}>{error}</span>}

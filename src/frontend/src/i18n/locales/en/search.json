@@ -45,6 +45,7 @@
     "startPath": "Start path",
     "pathExplorer": "Path Explorer",
     "pathExplorerDesc": "Click objects to extend the path horizontally.",
+    "pathLoadFailed": "Could not load the path.",
     "directionFilter": "Direction Filter",
     "everything": "Everything",
     "incomingOnly": "Incoming Only",
@@ -193,8 +194,10 @@
       "sessionDeleted": "Session deleted",
       "sessionDeletedDesc": "The conversation has been removed.",
       "loadSessionFailed": "Failed to load session",
+      "loadSessionFailedTitle": "Could not load the conversation.",
       "deleteSessionFailed": "Failed to delete session",
-      "loadFailed": "Failed to load LLM search. Please try again later."
+      "loadFailed": "Failed to load LLM search. Please try again later.",
+      "loadFailedTitle": "Could not load Ask Ontos."
     },
     "debug": {
       "title": "Debug",

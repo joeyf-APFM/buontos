@@ -600,7 +600,9 @@ describe('concepts-search empty, no-results and error states keep their actions'
     failing.add('/api/semantic-models/neighbors');
     await user.click(within(prefix).getByRole('button', { name: 'Start path' }));
     const path = pane('Path Explorer');
-    expect(await within(path).findByRole('alert')).toHaveTextContent('Could not load the details.');
+    // Its own title, not the details' (final review, Minor 4)
+    expect(await within(path).findByRole('alert')).toHaveTextContent('Could not load the path.');
+    expect(within(path).getByRole('alert')).not.toHaveTextContent('Could not load the details.');
     expect(within(path).queryByText('No outgoing links for current selection.')).toBeNull();
     failing.delete('/api/semantic-models/neighbors');
     await user.click(within(path).getByRole('button', { name: 'Retry' }));

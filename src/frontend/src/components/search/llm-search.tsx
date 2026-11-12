@@ -751,9 +751,17 @@ export default function LLMSearch() {
           {/* Messages: they scroll here, so the composer and the page header stay in view */}
           <div ref={logRef} role="log" aria-label={t('search:llm.messagesLabel')} className={classes.log} tabIndex={0}>
             {loadFailed ? (
-              <LoadError error={t('search:llm.messages.loadFailed')} onRetry={() => { setLoadFailed(false); setLoadAttempt((n) => n + 1); }} />
+              <LoadError
+                error={t('search:llm.messages.loadFailed')}
+                onRetry={() => { setLoadFailed(false); setLoadAttempt((n) => n + 1); }}
+                title={t('search:llm.messages.loadFailedTitle')}
+              />
             ) : failedSessionId ? (
-              <LoadError error={t('search:llm.messages.loadSessionFailed')} onRetry={() => handleSelectSession(failedSessionId)} />
+              <LoadError
+                error={t('search:llm.messages.loadSessionFailed')}
+                onRetry={() => handleSelectSession(failedSessionId)}
+                title={t('search:llm.messages.loadSessionFailedTitle')}
+              />
             ) : messages.length === 0 ? (
               <div className={classes.welcome}>
                 <div className={classes.welcomeIcon}>
