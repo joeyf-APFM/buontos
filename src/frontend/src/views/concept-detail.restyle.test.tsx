@@ -126,9 +126,9 @@ const calls = () =>
     return `${(init as RequestInit | undefined)?.method ?? 'GET'} ${url.pathname}`;
   });
 
-function grant(level: FeatureAccessLevel) {
+function grant(level: FeatureAccessLevel, others: Record<string, FeatureAccessLevel> = {}) {
   usePermissionsStore.setState({
-    permissions: { 'semantic-models': level, 'data-domains': level },
+    permissions: { 'semantic-models': level, 'data-domains': level, 'business-owners': level, ...others },
     appliedRoleId: null,
     isLoading: false,
     _initAttempted: true,
@@ -343,6 +343,22 @@ describe('concept-detail keeps every control', () => {
     expect(within(linked).queryByRole('button', { name: 'Remove linked entity' })).toBeNull();
     expect(screen.getByTestId('ownership')).toHaveTextContent('read');
     expect(screen.getByTestId('metadata')).toHaveTextContent('read');
+  });
+
+  // Ruling R66: the owner routes check business-owners write
+  it('Assign Owner needs business-owners write as well as semantic-models', async () => {
+    grant(FeatureAccessLevel.READ_WRITE, { 'business-owners': FeatureAccessLevel.READ_ONLY });
+    renderPage();
+    await loaded();
+    expect(screen.getByTestId('ownership')).toHaveTextContent('read');
+    // The rest of the page keeps its writes
+    expect(within(pane('Linked Entities')).getByRole('button', { name: 'Add' })).toBeInTheDocument();
+    cleanup();
+
+    grant(FeatureAccessLevel.READ_ONLY, { 'business-owners': FeatureAccessLevel.READ_WRITE });
+    renderPage();
+    await loaded();
+    expect(screen.getByTestId('ownership')).toHaveTextContent('read');
   });
 
   it('a published concept in a read-only scheme offers no lifecycle and shows the versioning note', async () => {

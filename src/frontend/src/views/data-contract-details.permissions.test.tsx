@@ -63,8 +63,8 @@ function mockBackend(contract: Record<string, unknown>) {
 }
 
 const { READ_ONLY: RO, READ_WRITE: RW, ADMIN } = FeatureAccessLevel;
-type Levels = { contracts: FeatureAccessLevel; products: FeatureAccessLevel; semantic: FeatureAccessLevel; domains: FeatureAccessLevel };
-const same = (level: FeatureAccessLevel): Levels => ({ contracts: level, products: level, semantic: level, domains: level });
+type Levels = { contracts: FeatureAccessLevel; products: FeatureAccessLevel; semantic: FeatureAccessLevel; domains: FeatureAccessLevel; owners: FeatureAccessLevel };
+const same = (level: FeatureAccessLevel): Levels => ({ contracts: level, products: level, semantic: level, domains: level, owners: level });
 
 // Each persona's level on the features the page's actions write
 const PERSONAS = {
@@ -79,6 +79,8 @@ const PERSONAS = {
   domainReader: { ...same(RW), domains: RO },
   // The concept links need semantic-models
   semanticReader: { ...same(RW), semantic: RO },
+  // Assign Owner needs business-owners (R66)
+  ownersReader: { ...same(RW), owners: RO },
 } satisfies Record<string, Levels>;
 type Persona = keyof typeof PERSONAS;
 
@@ -88,6 +90,7 @@ function signIn(persona: Persona) {
     permissions: {
       'data-contracts': levels.contracts, 'data-products': levels.products,
       'semantic-models': levels.semantic, 'data-domains': levels.domains,
+      'business-owners': levels.owners,
     },
     availableRoles: persona === 'approver'
       ? [{ id: 'r-1', name: 'Steward', assigned_groups: ['stewards'], feature_permissions: {}, approval_privileges: { CONTRACTS: true } } as never]
@@ -293,6 +296,13 @@ describe('data contract details permission gates', () => {
     await open('approver', status);
     await waitFor(() => expect(within(header()).getByRole('button', { name: 'Approve' })).toBeEnabled());
     expect(within(header()).getByRole('button', { name: 'Reject' })).toBeEnabled();
+  });
+
+  it('data contract permissions: a contracts writer read-only on business-owners gets no Assign Owner (R66)', async () => {
+    await open('ownersReader', 'draft');
+    expect(within(region('Owners')).queryByRole('button', { name: 'Assign Owner' })).toBeNull();
+    // The contract itself stays editable in place
+    expect(button(header(), 'Edit Metadata')[0]).toBeEnabled();
   });
 
   it('data contract permissions: an admin without the approval privilege gets no Approve or Reject', async () => {

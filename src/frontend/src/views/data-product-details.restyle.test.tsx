@@ -69,7 +69,7 @@ function mockBackend(product: unknown = PRODUCT, status = 200) {
 
 function grant(level: FeatureAccessLevel, approver = false, others: Record<string, FeatureAccessLevel> = {}) {
   usePermissionsStore.setState({
-    permissions: { 'data-products': level, 'semantic-models': level, 'data-domains': level, ...others },
+    permissions: { 'data-products': level, 'semantic-models': level, 'data-domains': level, 'business-owners': level, ...others },
     availableRoles: approver
       ? [{ id: 'r-1', name: 'Approver', assigned_groups: ['admins'], feature_permissions: {}, approval_privileges: { PRODUCTS: true } } as never]
       : [],
@@ -331,6 +331,33 @@ describe('data product details on the page kit', () => {
     renderPage();
     await loaded();
     expect(within(screen.getByRole('region', { name: 'Details' })).getByRole('button', { name: 'Add' })).toBeEnabled();
+  });
+
+  // Ruling R66: the owner routes check business-owners write
+  it('data product details: Assign Owner needs business-owners write as well', async () => {
+    const owners = () => screen.getAllByRole('region', { name: 'Owners' })[0];
+    localStorage.setItem('data-product-view-mode', 'large');
+    // A products writer read-only on business-owners
+    grant(FeatureAccessLevel.READ_WRITE, false, { 'business-owners': FeatureAccessLevel.READ_ONLY });
+    renderPage();
+    await loaded();
+    await within(owners()).findByText('No owners assigned');
+    expect(within(owners()).queryByRole('button', { name: 'Assign Owner' })).toBeNull();
+    cleanup();
+
+    // A reader: none
+    grant(FeatureAccessLevel.READ_ONLY);
+    renderPage();
+    await loaded();
+    await within(owners()).findByText('No owners assigned');
+    expect(within(owners()).queryByRole('button', { name: 'Assign Owner' })).toBeNull();
+    cleanup();
+
+    // An admin (business-owners write too): Assign Owner
+    grant(FeatureAccessLevel.ADMIN);
+    renderPage();
+    await loaded();
+    expect(await within(owners()).findByRole('button', { name: 'Assign Owner' })).toBeEnabled();
   });
 
   it('data product details: the shared panels sit flush in untitled panes', async () => {

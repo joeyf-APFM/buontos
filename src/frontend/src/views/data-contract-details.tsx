@@ -322,6 +322,9 @@ export default function DataContractDetails() {
     !permissionsLoading && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE)
   const canWriteSemantic =
     !permissionsLoading && hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE)
+  // The owner routes check business-owners (R66)
+  const canWriteOwners =
+    !permissionsLoading && hasPermission('business-owners', FeatureAccessLevel.READ_WRITE)
   const canEditPanels = canWriteContracts && canWriteDomains
   // Linking or creating a product writes the product
   const canWriteProducts =
@@ -2704,7 +2707,7 @@ export default function DataContractDetails() {
                   flush
                   objectType="data_contract"
                   objectId={contract.id}
-                  canAssign={canEditInPlace}
+                  canAssign={canEditInPlace && canWriteOwners}
                   importedContacts={contract.team?.map((m) => ({
                     username: m.username,
                     name: m.name,

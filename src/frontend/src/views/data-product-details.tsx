@@ -544,6 +544,8 @@ export default function DataProductDetails() {
   // The notes, costs and quality routes check data-domains; concept links check semantic-models
   const canWriteDomains = !permissionsLoading && hasPermission('data-domains', Settings.FeatureAccessLevel.READ_WRITE);
   const canWriteSemantic = !permissionsLoading && hasPermission('semantic-models', Settings.FeatureAccessLevel.READ_WRITE);
+  // The owner routes check business-owners (R66)
+  const canWriteOwners = !permissionsLoading && hasPermission('business-owners', Settings.FeatureAccessLevel.READ_WRITE);
   const canEditPanels = canWrite && canWriteDomains;
 
   const canApproveProductLifecycle = userHasApprovalPrivilege(
@@ -2079,7 +2081,7 @@ export default function DataProductDetails() {
                   flush
                   objectType="data_product"
                   objectId={productId!}
-                  canAssign={canModify}
+                  canAssign={canModify && canWriteOwners}
                   importedContacts={product.team?.members?.map((m) => ({
                     username: m.username,
                     name: m.name,

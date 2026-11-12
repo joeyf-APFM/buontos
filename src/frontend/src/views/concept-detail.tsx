@@ -179,6 +179,8 @@ export default function ConceptDetailView() {
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
   // The metadata routes check data-domains
   const canWriteDomains = hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
+  // The owner routes check business-owners (R66)
+  const canWriteOwners = hasPermission('business-owners', FeatureAccessLevel.READ_WRITE);
 
   const [concept, setConcept] = useState<OntologyConcept | null>(null);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
@@ -980,7 +982,7 @@ export default function ConceptDetailView() {
 
           <Pane aria-label={t('business-owners:panel.title', 'Owners')}>
             <div data-panel="ownership">
-              <OwnershipPanel flush objectType="business_term" objectId={concept.iri} canAssign={canLinkEntities} />
+              <OwnershipPanel flush objectType="business_term" objectId={concept.iri} canAssign={canLinkEntities && canWriteOwners} />
             </div>
           </Pane>
 
