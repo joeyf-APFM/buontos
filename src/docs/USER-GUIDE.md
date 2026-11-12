@@ -2812,6 +2812,29 @@ Each feature has permission levels:
 - **Read/Write**: Full CRUD operations
 - **Admin**: Full access including configuration
 
+### Troubleshooting: "I can open Ontos but see no assets"
+
+**What you see:** the Asset Explorer shows 0 next to every type, and lists say "Nothing here yet", while colleagues see the same catalog full.
+
+**Why:** being allowed to open the app and having an Ontos role are separate.
+- Access to the Databricks app (CAN_USE) only lets you in.
+- What you see inside comes from the Ontos role your groups map to.
+- Only users whose role has **Assets** at **Read/Write** or higher see every asset.
+- Everyone else, including users with no role at all, sees only the assets linked to Data Products they can access. With none of those, every count is 0.
+- Members of the app's default admin groups are admins automatically. Other groups get nothing until they're added to a role.
+
+**Check:** open your profile icon (top right) → **My Profile**. Your assigned roles and effective permissions are listed there. If no role is listed, or Assets is below Read/Write, this is the cause.
+
+**Fix (an Admin does this):**
+1. Go to **Settings → Roles**.
+2. Open the role the person should have.
+   - **Admin** includes everything.
+   - The other default roles (Data Steward, Data Producer, Data Consumer, Security Officer) don't include **Assets** at all. Set **Assets** to **Read/Write** on the role you pick, or create a role for it.
+3. Under the role's assigned groups, add a Databricks group the person belongs to. To grant everyone who has the app, use the group that gives them the app.
+4. Have the person reload the page.
+
+Add groups rather than individual users, so that new members of the group get the role too.
+
 ### Deployment Policies
 
 Deployment policies control which Unity Catalog catalogs and schemas users can deploy to.
