@@ -136,7 +136,11 @@ describe('data contract details markup', () => {
   beforeEach(() => {
     localStorage.setItem('data-contract-view-mode', 'large');
     usePermissionsStore.setState({
-      permissions: { 'data-contracts': FeatureAccessLevel.ADMIN, 'semantic-models': FeatureAccessLevel.ADMIN },
+      // Related Entities' Add and Remove follow entity_relationships
+      permissions: {
+        'data-contracts': FeatureAccessLevel.ADMIN, 'semantic-models': FeatureAccessLevel.ADMIN,
+        entity_relationships: FeatureAccessLevel.ADMIN,
+      },
       availableRoles: [], appliedRoleId: null, isLoading: false, _initAttempted: true, _isInitializing: false,
     });
     useUserStore.setState({ userInfo: { email: 'e2e.user@example.com', username: 'e2e', user: 'E2E', ip: '', groups: ['admins'] } as never });

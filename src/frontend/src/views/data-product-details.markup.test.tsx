@@ -113,7 +113,11 @@ describe('data product details markup', () => {
     localStorage.setItem('data-product-view-mode', 'large');
     mockBackend();
     usePermissionsStore.setState({
-      permissions: { 'data-products': FeatureAccessLevel.ADMIN, 'semantic-models': FeatureAccessLevel.ADMIN },
+      // The grants and relationships panels' controls follow their own features
+      permissions: {
+        'data-products': FeatureAccessLevel.ADMIN, 'semantic-models': FeatureAccessLevel.ADMIN,
+        'access-grants': FeatureAccessLevel.ADMIN, entity_relationships: FeatureAccessLevel.ADMIN,
+      },
       availableRoles: [], appliedRoleId: null, isLoading: false, _initAttempted: true, _isInitializing: false,
     });
     useUserStore.setState({ userInfo: { email: 'e2e.user@example.com', username: 'e2e', user: 'E2E', ip: '', groups: ['admins'] } as never });
