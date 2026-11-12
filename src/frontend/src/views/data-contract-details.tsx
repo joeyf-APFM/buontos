@@ -325,6 +325,9 @@ export default function DataContractDetails() {
   // The owner routes check business-owners (R66)
   const canWriteOwners =
     !permissionsLoading && hasPermission('business-owners', FeatureAccessLevel.READ_WRITE)
+  // Related Entities' Add and Remove check entity_relationships
+  const canWriteRelationships =
+    !permissionsLoading && hasPermission('entity_relationships', FeatureAccessLevel.READ_WRITE)
   const canEditPanels = canWriteContracts && canWriteDomains
   // Linking or creating a product writes the product
   const canWriteProducts =
@@ -2730,7 +2733,7 @@ export default function DataContractDetails() {
                 entityType="DataContract"
                 entityId={contract.id}
                 title={t('data-contracts:detailsView.panels.relatedEntities', 'Related Entities')}
-                canEdit={canEditInPlace}
+                canEdit={canEditInPlace && canWriteRelationships}
                 pane
               />
             )}

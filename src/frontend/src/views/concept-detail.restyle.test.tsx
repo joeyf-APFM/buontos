@@ -13,6 +13,7 @@ import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import { useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { renderWithMantine, userEvent } from '@/test/utils';
+import { optionNames, selectField } from '@/test/kit-dialog';
 import kit from '@/mantine/page/page.module.css';
 import usePermissionsStore from '@/stores/permissions-store';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
@@ -449,5 +450,31 @@ describe('concept-detail states (Review Focus 2)', () => {
     act(() => useKnowledgeGraphStore.getState().bumpRefreshNonce('elsewhere'));
     expect(screen.getByRole('heading', { level: 1, name: 'Customer' })).toBeInTheDocument();
     await waitFor(() => expect(calls().filter((c) => c === 'GET /api/semantic-models/concepts/by-iri')).toHaveLength(2));
+  });
+});
+
+// The final review's Important 2: /by-iri/certify checks semantic-models ADMIN
+describe('concept-detail offers Certify only to semantic-models admins', () => {
+  const requestOptions = async (user: ReturnType<typeof userEvent.setup>) => {
+    const h1 = await loaded();
+    await user.click(within(h1.parentElement!).getByRole('button', { name: 'Request' }));
+    const action = await screen.findByRole('dialog', { name: 'Request Action' });
+    return optionNames(user, selectField(action, 'What do you want to request?'));
+  };
+
+  // From published the one next step is Certify (Deprecate is a separate flow)
+  it('a semantic-models writer on a published concept gets no Certify', async () => {
+    current = concept({ status: 'published' });
+    const user = userEvent.setup();
+    renderPage();
+    expect(await requestOptions(user)).toEqual(['New Version']);
+  });
+
+  it('a semantic-models admin on a published concept gets Certify', async () => {
+    current = concept({ status: 'published' });
+    grant(FeatureAccessLevel.ADMIN);
+    const user = userEvent.setup();
+    renderPage();
+    expect(await requestOptions(user)).toEqual(['Certify', 'New Version']);
   });
 });

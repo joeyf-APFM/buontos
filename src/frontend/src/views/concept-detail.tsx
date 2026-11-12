@@ -177,6 +177,8 @@ export default function ConceptDetailView() {
   }, [rawIri]);
 
   const canWrite = hasPermission('semantic-models', FeatureAccessLevel.READ_WRITE);
+  // /by-iri/certify checks semantic-models ADMIN, as Explore's canCertify
+  const canCertify = hasPermission('semantic-models', FeatureAccessLevel.ADMIN);
   // The metadata routes check data-domains
   const canWriteDomains = hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
   // The owner routes check business-owners (R66)
@@ -822,8 +824,8 @@ export default function ConceptDetailView() {
 
   // All forward-reachable statuses from the current status. Offered to writers
   // on concepts whose collection is editable (imported/read-only ontologies have
-  // no lifecycle). Certify is admin-gated server-side; a non-admin gets a clear
-  // 403 toast rather than the option being hidden.
+  // no lifecycle). Certify needs semantic-models ADMIN, as the backend checks,
+  // so it is hidden from anyone without it.
   const currentStatus = concept.status || 'draft';
   // Only offer the DIRECT next-step transitions (single hop). Multi-hop
   // shortcuts were removed: they let users skip the review decision (and now
@@ -831,7 +833,7 @@ export default function ConceptDetailView() {
   // by the StatusProgressBar below instead.
   const nextStepStatuses =
     canWrite && collection?.is_editable
-      ? reachableStatuses(currentStatus).filter((s) => s.isNextStep)
+      ? reachableStatuses(currentStatus).filter((s) => s.isNextStep && (canCertify || s.action !== 'certify'))
       : [];
   const requestTransitions: ConceptTransitionItem[] = nextStepStatuses;
   const requestNewVersion: ConceptNewVersionOption | null = canPublishVersion

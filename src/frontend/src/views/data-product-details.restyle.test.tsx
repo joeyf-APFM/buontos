@@ -69,7 +69,10 @@ function mockBackend(product: unknown = PRODUCT, status = 200) {
 
 function grant(level: FeatureAccessLevel, approver = false, others: Record<string, FeatureAccessLevel> = {}) {
   usePermissionsStore.setState({
-    permissions: { 'data-products': level, 'semantic-models': level, 'data-domains': level, 'business-owners': level, ...others },
+    permissions: {
+      'data-products': level, 'semantic-models': level, 'data-domains': level, 'business-owners': level,
+      'access-grants': level, entity_relationships: level, ...others,
+    },
     availableRoles: approver
       ? [{ id: 'r-1', name: 'Approver', assigned_groups: ['admins'], feature_permissions: {}, approval_privileges: { PRODUCTS: true } } as never]
       : [],
@@ -385,5 +388,90 @@ describe('data product details on the page kit', () => {
     expect(within(support).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     // Access grants is a kit pane of its own
     expect(await screen.findByRole('region', { name: /Access Grants/ })).toHaveClass(kit.pane);
+  });
+
+  // The final review's Important 1: the grants and relationships routes check their own features
+  describe('the grants, relationships and lineage controls follow their own features', () => {
+    const STAMP = '2026-11-01T00:00:00Z';
+    const GRANT = {
+      id: 'g-1', grantee_email: 'gina@example.com', entity_type: 'data_product', entity_id: 'p-1', permission_level: 'READ',
+      granted_at: STAMP, expires_at: '2026-12-01T00:00:00Z', days_until_expiry: 20, granted_by: 'ann@example.com', status: 'active', is_active: true,
+    };
+    const REQUEST = {
+      id: 'rq-1', requester_email: 'rob@example.com', entity_type: 'data_product', entity_id: 'p-1', requested_duration_days: 30,
+      permission_level: 'READ', status: 'pending', created_at: STAMP,
+    };
+    const RELATION = {
+      id: 'rel-1', source_type: 'DataProduct', source_id: 'p-1', target_type: 'DataContract', target_id: 'c-9',
+      target_name: 'Linked contract', relationship_type: 'hasContract', created_at: STAMP,
+    };
+
+    function mockPanels() {
+      const base = fetchMock;
+      fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const { pathname } = new URL(String(input), 'http://localhost');
+        if (pathname === '/api/access-grants/entity/data_product/p-1') return json({ grants: [GRANT], total: 1 });
+        if (pathname === '/api/access-grants/entity/data_product/p-1/requests') return json({ requests: [REQUEST], total: 1 });
+        if (pathname === '/api/entities/DataProduct/p-1/relationships') {
+          return json({ entity_type: 'DataProduct', entity_id: 'p-1', outgoing: [RELATION], incoming: [], total: 1 });
+        }
+        return base(input, init);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+    }
+
+    const grantsPane = () => screen.getAllByRole('region', { name: /Access Grants/ })[0];
+    const relatedPane = () => screen.getAllByRole('region', { name: /Related Entities/ })[0];
+    const lineagePane = () => screen.getByRole('region', { name: 'Business Lineage' });
+    const trashButtons = (scope: HTMLElement) => within(scope).queryAllByRole('button').filter((b) =>
+      [...b.querySelectorAll('svg')].some((svg) => [...svg.classList].some((c) => /^lucide-trash-?2$/.test(c))));
+
+    async function openAs(others: Record<string, FeatureAccessLevel> = {}) {
+      localStorage.setItem('data-product-view-mode', 'large');
+      grant(FeatureAccessLevel.READ_WRITE, false, others);
+      mockBackend();
+      mockPanels();
+      renderPage();
+      await loaded();
+      // Both panels have loaded their rows
+      await within(await screen.findByRole('region', { name: /Access Grants/ })).findByText('gina@example.com');
+      await within(relatedPane()).findByText('Linked contract');
+    }
+
+    const grantControls = () => ({
+      revoke: within(grantsPane()).queryAllByRole('button', { name: 'Revoke' }).length,
+      review: within(grantsPane()).queryAllByRole('button', { name: 'Review' }).length,
+    });
+    const relationControls = () => ({
+      add: within(relatedPane()).queryAllByRole('button', { name: 'Add' }).length,
+      remove: trashButtons(relatedPane()).length,
+      lineage: within(lineagePane()).queryAllByRole('button', { name: /Manage Lineage/ }).length,
+    });
+
+    it('a products writer with access-grants write has Revoke and the pending requests\' Review', async () => {
+      await openAs();
+      await waitFor(() => expect(grantControls()).toEqual({ revoke: 1, review: 1 }));
+    });
+
+    it('a products writer read-only on access-grants gets no Revoke or Review', async () => {
+      await openAs({ 'access-grants': FeatureAccessLevel.READ_ONLY });
+      expect(grantControls()).toEqual({ revoke: 0, review: 0 });
+      expect(within(grantsPane()).queryByText('rob@example.com')).toBeNull();
+      // The relationships follow their own feature, which this writer has
+      expect(relationControls()).toEqual({ add: 1, remove: 1, lineage: 1 });
+    });
+
+    it('a products writer with entity_relationships write has Add, Remove and Manage Lineage', async () => {
+      await openAs();
+      expect(relationControls()).toEqual({ add: 1, remove: 1, lineage: 1 });
+    });
+
+    it('a products writer read-only on entity_relationships gets no Add, Remove or Manage Lineage', async () => {
+      await openAs({ entity_relationships: FeatureAccessLevel.READ_ONLY });
+      expect(relationControls()).toEqual({ add: 0, remove: 0, lineage: 0 });
+      // The product itself stays editable (a draft), and the grants follow their own feature
+      expect(within(header()).getByRole('button', { name: 'Edit' })).toBeEnabled();
+      await waitFor(() => expect(grantControls()).toEqual({ revoke: 1, review: 1 }));
+    });
   });
 });

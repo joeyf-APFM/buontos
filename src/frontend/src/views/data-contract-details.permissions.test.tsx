@@ -51,6 +51,10 @@ const ANSWERS: Record<string, unknown> = {
   '/api/data-products/by-contract/c-1': [],
   '/api/entities/data_contract/c-1/quality-items/summary': { overall_score_percent: 80, items_count: 1, by_dimension: {}, measured_at: STAMP },
   '/api/entities/data_contract/c-1/quality-items': [{ id: 'q1', title: 'Nulls', dimension: 'completeness', source: 'manual', score_percent: 80, measured_at: STAMP }],
+  '/api/entities/DataContract/c-1/relationships': {
+    entity_type: 'DataContract', entity_id: 'c-1', total: 1, incoming: [],
+    outgoing: [{ id: 'rel-1', source_type: 'DataContract', source_id: 'c-1', target_type: 'Table', target_id: 't-9', target_name: 'Linked table', relationship_type: 'governs', created_at: STAMP }],
+  },
 };
 
 function mockBackend(contract: Record<string, unknown>) {
@@ -63,8 +67,12 @@ function mockBackend(contract: Record<string, unknown>) {
 }
 
 const { READ_ONLY: RO, READ_WRITE: RW, ADMIN } = FeatureAccessLevel;
-type Levels = { contracts: FeatureAccessLevel; products: FeatureAccessLevel; semantic: FeatureAccessLevel; domains: FeatureAccessLevel; owners: FeatureAccessLevel };
-const same = (level: FeatureAccessLevel): Levels => ({ contracts: level, products: level, semantic: level, domains: level, owners: level });
+type Levels = {
+  contracts: FeatureAccessLevel; products: FeatureAccessLevel; semantic: FeatureAccessLevel; domains: FeatureAccessLevel;
+  owners: FeatureAccessLevel; relationships: FeatureAccessLevel;
+};
+const same = (level: FeatureAccessLevel): Levels =>
+  ({ contracts: level, products: level, semantic: level, domains: level, owners: level, relationships: level });
 
 // Each persona's level on the features the page's actions write
 const PERSONAS = {
@@ -81,6 +89,8 @@ const PERSONAS = {
   semanticReader: { ...same(RW), semantic: RO },
   // Assign Owner needs business-owners (R66)
   ownersReader: { ...same(RW), owners: RO },
+  // Related Entities' Add and Remove need entity_relationships (final review, Important 1)
+  relationshipsReader: { ...same(RW), relationships: RO },
 } satisfies Record<string, Levels>;
 type Persona = keyof typeof PERSONAS;
 
@@ -90,7 +100,7 @@ function signIn(persona: Persona) {
     permissions: {
       'data-contracts': levels.contracts, 'data-products': levels.products,
       'semantic-models': levels.semantic, 'data-domains': levels.domains,
-      'business-owners': levels.owners,
+      'business-owners': levels.owners, entity_relationships: levels.relationships,
     },
     availableRoles: persona === 'approver'
       ? [{ id: 'r-1', name: 'Steward', assigned_groups: ['stewards'], feature_permissions: {}, approval_privileges: { CONTRACTS: true } } as never]
@@ -310,5 +320,34 @@ describe('data contract details permission gates', () => {
     for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
     // ...but still edits in place, as admins do
     expect(present(inPlaceControls())).toEqual(IN_PLACE);
+  });
+
+  describe('Related Entities follow entity_relationships write (final review, Important 1)', () => {
+    const related = () => region(/^Related Entities/);
+    const relationControls = async () => {
+      await within(related()).findByText('Linked table');
+      return {
+        add: button(related(), 'Add').length,
+        remove: within(related()).queryAllByRole('button').filter((b) =>
+          [...b.querySelectorAll('svg')].some((svg) => [...svg.classList].some((c) => /^lucide-trash-?2$/.test(c)))).length,
+      };
+    };
+
+    it('data contract permissions: a writer with entity_relationships write has Add and Remove on a draft', async () => {
+      await open('writer', 'draft');
+      expect(await relationControls()).toEqual({ add: 1, remove: 1 });
+    });
+
+    it('data contract permissions: a contracts writer read-only on entity_relationships gets no Add or Remove', async () => {
+      await open('relationshipsReader', 'draft');
+      expect(await relationControls()).toEqual({ add: 0, remove: 0 });
+      // The contract itself stays editable in place
+      expect(present(inPlaceControls())).toEqual(IN_PLACE);
+    });
+
+    it('data contract permissions: a reader gets no Add or Remove', async () => {
+      await open('reader', 'draft');
+      expect(await relationControls()).toEqual({ add: 0, remove: 0 });
+    });
   });
 });

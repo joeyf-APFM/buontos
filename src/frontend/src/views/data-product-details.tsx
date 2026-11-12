@@ -546,6 +546,9 @@ export default function DataProductDetails() {
   const canWriteSemantic = !permissionsLoading && hasPermission('semantic-models', Settings.FeatureAccessLevel.READ_WRITE);
   // The owner routes check business-owners (R66)
   const canWriteOwners = !permissionsLoading && hasPermission('business-owners', Settings.FeatureAccessLevel.READ_WRITE);
+  // Revoke and Approve/Deny check access-grants; Related Entities and the lineage editor check entity_relationships
+  const canWriteGrants = !permissionsLoading && hasPermission('access-grants', Settings.FeatureAccessLevel.READ_WRITE);
+  const canWriteRelationships = !permissionsLoading && hasPermission('entity_relationships', Settings.FeatureAccessLevel.READ_WRITE);
   const canEditPanels = canWrite && canWriteDomains;
 
   const canApproveProductLifecycle = userHasApprovalPrivilege(
@@ -1844,7 +1847,7 @@ export default function DataProductDetails() {
               <Pane
                 flush
                 title={t('data-products:details.lineage.businessLineageTitle')}
-                actions={canModify && (
+                actions={canModify && canWriteRelationships && (
                   <Button size="sm" variant="outline" onClick={() => setIsLineageEditorOpen(true)}>
                     <GitBranch /> {t('data-products:details.actions.manageLineage')}
                   </Button>
@@ -2069,8 +2072,8 @@ export default function DataProductDetails() {
               <AccessGrantsPanel
                 entityType="data_product"
                 entityId={productId}
-                canManage={canModify}
-                showPendingRequests={canModify}
+                canManage={canModify && canWriteGrants}
+                showPendingRequests={canModify && canWriteGrants}
               />
             )}
 
@@ -2101,7 +2104,7 @@ export default function DataProductDetails() {
                 entityType="DataProduct"
                 entityId={productId!}
                 title={t('data-products:details.relatedEntities.title')}
-                canEdit={canModify}
+                canEdit={canModify && canWriteRelationships}
                 pane
               />
             )}
