@@ -33,7 +33,7 @@ class DomainSyncNode(BaseModel):
     action: SyncAction = Field(..., description="What will happen / happened for this node")
     reason: Optional[str] = Field(None, description="Why it was skipped or errored")
     parent_name: Optional[str] = Field(None, description="Name of the parent domain on the target, if any")
-    ontos_id: Optional[UUID] = Field(None, description="Matching/created Ontos domain id, if known")
+    ontos_id: Optional[UUID] = Field(None, description="Matching/created Nucleus domain id, if known")
     uc_domain_id: Optional[str] = Field(None, description="Matching/created UC domain id, if known")
 
 
@@ -62,8 +62,8 @@ class ImportRequest(BaseModel):
     """Import UC domains into Ontos."""
     target_root_id: Optional[UUID] = Field(
         None,
-        description="Ontos domain to place imported UC roots under. If omitted, UC "
-        "root domains land at the Ontos top level.",
+        description="Nucleus domain to place imported UC roots under. If omitted, UC "
+        "root domains land at the Nucleus top level.",
     )
 
 
@@ -75,6 +75,6 @@ class ExportRequest(BaseModel):
     """
     anchor_domain_id: Optional[UUID] = Field(
         None,
-        description="Ontos domain whose children map to UC roots. If omitted, Ontos "
+        description="Nucleus domain whose children map to UC roots. If omitted, Nucleus "
         "top-level domains (no parent) map to UC roots.",
     )

@@ -186,7 +186,7 @@
       "showDataProducts": "顧客ドメインのデータ製品を表示してください",
       "howToCreateProduct": "最初のデータ製品を作成するにはどうすればよいですか？",
       "howToSetupDomains": "データドメインを設定するにはどうすればよいですか？",
-      "whatIsOntos": "Ontos とは何ですか？何ができますか？",
+      "whatIsOntos": "Nucleus とは何ですか？何ができますか？",
       "coreConcepts": "中核となる概念（データ製品、契約、ドメイン）について説明してください。"
     },
     "messages": {
@@ -234,11 +234,11 @@
     "welcomeDescription": "モデリング、マッピング、製品作成、ヘルスインサイトのサポートを受けられます。以下の推奨プロンプトのいずれかを試すか、独自の質問を入力してください。",
     "askingAbout": "質問対象:",
     "scopePageSpecific": "ページ固有",
-    "scopeGeneral": "Ontos（全般）",
+    "scopeGeneral": "Nucleus（全般）",
     "scopeThisPage": "このページ",
     "inputPlaceholder": "{{shortName}}に何でも質問...",
     "messageSendFailed": "メッセージの送信に失敗しました",
-    "resizeHandle": "Ask Ontos パネルのサイズを変更"
+    "resizeHandle": "Ask Nucleus パネルのサイズを変更"
   },
   "chatErrors": {
     "chat_validation_failed": "このリクエストのデータを処理できませんでした。質問を言い換えてください。詳細はサーバーログにあります（エラー ID {{errorId}}）。",

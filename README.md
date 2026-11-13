@@ -1,4 +1,4 @@
-# Ontos
+# Nucleus
 
 [![Test Coverage](https://github.com/databrickslabs/ontos/actions/workflows/test-coverage.yml/badge.svg?branch=main)](https://github.com/databrickslabs/ontos/actions/workflows/test-coverage.yml)
 [![codecov](https://codecov.io/gh/databrickslabs/ontos/branch/main/graph/badge.svg)](https://codecov.io/gh/databrickslabs/ontos)
@@ -7,11 +7,13 @@
 
 A comprehensive data governance and management platform built for Databricks Unity Catalog.
 
+> **Attribution:** Nucleus is APFM's fork of [Ontos](https://github.com/databrickslabs/ontos), the open-source data governance platform from Databricks Labs, and is built on its foundational code. Ontos is © Databricks, Inc. and used under its license; see [LICENSE.txt](LICENSE.txt) and [NOTICE](NOTICE). Internal identifiers (environment variables such as `ONTOS_*`, the `ontos-ontology` taxonomy, module names) keep the upstream name so changes can still be merged from upstream.
+
 ![Home](docs/images/home.png)
 
 ## Overview
 
-**Ontos** provides enterprise teams with the tools to organize, govern, and deliver high-quality data products following Data Mesh principles and industry standards like [ODCS](https://github.com/bitol-io/open-data-contract-standard) (Open Data Contract Standard) and [ODPS](https://github.com/bitol-io/open-data-product-standard) (Open Data Product Standard).
+**Nucleus** provides enterprise teams with the tools to organize, govern, and deliver high-quality data products following Data Mesh principles and industry standards like [ODCS](https://github.com/bitol-io/open-data-contract-standard) (Open Data Contract Standard) and [ODPS](https://github.com/bitol-io/open-data-product-standard) (Open Data Product Standard).
 
 ## Key Features
 
@@ -41,7 +43,7 @@ Expose your data governance platform to AI assistants via the Model Context Prot
 
 ## Architecture
 
-Ontos is designed to run as a **Databricks App**:
+Nucleus is designed to run as a **Databricks App**:
 
 - **Frontend**: React + TypeScript with Tailwind CSS and Shadcn UI
 - **Backend**: Python + FastAPI with SQLAlchemy ORM
@@ -113,7 +115,7 @@ databricks apps deploy <app-name>
 
 ## User Roles
 
-Ontos supports role-based access control with predefined roles:
+Nucleus supports role-based access control with predefined roles:
 
 | Role | Description |
 |------|-------------|
@@ -154,7 +156,7 @@ ontos/
 
 ## Standards & Specifications
 
-Ontos implements and integrates with these standards:
+Nucleus implements and integrates with these standards:
 
 - **[ODCS](https://github.com/bitol-io/open-data-contract-standard)** - Open Data Contract Standard (v3.1.0)
 - **[ODPS](https://github.com/bitol-io/open-data-product-standard)** - Open Data Product Specification

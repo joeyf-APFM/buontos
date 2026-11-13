@@ -167,7 +167,7 @@ export default function DeliveryTargets({ targets, advanced = false, canWrite = 
                 <Tooltip
                   label={t(
                     'enrich.deliver.comingSoon',
-                    'Coming soon: configuring and running this sync from Ontos is not wired yet.',
+                    'Coming soon: configuring and running this sync from Nucleus is not wired yet.',
                   )}
                   multiline
                   w={260}

@@ -1,10 +1,10 @@
 # Ontology and the Knowledge Graph
 
 Most platforms that try to do "business glossary" land on a flat list of terms.
-Ontos treats meaning as a graph. The pieces are an **ontology** (the source
+Nucleus treats meaning as a graph. The pieces are an **ontology** (the source
 artifact your knowledge engineer authors), a **knowledge graph** (the runtime
-graph Ontos keeps in memory and in the DB), **semantic links** (the pins from
-real Ontos objects to graph nodes), and a **business glossary** (a view onto
+graph Nucleus keeps in memory and in the DB), **semantic links** (the pins from
+real Nucleus objects to graph nodes), and a **business glossary** (a view onto
 published concepts that non-technical users actually browse). They are all the
 same plumbing under different labels.
 
@@ -12,7 +12,7 @@ Customers asking these questions tend to be highly skilled — they say "RDF",
 "OWL", "SHACL" the way a database engineer says "primary key". This document
 is written for that audience first, then translated for everyone else.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### Four words that get confused {#four-words}
 
@@ -24,7 +24,7 @@ is written for that audience first, then translated for everyone else.
   rebuilt from the union of enabled ontologies, stored as triples in the
   `rdf_triples` table, in memory at request time. You query it with SPARQL.
 - **Semantic link** — a pin. One row in `entity_semantic_links` that says
-  "this Ontos object (a data product, contract, schema, column, …) means this
+  "this Nucleus object (a data product, contract, schema, column, …) means this
   concept (this IRI)". It is the load-bearing bridge from RDF-land to data
   product-land.
 - **Business glossary term** — a published concept presented for browsing.
@@ -36,7 +36,7 @@ is written for that audience first, then translated for everyone else.
 These four words sit on a "semantic maturity ladder" — Controlled
 Vocabulary (a flat business glossary) → Taxonomy (a hierarchy) → Ontology
 (taxonomy + typed relationships) → Knowledge Graph (ontology + instances).
-Each layer adds expressivity on top of the previous one. Ontos is built
+Each layer adds expressivity on top of the previous one. Nucleus is built
 for the full ladder but lets customers enter at whichever level their team
 is ready for.
 
@@ -48,9 +48,9 @@ concept can exist without ever being published as a glossary term.
 
 ### The "ontology is prescriptive" principle {#prescriptive-principle}
 
-Before the redesign, the ontology was decorative — Ontos loaded the TTL but
+Before the redesign, the ontology was decorative — Nucleus loaded the TTL but
 nothing in the application changed when you edited it. That is no longer
-true. The current Ontos version makes the ontology **the source of truth for
+true. The current Nucleus version makes the ontology **the source of truth for
 the asset type system**:
 
 - `ontos-ontology.ttl` is parsed at startup.
@@ -88,7 +88,7 @@ Three ontologies ship out of the box under
   `QualityRule`, etc.). Bridges contract semantics with the asset model.
 - **databricks_ontology.ttl** — physical-platform vocabulary:
   `Catalog`, `Schema`, `Table`, `View`, `Column`. Useful as anchor concepts
-  when you semantic-link Ontos entities to UC objects.
+  when you semantic-link Nucleus entities to UC objects.
 
 These are synced into the DB at startup via `SemanticModelsManager`. You can
 disable any of them from Settings → Semantic Models; they will keep their
@@ -102,16 +102,16 @@ The recommended path for a serious knowledge engineering effort:
    Protégé, TopBraid Composer, or just a text editor will do. Include SHACL
    shapes for constraints if you need them.
 2. Open Settings → Semantic Models.
-3. Upload the file. Ontos accepts `.ttl`, `.owl`, `.rdf`, `.nt`. The format
+3. Upload the file. Nucleus accepts `.ttl`, `.owl`, `.rdf`, `.nt`. The format
    is auto-detected by rdflib.
-4. Ontos parses, validates the triple count is non-zero, and persists the
+4. Nucleus parses, validates the triple count is non-zero, and persists the
    model to `semantic_models`. Triples are stored under a URN context
    (e.g., `urn:semantic-model:my-org-customer-ontology`).
 5. Enable the model so its triples join the runtime conjunctive graph.
 6. Trigger a graph rebuild (Settings → Semantic Models → Refresh, or
    `POST /api/semantic-models/refresh-graph`).
 7. The model is now queryable via SPARQL, visible in the graph view, and
-   available to Ask Ontos and MCP agents.
+   available to Ask Nucleus and MCP agents.
 
 ### LLM-assisted inference (a starting point, not an ontology) {#inference}
 
@@ -134,8 +134,8 @@ reviews, edits, and accepts before it is persisted as a semantic model.
 
 ### Semantic links — the three-tier story {#three-tier-linking}
 
-This is what makes Ontos different from a flat glossary tool. A semantic
-link is a row in `entity_semantic_links` that pins one Ontos entity to one
+This is what makes Nucleus different from a flat glossary tool. A semantic
+link is a row in `entity_semantic_links` that pins one Nucleus entity to one
 concept IRI, with an optional human-readable label and optional context
 notes.
 
@@ -159,7 +159,7 @@ The "three tiers" in everyday conversation are:
   Customer entity". Used for cross-contract joins and concept-level
   lineage.
 - **Property / Column level** — "this `arr_usd` column is Annual
-  Recurring Revenue". Used for column-level definitions in Ask Ontos
+  Recurring Revenue". Used for column-level definitions in Ask Nucleus
   and for data-driven concept exploration.
 
 Same table, same manager, three narratives. Discovery, governance, and
@@ -170,7 +170,7 @@ reasonably justify.
 
 When a steward "creates a glossary":
 
-1. Ontos creates a knowledge collection with `collection_type=glossary`.
+1. Nucleus creates a knowledge collection with `collection_type=glossary`.
    Under the hood this lives in the `urn:glossary:` context inside the
    conjunctive graph.
 2. The steward adds concepts to the collection. These are real RDF
@@ -201,12 +201,12 @@ The top-down flow (ontology → physical assets → UC tags) ships in the
 forward direction; the reverse direction is still evolving. Here's the
 honest current state.
 
-**What ships today.** Ontos can:
+**What ships today.** Nucleus can:
 
 - Author and store the ontology.
 - Pin concepts to UC objects via semantic links — the read-time
   representation works at product, contract, schema, and column levels.
-- Surface those links in marketplace, Ask Ontos, and MCP agents.
+- Surface those links in marketplace, Ask Nucleus, and MCP agents.
 - **Propagate concept assignments to UC governance tags via the
   `uc_tag_sync` workflow.** The job reads `entity_semantic_links`
   joined with contract/product/domain/asset metadata and issues UC
@@ -224,7 +224,7 @@ honest current state.
   tag API is partial — the change type, notification templates, and
   Indirect path exist; the Direct call to UC's tag API is being filled
   in. Today's production path is the workflow described above.
-- **Reading existing UC tags back into Ontos as concept assignments**
+- **Reading existing UC tags back into Nucleus as concept assignments**
   (the reverse direction) is not shipping. The customer voice tracking
   this work captures it as "Tags reading from UC is not there." Plan
   demos around the forward path and flag the reverse pull as evolving.
@@ -273,12 +273,12 @@ Start small and bottom-up. Pick one domain (say, Customer). Pick five
 concepts everyone agrees about. Author them either as a TTL upload or by
 adding concepts to a glossary collection. Link them to two or three real
 data products you already have. Show the team how the same concept now
-surfaces in marketplace search, in Ask Ontos, and in the column-level
+surfaces in marketplace search, in Ask Nucleus, and in the column-level
 glossary panel. Expand from there. Trying to model the whole organization
 before linking anything to real data is the usual failure mode.
 
 **"What is the difference between an ontology and a knowledge graph in
-Ontos?"**
+Nucleus?"**
 
 The ontology is the file you upload (or the bundled TTL). The knowledge
 graph is the runtime structure built by union'ing all the enabled
@@ -286,11 +286,11 @@ ontologies and adding the per-instance triples you generate over time
 (glossary collections, instance-level links). One ontology, one graph,
 many semantic links sitting on top.
 
-**"My team uses Protégé and SHACL — does Ontos handle that?"**
+**"My team uses Protégé and SHACL — does Nucleus handle that?"**
 
-Yes. Ontos uses rdflib to parse uploaded files, so anything rdflib reads
+Yes. Nucleus uses rdflib to parse uploaded files, so anything rdflib reads
 (TTL, OWL, RDF/XML, N-Triples) lands cleanly. SHACL shapes are stored as
-triples like everything else. Ontos does not currently run SHACL
+triples like everything else. Nucleus does not currently run SHACL
 validation against your instance data at write time — treat SHACL as
 authoritative documentation of constraints rather than as an enforcement
 hook in the current version.
@@ -298,7 +298,7 @@ hook in the current version.
 **"Can I have multiple ontologies enabled at the same time?"**
 
 Yes. Each enabled model contributes its triples to the conjunctive graph
-under its own URN context. Ontos handles `owl:imports` lightly — you may
+under its own URN context. Nucleus handles `owl:imports` lightly — you may
 need to upload imported ontologies separately. Watch for concept-IRI
 collisions: if two ontologies declare the same IRI, the graph treats them
 as the same concept. That's usually what you want.

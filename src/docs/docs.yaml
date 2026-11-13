@@ -16,7 +16,7 @@ documents:
   user-guide:
     file: USER-GUIDE.md
     title: User Guide
-    description: Complete user guide for Ontos platform
+    description: Complete user guide for Nucleus platform
     category: user-guide
 
   compliance-dsl-guide:
@@ -46,7 +46,7 @@ documents:
   release-notes:
     file: RELEASE_NOTES.md
     title: Release Notes
-    description: Version history and changelog for Ontos
+    description: Version history and changelog for Nucleus
     category: reference
 
 # Future document examples (uncomment and modify as needed):
@@ -66,6 +66,6 @@ documents:
 #  data-mesh-principles:
 #    file: data-mesh-principles.md
 #    title: Data Mesh Principles
-#    description: Understanding Data Mesh principles in Ontos
+#    description: Understanding Data Mesh principles in Nucleus
 #    category: user-guide
 

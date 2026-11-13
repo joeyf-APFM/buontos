@@ -149,7 +149,7 @@ class GetAppStateTool(BaseTool):
     name = "get_app_state"
     category = "app_state"
     description = (
-        "Get a snapshot of the current Ontos workspace's adoption "
+        "Get a snapshot of the current Nucleus workspace's adoption "
         "state: total and published counts of data products, data "
         "contracts, domains, teams, projects, and roles. Also returns "
         "a binary 'adoption_mode' ('blank' if no data products are "

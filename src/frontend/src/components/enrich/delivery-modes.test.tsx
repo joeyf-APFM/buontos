@@ -22,10 +22,10 @@ describe('DeliveryModes', () => {
     it('renders mode descriptions', () => {
       render(<DeliveryModes activeModes={[]} />)
       expect(
-        screen.getByText(/Ontos applies changes to this workspace immediately/i),
+        screen.getByText(/Nucleus applies changes to this workspace immediately/i),
       ).toBeInTheDocument()
-      expect(screen.getByText(/Ontos writes YAML to Git/i)).toBeInTheDocument()
-      expect(screen.getByText(/Ontos notifies a person/i)).toBeInTheDocument()
+      expect(screen.getByText(/Nucleus writes YAML to Git/i)).toBeInTheDocument()
+      expect(screen.getByText(/Nucleus notifies a person/i)).toBeInTheDocument()
     })
   })
 

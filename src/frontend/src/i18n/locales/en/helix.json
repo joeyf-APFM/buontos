@@ -50,7 +50,7 @@
     "modeUnknown": "Shown once Ask Helix is on",
     "llmSection": "LLM features",
     "llmEnable": "Enable LLM features",
-    "llmEnableHelp": "Term-mapping judge, ontology generator, Ask Ontos. Also on the General page.",
+    "llmEnableHelp": "Term-mapping judge, ontology generator, Ask Nucleus. Also on the General page.",
     "llmEndpoint": "Serving endpoint",
     "llmEndpointHelp": "Model Serving endpoint name. Also on the General page.",
     "save": "Save",

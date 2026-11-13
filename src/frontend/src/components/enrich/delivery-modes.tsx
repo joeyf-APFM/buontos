@@ -36,7 +36,7 @@ export default function DeliveryModes({
       label: t('enrich.modes.direct', 'Direct'),
       desc: t(
         'enrich.modes.directDesc',
-        'Ontos applies changes to this workspace immediately via the service principal.',
+        'Nucleus applies changes to this workspace immediately via the service principal.',
       ),
     },
     {
@@ -44,13 +44,13 @@ export default function DeliveryModes({
       label: t('enrich.modes.indirect', 'Indirect'),
       desc: t(
         'enrich.modes.indirectDesc',
-        'Ontos writes YAML to Git for your CI/CD pipeline to promote (dev to staging to prod).',
+        'Nucleus writes YAML to Git for your CI/CD pipeline to promote (dev to staging to prod).',
       ),
     },
     {
       id: 'manual',
       label: t('enrich.modes.manual', 'Manual'),
-      desc: t('enrich.modes.manualDesc', 'Ontos notifies a person to apply the change elsewhere.'),
+      desc: t('enrich.modes.manualDesc', 'Nucleus notifies a person to apply the change elsewhere.'),
     },
   ];
 

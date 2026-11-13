@@ -1,6 +1,6 @@
 # Roles and RBAC
 
-Ontos authorization has two layers that get easily conflated. The **permission
+Nucleus authorization has two layers that get easily conflated. The **permission
 model** says "what is this user allowed to do in this feature?" — it's a
 matrix of feature × access level. The **role catalog** says "what bundle of
 permissions does this named role carry?" — Admin, Data Steward, Data
@@ -11,11 +11,11 @@ Customers asking about permissions usually want to know one of three things:
 person need to be able to do?". This doc is structured so you can answer all
 three.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### The permission model {#permission-model}
 
-A **permission** in Ontos is a `feature_id : access_level` pair. The set of
+A **permission** in Nucleus is a `feature_id : access_level` pair. The set of
 features (the `APP_FEATURES` map) is the source of truth; each feature
 declares which access levels are valid for it.
 
@@ -27,7 +27,7 @@ declares which access levels are valid for it.
 |---|---|
 | `None` | No access. Feature is hidden in the UI; API returns 403. |
 | `Read-only` | Can view, cannot modify. |
-| `Filtered` | Read/Write restricted to a subset (typically by domain). Higher than `Read-only`, lower than `Read/Write`. In the current Ontos version, only the data-products feature implements `Filtered` scoping; other features that list `Filtered` as allowed treat it as `Read/Write` until scoping is wired. |
+| `Filtered` | Read/Write restricted to a subset (typically by domain). Higher than `Read-only`, lower than `Read/Write`. In the current Nucleus version, only the data-products feature implements `Filtered` scoping; other features that list `Filtered` as allowed treat it as `Read/Write` until scoping is wired. |
 | `Read/Write` | Can view and modify within the feature. |
 | `Full` | All operations within the feature scope, may include feature-level configuration. Used by Catalog Commander and Estate Manager. |
 | `Admin` | Everything `Full` does, plus administrative actions (delete glossary, configure feature settings). |
@@ -132,12 +132,12 @@ consumer-persona user mid-flow — see the
 
 ### Built-in roles {#built-in-roles}
 
-Ontos seeds six built-in roles on first start when no roles exist yet.
+Nucleus seeds six built-in roles on first start when no roles exist yet.
 After seeding they are editable like any other role.
 
 | Role | One-paragraph framing |
 |---|---|
-| [Admin](#admin) | You own the deployment. Roles, workflows, integrations, demo data, the MCP token store — when something is broken, you're the person Ontos expects to fix it. |
+| [Admin](#admin) | You own the deployment. Roles, workflows, integrations, demo data, the MCP token store — when something is broken, you're the person Nucleus expects to fix it. |
 | [Data Governance Officer](#data-governance-officer) | You see the whole catalog. Your job is to make sure products have domains, contracts have quality checks, PII is classified, subscriptions don't outlive their products. You certify and audit; you don't build. |
 | [Data Steward](#data-steward) | You curate a slice — usually a domain. You're the gatekeeper at two moments: contract approval and product certification. Outside those gates, you maintain glossary terms and triage reviews. |
 | [Data Producer](#data-producer) | You build products and contracts. You spend your time on the detail pages — composing deliverables, drafting schemas, wiring quality checks. Lifecycle promotion is your day job; certification is somebody else's. |
@@ -147,7 +147,7 @@ After seeding they are editable like any other role.
 #### Admin {#admin}
 
 Granted `Admin` on every feature by default, including all settings
-sub-pages. The Admin role is the canonical carrier of "Ontos admin"
+sub-pages. The Admin role is the canonical carrier of "Nucleus admin"
 authority: features that require elevated authority (role overrides,
 MCP token management, dangerous settings actions) check membership in
 *any* role flagged as an admin role rather than treating
@@ -161,7 +161,7 @@ on first-time seeding** — later restarts do not re-merge env-var values
 into the existing role. To add admins after first start, edit the
 role's `assigned_groups` from Settings → RBAC. This catches new
 deployments often enough that it has its own dedicated section in the
-Ontos Setup guide.
+Nucleus Setup guide.
 
 Other seeded roles (Data Governance Officer, Data Steward, Data
 Producer, Data Consumer, Security Officer) also ship with default
@@ -264,7 +264,7 @@ Features not listed for a given role default to `None`.
 ### Filtered (domain-scoped) access {#filtered-access}
 
 The `Filtered` access level signals "read/write, but only to a subset".
-In the current Ontos version it is wired only for the **data-products**
+In the current Nucleus version it is wired only for the **data-products**
 feature, where it restricts visibility and edit rights to products in
 domains owned by the caller (resolved via team membership and ownership
 ties). Other features list `Filtered` as a permitted level only if the
@@ -274,7 +274,7 @@ evolving — more features may grow scoping in future versions.
 
 ### Demo-mode persona override {#persona-override}
 
-For local development and customer demos, Ontos supports a runtime
+For local development and customer demos, Nucleus supports a runtime
 persona switch:
 
 - Set `TEST_USER_TOKEN` in the backend environment.
@@ -318,23 +318,23 @@ override returns the user to group-based resolution.
 
 The role override does not affect the workspace-admin shortcut — a
 workspace admin remains a workspace admin even while impersonating a
-non-admin role for the rest of Ontos's permission evaluation.
+non-admin role for the rest of Nucleus's permission evaluation.
 
 ## Under the hood
 
 ### Identity resolution {#identity-resolution}
 
-When a request arrives, Ontos resolves the caller through three layers
+When a request arrives, Nucleus resolves the caller through three layers
 in order:
 
-1. **Identity provider (Entra/Okta, etc.).** Ontos never talks to the
+1. **Identity provider (Entra/Okta, etc.).** Nucleus never talks to the
    IdP directly. It only sees what Databricks SCIM exposes.
 2. **Databricks workspace/account groups.** Resolved at request time
    via on-behalf-of SCIM lookup. Requires the `iam.current-user:read`
    scope to be declared in the app manifest. Workspace-only groups do
    **not** appear via the OBO `current_user.me()` path; use
    account-level groups for role assignment.
-3. **Ontos roles.** A role is a DB row whose `assigned_groups` is a
+3. **Nucleus roles.** A role is a DB row whose `assigned_groups` is a
    list of strings. The matcher is a case-insensitive set intersection
    between the user's resolved groups and each role's
    `assigned_groups`. When multiple roles match, the role with the
@@ -344,31 +344,31 @@ in order:
 
 The `is_user_admin` helper checks membership in
 `APP_ADMIN_DEFAULT_GROUPS` (default `["admins"]`). This bypass runs
-**independently of the Ontos role system** — a workspace admin is
-treated as admin for cascade-bypass checks even if they hold no Ontos
+**independently of the Nucleus role system** — a workspace admin is
+treated as admin for cascade-bypass checks even if they hold no Nucleus
 role.
 
-A complementary predicate — the **Ontos-admin** check — resolves
-"admin" through the role catalog: a user is an Ontos admin if their
+A complementary predicate — the **Nucleus-admin** check — resolves
+"admin" through the role catalog: a user is a Nucleus admin if their
 resolved groups intersect the `assigned_groups` of any role flagged
 as an admin role. Sensitive endpoints (role overrides, MCP token
-management, role-catalog reads) increasingly consult this Ontos-admin
+management, role-catalog reads) increasingly consult this Nucleus-admin
 predicate rather than reading `settings:ADMIN` as a proxy. The two
 predicates exist side-by-side because the workspace-admin shortcut
 is the bootstrap path (it works even before any roles exist), while
-the Ontos-admin predicate is the steady-state authority once roles
+the Nucleus-admin predicate is the steady-state authority once roles
 are configured.
 
 The practical implication for testing: a workspace admin cannot easily
 exercise non-admin code paths from their own account; you need a
-non-admin token to test denial branches. Equally, an Ontos admin who
+non-admin token to test denial branches. Equally, a Nucleus admin who
 is *not* a workspace admin can still be denied by code that hits the
 workspace-admin shortcut — audit both paths when verifying a
 permission change.
 
 #### Email-as-implicit-group fallback {#email-as-group-fallback}
 
-When SCIM returns an empty group list for a user, Ontos falls back to
+When SCIM returns an empty group list for a user, Nucleus falls back to
 using the user's own email as a single implicit "group" name. This is
 a recovery mechanism for environments where SCIM is broken (local
 dev, certain sandbox setups, service principals that cannot read
@@ -377,7 +377,7 @@ resolvable real group, the email is not added.
 
 Production deployments should not depend on the email fallback. It
 exists for bootstrapping the first admin when SCIM is unavailable.
-The Ontos Setup guide documents the DB update to fix this case.
+The Nucleus Setup guide documents the DB update to fix this case.
 
 ### Per-execution authorization {#per-execution-authz}
 
@@ -385,7 +385,7 @@ Feature-level checks decide whether a user may enter a feature at all.
 Inside a feature, sensitive operations (approving an agreement,
 granting permissions, modifying a specific data product) consult
 per-entity ownership and per-execution role checks in addition to the
-outer feature gate. This is why an Ontos role grant alone may not be
+outer feature gate. This is why a Nucleus role grant alone may not be
 sufficient to approve a specific agreement — the underlying entity's
 ownership and the workflow step's configured approver group also gate
 the action.
@@ -403,7 +403,7 @@ declaring a permission change done.
 - [Demo-mode persona override](#persona-override)
 - [Per-execution authorization](#per-execution-authz) for sensitive
   operations
-- [Ontos Setup guide](../Ontos%20Setup.md) — first-admin bootstrap if
+- [Nucleus Setup guide](../Nucleus%20Setup.md) — first-admin bootstrap if
   SCIM doesn't return the seed group
 - [Persona quick reference](personas-quick-reference.md) for the
   questions each persona typically asks

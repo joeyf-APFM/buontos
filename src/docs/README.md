@@ -1,6 +1,6 @@
 # Documentation System
 
-This directory contains user-facing documentation for the Ontos platform. Documentation is served via API endpoints and rendered in the frontend.
+This directory contains user-facing documentation for the Nucleus platform. Documentation is served via API endpoints and rendered in the frontend.
 
 ## Quick Start: Adding New Documentation
 

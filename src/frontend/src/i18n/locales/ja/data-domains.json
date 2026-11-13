@@ -161,19 +161,19 @@
   },
   "sync": {
     "title": "ドメインを同期",
-    "description": "Unity Catalog のドメインを Ontos にインポートするか、ドメインを Unity Catalog にエクスポートします。UC がサポートするのは 2 階層(ドメインとサブドメイン)までで、それより深いドメインはスキップされます。",
+    "description": "Unity Catalog のドメインを Nucleus にインポートするか、ドメインを Unity Catalog にエクスポートします。UC がサポートするのは 2 階層(ドメインとサブドメイン)までで、それより深いドメインはスキップされます。",
     "direction": {
       "title": "方向",
       "description": "同期の方向",
       "importLabel": "Unity Catalog からインポート",
-      "importHint": "UC から Ontos ドメインを作成/リンク",
+      "importHint": "UC から Nucleus ドメインを作成/リンク",
       "exportLabel": "Unity Catalog にエクスポート",
-      "exportHint": "Ontos ドメインを UC に公開"
+      "exportHint": "Nucleus ドメインを UC に公開"
     },
     "target": {
       "importTitle": "配置先",
       "exportTitle": "アンカー",
-      "importHint": "インポートした UC のルートを配置する Ontos ドメイン。",
+      "importHint": "インポートした UC のルートを配置する Nucleus ドメイン。",
       "exportHint": "その子は UC のルートに、孫はサブドメインになります。",
       "importTopLevel": "最上位(親なし)",
       "exportTopLevel": "最上位のドメイン"
@@ -185,8 +185,8 @@
     "panel": {
       "resultTitle": "同期結果",
       "previewTitle": "プレビュー",
-      "importFlow": "Unity Catalog → Ontos",
-      "exportFlow": "Ontos → Unity Catalog"
+      "importFlow": "Unity Catalog → Nucleus",
+      "exportFlow": "Nucleus → Unity Catalog"
     },
     "emptyHint": "方向を選んで<b>プレビュー</b>をクリックすると、変更内容を確認できます。",
     "warnings": "警告",

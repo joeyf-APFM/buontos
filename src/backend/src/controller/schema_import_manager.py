@@ -653,7 +653,7 @@ class SchemaImportManager:
 
         system_type_db = asset_type_repo.get_by_name(db, name="System")
         if not system_type_db:
-            logger.warning("Ontos asset type 'System' not found — skipping System creation")
+            logger.warning("Nucleus asset type 'System' not found — skipping System creation")
             return None
 
         # Check if a System asset already exists for this platform + connection name
@@ -920,7 +920,7 @@ class SchemaImportManager:
             if _type_cache is not None:
                 _type_cache[item.asset_type] = asset_type_db
         if not asset_type_db:
-            raise ValueError(f"Ontos asset type '{item.asset_type}' not found in database")
+            raise ValueError(f"Nucleus asset type '{item.asset_type}' not found in database")
 
         properties: Dict[str, Any] = {}
         description = None

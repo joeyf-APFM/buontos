@@ -1,21 +1,21 @@
-# Connecting Ontos MCP to Genie One
+# Connecting Nucleus MCP to Genie One
 
 This guide sets up a **single-credential** connection so **Genie One** (and other
-Databricks agents) can call the Ontos MCP tools. It uses the Databricks Python SDK
+Databricks agents) can call the Nucleus MCP tools. It uses the Databricks Python SDK
 from a notebook to create everything, then covers the Genie One UI steps.
 
-For the conceptual split between the in-product Ask Ontos copilot and the MCP server
+For the conceptual split between the in-product Ask Nucleus copilot and the MCP server
 (tokens, scopes, JSON-RPC), see [mcp-and-ask-ontos.md](mcp-and-ask-ontos.md). This page is
 the practical setup companion for the Genie connection specifically.
 
 ## How the auth works (why this is single-credential)
 
-The Ontos MCP endpoint (`/api/mcp`) sits behind two layers:
+The Nucleus MCP endpoint (`/api/mcp`) sits behind two layers:
 
 1. **Databricks App proxy** — any principal with `CAN_USE` on the app passes (Databricks OAuth).
-2. **Ontos MCP layer** — normally requires an `X-API-Key` (an Ontos-issued MCP token).
+2. **Nucleus MCP layer** — normally requires an `X-API-Key` (a Nucleus-issued MCP token).
 
-Ontos supports **keyless MCP**: when no `X-API-Key` is sent, the request is authenticated
+Nucleus supports **keyless MCP**: when no `X-API-Key` is sent, the request is authenticated
 from the app-proxy identity that Databricks forwards, and mapped to a single **keyless
 default** MCP token. That default token's **scopes** apply to every keyless call.
 
@@ -28,8 +28,8 @@ makes that one credential sufficient — no second token to inject.
 
 ## Prerequisites
 
-- **Ontos** deployed as a Databricks App, with the **keyless MCP** code live, and an
-  **active, non-expired keyless-default MCP token** configured in Ontos
+- **Nucleus** deployed as a Databricks App, with the **keyless MCP** code live, and an
+  **active, non-expired keyless-default MCP token** configured in Nucleus
   (Settings → MCP Tokens → star/set a token as keyless default; scope it read-only).
 - Workspace preview **"Third Party Connectors for Agents"** enabled (workspace admin).
 - Workspace is in a region that **supports Model Serving**.
@@ -40,7 +40,7 @@ makes that one credential sufficient — no second token to inject.
 
 ## Part 1 — Set up the SP and connection from a notebook (Databricks SDK)
 
-Run these cells in a Databricks notebook in the **same workspace** as the Ontos app.
+Run these cells in a Databricks notebook in the **same workspace** as the Nucleus app.
 In a notebook `WorkspaceClient()` authenticates automatically as the notebook user.
 
 ### Cell 1 — install / import
@@ -56,7 +56,7 @@ from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()  # auto-auth as the notebook user
 
 # ---- configure these ----
-APP_NAME         = "ontos-dev"          # the Ontos Databricks App name
+APP_NAME         = "ontos-dev"          # the Nucleus Databricks App name
 SP_DISPLAY_NAME  = "ontos-mcp-genie"    # dedicated SP for the connection
 CONNECTION_NAME  = "ontos_mcp"          # UC connection name (no spaces)
 SECRET_LIFETIME  = "63072000s"          # ~730 days, in seconds + "s"
@@ -123,7 +123,7 @@ conn = w.api_client.do(
     body={
         "name": CONNECTION_NAME,
         "connection_type": "HTTP",
-        "comment": "Ontos MCP server (/api/mcp, keyless) for Genie One",
+        "comment": "Nucleus MCP server (/api/mcp, keyless) for Genie One",
         "read_only": True,
         "options": {
             "host": app_url,                 # full https URL
@@ -166,7 +166,7 @@ print(r.text[:400])
 
 A `200` whose body contains a `tools` array confirms the full chain (proxy OAuth →
 keyless MCP) works with the single credential. If you get `-32001 Invalid or missing API
-key`, no active **keyless-default** token is configured in Ontos — set one first.
+key`, no active **keyless-default** token is configured in Nucleus — set one first.
 
 > 🔐 **Secret hygiene:** the `client_secret` is stored (encrypted) in the UC connection and
 > is also printed in the notebook. Clear the cell outputs, or store the secret in a
@@ -191,9 +191,9 @@ The REST paths above are the source of truth if a typed method differs by versio
      Slack, etc.). Custom UC/MCP connections appear under **Browse connectors**.
 4. Find your connection (**`ontos_mcp`**) and add it.
 5. Ask a question that exercises a tool, e.g.:
-   - *"Search Ontos for customer data products"*
-   - *"What does the Ontos handbook say about delivery modes?"*
-   - *"List the data domains in Ontos"*
+   - *"Search Nucleus for customer data products"*
+   - *"What does the Nucleus handbook say about delivery modes?"*
+   - *"List the data domains in Nucleus"*
 
    Genie discovers the MCP tools and calls them through the connection.
 
@@ -202,7 +202,7 @@ The REST paths above are the source of truth if a typed method differs by versio
 - **Not listed under Browse connectors** → the "Third Party Connectors for Agents" preview
   isn't enabled, or the workspace region doesn't support Model Serving.
 - **Tool calls fail with an auth error** → confirm an active **keyless-default** MCP token
-  exists in Ontos, and that the SP has `CAN_USE` on the app (Cell 5).
+  exists in Nucleus, and that the SP has `CAN_USE` on the app (Cell 5).
 - **404 / HTML responses** → `base_path` must be `/api/mcp`, not `/mcp`.
 
 ---
@@ -210,7 +210,7 @@ The REST paths above are the source of truth if a typed method differs by versio
 ## What got created (for cleanup)
 
 - Service principal `ontos-mcp-genie` (+ one OAuth secret).
-- App permission: `CAN_USE` for that SP on the Ontos app.
+- App permission: `CAN_USE` for that SP on the Nucleus app.
 - Unity Catalog connection `ontos_mcp` (metastore-level).
 
 To remove: delete the connection (`w.connections.delete(CONNECTION_NAME)`), revoke the app
@@ -218,7 +218,7 @@ permission, and delete the service principal.
 
 ## Cross-references {#cross-references}
 
-- [mcp-and-ask-ontos.md](mcp-and-ask-ontos.md) — Ask Ontos vs the MCP server, tokens, scopes, JSON-RPC surface
-- [roles-and-rbac.md](roles-and-rbac.md#permission-model) — how MCP token scopes relate to Ontos permissions
+- [mcp-and-ask-ontos.md](mcp-and-ask-ontos.md) — Ask Nucleus vs the MCP server, tokens, scopes, JSON-RPC surface
+- [roles-and-rbac.md](roles-and-rbac.md#permission-model) — how MCP token scopes relate to Nucleus permissions
 
 _Last verified against codebase: 2026-09-19_

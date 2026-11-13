@@ -1,6 +1,6 @@
 # Agreements and the Approval Workflow
 
-Ontos has two flavours of workflow:
+Nucleus has two flavours of workflow:
 
 - **Process workflows** (`workflow_type = "process"`) — event-driven
   automations that react to triggers like `on_create`, `on_subscribe`,
@@ -13,7 +13,7 @@ This document covers the approval flavour and the agreement artifact it
 produces. The `grant_permissions` step is shared with process workflows
 and is explained in context.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### Three concepts that get conflated {#three-concepts}
 
@@ -64,7 +64,7 @@ workflow is in flight; the agreement is the post-completion artifact.
 
 ### Approval Gates {#approval-gates}
 
-An **Approval Gate** is a first-class concept across Ontos's lifecycle:
+An **Approval Gate** is a first-class concept across Nucleus's lifecycle:
 a moment where a configured approver must sign off before the entity
 moves to the next state. The platform uses approval gates at well-known
 junctures:
@@ -100,7 +100,7 @@ several:
 - **Business owner / approver** — the party whose acceptance is
   required for the agreement to be valid. Resolved from the workflow's
   `approval` or `user_action` step configuration (e.g.,
-  `approvers: "domain_owners"`, named groups, Ontos roles whose
+  `approvers: "domain_owners"`, named groups, Nucleus roles whose
   `approval_privileges` cover the workflow's entity type, or explicit
   emails). The role picker in the workflow designer filters to roles
   that can approve the entity types the workflow is configured for, so
@@ -153,7 +153,7 @@ notifications without baking secrets into the workflow definition.
 ### Delivery {#delivery-step}
 
 A `deliver` step (distinct from `delivery`) dispatches the completed
-agreement through one or more channels: `in_app` (Ontos notification),
+agreement through one or more channels: `in_app` (Nucleus notification),
 `email` (via EmailService), and `webhook` (HTTP POST). Email is the
 only channel that may be silently stripped if no email provider is
 configured; authors are expected to integrate their own email provider
@@ -228,7 +228,7 @@ Catalog access. The step:
    consumer principals from the underlying data product
    (`${entity.consumer_principals}` is available in templates because
    the product enrichment runs before the step).
-2. Uses the Ontos service principal's workspace client to issue UC
+2. Uses the Nucleus service principal's workspace client to issue UC
    `GRANT` statements on the configured securables.
 3. Records the issued grants in the workflow step's `result_data` for
    audit, so revocation can find them later.
@@ -236,7 +236,7 @@ Catalog access. The step:
 The step requires the service principal to hold **`MANAGE`** on each
 securable it grants on. `ALL_PRIVILEGES` is **not** sufficient. UC
 accepts only account-level groups; workspace-only groups will be
-rejected even if they resolve in the Ontos identity layer.
+rejected even if they resolve in the Nucleus identity layer.
 
 ## Common questions {#common-questions}
 

@@ -1,11 +1,11 @@
 {
-  "brand": "{{shortName}} · Ontos",
+  "brand": "{{shortName}} · Nucleus",
   "strip": {
     "label": "Main menu",
     "askHelix": "Ask Helix",
     "helix": "Helix",
-    "askOntos": "Ask Ontos",
-    "ontos": "Ontos"
+    "askOntos": "Ask Nucleus",
+    "ontos": "Nucleus"
   },
   "sections": {
     "platform": "Platform",

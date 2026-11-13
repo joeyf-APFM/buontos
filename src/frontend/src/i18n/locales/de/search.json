@@ -186,7 +186,7 @@
       "showDataProducts": "Zeige mir Datenprodukte in der Kundendomäne",
       "howToCreateProduct": "Wie erstelle ich mein erstes Datenprodukt?",
       "howToSetupDomains": "Wie richte ich Datendomänen ein?",
-      "whatIsOntos": "Was ist Ontos und was kann ich damit machen?",
+      "whatIsOntos": "Was ist Nucleus und was kann ich damit machen?",
       "coreConcepts": "Erkläre die Kernkonzepte: Datenprodukte, Verträge und Domänen."
     },
     "messages": {
@@ -234,11 +234,11 @@
     "welcomeDescription": "Erhalten Sie Hilfe bei Modellierung, Zuordnungen, Produkterstellung und Health-Insights. Probieren Sie einen der vorgeschlagenen Prompts unten aus oder geben Sie Ihre eigene Frage ein.",
     "askingAbout": "Frage zu:",
     "scopePageSpecific": "Seitenspezifisch",
-    "scopeGeneral": "Ontos (allgemein)",
+    "scopeGeneral": "Nucleus (allgemein)",
     "scopeThisPage": "Diese Seite",
     "inputPlaceholder": "{{shortName}} etwas fragen...",
     "messageSendFailed": "Nachricht konnte nicht gesendet werden",
-    "resizeHandle": "Größe des Ask-Ontos-Panels ändern"
+    "resizeHandle": "Größe des Ask-Nucleus-Panels ändern"
   },
   "chatErrors": {
     "chat_validation_failed": "Ich konnte die Daten dieser Anfrage nicht verarbeiten. Bitte formulieren Sie Ihre Frage um. Die Details stehen im Serverprotokoll (Fehler-ID {{errorId}}).",

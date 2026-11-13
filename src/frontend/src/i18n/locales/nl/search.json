@@ -186,7 +186,7 @@
       "showDataProducts": "Toon me dataproducten in het Klant domein",
       "howToCreateProduct": "Hoe maak ik mijn eerste dataproduct?",
       "howToSetupDomains": "Hoe stel ik datadomeinen in?",
-      "whatIsOntos": "Wat is Ontos en wat kan ik ermee doen?",
+      "whatIsOntos": "Wat is Nucleus en wat kan ik ermee doen?",
       "coreConcepts": "Leg de kernconcepten uit: dataproducten, contracten en domeinen."
     },
     "messages": {
@@ -234,11 +234,11 @@
     "welcomeDescription": "Krijg hulp bij modellering, mappings, productcreatie en gezondheidsinzichten. Probeer een van de voorgestelde prompts hieronder of typ je eigen vraag.",
     "askingAbout": "Vraagt over:",
     "scopePageSpecific": "Pagina-specifiek",
-    "scopeGeneral": "Ontos (algemeen)",
+    "scopeGeneral": "Nucleus (algemeen)",
     "scopeThisPage": "Deze pagina",
     "inputPlaceholder": "Vraag {{shortName}} wat dan ook...",
     "messageSendFailed": "Kon bericht niet verzenden",
-    "resizeHandle": "Formaat van Vraag Ontos-paneel aanpassen"
+    "resizeHandle": "Formaat van Vraag Nucleus-paneel aanpassen"
   },
   "chatErrors": {
     "chat_validation_failed": "Ik kon de gegevens van dit verzoek niet verwerken. Probeer je vraag anders te formuleren. De details staan in het serverlogboek (fout-id {{errorId}}).",

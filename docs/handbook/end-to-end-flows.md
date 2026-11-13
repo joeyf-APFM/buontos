@@ -1,7 +1,7 @@
 # End-to-End Flows
 
-Ontos supports two narratives that customers walk in with. Most platforms
-force one or the other. Ontos plumbs both, and the join point is the
+Nucleus supports two narratives that customers walk in with. Most platforms
+force one or the other. Nucleus plumbs both, and the join point is the
 semantic link table.
 
 - **Flow A — Bottom-up.** Start from Unity Catalog. Find a table that's
@@ -12,10 +12,10 @@ semantic link table.
   assets. Layer a glossary on top.
 
 This doc walks each flow step by step, calls out who does what at each
-step, and points at the questions Ask Ontos can answer along the way.
+step, and points at the questions Ask Nucleus can answer along the way.
 Both flows produce semantic links — that's the join.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### Two flows, one bridge {#two-flows-one-bridge}
 
@@ -45,7 +45,7 @@ to ground them in real data. Same rows, opposite arrows.
 
 ### Flow A — Bottom-up: UC → curated catalog {#flow-a-bottom-up}
 
-The canonical phrasing customers use: *"bring asset from UC to Ontos,
+The canonical phrasing customers use: *"bring asset from UC to Nucleus,
 asset to product, product to contract, assign concepts"*. Eight steps.
 
 #### Step 0 — Set up domain, team, project {#step-a-0}
@@ -60,25 +60,25 @@ optionally a Project (a bounded initiative under the team).
 collections — scopes to a domain. Some access scoping (`Filtered` level)
 keys off domain ownership too. Don't skip this even for small demos.
 
-**Ask Ontos at this stage:** "What domains exist?" "Show me teams in
+**Ask Nucleus at this stage:** "What domains exist?" "Show me teams in
 domain X."
 
-#### Step 1 — Bring an asset from UC into Ontos {#step-a-1}
+#### Step 1 — Bring an asset from UC into Nucleus {#step-a-1}
 
 **Who:** Data Producer or Data Engineer.
 
 **What:** Identify the UC table, view, or model that already exists and
-produces value. Register it as an Asset in Ontos (Asset Explorer →
+produces value. Register it as an Asset in Nucleus (Asset Explorer →
 Create Asset with the appropriate type — PhysicalTable, PhysicalView,
 Dataset). The asset carries a pointer back to the UC fully-qualified
 name and inherits typing from the ontology-driven asset type system.
 
-**Why this step exists:** Ontos doesn't own the UC table. It owns a
+**Why this step exists:** Nucleus doesn't own the UC table. It owns a
 governance record *about* the UC table. That record can carry custom
 properties, tags, semantic links, costs, ratings — context the platform
 itself doesn't provide.
 
-**Ask Ontos at this stage:** "Which UC table does this asset point at?"
+**Ask Nucleus at this stage:** "Which UC table does this asset point at?"
 "What's the meaning of this column?"
 
 #### Step 2 — Create the Data Product {#step-a-2}
@@ -97,7 +97,7 @@ required to reference a contract version (per ODPS).
 *input_port*. They're the same thing — the customer-facing names are the
 primary ones.
 
-**Ask Ontos at this stage:** "What does this delivery method mean?"
+**Ask Nucleus at this stage:** "What does this delivery method mean?"
 "What status do I move the product to next?"
 
 #### Step 3 — Attach a Data Contract per Deliverable {#step-a-3}
@@ -116,7 +116,7 @@ A contract is attached to a Deliverable by setting the Deliverable's
 deliberate, not an oversight. Input ports' contract references, by
 contrast, are required.
 
-**Ask Ontos at this stage:** "Which output ports of my product still
+**Ask Nucleus at this stage:** "Which output ports of my product still
 have NULL contracts?" "Show me contracts in this domain in
 under_review."
 
@@ -135,7 +135,7 @@ Document the product (purpose, usage, limitations, getting-started).
 indistinguishable from any other UC table. Enrichment is what justifies
 the wrapper.
 
-**Ask Ontos at this stage:** "What quality dimensions am I covering on
+**Ask Nucleus at this stage:** "What quality dimensions am I covering on
 this contract — am I missing accuracy on PII fields?" "Which products in
 my domain don't have a documented owner?"
 
@@ -150,12 +150,12 @@ The three tiers — product, schema, property — are deliberate; pin at the
 lowest level you can defend.
 
 **Why this matters:** This is where the data becomes addressable by
-business meaning. Ask Ontos can now answer "products related to customer
+business meaning. Ask Nucleus can now answer "products related to customer
 churn" by walking the graph; the marketplace search ranks
 semantically-linked products higher; agents grounded via MCP can find
 the right table by concept, not by name.
 
-**Ask Ontos at this stage:** "Which products in my domain don't have a
+**Ask Nucleus at this stage:** "Which products in my domain don't have a
 glossary term?" "What concept is this column linked to, and why?"
 
 #### Step 6 — Steward review + certify + publish {#step-a-6}
@@ -174,14 +174,14 @@ Approval workflows (see
 this step — the certification action can trigger an approval workflow
 that captures sign-off from named business owners.
 
-**Ask Ontos at this stage:** "What changed in v2 compared to v1?" "Who
+**Ask Nucleus at this stage:** "What changed in v2 compared to v1?" "Who
 needs to approve this status change?"
 
 #### Step 7 — Consumer discovers + subscribes {#step-a-7}
 
 **Who:** Data Consumer.
 
-**What:** The consumer browses the marketplace or asks Ask Ontos a
+**What:** The consumer browses the marketplace or asks Ask Nucleus a
 natural-language question. They drill into a product, review the
 contract, request access via the subscribe wizard. The subscribe wizard
 is itself an approval workflow — it captures use case, on-behalf-of
@@ -190,7 +190,7 @@ to the Data Product Owner for approval. On approval, a
 `grant_permissions` step issues real UC grants to the consumer
 principals.
 
-**Ask Ontos at this stage:** "Where can I find a product about customer
+**Ask Nucleus at this stage:** "Where can I find a product about customer
 churn?" "Who owns the daily-orders product?" "How do I request access?"
 
 ### Flow B — Top-down: ontology → physical assets → UC tags {#flow-b-top-down}
@@ -209,16 +209,16 @@ object properties, optional SHACL shapes for constraints. The
 deliverable is a `.ttl` / `.owl` / `.rdf` / `.nt` file.
 
 Customers at this skill level talk about RDF, OWL, SHACL the way an
-analytics engineer talks about Delta tables. They expect Ontos to handle
-those formats natively — and Ontos does, via rdflib.
+analytics engineer talks about Delta tables. They expect Nucleus to handle
+those formats natively — and Nucleus does, via rdflib.
 
 **Alternative — LLM-assisted inference.** For teams without an ontology
 yet, `OntologyGeneratorManager` (UI: `/concepts/generator`) points at UC
 metadata and proposes concepts. Treat the output as a starting point
 requiring human curation, not a finished ontology.
 
-**Ask Ontos at this stage:** Less useful here — the knowledge engineer
-is writing TTL outside Ontos. Once it's uploaded, Ask Ontos becomes
+**Ask Nucleus at this stage:** Less useful here — the knowledge engineer
+is writing TTL outside Nucleus. Once it's uploaded, Ask Nucleus becomes
 useful for exploration.
 
 #### Step 2 — Upload + enable + visualize {#step-b-2}
@@ -236,7 +236,7 @@ makes ontology investment legible to non-technical stakeholders.
 Identify gaps — clusters with sparse relationships, concepts that don't
 connect to anything, missing domains.
 
-**Ask Ontos at this stage:** "What concepts does our ontology cover for
+**Ask Nucleus at this stage:** "What concepts does our ontology cover for
 the Sales domain?" "Which concepts have no data mapping yet?"
 
 #### Step 3 — Map ontology concepts down to UC assets {#step-b-3}
@@ -256,7 +256,7 @@ Three tiers apply — link at product, contract-schema, or column level.
 For ontology grounding, column-level is the gold standard; product-level
 is the fallback.
 
-**Ask Ontos at this stage:** "Show me all products that satisfy concept
+**Ask Nucleus at this stage:** "Show me all products that satisfy concept
 X." "What concept does this column embody?"
 
 #### Step 4 — Layer a Business Glossary on top {#step-b-4}
@@ -274,7 +274,7 @@ business users have a curated, browse-able view of the parts that matter
 to them. The full ontology stays as the long tail; the glossary is the
 short list.
 
-**Ask Ontos at this stage:** "What's the canonical definition of ARR in
+**Ask Nucleus at this stage:** "What's the canonical definition of ARR in
 our org?" "Show me certified terms in the Finance glossary."
 
 #### Step 5 — Push concept tags back to UC {#step-b-5}
@@ -306,12 +306,12 @@ Indirect mode already see concept-driven tag manifests serialized to
 Git as a by-product of every link write.
 
 **What's not yet shipping in either path:** the reverse direction —
-reading existing UC tags and reflecting them back into Ontos as concept
+reading existing UC tags and reflecting them back into Nucleus as concept
 assignments. The customer voice tracking this work captures it as
 "Tags reading from UC is not there." Forward propagation works; the
 backward pull is the part still evolving.
 
-**Ask Ontos at this stage:** "Has the latest concept-to-column link on
+**Ask Nucleus at this stage:** "Has the latest concept-to-column link on
 the X product been synced to UC yet?" "When was the uc_tag_sync job
 last run?" "Show me UC tables tagged with concept Y."
 
@@ -354,7 +354,7 @@ single concept to a glossary collection). Don't start by trying to
 model the whole organization.
 
 **"We have an ontology authored in Protégé and no UC adoption yet. Can
-we still use Ontos?"**
+we still use Nucleus?"**
 
 Yes. Upload the ontology (Step B-1, B-2). Use the LLM-assisted
 generator to *propose* asset structures from any UC presence you do
@@ -395,7 +395,7 @@ SLAs, support channels) before the signer commits. The resulting
 agreement record snapshots the contract version at sign-time, so later
 contract edits don't retroactively change what the consumer agreed to.
 
-**"Tags reading from UC is not there. How do concepts in Ontos make it
+**"Tags reading from UC is not there. How do concepts in Nucleus make it
 back to UC governance tags?"**
 
 Today via the `uc_tag_sync` workflow — a job that reads
@@ -405,7 +405,7 @@ The Delivery Service is the parallel emerging path: it defines
 `TAG_ASSIGN` as a first-class change type with Direct/Indirect/Manual
 modes; the Direct UC handler is being filled in, the Indirect (Git
 manifest) path already records every tag assignment. Plan demos around
-the forward direction; the reverse direction (UC tags → Ontos concept
+the forward direction; the reverse direction (UC tags → Nucleus concept
 assignments) is the part still evolving. See
 [Delivery and Propagation](delivery-and-propagation.md#concept-to-uc-tag).
 

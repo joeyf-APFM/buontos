@@ -25,7 +25,7 @@ class ImportItemResult(BaseModel):
     index: int = Field(..., description="Zero-based position of the entity within the whole batch")
     source_file: Optional[str] = Field(None, description="Originating filename (multi-file uploads)")
     source_id: Optional[str] = Field(None, description="Entity id as written in the source YAML/JSON, if any")
-    entity_id: Optional[str] = Field(None, description="Created Ontos entity id (None when skipped/failed)")
+    entity_id: Optional[str] = Field(None, description="Created Nucleus entity id (None when skipped/failed)")
     name: Optional[str] = Field(None, description="Entity name, best-effort")
     status: ImportItemStatus = Field(..., description="created | skipped | failed")
     message: Optional[str] = Field(None, description="Skip reason, error detail or note")

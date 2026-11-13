@@ -144,7 +144,7 @@
       "title": "Identidade da instância",
       "id": {
         "label": "ID da instância",
-        "help": "Identificador estável desta instância do Ontos, gravado nas entidades exportadas. Padrão: {{default}}. Limpe o campo para restaurar o padrão.",
+        "help": "Identificador estável desta instância do Nucleus, gravado nas entidades exportadas. Padrão: {{default}}. Limpe o campo para restaurar o padrão.",
         "invalid": "Use de 1 a 128 letras, dígitos, \".\", \"_\", \":\" ou \"-\", começando por letra ou dígito."
       },
       "name": {

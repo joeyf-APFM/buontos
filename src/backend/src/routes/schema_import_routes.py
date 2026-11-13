@@ -156,7 +156,7 @@ async def preview_import(
 @router.post(
     "/import",
     response_model=ImportResult,
-    summary="Import selected resources as Ontos assets",
+    summary="Import selected resources as Nucleus assets",
 )
 async def execute_import(
     payload: ImportRequest,

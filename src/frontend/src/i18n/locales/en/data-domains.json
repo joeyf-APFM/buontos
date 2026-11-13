@@ -161,19 +161,19 @@
   },
   "sync": {
     "title": "Sync Domains",
-    "description": "Import Unity Catalog domains into Ontos, or export your domains to Unity Catalog. UC supports two levels (domains and subdomains); deeper domains are skipped.",
+    "description": "Import Unity Catalog domains into Nucleus, or export your domains to Unity Catalog. UC supports two levels (domains and subdomains); deeper domains are skipped.",
     "direction": {
       "title": "Direction",
       "description": "Which way to sync",
       "importLabel": "Import from Unity Catalog",
-      "importHint": "Create/link Ontos domains from UC",
+      "importHint": "Create/link Nucleus domains from UC",
       "exportLabel": "Export to Unity Catalog",
-      "exportHint": "Publish Ontos domains to UC"
+      "exportHint": "Publish Nucleus domains to UC"
     },
     "target": {
       "importTitle": "Place under",
       "exportTitle": "Anchor",
-      "importHint": "Ontos domain to place imported UC roots under.",
+      "importHint": "Nucleus domain to place imported UC roots under.",
       "exportHint": "Its children become UC roots; grandchildren become subdomains.",
       "importTopLevel": "Top level (no parent)",
       "exportTopLevel": "Top-level domains"
@@ -185,8 +185,8 @@
     "panel": {
       "resultTitle": "Sync Result",
       "previewTitle": "Preview",
-      "importFlow": "Unity Catalog → Ontos",
-      "exportFlow": "Ontos → Unity Catalog"
+      "importFlow": "Unity Catalog → Nucleus",
+      "exportFlow": "Nucleus → Unity Catalog"
     },
     "emptyHint": "Choose a direction and click <b>Preview</b> to see what would change.",
     "warnings": "Warnings",

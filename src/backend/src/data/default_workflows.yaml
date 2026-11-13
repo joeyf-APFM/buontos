@@ -1629,7 +1629,7 @@ workflows:
         name: "Terms of Use"
         type: "legal_document"
         config:
-          title: "Welcome to Ontos"
+          title: "Welcome to Nucleus"
           description: "Please review the following before continuing."
           body_markdown: "# Welcome\n\nBy using this application you agree to:\n\n1. Use it only for authorised business purposes.\n2. Treat any data you access as confidential according to your organisation's data classification policy.\n3. Report security concerns to your data governance team.\n\nReplace this text in **Settings → Workflows → Welcome — Terms of Use** to match your organisation's acceptable-use policy."
           require_scroll_to_end: false

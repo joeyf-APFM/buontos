@@ -1,6 +1,6 @@
 # Data Product Lifecycle
 
-A data product in Ontos is a versioned, governed bundle of related Databricks
+A data product in Nucleus is a versioned, governed bundle of related Databricks
 (or other-platform) assets, exposed through one or more **Deliverables** (the
 customer-facing name for output ports), depending on declared **Consumables**
 (input ports), owned by a team, and optionally bound to one or more data
@@ -11,7 +11,7 @@ In conversation you'll hear "Deliverable" and "Consumable". In the persisted
 ODPS model these are `output_port` and `input_port`. Both vocabularies are
 correct; the customer-facing names are primary.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### What a data product is {#what-is-a-data-product}
 
@@ -137,7 +137,7 @@ Databricks extensions: `asset_type`, `asset_identifier`.
 ### Delivery methods {#delivery-methods}
 
 A Deliverable references a configured Delivery Method. The named values
-shipped with Ontos:
+shipped with Nucleus:
 
 - **Table Access** — Consumer reads via Unity Catalog `SELECT`. The
   `grant_permissions` step in approval workflows wires the UC grants.
@@ -182,10 +182,10 @@ granting Unity Catalog privileges.
 
 Two operational rules here:
 
-- The Ontos app service principal needs **`MANAGE`** on each UC
+- The Nucleus app service principal needs **`MANAGE`** on each UC
   securable it grants on. `ALL_PRIVILEGES` is **not** sufficient.
 - UC accepts only **account-level groups**; workspace-only groups
-  will be rejected even if they resolve in Ontos's identity layer.
+  will be rejected even if they resolve in Nucleus's identity layer.
 
 ### Semantic links and tags {#semantic-links-tags}
 
@@ -227,7 +227,7 @@ compliance alerts when the bound contract's quality checks fail.
 Versioning is explicit: each version is its own product row. Versions of
 the same product are grouped by a stable family identifier — historically
 `base_name` paired with the `parent_product_id` parent-walk, and in the
-current Ontos version moving toward a canonical `version_family_id`
+current Nucleus version moving toward a canonical `version_family_id`
 column that survives renames and is propagated through every clone path.
 Either way, the lifecycle invariant is the same: a row per version,
 linked to its predecessors, with a separate `change_summary` capturing

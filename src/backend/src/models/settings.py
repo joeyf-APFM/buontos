@@ -179,7 +179,7 @@ class EmailConfig(BaseModel):
     enabled: bool = False
     provider: EmailProvider = EmailProvider.SMTP
     from_address: str = ""
-    from_name: str = "Ontos Notifications"
+    from_name: str = "Nucleus Notifications"
     # SMTP settings
     smtp_host: str = ""
     smtp_port: int = 587

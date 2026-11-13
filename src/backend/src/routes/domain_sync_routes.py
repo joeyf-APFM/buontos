@@ -63,7 +63,7 @@ def _handle(exc: Exception):
 @router.post(
     "/import/preview",
     response_model=DomainSyncPreview,
-    summary="Preview importing UC domains into Ontos",
+    summary="Preview importing UC domains into Nucleus",
 )
 async def import_preview(
     payload: ImportRequest,
@@ -80,7 +80,7 @@ async def import_preview(
 @router.post(
     "/import/execute",
     response_model=DomainSyncResult,
-    summary="Import UC domains into Ontos",
+    summary="Import UC domains into Nucleus",
 )
 async def import_execute(
     payload: ImportRequest,
@@ -108,7 +108,7 @@ async def import_execute(
 @router.post(
     "/export/preview",
     response_model=DomainSyncPreview,
-    summary="Preview exporting Ontos domains to UC",
+    summary="Preview exporting Nucleus domains to UC",
 )
 async def export_preview(
     payload: ExportRequest,
@@ -125,7 +125,7 @@ async def export_preview(
 @router.post(
     "/export/execute",
     response_model=DomainSyncResult,
-    summary="Export Ontos domains to UC",
+    summary="Export Nucleus domains to UC",
 )
 async def export_execute(
     payload: ExportRequest,

@@ -1,6 +1,7 @@
 {
   "title": "Over {{appName}}",
   "intro": "Deze applicatie draait als een Databricks App en biedt Unity Catalog en gerelateerde diensten gericht op metadatabeheer, governance en operationele tools.",
+  "attribution": "Built on Ontos, the open-source data governance platform from Databricks Labs, used under its license.",
   "version": "Versie",
   "runningSince": "Actief Sinds",
   "loading": "Laden...",

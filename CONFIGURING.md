@@ -1,6 +1,6 @@
-# Configuring Ontos
+# Configuring Nucleus
 
-This document covers all configuration options for running Ontos, including environment variables, database setup, and deployment configuration.
+This document covers all configuration options for running Nucleus, including environment variables, database setup, and deployment configuration.
 
 ## Table of Contents
 
@@ -103,7 +103,7 @@ DB_POOL_TIMEOUT=10
 
 ## Database Configuration
 
-Ontos stores its metadata (settings, roles, reviews, etc.) in PostgreSQL.
+Nucleus stores its metadata (settings, roles, reviews, etc.) in PostgreSQL.
 
 ### Authentication Modes
 

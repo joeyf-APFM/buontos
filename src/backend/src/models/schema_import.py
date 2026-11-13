@@ -68,7 +68,7 @@ class ImportPreviewItem(BaseModel):
     """A single item in an import preview."""
     path: str = Field(..., description="Full path of the item")
     name: str = Field(..., description="Display name")
-    asset_type: str = Field(..., description="Mapped Ontos asset type name (e.g. Table, View, Column)")
+    asset_type: str = Field(..., description="Mapped Nucleus asset type name (e.g. Table, View, Column)")
     will_create: bool = Field(True, description="True if a new asset will be created, False if it already exists")
     existing_asset_id: Optional[UUID] = Field(None, description="ID of the existing asset if will_create is False")
     parent_path: Optional[str] = Field(None, description="Path of the parent node (for relationship creation)")

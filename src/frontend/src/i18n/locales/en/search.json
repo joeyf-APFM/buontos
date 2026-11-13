@@ -187,7 +187,7 @@
       "showDataProducts": "Show me data products in the Customer domain",
       "howToCreateProduct": "How do I create my first data product?",
       "howToSetupDomains": "How do I set up data domains?",
-      "whatIsOntos": "What is Ontos and what can I do with it?",
+      "whatIsOntos": "What is Nucleus and what can I do with it?",
       "coreConcepts": "Explain the core concepts: data products, contracts, and domains."
     },
     "messages": {
@@ -197,7 +197,7 @@
       "loadSessionFailedTitle": "Could not load the conversation.",
       "deleteSessionFailed": "Failed to delete session",
       "loadFailed": "Failed to load LLM search. Please try again later.",
-      "loadFailedTitle": "Could not load Ask Ontos."
+      "loadFailedTitle": "Could not load Ask Nucleus."
     },
     "debug": {
       "title": "Debug",
@@ -237,11 +237,11 @@
     "welcomeDescription": "Get help with modeling, mappings, product creation, and health insights. Try one of the suggested prompts below or type your own question.",
     "askingAbout": "Asking about:",
     "scopePageSpecific": "Page-specific",
-    "scopeGeneral": "Ontos (general)",
+    "scopeGeneral": "Nucleus (general)",
     "scopeThisPage": "This page",
     "inputPlaceholder": "Ask {{shortName}} anything...",
     "messageSendFailed": "Failed to send message",
-    "resizeHandle": "Resize Ask Ontos panel"
+    "resizeHandle": "Resize Ask Nucleus panel"
   },
   "chatErrors": {
     "chat_validation_failed": "I couldn't process the data of this request. Please try rephrasing your question. The details are in the server log (error id {{errorId}}).",

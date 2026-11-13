@@ -278,7 +278,7 @@ def check_schema_revision(engine: Engine, script_location: Optional[Path]) -> No
     if not current:
         message = (
             f"The database has no Alembic revision, but this code expects {head}. "
-            "Start the Ontos app against this database first: it creates and migrates the schema."
+            "Start the Nucleus app against this database first: it creates and migrates the schema."
         )
         print(f"  ERROR: {message}")
         raise SchemaRevisionError(message)
@@ -299,7 +299,7 @@ def check_schema_revision(engine: Engine, script_location: Optional[Path]) -> No
     message = (
         f"The database schema is at revision {', '.join(current)}, behind the revision "
         f"this code expects ({head}). Upgrade the database before running compliance checks: "
-        "restart the Ontos app (it migrates on startup) or run `alembic upgrade head`."
+        "restart the Nucleus app (it migrates on startup) or run `alembic upgrade head`."
     )
     print(f"  ERROR: {message}")
     raise SchemaRevisionError(message)

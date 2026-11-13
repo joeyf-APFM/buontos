@@ -69,7 +69,7 @@ class BusinessOwnerHistory(BaseModel):
 
 class ImportTeamMemberMapping(BaseModel):
     """Single team member to import as a business owner."""
-    username: str = Field(..., description="Username/email from the ODCS/ODPS team or Ontos Team member")
+    username: str = Field(..., description="Username/email from the ODCS/ODPS team or Nucleus Team member")
     name: Optional[str] = Field(None, description="Display name (optional)")
     role_id: UUID = Field(..., description="Business role ID to assign")
 

@@ -601,7 +601,7 @@ def main() -> None:
     }
 
     # Initialize Spark
-    spark = SparkSession.builder.appName("Ontos-Contract-Validation").getOrCreate()
+    spark = SparkSession.builder.appName("Nucleus-Contract-Validation").getOrCreate()
 
     # Defaults for partially-qualified physical names
     default_catalog = args.catalog or os.environ.get("DATABRICKS_CATALOG")

@@ -161,19 +161,19 @@
   },
   "sync": {
     "title": "Domeinen synchroniseren",
-    "description": "Importeer Unity Catalog-domeinen in Ontos, of exporteer uw domeinen naar Unity Catalog. UC ondersteunt twee niveaus (domeinen en subdomeinen); diepere domeinen worden overgeslagen.",
+    "description": "Importeer Unity Catalog-domeinen in Nucleus, of exporteer uw domeinen naar Unity Catalog. UC ondersteunt twee niveaus (domeinen en subdomeinen); diepere domeinen worden overgeslagen.",
     "direction": {
       "title": "Richting",
       "description": "In welke richting synchroniseren",
       "importLabel": "Importeren uit Unity Catalog",
-      "importHint": "Ontos-domeinen maken/koppelen vanuit UC",
+      "importHint": "Nucleus-domeinen maken/koppelen vanuit UC",
       "exportLabel": "Exporteren naar Unity Catalog",
-      "exportHint": "Ontos-domeinen publiceren in UC"
+      "exportHint": "Nucleus-domeinen publiceren in UC"
     },
     "target": {
       "importTitle": "Plaatsen onder",
       "exportTitle": "Anker",
-      "importHint": "Ontos-domein waaronder de geïmporteerde UC-roots worden geplaatst.",
+      "importHint": "Nucleus-domein waaronder de geïmporteerde UC-roots worden geplaatst.",
       "exportHint": "De kinderen worden UC-roots; de kleinkinderen worden subdomeinen.",
       "importTopLevel": "Hoogste niveau (geen ouder)",
       "exportTopLevel": "Domeinen op het hoogste niveau"
@@ -185,8 +185,8 @@
     "panel": {
       "resultTitle": "Synchronisatieresultaat",
       "previewTitle": "Voorbeeld",
-      "importFlow": "Unity Catalog → Ontos",
-      "exportFlow": "Ontos → Unity Catalog"
+      "importFlow": "Unity Catalog → Nucleus",
+      "exportFlow": "Nucleus → Unity Catalog"
     },
     "emptyHint": "Kies een richting en klik op <b>Voorbeeld bekijken</b> om te zien wat er zou veranderen.",
     "warnings": "Waarschuwingen",

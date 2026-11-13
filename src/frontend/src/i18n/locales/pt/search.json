@@ -186,7 +186,7 @@
       "showDataProducts": "Mostre-me produtos de dados no domínio Cliente",
       "howToCreateProduct": "Como crio meu primeiro produto de dados?",
       "howToSetupDomains": "Como configuro domínios de dados?",
-      "whatIsOntos": "O que é o Ontos e o que posso fazer com ele?",
+      "whatIsOntos": "O que é o Nucleus e o que posso fazer com ele?",
       "coreConcepts": "Explique os conceitos principais: produtos de dados, contratos e domínios."
     },
     "messages": {
@@ -234,11 +234,11 @@
     "welcomeDescription": "Obtenha ajuda com modelagem, mapeamentos, criação de produtos e insights de integridade. Tente uma das sugestões abaixo ou digite sua própria pergunta.",
     "askingAbout": "Perguntando sobre:",
     "scopePageSpecific": "Específico da página",
-    "scopeGeneral": "Ontos (geral)",
+    "scopeGeneral": "Nucleus (geral)",
     "scopeThisPage": "Esta página",
     "inputPlaceholder": "Pergunte qualquer coisa ao {{shortName}}...",
     "messageSendFailed": "Falha ao enviar mensagem",
-    "resizeHandle": "Redimensionar painel Pergunte ao Ontos"
+    "resizeHandle": "Redimensionar painel Pergunte ao Nucleus"
   },
   "chatErrors": {
     "chat_validation_failed": "Não consegui processar os dados desta solicitação. Tente reformular a pergunta. Os detalhes estão no log do servidor (id do erro {{errorId}}).",

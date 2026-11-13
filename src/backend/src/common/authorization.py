@@ -129,7 +129,7 @@ async def is_user_feature_admin(
         return effective.get(feature_id) == FeatureAccessLevel.ADMIN
     except Exception:
         logger.exception(
-            "is_user_feature_admin: failed to resolve Ontos-role admin for user '%s' on feature '%s'; "
+            "is_user_feature_admin: failed to resolve Nucleus-role admin for user '%s' on feature '%s'; "
             "falling back to workspace-admin check (False)",
             user_email,
             feature_id,
@@ -398,12 +398,12 @@ async def require_ontos_admin(
     """
     if not auth_manager.is_user_ontos_admin(user_details.groups):
         logger.warning(
-            "Ontos admin required but caller '%s' is not in any is_admin role",
+            "Nucleus admin required but caller '%s' is not in any is_admin role",
             user_details.user or user_details.email,
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ontos admin role required.",
+            detail="Nucleus admin role required.",
         )
     return user_details
 

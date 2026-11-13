@@ -186,7 +186,7 @@
       "showDataProducts": "Mostrami i prodotti dati nel dominio Cliente",
       "howToCreateProduct": "Come creo il mio primo prodotto dati?",
       "howToSetupDomains": "Come configuro i domini dati?",
-      "whatIsOntos": "Cos'è Ontos e cosa posso farci?",
+      "whatIsOntos": "Cos'è Nucleus e cosa posso farci?",
       "coreConcepts": "Spiega i concetti fondamentali: prodotti dati, contratti e domini."
     },
     "messages": {
@@ -234,11 +234,11 @@
     "welcomeDescription": "Ottieni aiuto su modellazione, mappature, creazione di prodotti e informazioni sullo stato di salute. Prova uno dei prompt suggeriti qui sotto oppure digita la tua domanda.",
     "askingAbout": "Domanda su:",
     "scopePageSpecific": "Specifico della pagina",
-    "scopeGeneral": "Ontos (generale)",
+    "scopeGeneral": "Nucleus (generale)",
     "scopeThisPage": "Questa pagina",
     "inputPlaceholder": "Chiedi qualsiasi cosa a {{shortName}}...",
     "messageSendFailed": "Impossibile inviare il messaggio",
-    "resizeHandle": "Ridimensiona il pannello Chiedi a Ontos"
+    "resizeHandle": "Ridimensiona il pannello Chiedi a Nucleus"
   },
   "chatErrors": {
     "chat_validation_failed": "Non sono riuscito a elaborare i dati di questa richiesta. Prova a riformulare la domanda. I dettagli sono nel log del server (id errore {{errorId}}).",

@@ -3,6 +3,6 @@
   "button \"Preview\"",
   "combobox \"\"",
   "link \"Home\"",
-  "radio \"Export to Unity Catalog Publish Ontos domains to UC\"",
-  "radio \"Import from Unity Catalog Create/link Ontos domains from UC\""
+  "radio \"Export to Unity Catalog Publish Nucleus domains to UC\"",
+  "radio \"Import from Unity Catalog Create/link Nucleus domains from UC\""
 ]

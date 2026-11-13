@@ -576,7 +576,7 @@ def main() -> None:
         contract_statuses = ["active", "certified"]
     verbose = args.verbose.lower() == "true"
 
-    spark = SparkSession.builder.appName("Ontos-DataQuality-Checks").getOrCreate()
+    spark = SparkSession.builder.appName("Nucleus-DataQuality-Checks").getOrCreate()
 
     # Defaults for partially-qualified physical names
     default_catalog = args.catalog or os.environ.get("DATABRICKS_CATALOG")

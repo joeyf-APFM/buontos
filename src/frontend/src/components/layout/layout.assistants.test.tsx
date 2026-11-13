@@ -11,10 +11,10 @@ vi.mock('@/mantine/shell/app-shell', () => ({
 vi.mock('@/mantine/shell/shell-breadcrumb', () => ({ ShellBreadcrumb: () => null }));
 vi.mock('@/stores/ui-customization-store', () => ({
   useUICustomizationStore: (select: (s: { getShortName: () => string }) => unknown) =>
-    select({ getShortName: () => 'Ontos' }),
+    select({ getShortName: () => 'Nucleus' }),
 }));
 
-describe('Layout without the Ask Ontos drawer', () => {
+describe('Layout without the Ask Nucleus drawer', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ db_ok: true, ws_ok: true, warnings: [] }))));
   });
@@ -28,7 +28,7 @@ describe('Layout without the Ask Ontos drawer', () => {
     act(() => useCopilotStore.getState().actions.openPanel());
 
     expect(screen.queryByRole('button', { name: /Ask/ })).toBeNull();
-    expect(screen.queryByRole('separator', { name: /Resize Ask Ontos/ })).toBeNull();
+    expect(screen.queryByRole('separator', { name: /Resize Ask Nucleus/ })).toBeNull();
     expect(container.querySelector('[style*="padding-right"]')).toBeNull();
   });
 });

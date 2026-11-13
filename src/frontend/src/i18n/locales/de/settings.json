@@ -144,7 +144,7 @@
       "title": "Instanzidentität",
       "id": {
         "label": "Instanz-ID",
-        "help": "Stabile Kennung dieser Ontos-Instanz, die in exportierten Entitäten enthalten ist. Standard: {{default}}. Feld leeren, um den Standard wiederherzustellen.",
+        "help": "Stabile Kennung dieser Nucleus-Instanz, die in exportierten Entitäten enthalten ist. Standard: {{default}}. Feld leeren, um den Standard wiederherzustellen.",
         "invalid": "Verwenden Sie 1-128 Zeichen (Buchstaben, Ziffern, \".\", \"_\", \":\" oder \"-\"); das erste Zeichen muss ein Buchstabe oder eine Ziffer sein."
       },
       "name": {

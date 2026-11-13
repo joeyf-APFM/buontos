@@ -293,7 +293,7 @@ describe('Helix window', () => {
     expect(useHelixStore.getState().windowRect).toBeNull();
   });
 
-  it('closes when Ask Ontos opens', async () => {
+  it('closes when Ask Nucleus opens', async () => {
     const user = userEvent.setup();
     mockBackend();
     renderShell('/search');

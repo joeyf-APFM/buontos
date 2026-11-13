@@ -29,7 +29,7 @@ def main() -> None:
     month_start, month_end = month_bounds(args.month)
     month_str = args.month
 
-    spark = SparkSession.builder.appName("Ontos-CostsSync").getOrCreate()
+    spark = SparkSession.builder.appName("Nucleus-CostsSync").getOrCreate()
 
     usage = spark.table("system.billing.usage")
     prices = spark.table("system.billing.list_prices")

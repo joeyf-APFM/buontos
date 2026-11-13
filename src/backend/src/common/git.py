@@ -379,9 +379,9 @@ class GitService:
                     
                     # Create initial README
                     readme_path = self._repo_dir / "README.md"
-                    readme_path.write_text("# Ontos State Repository\n\nThis repository stores YAML state files for the Ontos application.\n")
+                    readme_path.write_text("# Nucleus State Repository\n\nThis repository stores YAML state files for the Nucleus application.\n")
                     self._repo.index.add(["README.md"])
-                    self._repo.index.commit("Initial commit from Ontos")
+                    self._repo.index.commit("Initial commit from Nucleus")
                     
                     # Create/checkout the branch (may already exist from git init), then push
                     try:
@@ -568,7 +568,7 @@ class GitService:
             
             # Generate commit message if not provided
             if not commit_message:
-                commit_message = f"Ontos export at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                commit_message = f"Nucleus export at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
             
             # Commit
             self._repo.index.commit(commit_message)

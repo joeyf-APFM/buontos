@@ -8,9 +8,9 @@ requires = ["hatchling>=1.21.0,<1.32", "hatch-requirements-txt~=0.4.1"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ontos"
+name = "nucleus"
 version = "1.0.2"
-description = "A Business Catalog for the Databricks Platform"
+description = "Nucleus: APFM's data governance platform, a fork of Ontos"
 readme = "../README.md"
 authors = [
     { name="Databricks", email="ontos-support@databricks.com" }
