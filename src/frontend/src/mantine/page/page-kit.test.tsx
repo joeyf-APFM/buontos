@@ -9,7 +9,7 @@ import { useExplorerStore } from '@/mantine/asset-explorer/explorer-store';
 import ExplorerPage from '@/mantine/asset-explorer/explorer-page';
 import { mockBackend } from '@/mantine/asset-explorer/test-fixtures';
 import panel from '@/components/common/panel.module.css';
-import { Breadcrumb, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, PaneStack, Tabs } from '.';
+import { Breadcrumb, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, PaneStack, SelectableList, StatTile, Tabs } from '.';
 import classes from './page.module.css';
 
 vi.mock('@/components/common/asset-form-dialog', () => ({ AssetFormDialog: () => null }));
@@ -404,5 +404,78 @@ describe('the explorer on the page kit', () => {
     expect(terms[0]).toHaveTextContent('Type');
     expect(terms[0].closest('dl')).toHaveClass(panel.kv);
     expect(terms[0].nextElementSibling).toHaveTextContent('Table');
+  });
+
+  describe('SelectableList', () => {
+    const items = [
+      { id: 'a', label: 'Alpha', meta: '3' },
+      { id: 'b', label: 'Beta', disabled: true },
+      { id: 'c', label: 'Gamma' },
+    ];
+
+    it('marks the selected option with aria-selected and calls onSelect on click and Enter', async () => {
+      const user = userEvent.setup();
+      const onSelect = vi.fn();
+      renderWithMantine(<SelectableList aria-label="Personas" items={items} selectedId="a" onSelect={onSelect} />);
+      expect(screen.getByRole('listbox', { name: 'Personas' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Alpha/ })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('option', { name: /Gamma/ })).toHaveAttribute('aria-selected', 'false');
+      await user.click(screen.getByRole('option', { name: /Gamma/ }));
+      expect(onSelect).toHaveBeenLastCalledWith('c');
+      await user.click(screen.getByRole('option', { name: /Beta/ }));
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      screen.getByRole('option', { name: /Alpha/ }).focus();
+      await user.keyboard('{Enter}');
+      expect(onSelect).toHaveBeenLastCalledWith('a');
+    });
+
+    it('ArrowDown and ArrowUp move focus between enabled options and skip disabled ones', async () => {
+      const user = userEvent.setup();
+      renderWithMantine(<SelectableList aria-label="Personas" items={items} selectedId="a" onSelect={() => {}} />);
+      screen.getByRole('option', { name: /Alpha/ }).focus();
+      await user.keyboard('{ArrowDown}');
+      expect(screen.getByRole('option', { name: /Gamma/ })).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(screen.getByRole('option', { name: /Gamma/ })).toHaveFocus();
+      await user.keyboard('{ArrowUp}');
+      expect(screen.getByRole('option', { name: /Alpha/ })).toHaveFocus();
+    });
+
+    it('shows emptyMessage when there are no items', () => {
+      renderWithMantine(<SelectableList aria-label="Personas" items={[]} selectedId={null} onSelect={() => {}} emptyMessage="No personas" />);
+      expect(screen.getByText('No personas')).toBeInTheDocument();
+      expect(screen.queryByRole('option')).not.toBeInTheDocument();
+    });
+  });
+
+  it('StatTile: renders label and value, and the tone changes the value colour', () => {
+    renderWithMantine(
+      <>
+        <StatTile label="Passed" value="12" />
+        <StatTile label="Failed" value="3" tone="critical" />
+      </>,
+    );
+    expect(screen.getByText('Passed')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('3')).toHaveAttribute('data-tone', 'critical');
+    expect(screen.getByText('12')).toHaveAttribute('data-tone', 'neutral');
+  });
+
+  it('PaneStack: sizes lay the panes in a row, weighted by sizes; without sizes it stays a column', () => {
+    const { rerender } = renderWithMantine(
+      <PaneStack sizes={[1, 2]}>
+        <Pane aria-label="One">1</Pane>
+        <Pane aria-label="Two">2</Pane>
+      </PaneStack>,
+    );
+    const stack = screen.getByRole('region', { name: 'One' }).parentElement!.parentElement!;
+    expect(stack).toHaveAttribute('data-sizes');
+    expect((stack.children[1] as HTMLElement).style.getPropertyValue('--pane-size')).toBe('2');
+    rerender(
+      <PaneStack>
+        <Pane aria-label="One">1</Pane>
+      </PaneStack>,
+    );
+    expect(screen.getByRole('region', { name: 'One' }).parentElement).not.toHaveAttribute('data-sizes');
   });
 });
