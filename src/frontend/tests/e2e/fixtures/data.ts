@@ -3,6 +3,7 @@
 // router's empty-list answer.
 
 import { CONCEPT_DETAIL_RESTYLE } from './concept-detail';
+import { GOVERN_FIXTURES } from './govern';
 
 const CREATED = '2026-10-01T09:00:00Z';
 const UPDATED = '2026-11-02T15:30:00Z';
@@ -124,21 +125,6 @@ const PRODUCTS = [
   product('e2e-product-3', 'Monthly revenue', 'deprecated', [], 'Finance'),
 ];
 
-const policy = (id: string, name: string, severity: string, category: string, compliance: number, isActive: boolean) => ({
-  id, name, description: `${name} across every product`, failure_message: `${name} failed`,
-  rule: "MATCH (obj:Object) ASSERT obj.owner IS NOT NULL", compliance, history: [compliance - 5, compliance],
-  created_at: CREATED, updated_at: UPDATED, is_active: isActive, severity, category,
-});
-
-const COMPLIANCE = {
-  policies: [
-    policy('e2e-policy-1', 'Owner assigned', 'high', 'Governance', 92, true),
-    policy('e2e-policy-2', 'PII is tagged', 'critical', 'Security', 64, true),
-    policy('e2e-policy-3', 'Descriptions present', 'low', 'Quality', 80, false),
-  ],
-  stats: { overall_compliance: 79, active_policies: 2, critical_issues: 1 },
-};
-
 const CONNECTION = {
   id: 'e2e-conn-1', name: 'Workspace catalog', connector_type: 'databricks', description: 'Unity Catalog of this workspace',
   config: {}, enabled: true, is_default: true, system_asset_id: null, data_branch: 'uc', created_by: 'e2e.user@example.com',
@@ -220,7 +206,6 @@ export const DATA_FIXTURES: Record<string, unknown> = {
   // Spot-check pages (Ruling R1)
   '/api/teams': TEAMS,
   '/api/data-products': PRODUCTS,
-  '/api/compliance/policies': COMPLIANCE,
 
   // Schema Importer: one connection, so it is picked, and its browse tree
   '/api/connections': [CONNECTION],
@@ -338,4 +323,7 @@ export const DATA_FIXTURES: Record<string, unknown> = {
 
   // Concept detail (wave 2 Task 15): the concept e2e-concept-1, for its own IRI only
   ...CONCEPT_DETAIL_RESTYLE,
+
+  // Govern pages (wave 3 Task 1): compliance, master data, security features, entitlements
+  ...GOVERN_FIXTURES,
 };
