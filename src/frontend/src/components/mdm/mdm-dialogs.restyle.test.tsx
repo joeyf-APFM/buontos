@@ -318,6 +318,18 @@ describe('New MDM Configuration dialog', () => {
     expect(within(dialog).queryByText(/Loaded 4 matching rules/)).toBeNull();
   });
 
+  it('mdm config dialog: a contract rule whose fields are not a list previews without crashing', async () => {
+    mockBackend((url) => (url.pathname === '/api/data-contracts/c-rules'
+      ? json({ ...(DETAILS['c-rules'] as object), customProperties: { mdmMatchingRules: [{ name: 'odd', type: 'exact', fields: 'email' }] } })
+      : undefined));
+    const user = userEvent.setup();
+    renderWithMantine(<ConfigHarness />);
+    const dialog = await configDialog();
+    await chooseContract(user, dialog, 'CRM contract');
+    expect(await within(dialog).findByText(/Loaded 1 matching rules/)).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['odd:  (deterministic)']);
+  });
+
   it('mdm config dialog: a non-array contract list or a failed load shows no contracts, and does not crash', async () => {
     mockBackend((url) => (url.pathname === '/api/data-contracts' ? json({ detail: 'Unavailable' }, 500) : undefined));
     const user = userEvent.setup();

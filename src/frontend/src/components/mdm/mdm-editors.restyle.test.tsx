@@ -211,6 +211,46 @@ describe('Edit MDM Rules', () => {
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Rules updated successfully' }));
   });
 
+  it('matching rules editor: zero numbers and untrimmed or empty list entries render, and save unchanged', async () => {
+    // Values the backend accepts (weight and threshold ge=0) and contracts can carry, not normalised
+    const odd = {
+      ...CONFIG,
+      matching_rules: [{ name: 'zero', type: 'deterministic', fields: ['email ', ''], weight: 0, threshold: 0 }],
+      survivorship_rules: [{ field: 'email', strategy: 'most_trusted', priority: [' CRM', '', 'ERP,x'] }],
+    } as unknown as MdmConfig;
+    const user = userEvent.setup();
+    renderWithMantine(<RulesHarness config={odd} />);
+    const dialog = await rulesDialog();
+    const [rule] = ruleCards(dialog);
+    expect(within(rule).getByRole('spinbutton', { name: 'Weight (0-1)' })).toHaveValue(0);
+    expect(within(rule).getByRole('spinbutton', { name: 'Threshold (0-1)' })).toHaveValue(0);
+    expect(within(rule).getByRole('textbox', { name: 'Fields (comma-separated)' })).toHaveValue('email , ');
+    await user.click(within(dialog).getByRole('tab', { name: 'Survivorship Rules (1)' }));
+    expect(within(ruleCards(dialog)[0]).getByRole('textbox', { name: /^Priority/ })).toHaveValue(' CRM, , ERP,x');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Rules' }));
+    await waitFor(() => expect(calls('PUT', '/api/mdm/configs/mdm-1')).toHaveLength(1));
+    expect(bodyOf(calls('PUT', '/api/mdm/configs/mdm-1')[0])).toEqual({
+      matching_rules: [{ name: 'zero', type: 'deterministic', fields: ['email ', ''], weight: 0, threshold: 0 }],
+      survivorship_rules: [{ field: 'email', strategy: 'most_trusted', priority: [' CRM', '', 'ERP,x'] }],
+    });
+  });
+
+  it('matching rules editor: a typed 0 is shown and saved as 0', async () => {
+    const user = userEvent.setup();
+    renderWithMantine(<RulesHarness />);
+    const dialog = await rulesDialog();
+    const [first] = ruleCards(dialog);
+    for (const name of ['Weight (0-1)', 'Threshold (0-1)']) {
+      const field = within(first).getByRole('spinbutton', { name });
+      await user.clear(field);
+      await user.type(field, '0');
+      expect(field).toHaveValue(0);
+    }
+    await user.click(within(dialog).getByRole('button', { name: 'Save Rules' }));
+    await waitFor(() => expect(calls('PUT', '/api/mdm/configs/mdm-1')).toHaveLength(1));
+    expect(bodyOf(calls('PUT', '/api/mdm/configs/mdm-1')[0]).matching_rules[0]).toMatchObject({ weight: 0, threshold: 0 });
+  });
+
   it('matching rules editor: an empty number falls back as before (weight 1, threshold 0.8)', async () => {
     const user = userEvent.setup();
     renderWithMantine(<RulesHarness />);

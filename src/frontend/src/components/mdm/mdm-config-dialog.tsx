@@ -298,7 +298,7 @@ function ConfigForm({ onSave }: { onSave: (data: MdmConfigCreate) => void }) {
                   <ul className={classes.previewList}>
                     {matchingRules.slice(0, 3).map((rule, i) => (
                       <li key={i}>
-                        <span className={classes.ident} title={rule.name}>{rule.name}</span>: {rule.fields.join(', ')} ({rule.type})
+                        <span className={classes.ident} title={rule.name}>{rule.name}</span>: {(Array.isArray(rule.fields) ? rule.fields : []).join(', ')} ({rule.type})
                       </li>
                     ))}
                     {matchingRules.length > 3 && (

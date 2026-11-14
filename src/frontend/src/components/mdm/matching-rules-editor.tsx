@@ -23,14 +23,18 @@ type Section = 'matching' | 'survivorship';
 const MONO_FIELD = { ...FIELD_CLASSES, input: classes.monoInput };
 
 const splitList = (text: string) => text.split(',').map((f) => f.trim()).filter(Boolean);
-const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+const sameList = (a: string[], b: string[]) =>
+  a === b || (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]));
+const joinList = (list: string[]) => (Array.isArray(list) ? list : []).join(', ');
 
 /**
  * A text field for a value kept in another form (a list, a number): the text
  * stays as typed (a trailing comma, an empty number), while `parse` gives the
  * value. The old fields showed the parsed value back, so a comma vanished as
- * it was typed and an emptied number came back at once. When the value
- * changes from outside (another rule took this place), the text follows it.
+ * it was typed and an emptied number came back at once. The text follows
+ * the value only when the value changes from outside (another rule took this
+ * place): never because the text doesn't parse back to it, since a value such
+ * as ['email '] or 0 need not round-trip (that looped, "Too many re-renders").
  */
 function DraftInput<T>({ value, format, parse, equals, onValue, ...props }: {
   value: T;
@@ -40,21 +44,32 @@ function DraftInput<T>({ value, format, parse, equals, onValue, ...props }: {
   onValue: (value: T) => void;
 } & Omit<ComponentProps<typeof TextInput>, 'value' | 'onChange'>) {
   const [text, setText] = useState(() => format(value));
-  if (!equals(parse(text), value)) setText(format(value));
+  // The value this text stands for: the one it was formatted from, or parsed to
+  const [seen, setSeen] = useState(value);
+  if (!equals(seen, value)) {
+    setSeen(value);
+    setText(format(value));
+  }
   return (
     <TextInput
       {...props}
       value={text}
       onChange={(e) => {
         const next = e.currentTarget.value;
+        const parsed = parse(next);
         setText(next);
-        onValue(parse(next));
+        setSeen(parsed);
+        onValue(parsed);
       }}
     />
   );
 }
 
-const parseNumber = (fallback: number) => (text: string) => parseFloat(text) || fallback;
+/** A number, 0 included (the backend allows 0); an empty or unreadable field falls back, as before. */
+const parseNumber = (fallback: number) => (text: string) => {
+  const n = parseFloat(text);
+  return Number.isNaN(n) ? fallback : n;
+};
 
 export default function MatchingRulesEditor({
   isOpen,
@@ -295,7 +310,7 @@ export default function MatchingRulesEditor({
                       label={t('mdm:editor.fieldsLabel')}
                       placeholder={t('mdm:editor.fieldsPlaceholder')}
                       value={rule.fields}
-                      format={(fields) => fields.join(', ')}
+                      format={joinList}
                       parse={splitList}
                       equals={sameList}
                       onValue={(fields) => updateMatchingRule(idx, { fields })}
@@ -400,7 +415,7 @@ export default function MatchingRulesEditor({
                         label={t('mdm:editor.priorityLabel')}
                         placeholder={t('mdm:editor.priorityPlaceholder')}
                         value={rule.priority || []}
-                        format={(priority) => priority.join(', ')}
+                        format={joinList}
                         parse={splitList}
                         equals={sameList}
                         onValue={(priority) => updateSurvivorshipRule(idx, { priority })}
