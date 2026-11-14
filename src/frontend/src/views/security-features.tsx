@@ -412,7 +412,8 @@ const SecurityFeatures: React.FC = () => {
 
       <Dialog
         opened={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        // Not while a save is out: a failed save keeps the dialog and its input
+        onClose={() => { if (!saving) setIsDialogOpen(false); }}
         size="md"
         title={editingFeature ? t('security-features:editFeature') : t('security-features:addFeature')}
         footer={

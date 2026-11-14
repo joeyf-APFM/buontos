@@ -48,7 +48,7 @@ const RESULTS = [
 ];
 
 let fetchMock: ReturnType<typeof vi.fn>;
-type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response> | undefined;
+type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response | undefined> | undefined;
 
 function mockBackend(extra: Handler = () => undefined, policy: Record<string, unknown> = POLICY, runs: unknown[] = RUNS) {
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -378,5 +378,31 @@ describe('a compliance policy on the page kit', () => {
     renderPage();
     await loaded();
     expect(screen.getByText('No runs yet')).toBeInTheDocument();
+  });
+
+  it('policy details: Escape does not close the edit dialog while a save is out', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    mockBackend(async (url, init) => {
+      if (url.pathname !== '/api/compliance/policies/p-1' || init?.method !== 'PUT') return undefined;
+      await held;
+      return json({ detail: 'nope' }, 500);
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Compliance Rule' });
+    await user.type(within(dialog).getByRole('textbox', { name: /^Name/ }), ' kept');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls('PUT', '/api/compliance/policies/p-1')).toHaveLength(1));
+    await user.keyboard('{Escape}');
+    // Longer than the modal's exit transition, so a closing dialog would be gone
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.getByRole('dialog', { name: 'Edit Compliance Rule' })).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled());
+    expect(screen.getByRole('dialog', { name: 'Edit Compliance Rule' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /^Name/ })).toHaveValue('Owner assigned kept');
   });
 });

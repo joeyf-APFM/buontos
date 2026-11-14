@@ -696,6 +696,41 @@ describe('master data on the page kit', () => {
     await waitFor(() => expect(tab('Candidates (3)')).toHaveAttribute('aria-selected', 'true'));
   });
 
+  it('master data: Create Review on another run shows that run\'s candidates and gates Merge Approved on them', async () => {
+    const RUN_B = { ...RUN, id: 'run-bbbbbbbb-bbbb', pending_review_count: 1, approved_count: 0 };
+    const B_ROWS = [{ ...candidate(9, 'fuzzy', 'pending', 0.9, 'master-9'), run_id: RUN_B.id, source_record_id: 'src-rec-b9' }];
+    mockBackend(CONFIGS, (url) => {
+      if (url.pathname === '/api/mdm/configs/mdm-1/runs') return json([RUN, RUN_B]);
+      if (url.pathname === `/api/mdm/runs/${RUN_B.id}/candidates`) return json(B_ROWS);
+      return undefined;
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(configRow('Customer master'));
+    await within(details()).findByRole('tab', { name: 'Match Runs (2)' });
+
+    // View run A: its three candidates, one approved
+    await user.click(tab(/^Match Runs/));
+    await user.click(within(panel()).getAllByRole('button', { name: 'View' })[0]);
+    await waitFor(() => expect(tab('Candidates (3)')).toHaveAttribute('aria-selected', 'true'));
+    expect(within(panel()).getByRole('button', { name: 'Merge Approved' })).toBeInTheDocument();
+
+    // Create Review on run B (the second row), cancel it, and open the Candidates tab
+    await user.click(tab(/^Match Runs/));
+    await user.click(within(panel()).getAllByRole('button', { name: 'Create Review' })[1]);
+    const review = await screen.findByRole('dialog', { name: 'Create Match Review' });
+    expect(review).toHaveTextContent(RUN_B.id);
+    await user.click(within(review).getByRole('button', { name: 'Cancel' }));
+
+    await user.click(await within(details()).findByRole('tab', { name: 'Candidates (1)' }));
+    expect(within(panel()).getByText('src-rec-b9')).toBeInTheDocument();
+    expect(within(panel()).queryByText('src-rec-1')).toBeNull();
+    // B has nothing approved, so there is no Merge Approved to POST for it
+    expect(within(panel()).queryByRole('button', { name: 'Merge Approved' })).toBeNull();
+    expect(calls('POST', /merge-approved$/)).toHaveLength(0);
+  });
+
   it('master data: arrow keys move through the configuration list and Enter selects', async () => {
     const user = userEvent.setup();
     renderPage();

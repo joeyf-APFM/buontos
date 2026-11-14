@@ -460,7 +460,8 @@ export default function Compliance() {
 
       <Dialog
         opened={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        // Not while a save is out: a failed save keeps the dialog and its input
+        onClose={() => { if (!saving) setIsDialogOpen(false); }}
         size="lg"
         title={selectedPolicy ? t('compliance:editRule') : t('compliance:createNewRule')}
         footer={

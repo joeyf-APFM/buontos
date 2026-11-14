@@ -39,7 +39,7 @@ const POLICIES = [
 const LIST = { policies: POLICIES, stats: { overall_compliance: 77, active_policies: 2, critical_issues: 1 } };
 
 let fetchMock: ReturnType<typeof vi.fn>;
-type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response> | undefined;
+type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response | undefined> | undefined;
 
 function mockBackend(list: unknown = LIST, status = 200, extra: Handler = () => undefined) {
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -354,5 +354,33 @@ describe('compliance on the page kit', () => {
     mockBackend({ policies: 'unexpected', stats: null });
     renderPage();
     expect(await screen.findByText('No results.')).toBeInTheDocument();
+  });
+
+  it('compliance: Escape does not close the policy dialog while a save is out', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    mockBackend(LIST, 200, async (_url, init) => {
+      if (init?.method !== 'POST') return undefined;
+      await held;
+      return json({ detail: 'nope' }, 500);
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Create Rule' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Compliance Rule' });
+    await user.type(within(dialog).getByRole('textbox', { name: /^Name/ }), 'Keep me');
+    await user.type(within(dialog).getByRole('textbox', { name: /^Description/ }), 'Why it matters');
+    await user.type(within(dialog).getByRole('textbox', { name: /^Rule Code/ }), 'MATCH (t:table) ASSERT t.a');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls('POST', '/api/compliance/policies')).toHaveLength(1));
+    await user.keyboard('{Escape}');
+    // Longer than the modal's exit transition, so a closing dialog would be gone
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.getByRole('dialog', { name: 'Create New Compliance Rule' })).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled());
+    expect(screen.getByRole('dialog', { name: 'Create New Compliance Rule' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /^Name/ })).toHaveValue('Keep me');
   });
 });

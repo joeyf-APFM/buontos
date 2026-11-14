@@ -438,7 +438,8 @@ export default function CompliancePolicyDetails() {
       {/* Edit Policy Dialog */}
       <Dialog
         opened={isEditDialogOpen}
-        onClose={() => setIsEditDialogOpen(false)}
+        // Not while a save is out: a failed save keeps the dialog and its input
+        onClose={() => { if (!isSaving) setIsEditDialogOpen(false); }}
         size="lg"
         title={t('compliance:editRule')}
         description={t('common:labels.editDescription', { name: policy.name })}

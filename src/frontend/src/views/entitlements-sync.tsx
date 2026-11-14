@@ -107,6 +107,8 @@ function ConfigForm({
         data={connectionOptions}
         value={connection}
         onChange={setConnection}
+        // A chosen connection can't be cleared, as with the old Radix Select
+        allowDeselect={false}
         classNames={SELECT_CLASSES}
       />
       <TextInput
@@ -126,6 +128,7 @@ function ConfigForm({
         data={catalogOptions}
         value={catalog}
         onChange={setCatalog}
+        allowDeselect={false}
         classNames={SELECT_CLASSES}
       />
       <Switch
@@ -172,6 +175,8 @@ export default function EntitlementsSync() {
       const data = await response.json();
       if (id !== loadId.current) return;
       setConfigs(Array.isArray(data) ? data : []);
+      // Any successful load (a save's or a delete's too) clears an earlier failure
+      setLoadError(null);
     } catch {
       if (id !== loadId.current) return;
       const message = t('entitlements:sync.errors.loadConfigsFailed');
@@ -225,6 +230,12 @@ export default function EntitlementsSync() {
     // The dialog opening is the trigger; t and toast only name the messages
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDialogOpen]);
+
+  // Not while a save is out: its answer may keep the dialog open with the input
+  const closeDialog = () => {
+    if (saving) return;
+    setIsDialogOpen(false);
+  };
 
   const openAdd = () => {
     setEditingConfig(null);
@@ -466,7 +477,7 @@ export default function EntitlementsSync() {
 
       <Dialog
         opened={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        onClose={closeDialog}
         size="md"
         title={editingConfig ? t('entitlements:sync.editConfig') : t('entitlements:sync.newConfig')}
         footer={

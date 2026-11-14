@@ -180,8 +180,14 @@ export default function MasterDataManagement() {
   }, []);
 
   const chooseRun = (run: MdmMatchRun | null) => {
+    const changed = (run?.id ?? null) !== selectedRunId.current;
     selectedRunId.current = run?.id ?? null;
     setSelectedRun(run);
+    // Another run's candidates never show (or gate Merge Approved) under this one
+    if (run && changed) {
+      setCandidates([]);
+      fetchCandidates(run.id);
+    }
   };
 
   const clearSelection = () => {
@@ -209,7 +215,6 @@ export default function MasterDataManagement() {
 
   const openRun = (run: MdmMatchRun) => {
     chooseRun(run);
-    fetchCandidates(run.id);
     setActiveTab('candidates');
   };
 

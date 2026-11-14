@@ -195,7 +195,8 @@ describe('entitlements sync on the page kit', () => {
     expect(calls('POST', '/api/entitlements-sync/configs')).toHaveLength(1);
   });
 
-  it('entitlements sync: a new configuration with nothing chosen sends no catalog, a disabled switch and an empty connection', async () => {
+  it('entitlements sync: a new configuration with nothing ever chosen sends no catalog, a disabled switch and an empty connection', async () => {
+    // Empty is reachable only by never choosing: a chosen connection or catalog can't be cleared
     const user = userEvent.setup();
     renderPage();
     await loaded();
@@ -235,19 +236,26 @@ describe('entitlements sync on the page kit', () => {
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Configuration updated successfully' }));
   });
 
-  it('entitlements sync: clearing the catalog sends none (the no-catalog sentinel)', async () => {
+  it('entitlements sync: choosing the chosen connection or catalog again keeps it, as the old page did', async () => {
     const user = userEvent.setup();
     renderPage();
     await loaded();
     await user.click(editOf('Nightly workspace sync'));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Configuration' });
     await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Catalogs' })).toHaveValue('main'));
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Connection' })).toHaveValue('Workspace catalog'));
+    // The old Radix Selects could not be cleared, so neither can these
     await user.click(within(dialog).getByRole('textbox', { name: 'Catalogs' }));
-    // Choosing the chosen option again clears it
     await user.click(await screen.findByRole('option', { name: 'main', hidden: true }));
+    expect(within(dialog).getByRole('textbox', { name: 'Catalogs' })).toHaveValue('main');
+    await user.click(within(dialog).getByRole('textbox', { name: 'Connection' }));
+    await user.click(await screen.findByRole('option', { name: 'Workspace catalog', hidden: true }));
+    expect(within(dialog).getByRole('textbox', { name: 'Connection' })).toHaveValue('Workspace catalog');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(calls('PUT', '/api/entitlements-sync/configs/sync-1')).toHaveLength(1));
-    expect(JSON.parse(String(calls('PUT', '/api/entitlements-sync/configs/sync-1')[0][1]?.body)).catalogs).toEqual([]);
+    const body = JSON.parse(String(calls('PUT', '/api/entitlements-sync/configs/sync-1')[0][1]?.body));
+    expect(body.catalogs).toEqual(['main']);
+    expect(body.connection).toBe('conn-1');
   });
 
   it('entitlements sync: New Configuration after a cancelled Edit opens an empty form', async () => {
@@ -435,5 +443,56 @@ describe('entitlements sync on the page kit', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText('Stale answer')).toBeNull();
     expect(screen.getByText('Nightly workspace sync', { exact: true })).toBeInTheDocument();
+  });
+
+  it('entitlements sync: a failed first load clears after a later successful reload', async () => {
+    let failing = true;
+    mockBackend(CONFIGS, 200, (url, init) => {
+      if (failing && url.pathname === '/api/entitlements-sync/configs' && (init?.method ?? 'GET') === 'GET') {
+        return json({ detail: 'x' }, 500);
+      }
+      return undefined;
+    });
+    const user = userEvent.setup();
+    renderPage();
+    expect(await within(pane()).findByRole('alert')).toHaveTextContent('Failed to load configurations');
+    // A successful New Configuration reloads the list, without Retry
+    failing = false;
+    await user.click(screen.getByRole('button', { name: 'New Configuration' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New Configuration' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'x');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Schedule (Cron)' }), '* * * * *');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await loaded()).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it('entitlements sync: Escape does not close the dialog while a save is out', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    mockBackend(CONFIGS, 200, async (_url, init) => {
+      if (init?.method !== 'POST') return undefined;
+      await held;
+      return json({ detail: 'nope' }, 500);
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'New Configuration' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New Configuration' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Keep me');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Schedule (Cron)' }), '* * * * *');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls('POST', '/api/entitlements-sync/configs')).toHaveLength(1));
+    await user.keyboard('{Escape}');
+    // Longer than the modal's exit transition, so a closing dialog would be gone
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.getByRole('dialog', { name: 'New Configuration' })).toBeInTheDocument();
+    // The save fails: the typed input is still there to retry
+    release();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled());
+    expect(screen.getByRole('dialog', { name: 'New Configuration' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Keep me');
   });
 });

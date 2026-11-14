@@ -364,4 +364,30 @@ describe('security features on the page kit', () => {
     expect(screen.queryByText('Stale answer')).toBeNull();
     expect(screen.getByText('Regional row filter', { exact: true })).toBeInTheDocument();
   });
+
+  it('security features: Escape does not close the dialog while a save is out', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    mockBackend(FEATURES, 200, async (_url, init) => {
+      if (init?.method !== 'POST') return undefined;
+      await held;
+      return json({ detail: 'nope' }, 500);
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Add Security Feature' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add Security Feature' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Keep me');
+    await user.click(within(dialog).getByRole('button', { name: 'Add Feature' }));
+    await waitFor(() => expect(calls('POST', '/api/security-features')).toHaveLength(1));
+    await user.keyboard('{Escape}');
+    // Longer than the modal's exit transition, so a closing dialog would be gone
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.getByRole('dialog', { name: 'Add Security Feature' })).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Add Feature' })).toBeEnabled());
+    expect(screen.getByRole('dialog', { name: 'Add Security Feature' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Name' })).toHaveValue('Keep me');
+  });
 });
