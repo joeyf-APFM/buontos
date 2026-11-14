@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Falha ao adicionar privilégio",
       "privilegeRemoveFailed": "Falha ao remover privilégio",
       "groupsUpdateFailed": "Falha ao atualizar grupos"
+    },
+    "privilegeCount_one": "{{count}} privilégio",
+    "privilegeCount_other": "{{count}} privilégios",
+    "removePrivilege": "Remover privilégio",
+    "deleteDialog": {
+      "title": "Excluir persona?",
+      "description": "Excluir a persona \"{{name}}\"? Esta ação não pode ser desfeita."
+    },
+    "removeDialog": {
+      "title": "Remover privilégio?",
+      "description": "Remover desta persona o privilégio em \"{{name}}\"?"
     }
   },
   "filters": {

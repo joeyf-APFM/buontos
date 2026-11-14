@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Berechtigung konnte nicht hinzugefügt werden",
       "privilegeRemoveFailed": "Berechtigung konnte nicht entfernt werden",
       "groupsUpdateFailed": "Gruppen konnten nicht aktualisiert werden"
+    },
+    "privilegeCount_one": "{{count}} Berechtigung",
+    "privilegeCount_other": "{{count}} Berechtigungen",
+    "removePrivilege": "Berechtigung entfernen",
+    "deleteDialog": {
+      "title": "Persona löschen?",
+      "description": "Die Persona „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden."
+    },
+    "removeDialog": {
+      "title": "Berechtigung entfernen?",
+      "description": "Die Berechtigung für „{{name}}“ von dieser Persona entfernen?"
     }
   },
   "filters": {

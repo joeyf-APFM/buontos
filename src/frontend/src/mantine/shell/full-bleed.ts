@@ -56,6 +56,8 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   '/security-features',
   // The sync configuration list (full bleed: one pane fills the area)
   '/entitlements-sync',
+  // The personas: the list and the selected persona side by side
+  '/entitlements',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

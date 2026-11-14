@@ -41,6 +41,17 @@
       "privilegeAddFailed": "権限の追加に失敗しました",
       "privilegeRemoveFailed": "権限の削除に失敗しました",
       "groupsUpdateFailed": "グループの更新に失敗しました"
+    },
+    "privilegeCount_one": "{{count}} 件の権限",
+    "privilegeCount_other": "{{count}} 件の権限",
+    "removePrivilege": "権限を削除",
+    "deleteDialog": {
+      "title": "ペルソナを削除しますか?",
+      "description": "ペルソナ「{{name}}」を削除しますか? この操作は元に戻せません。"
+    },
+    "removeDialog": {
+      "title": "権限を削除しますか?",
+      "description": "このペルソナから「{{name}}」の権限を削除しますか?"
     }
   },
   "filters": {

@@ -1,0 +1,150 @@
+/*
+ * Entitlements (/entitlements) on the page kit (wave 3 Task 6): the kit header
+ * with Create Persona at its end, then a PaneStack of two panes, the persona
+ * list (1/4) and the selected persona (3/4). The row buttons and alerts it
+ * shares with the list pages are in components/common/list-page.module.css;
+ * what is left here is the page's own.
+ */
+
+/* The list's rows while it loads: 28px lines to match the persona rows */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.state .stateAlert {
+  align-self: stretch;
+  margin: 0;
+}
+
+.actionAlert {
+  margin: 0 0 8px;
+}
+
+/* The sections of a tab: a heading line with its action, then the content */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.empty {
+  padding: 16px 0;
+  text-align: center;
+  color: var(--aura-text-muted);
+}
+
+/* The privileges: one bordered row each, as the table's rows */
+.privileges {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.privilege {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.privilege:last-child {
+  border-bottom-width: 0;
+}
+
+.privilegeText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The securable is an object's full name: an identifier, so mono; a long one wraps */
+.securable {
+  font-family: var(--aura-font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.securableType {
+  font-size: 11px;
+  color: var(--aura-text-secondary);
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Nothing selected: the hint, centred in the pane */
+.hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 240px;
+  text-align: center;
+  color: var(--aura-text-muted);
+}
+
+.hint p {
+  margin: 0;
+}
+
+.hint svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+}
+
+.hintTitle {
+  font-size: 13px;
+  color: var(--aura-text-secondary);
+}
+
+.form {
+  composes: form from '../components/common/dialog-form.module.css';
+}
+
+.label {
+  composes: label from '../components/common/dialog-form.module.css';
+}
+
+.option {
+  composes: option from '../components/common/dialog-form.module.css';
+}

@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Failed to add privilege",
       "privilegeRemoveFailed": "Failed to remove privilege",
       "groupsUpdateFailed": "Failed to update groups"
+    },
+    "privilegeCount_one": "{{count}} privilege",
+    "privilegeCount_other": "{{count}} privileges",
+    "removePrivilege": "Remove privilege",
+    "deleteDialog": {
+      "title": "Delete persona?",
+      "description": "Delete the persona \"{{name}}\"? This cannot be undone."
+    },
+    "removeDialog": {
+      "title": "Remove privilege?",
+      "description": "Remove the privilege on \"{{name}}\" from this persona?"
     }
   },
   "filters": {

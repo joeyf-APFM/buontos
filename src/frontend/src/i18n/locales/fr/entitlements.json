@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Échec de l'ajout du privilège",
       "privilegeRemoveFailed": "Échec de la suppression du privilège",
       "groupsUpdateFailed": "Échec de la mise à jour des groupes"
+    },
+    "privilegeCount_one": "{{count}} privilège",
+    "privilegeCount_other": "{{count}} privilèges",
+    "removePrivilege": "Retirer le privilège",
+    "deleteDialog": {
+      "title": "Supprimer le persona ?",
+      "description": "Supprimer le persona « {{name}} » ? Cette action est irréversible."
+    },
+    "removeDialog": {
+      "title": "Retirer le privilège ?",
+      "description": "Retirer de ce persona le privilège sur « {{name}} » ?"
     }
   },
   "filters": {

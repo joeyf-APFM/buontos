@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Error al agregar privilegio",
       "privilegeRemoveFailed": "Error al eliminar privilegio",
       "groupsUpdateFailed": "Error al actualizar grupos"
+    },
+    "privilegeCount_one": "{{count}} privilegio",
+    "privilegeCount_other": "{{count}} privilegios",
+    "removePrivilege": "Quitar privilegio",
+    "deleteDialog": {
+      "title": "¿Eliminar persona?",
+      "description": "¿Eliminar la persona «{{name}}»? Esta acción no se puede deshacer."
+    },
+    "removeDialog": {
+      "title": "¿Quitar privilegio?",
+      "description": "¿Quitar de esta persona el privilegio sobre «{{name}}»?"
     }
   },
   "filters": {
