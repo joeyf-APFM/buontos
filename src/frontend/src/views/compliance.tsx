@@ -1,37 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Scale, 
-  MoreHorizontal, 
-} from 'lucide-react';
+import { ActionIcon, Alert, Loader, Menu, Select, TextInput, Textarea } from '@mantine/core';
+import { AlertCircle, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from '@tanstack/react-table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { DataTable } from '@/components/ui/data-table';
-import {
-  ListViewSkeleton,
-  StatCardsSkeleton,
-} from '@/components/common/list-view-skeleton';
+import { ListViewSkeleton } from '@/components/common/list-view-skeleton';
+import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status';
 import { formatRuleWarning, type RuleWarning } from '@/lib/compliance-rule-warnings';
+import { useMenuItemFocus } from '@/mantine/use-menu-item-focus';
+import { Dialog, PageHeader, PageLayout, Pane, StatTile } from '@/mantine/page';
+import list from '@/components/common/list-page.module.css';
+import classes from './compliance.module.css';
 
 interface CompliancePolicy {
   id: string; // UUID
@@ -60,54 +45,254 @@ interface ComplianceApiResponse {
   stats: ComplianceStats;
 }
 
+const NO_STATS: ComplianceStats = { overall_compliance: 0, active_policies: 0, critical_issues: 0 };
+
+// The categories and severities the dialog offers (a policy's own category
+// is added when it is not one of these)
+const CATEGORIES = [
+  { value: 'Security', key: 'security' },
+  { value: 'Data Quality', key: 'dataQuality' },
+  { value: 'Privacy', key: 'privacy' },
+  { value: 'Governance', key: 'governance' },
+  { value: 'Maturity', key: 'maturity' },
+] as const;
+const SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+
+// Hints sit under their field
+const HINT_BELOW = ['label', 'input', 'description', 'error'] as ('label' | 'input' | 'description' | 'error')[];
+const FIELD_CLASSES = { label: classes.label, description: classes.hintText };
+const SELECT_CLASSES = { ...FIELD_CLASSES, option: classes.option };
+
+/** A score's status tone: 90 and up good, 70 and up a warning, below that critical. */
+const scoreTone = (score: number) => (score >= 90 ? 'good' : score >= 70 ? 'warning' : 'critical');
+
+// A severity, in the Aura status tones (one tone each, so they stay apart)
+const SEVERITY_TONES: Record<string, StatusTone> = {
+  low: 'info',
+  medium: 'gold',
+  high: 'warning',
+  critical: 'critical',
+};
+
+type PolicyValues = {
+  name: string;
+  description: string;
+  category: string | null;
+  severity: string | null;
+  rule: string;
+  failure_message: string;
+};
+
+/**
+ * The create/edit form. It is the dialog's body, so its fields start afresh
+ * each time the dialog opens, and its Save is the footer's (the `form` attribute).
+ */
+function PolicyForm({
+  formId,
+  policy,
+  onSave,
+}: {
+  formId: string;
+  policy: CompliancePolicy | null;
+  onSave: (values: PolicyValues) => void;
+}) {
+  const { t } = useTranslation(['compliance', 'common']);
+  const [values, setValues] = useState<PolicyValues>({
+    name: policy?.name ?? '',
+    description: policy?.description ?? '',
+    category: policy?.category || null,
+    severity: policy?.severity || null,
+    rule: policy?.rule ?? '',
+    failure_message: policy?.failure_message ?? '',
+  });
+  const set = <K extends keyof PolicyValues>(key: K, value: PolicyValues[K]) =>
+    setValues((prev) => ({ ...prev, [key]: value }));
+
+  const categories: { value: string; label: string }[] = CATEGORIES.map(({ value, key }) => ({
+    value,
+    label: t(`compliance:categories.${key}`),
+  }));
+  // A policy's own category stays selectable and is kept on save, even when the
+  // dialog doesn't list it (a Select would show it blank, and save "General")
+  if (values.category && !categories.some((c) => c.value === values.category)) {
+    categories.push({ value: values.category, label: values.category });
+  }
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    onSave(values);
+  };
+
+  return (
+    <form id={formId} onSubmit={submit} className={classes.form}>
+      <TextInput
+        id="name"
+        label={t('common:labels.name')}
+        withAsterisk
+        required
+        value={values.name}
+        onChange={(e) => set('name', e.currentTarget.value)}
+        classNames={FIELD_CLASSES}
+        data-autofocus
+      />
+      <Textarea
+        id="description"
+        label={t('common:labels.description')}
+        withAsterisk
+        required
+        autosize
+        minRows={2}
+        maxRows={8}
+        value={values.description}
+        onChange={(e) => set('description', e.currentTarget.value)}
+        classNames={FIELD_CLASSES}
+      />
+      <Select
+        id="category"
+        label={t('common:labels.category')}
+        placeholder={t('common:placeholders.selectCategory')}
+        data={categories}
+        value={values.category}
+        onChange={(value) => set('category', value)}
+        allowDeselect={false}
+        classNames={SELECT_CLASSES}
+      />
+      <Select
+        id="severity"
+        label={t('common:labels.severity')}
+        placeholder={t('common:placeholders.selectSeverity')}
+        data={SEVERITIES.map((s) => ({ value: s, label: t(`compliance:severity.${s}`) }))}
+        value={values.severity}
+        onChange={(value) => set('severity', value)}
+        allowDeselect={false}
+        classNames={SELECT_CLASSES}
+      />
+      <Textarea
+        id="rule"
+        label={t('compliance:form.ruleCode')}
+        withAsterisk
+        required
+        autosize
+        minRows={8}
+        maxRows={20}
+        value={values.rule}
+        onChange={(e) => set('rule', e.currentTarget.value)}
+        placeholder={t('compliance:form.rulePlaceholder')}
+        classNames={{ ...FIELD_CLASSES, input: classes.rule }}
+        spellCheck={false}
+      />
+      <Textarea
+        id="failure_message"
+        label={t('compliance:form.failureMessage')}
+        description={t('compliance:form.failureMessageHint')}
+        inputWrapperOrder={HINT_BELOW}
+        autosize
+        minRows={3}
+        maxRows={8}
+        value={values.failure_message}
+        onChange={(e) => set('failure_message', e.currentTarget.value)}
+        placeholder={t('compliance:form.failureMessagePlaceholder')}
+        classNames={FIELD_CLASSES}
+      />
+    </form>
+  );
+}
+
+/** A row's actions menu. Its items open dialogs, so they hand focus over to them. */
+function RowMenu({
+  policy,
+  onEdit,
+  onDelete,
+}: {
+  policy: CompliancePolicy;
+  onEdit: (policy: CompliancePolicy) => void;
+  onDelete: (policy: CompliancePolicy) => void;
+}) {
+  const { t } = useTranslation('common');
+  const { menuProps, opensDialog } = useMenuItemFocus();
+  return (
+    <div className={list.actions}>
+      <Menu position="bottom-end" withinPortal {...menuProps}>
+        <Menu.Target>
+          <ActionIcon variant="subtle" color="gray" className={list.action} aria-label={t('actions.open')}>
+            <MoreHorizontal aria-hidden />
+          </ActionIcon>
+        </Menu.Target>
+        {/* The dropdown is portalled, but its clicks still bubble through React to the row */}
+        <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+          <Menu.Label>{t('labels.actions')}</Menu.Label>
+          <Menu.Item leftSection={<Pencil aria-hidden />} onClick={opensDialog(() => onEdit(policy))}>
+            {t('actions.edit')}
+          </Menu.Item>
+          <Menu.Divider />
+          <Menu.Item color="red" leftSection={<Trash2 aria-hidden />} onClick={opensDialog(() => onDelete(policy))}>
+            {t('actions.delete')}
+          </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
+    </div>
+  );
+}
+
 export default function Compliance() {
   const { t } = useTranslation(['compliance', 'common']);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { get: apiGet, post: apiPost, put: apiPut, delete: apiDeleteApi, loading: apiIsLoading } = useApi();
+  const { get: apiGet, post: apiPost, put: apiPut, delete: apiDeleteApi } = useApi();
   const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
   const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
   const [policies, setPolicies] = useState<CompliancePolicy[]>([]);
-  const [stats, setStats] = useState<ComplianceStats>({
-    overall_compliance: 0,
-    active_policies: 0,
-    critical_issues: 0
-  });
+  const [stats, setStats] = useState<ComplianceStats>(NO_STATS);
   const [selectedPolicy, setSelectedPolicy] = useState<CompliancePolicy | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [componentError, setComponentError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  // The list's failed load, shown with a Retry
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // An action's error (save, delete), dismissible
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CompliancePolicy | null>(null);
+  // The confirm keeps the name it was opened for while it closes
+  const [deleteName, setDeleteName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  // Only the latest load may set the list: an earlier one that answers late is dropped
+  const loadId = useRef(0);
+  const createButton = useRef<HTMLButtonElement>(null);
+  // Where focus goes once the delete confirm has closed: the Create Rule
+  // button after a delete, since the row is gone; none otherwise, so the
+  // kit gives it back to the row's menu button
+  const afterDelete = useRef<HTMLElement | null>(null);
 
-  const loadPolicies = useCallback(async () => {
-    setComponentError(null);
+  const loadPolicies = useCallback(async (quiet = false) => {
+    const id = ++loadId.current;
+    if (!quiet) setLoading(true);
+    setLoadError(null);
     try {
       const response = await apiGet<ComplianceApiResponse>('/api/compliance/policies');
       if (response.error) {
         throw new Error(response.error);
       }
-      if (response.data) {
-        setPolicies(response.data.policies || []);
-        setStats(response.data.stats || {
-          overall_compliance: 0,
-          active_policies: 0,
-          critical_issues: 0
-        });
-      } else {
-        setPolicies([]);
-        setStats({ overall_compliance: 0, active_policies: 0, critical_issues: 0 });
+      if (!response.data) {
         throw new Error(t('compliance:errors.noDataReceived'));
       }
+      if (id !== loadId.current) return;
+      setPolicies(Array.isArray(response.data.policies) ? response.data.policies : []);
+      setStats(response.data.stats || NO_STATS);
     } catch (error) {
+      if (id !== loadId.current) return;
       console.error('Error loading policies:', error);
       const errorMessage = error instanceof Error ? error.message : t('compliance:errors.loadPoliciesFailed');
-      setComponentError(errorMessage);
+      setLoadError(errorMessage);
       toast({
         title: t('compliance:errors.loadingPolicies'),
         description: errorMessage,
         variant: "destructive"
       });
       setPolicies([]);
-      setStats({ overall_compliance: 0, active_policies: 0, critical_issues: 0 });
+      setStats(NO_STATS);
+    } finally {
+      if (id === loadId.current) setLoading(false);
     }
   }, [apiGet, toast, t]);
 
@@ -122,18 +307,17 @@ export default function Compliance() {
     };
   }, [loadPolicies, setStaticSegments, setDynamicTitle, t]);
 
-  const handleSave = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setComponentError(null);
+  const handleSave = async (values: PolicyValues) => {
+    setActionError(null);
+    setSaving(true);
     try {
-      const form = event.target as HTMLFormElement;
       const policyData: Omit<CompliancePolicy, 'id' | 'created_at' | 'updated_at' | 'compliance' | 'history'> & Partial<Pick<CompliancePolicy, 'id' | 'compliance' | 'history' | 'created_at' | 'updated_at'>> = {
-        name: (form.querySelector('#name') as HTMLInputElement).value,
-        description: (form.querySelector('#description') as HTMLTextAreaElement).value,
-        failure_message: (form.querySelector('#failure_message') as HTMLTextAreaElement)?.value || undefined,
-        category: (form.querySelector('select[name="category"]') as HTMLSelectElement)?.value || 'General',
-        severity: (form.querySelector('select[name="severity"]') as HTMLSelectElement)?.value as CompliancePolicy['severity'] || 'medium',
-        rule: (form.querySelector('#rule') as HTMLTextAreaElement).value,
+        name: values.name,
+        description: values.description,
+        failure_message: values.failure_message || undefined,
+        category: values.category || 'General',
+        severity: (values.severity as CompliancePolicy['severity']) || 'medium',
+        rule: values.rule,
         is_active: selectedPolicy?.is_active ?? true,
       };
 
@@ -155,11 +339,11 @@ export default function Compliance() {
         } as Omit<CompliancePolicy, 'id'>;
         response = await apiPost<CompliancePolicy>('/api/compliance/policies', createPayload);
       }
-      
+
       if (response.error || !response.data) {
         throw new Error(response.error || t('compliance:errors.saveNoDataReturned'));
       }
-      
+
       const warnings = response.data.warnings ?? [];
       toast(warnings.length
         ? {
@@ -170,83 +354,92 @@ export default function Compliance() {
             title: t('common:toast.success'),
             description: t('compliance:toast.policySaved', { name: response.data.name })
           });
-      
+
       setIsDialogOpen(false);
-      loadPolicies();
+      loadPolicies(true);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('compliance:errors.savePolicyFailed');
-      setComponentError(errorMessage);
+      setActionError(errorMessage);
       toast({
         variant: "destructive",
         title: t('compliance:errors.savingPolicy'),
         description: errorMessage
       });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setComponentError(null);
+  const closeDelete = () => {
+    if (deleting) return;
+    afterDelete.current = null;
+    setDeleteTarget(null);
+  };
+
+  const handleDelete = async () => {
+    // A second click while the request is out sends nothing
+    if (!deleteTarget || deleting) return;
+    const { id } = deleteTarget;
+    setDeleting(true);
+    setActionError(null);
+    let deleted = false;
     try {
       const response = await apiDeleteApi(`/api/compliance/policies/${id}`);
-      
+
       if (response.error) {
         throw new Error(response.error || 'Failed to delete policy');
       }
-      
+      deleted = true;
+
       toast({
         title: t('common:toast.success'),
         description: t('compliance:toast.policyDeleted')
       });
-      
-      loadPolicies();
+
+      await loadPolicies(true);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('compliance:errors.deletePolicyFailed');
-      setComponentError(errorMessage);
-      toast({
-        variant: "destructive",
-        title: t('compliance:errors.deletingPolicy'),
-        description: errorMessage
-      });
+      if (!deleted) {
+        const errorMessage = err instanceof Error ? err.message : t('compliance:errors.deletePolicyFailed');
+        setActionError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: t('compliance:errors.deletingPolicy'),
+          description: errorMessage
+        });
+      }
+    } finally {
+      afterDelete.current = deleted ? createButton.current : null;
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
-
-  const overallCompliance = stats.overall_compliance;
-  const activePolicies = stats.active_policies;
-  const criticalIssues = stats.critical_issues;
 
   const handleCreateRule = () => {
     setSelectedPolicy(null);
     setIsDialogOpen(true);
   };
 
-  const handleEditRule = (policy: CompliancePolicy) => {
-    setSelectedPolicy(policy);
-    setIsDialogOpen(true);
-  };
-
-  const getComplianceColor = (score: number) => {
-    if (score >= 90) return 'text-green-600 dark:text-green-400';
-    if (score >= 70) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
-  const getSeverityBadge = (severity: string) => {
-    const variants = {
-      low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-      medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-      high: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
-      critical: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+  // The columns read the row handlers through a ref, so the definitions stay
+  // the same across renders and the cells keep their focus
+  const rowActions = useRef({
+    edit: (_policy: CompliancePolicy) => {},
+    remove: (_policy: CompliancePolicy) => {},
+  });
+  useEffect(() => {
+    rowActions.current = {
+      edit: (policy) => { setSelectedPolicy(policy); setIsDialogOpen(true); },
+      remove: (policy) => { setDeleteName(policy.name); setDeleteTarget(policy); },
     };
-    return variants[severity as keyof typeof variants] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-  };
+  });
 
-  const columns: ColumnDef<CompliancePolicy>[] = [
+  const columns = useMemo<ColumnDef<CompliancePolicy>[]>(() => [
     {
       accessorKey: "name",
       header: t('common:labels.name'),
-      cell: ({ row }) => (
-        <div className="font-medium">{row.getValue("name")}</div>
-      ),
+      cell: ({ row }) => {
+        const name = row.getValue<string>("name");
+        return <span className={list.title} title={name}>{name}</span>;
+      },
     },
     {
       accessorKey: "category",
@@ -258,229 +451,193 @@ export default function Compliance() {
     {
       accessorKey: "severity",
       header: t('common:labels.severity'),
-      cell: ({ row }) => (
-        <Badge className={getSeverityBadge(row.getValue("severity"))}>
-          {row.getValue("severity")}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const severity = row.getValue<string>("severity");
+        return (
+          <Badge variant="outline" style={badgeToneStyle(SEVERITY_TONES[severity] ?? 'neutral')}>
+            {severity}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "compliance",
       header: t('common:labels.compliance'),
       cell: ({ row }) => (
-        <div className={`font-semibold ${getComplianceColor(row.getValue("compliance"))}`}>
+        <span className={classes.score} data-tone={scoreTone(row.getValue<number>("compliance"))}>
           {row.getValue("compliance")}%
-        </div>
+        </span>
       ),
     },
     {
       accessorKey: "is_active",
       header: t('common:labels.status'),
-      cell: ({ row }) => (
-        <Badge variant={row.getValue("is_active") ? "default" : "secondary"}>
-          {row.getValue("is_active") ? t('common:labels.active') : t('common:labels.inactive')}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const active = row.getValue<boolean>("is_active");
+        return (
+          <Badge variant="outline" style={badgeToneStyle(active ? 'good' : 'neutral')}>
+            {active ? t('common:labels.active') : t('common:labels.inactive')}
+          </Badge>
+        );
+      },
     },
     {
       id: "actions",
       enableHiding: false,
-      cell: ({ row }) => {
-        const policy = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">{t('common:actions.open')}</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{t('common:labels.actions')}</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => handleEditRule(policy)}>
-                {t('common:actions.edit')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600 dark:text-red-400"
-                onClick={() => handleDelete(policy.id)}
-              >
-                {t('common:actions.delete')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
+      cell: ({ row }) => (
+        <RowMenu
+          policy={row.original}
+          onEdit={(policy) => rowActions.current.edit(policy)}
+          onDelete={(policy) => rowActions.current.remove(policy)}
+        />
+      ),
     },
-  ];
+  ], [t]);
+
+  const formId = 'compliance-policy-form';
+  const overallTone = scoreTone(stats.overall_compliance);
 
   return (
-    <div className="py-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
-          <Scale className="w-8 h-8" />
-          {t('compliance:title')}
-        </h1>
-        <Button onClick={handleCreateRule} className="gap-2" disabled={apiIsLoading}>
-          <Plus className="h-4 w-4" />
-          {t('compliance:createRule')}
-        </Button>
-      </div>
+    <>
+      <PageLayout fullBleed header={<PageHeader title={t('compliance:title')} />}>
+        <Pane flush aria-label={t('compliance:listPane')}>
+          {loading ? (
+            <div className={list.body}>
+              <ListViewSkeleton columns={6} rows={5} showToolbar={false} toolbarButtons={0} />
+            </div>
+          ) : (
+            <>
+              <div className={classes.stats}>
+                <StatTile
+                  label={t('compliance:stats.overallCompliance')}
+                  value={
+                    <>
+                      {Number(stats.overall_compliance).toFixed(0)}%
+                      <span className={classes.hint}>{t('compliance:stats.acrossAllRules')}</span>
+                    </>
+                  }
+                  tone={overallTone === 'good' ? 'success' : overallTone}
+                />
+                <StatTile
+                  label={t('compliance:stats.activeRules')}
+                  value={
+                    <>
+                      {stats.active_policies}
+                      <span className={classes.hint}>{t('compliance:stats.currentlyEnforced')}</span>
+                    </>
+                  }
+                />
+                <StatTile
+                  label={t('compliance:stats.criticalIssues')}
+                  value={
+                    <>
+                      {stats.critical_issues}
+                      <span className={classes.hint}>{t('compliance:stats.requireAttention')}</span>
+                    </>
+                  }
+                  tone={stats.critical_issues > 0 ? 'critical' : 'neutral'}
+                />
+                <StatTile
+                  label={t('compliance:stats.lastUpdated')}
+                  value={
+                    <>
+                      {t('compliance:stats.today')}
+                      <span className={classes.hint}>12:30 PM</span>
+                    </>
+                  }
+                />
+              </div>
+              <div className={list.body}>
+                {/* The list's failed load, with a Retry; the toolbar stays */}
+                {loadError && (
+                  <div className={classes.state}>
+                    <Alert
+                      color="red"
+                      variant="light"
+                      icon={<AlertCircle />}
+                      className={`${list.alert} ${classes.stateAlert}`}
+                      classNames={{ message: list.alertMessage }}
+                    >
+                      {loadError}
+                    </Alert>
+                    <Button variant="outline" onClick={() => loadPolicies()}>{t('common:retry')}</Button>
+                  </div>
+                )}
+                {/* An action's error (save, delete), dismissible */}
+                {actionError && (
+                  <Alert
+                    color="red"
+                    variant="light"
+                    icon={<AlertCircle />}
+                    className={list.alert}
+                    classNames={{ message: list.alertMessage }}
+                    withCloseButton
+                    closeButtonLabel={t('common:tooltips.dismiss', 'Dismiss')}
+                    onClose={() => setActionError(null)}
+                  >
+                    {actionError}
+                  </Alert>
+                )}
+                <DataTable
+                  columns={columns}
+                  data={policies}
+                  searchColumn="name"
+                  storageKey="compliance-policies-sort"
+                  toolbarActions={
+                    <Button ref={createButton} onClick={handleCreateRule}>
+                      <Plus />
+                      {t('compliance:createRule')}
+                    </Button>
+                  }
+                  onRowClick={(row) => navigate(`${pathname}/policies/${row.original.id}`)}
+                />
+              </div>
+            </>
+          )}
+        </Pane>
+      </PageLayout>
 
-      {apiIsLoading && !isDialogOpen && (
-        <div className="space-y-4">
-          <StatCardsSkeleton count={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" />
-          <ListViewSkeleton columns={6} rows={5} showToolbar={false} toolbarButtons={0} />
-        </div>
-      )}
+      <Dialog
+        opened={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        size="lg"
+        title={selectedPolicy ? t('compliance:editRule') : t('compliance:createNewRule')}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saving}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button type="submit" form={formId} disabled={saving}>
+              {saving && <Loader size={12} color="currentColor" />}
+              {saving ? t('common:states.saving') : t('common:actions.save')}
+            </Button>
+          </>
+        }
+      >
+        <PolicyForm key={selectedPolicy?.id ?? 'new'} formId={formId} policy={selectedPolicy} onSave={handleSave} />
+      </Dialog>
 
-      {componentError && (
-         <div className="bg-red-100 border border-red-400 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400 px-4 py-3 rounded relative mb-4" role="alert">
-           <strong className="font-bold">{t('common:states.error')}: </strong>
-           <span className="block sm:inline">{componentError}</span>
-         </div>
-      )}
-
-      {!apiIsLoading && !componentError && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('compliance:stats.overallCompliance')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-3xl font-bold ${getComplianceColor(overallCompliance)}`}>
-                  {overallCompliance.toFixed(0)}%
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">{t('compliance:stats.acrossAllRules')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('compliance:stats.activeRules')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{activePolicies}</div>
-                <p className="text-sm text-muted-foreground mt-2">{t('compliance:stats.currentlyEnforced')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('compliance:stats.criticalIssues')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600 dark:text-red-400">{criticalIssues}</div>
-                <p className="text-sm text-muted-foreground mt-2">{t('compliance:stats.requireAttention')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('compliance:stats.lastUpdated')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{t('compliance:stats.today')}</div>
-                <p className="text-sm text-muted-foreground mt-2">12:30 PM</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <DataTable
-            columns={columns}
-            data={policies}
-            searchColumn="name"
-            storageKey="compliance-policies-sort"
-            onRowClick={(row) => navigate(`${pathname}/policies/${row.original.id}`)}
-          />
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent key={selectedPolicy?.id ?? 'new'}>
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedPolicy ? t('compliance:editRule') : t('compliance:createNewRule')}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSave} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">{t('common:labels.name')}</Label>
-                  <Input
-                    id="name"
-                    defaultValue={selectedPolicy?.name}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">{t('common:labels.description')}</Label>
-                  <Textarea
-                    id="description"
-                    defaultValue={selectedPolicy?.description}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">{t('common:labels.category')}</Label>
-                  <Select name="category" defaultValue={selectedPolicy?.category}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common:placeholders.selectCategory')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Security">{t('compliance:categories.security')}</SelectItem>
-                      <SelectItem value="Data Quality">{t('compliance:categories.dataQuality')}</SelectItem>
-                      <SelectItem value="Privacy">{t('compliance:categories.privacy')}</SelectItem>
-                      <SelectItem value="Governance">{t('compliance:categories.governance')}</SelectItem>
-                      <SelectItem value="Maturity">{t('compliance:categories.maturity', 'Maturity')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="severity">{t('common:labels.severity')}</Label>
-                  <Select name="severity" defaultValue={selectedPolicy?.severity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common:placeholders.selectSeverity')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">{t('compliance:severity.low')}</SelectItem>
-                      <SelectItem value="medium">{t('compliance:severity.medium')}</SelectItem>
-                      <SelectItem value="high">{t('compliance:severity.high')}</SelectItem>
-                      <SelectItem value="critical">{t('compliance:severity.critical')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rule">{t('compliance:form.ruleCode')}</Label>
-                  <Textarea
-                    id="rule"
-                    defaultValue={selectedPolicy?.rule}
-                    className="font-mono text-sm"
-                    rows={8}
-                    required
-                    placeholder={t('compliance:form.rulePlaceholder')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="failure_message">{t('compliance:form.failureMessage')}</Label>
-                  <Textarea
-                    id="failure_message"
-                    defaultValue={selectedPolicy?.failure_message}
-                    rows={3}
-                    placeholder={t('compliance:form.failureMessagePlaceholder')}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t('compliance:form.failureMessageHint')}
-                  </p>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={apiIsLoading}>
-                    {t('common:actions.cancel')}
-                  </Button>
-                  <Button type="submit" disabled={apiIsLoading}>
-                    {apiIsLoading ? t('common:states.saving') : t('common:actions.save')}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
-    </div>
+      {/* Delete confirmation */}
+      <Dialog
+        opened={!!deleteTarget}
+        onClose={closeDelete}
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={afterDelete}
+        title={t('compliance:deleteDialog.title')}
+        description={t('compliance:deleteDialog.description', { name: deleteName })}
+        footer={
+          <>
+            <Button variant="outline" onClick={closeDelete} disabled={deleting}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader size={12} color="currentColor" />}
+              {t('common:actions.delete')}
+            </Button>
+          </>
+        }
+      />
+    </>
   );
 }

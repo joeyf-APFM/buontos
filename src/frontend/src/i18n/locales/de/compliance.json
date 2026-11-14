@@ -5,6 +5,11 @@
   "createRule": "Regel erstellen",
   "editRule": "Compliance-Regel bearbeiten",
   "createNewRule": "Neue Compliance-Regel erstellen",
+  "listPane": "Richtlinienliste",
+  "deleteDialog": {
+    "title": "Richtlinie löschen?",
+    "description": "Die Richtlinie „{{name}}“ und ihren Ausführungsverlauf löschen? Dies kann nicht rückgängig gemacht werden."
+  },
   "searchPlaceholder": "Richtlinien suchen...",
   "loading": "Compliance-Daten werden geladen...",
   "stats": {

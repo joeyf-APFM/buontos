@@ -5,6 +5,11 @@
   "createRule": "Create Rule",
   "editRule": "Edit Compliance Rule",
   "createNewRule": "Create New Compliance Rule",
+  "listPane": "Policy list",
+  "deleteDialog": {
+    "title": "Delete policy?",
+    "description": "Delete the policy \"{{name}}\" and its run history? This cannot be undone."
+  },
   "searchPlaceholder": "Search policies...",
   "loading": "Loading compliance data...",
   "stats": {

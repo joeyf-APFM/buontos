@@ -5,6 +5,11 @@
   "createRule": "Criar regra",
   "editRule": "Editar regra de conformidade",
   "createNewRule": "Criar nova regra de conformidade",
+  "listPane": "Lista de políticas",
+  "deleteDialog": {
+    "title": "Excluir a política?",
+    "description": "Excluir a política \"{{name}}\" e seu histórico de execuções? Esta ação não pode ser desfeita."
+  },
   "searchPlaceholder": "Buscar políticas...",
   "loading": "Carregando dados de conformidade...",
   "stats": {

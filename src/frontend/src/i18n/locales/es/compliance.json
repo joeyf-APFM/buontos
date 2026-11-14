@@ -5,6 +5,11 @@
   "createRule": "Crear Regla",
   "editRule": "Editar Regla de Cumplimiento",
   "createNewRule": "Crear Nueva Regla de Cumplimiento",
+  "listPane": "Lista de políticas",
+  "deleteDialog": {
+    "title": "¿Eliminar la política?",
+    "description": "¿Eliminar la política «{{name}}» y su historial de ejecuciones? Esta acción no se puede deshacer."
+  },
   "searchPlaceholder": "Buscar políticas...",
   "loading": "Cargando datos de cumplimiento...",
   "stats": {
