@@ -5,6 +5,12 @@
   "addFeature": "Agregar Característica de Seguridad",
   "editFeature": "Editar Característica de Seguridad",
   "searchPlaceholder": "Buscar características de seguridad...",
+  "listPane": "Lista de funciones de seguridad",
+  "empty": "Aún no hay funciones de seguridad.",
+  "deleteDialog": {
+    "title": "¿Eliminar la función de seguridad?",
+    "description": "¿Eliminar la función de seguridad «{{name}}»? Esta acción no se puede deshacer."
+  },
   "loading": "Cargando características de seguridad...",
   "toast": {
     "featureCreated": "Característica de seguridad creada exitosamente",

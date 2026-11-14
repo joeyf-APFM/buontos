@@ -5,6 +5,12 @@
   "addFeature": "Beveiligingsfunctie Toevoegen",
   "editFeature": "Beveiligingsfunctie Bewerken",
   "searchPlaceholder": "Zoek beveiligingsfuncties...",
+  "listPane": "Lijst met beveiligingsfuncties",
+  "empty": "Nog geen beveiligingsfuncties.",
+  "deleteDialog": {
+    "title": "Beveiligingsfunctie verwijderen?",
+    "description": "De beveiligingsfunctie \"{{name}}\" verwijderen? Dit kan niet ongedaan worden gemaakt."
+  },
   "loading": "Beveiligingsfuncties laden...",
   "toast": {
     "featureCreated": "Beveiligingsfunctie succesvol aangemaakt",

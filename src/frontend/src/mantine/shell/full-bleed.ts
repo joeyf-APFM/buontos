@@ -52,6 +52,8 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   '/compliance',
   '/compliance/policies/:policyId',
   '/compliance/runs/:runId',
+  // The security features list (full bleed: one pane fills the area)
+  '/security-features',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

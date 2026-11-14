@@ -5,6 +5,12 @@
   "addFeature": "Sicherheitsfunktion hinzufügen",
   "editFeature": "Sicherheitsfunktion bearbeiten",
   "searchPlaceholder": "Sicherheitsfunktionen suchen...",
+  "listPane": "Liste der Sicherheitsfunktionen",
+  "empty": "Noch keine Sicherheitsfunktionen.",
+  "deleteDialog": {
+    "title": "Sicherheitsfunktion löschen?",
+    "description": "Die Sicherheitsfunktion „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden."
+  },
   "loading": "Sicherheitsfunktionen werden geladen...",
   "toast": {
     "featureCreated": "Sicherheitsfunktion erfolgreich erstellt",

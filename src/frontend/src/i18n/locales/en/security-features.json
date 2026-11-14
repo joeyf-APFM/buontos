@@ -5,6 +5,12 @@
   "addFeature": "Add Security Feature",
   "editFeature": "Edit Security Feature",
   "searchPlaceholder": "Search security features...",
+  "listPane": "Security feature list",
+  "empty": "No security features yet.",
+  "deleteDialog": {
+    "title": "Delete security feature?",
+    "description": "Delete the security feature \"{{name}}\"? This cannot be undone."
+  },
   "loading": "Loading security features...",
   "toast": {
     "featureCreated": "Security feature created successfully",
