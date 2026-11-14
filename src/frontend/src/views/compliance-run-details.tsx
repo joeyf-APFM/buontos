@@ -1,21 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Alert } from '@mantine/core';
+import type { ColumnDef } from '@tanstack/react-table';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef } from '@tanstack/react-table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import { usePageBreadcrumb } from '@/stores/breadcrumb-store';
-import {
-  CardSkeleton,
-  DetailHeaderSkeleton,
-  TableSkeleton,
-} from '@/components/common/list-view-skeleton';
+import { CardSkeleton, DetailHeaderSkeleton, TableSkeleton } from '@/components/common/list-view-skeleton';
 import { complianceRunErrorText } from '@/lib/compliance-run-error';
+import { PageHeader, PageLayout, Pane, PaneStack, StatTile } from '@/mantine/page';
+import classes from './compliance-details.module.css';
 
 interface Run {
   id: string; // UUID
@@ -56,58 +53,82 @@ export default function ComplianceRunDetails() {
   const [run, setRun] = useState<Run | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [onlyFailed, setOnlyFailed] = useState(true);
+  // Only the latest request may set the page: an earlier one that answers late is dropped
+  const request = useRef(0);
+  // The run on screen: a filter change refreshes the table in place, a new run starts afresh
+  const shownRun = useRef<string | undefined>(undefined);
 
+  // Memoised, so the cells keep their focus across renders
   const columns: ColumnDef<Result>[] = useMemo(() => [
     { accessorKey: 'object_type', header: t('common:labels.type') },
-    { accessorKey: 'object_name', header: t('common:labels.name'), cell: ({ row }) => (
-      <code className="text-xs bg-muted px-2 py-1 rounded">{row.original.object_name || row.original.object_id}</code>
-    ) },
-    { accessorKey: 'passed', header: t('common:labels.status'), cell: ({ row }) => (
-      <Badge variant={row.original.passed ? 'secondary' : 'destructive'}>
-        {row.original.passed ? t('compliance:results.passed') : t('compliance:results.failed')}
-      </Badge>
-    ) },
-    { accessorKey: 'message', header: t('common:labels.message'), cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground break-words">{row.original.message || t('compliance:results.empty')}</span>
-    ) },
+    {
+      accessorKey: 'object_name',
+      header: t('common:labels.name'),
+      cell: ({ row }) => {
+        const name = row.original.object_name || row.original.object_id;
+        return <code className={classes.code} title={name}>{name}</code>;
+      },
+    },
+    {
+      accessorKey: 'passed',
+      header: t('common:labels.status'),
+      cell: ({ row }) => (
+        <Badge variant={row.original.passed ? 'secondary' : 'destructive'}>
+          {row.original.passed ? t('compliance:results.passed') : t('compliance:results.failed')}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'message',
+      header: t('common:labels.message'),
+      cell: ({ row }) => <span className={classes.wrap}>{row.original.message || t('compliance:results.empty')}</span>,
+    },
   ], [t]);
 
   const load = useCallback(async () => {
     if (!runId) return;
-    setLoading(true);
+    const mine = ++request.current;
+    if (shownRun.current !== runId) setLoading(true);
     setError(null);
     try {
-      const res = await get<any>(`/api/compliance/runs/${runId}/results?only_failed=${onlyFailed ? 'true' : 'false'}`);
-      if (!res.data) throw new Error(res.error || t('compliance:errors.loadRunResultsFailed'));
+      const res = await get<{ run: Run; results?: Result[] }>(
+        `/api/compliance/runs/${runId}/results?only_failed=${onlyFailed ? 'true' : 'false'}`,
+      );
+      if (mine !== request.current) return;
+      // An error answer carries an empty object as its data
+      if (res.error || !res.data?.run) throw new Error(res.error || t('compliance:errors.loadRunResultsFailed'));
+      shownRun.current = runId;
       setRun(res.data.run);
       setResults(Array.isArray(res.data.results) ? res.data.results : []);
       setDynamicTitle(t('compliance:runDetails.runTitle', { id: runId }));
-    } catch (e: any) {
-      setError(e.message || t('compliance:errors.loadFailed'));
+    } catch (e) {
+      if (mine !== request.current) return;
+      shownRun.current = undefined;
+      setError(e instanceof Error && e.message ? e.message : t('compliance:errors.loadFailed'));
       setRun(null);
       setResults([]);
       setDynamicTitle(t('common:states.error'));
     } finally {
-      setLoading(false);
+      if (mine === request.current) setLoading(false);
     }
   }, [get, runId, onlyFailed, setDynamicTitle, t]);
 
   useEffect(() => {
     setStaticSegments([{ label: t('compliance:title'), path: '/compliance' }]);
-    load();
     return () => {
       setStaticSegments([]);
       setDynamicTitle(null);
     };
-  }, [load, setStaticSegments, setDynamicTitle, t]);
+  }, [setStaticSegments, setDynamicTitle, t]);
 
+  // On arrival and whenever the filter changes
   useEffect(() => {
     load();
-  }, [onlyFailed]);
+  }, [load]);
 
   if (loading) {
     return (
-      <div className="py-6 space-y-6">
+      <div className={classes.state}>
         <DetailHeaderSkeleton actionButtons={1} />
         <CardSkeleton titleWidth="w-48" descriptionWidth="w-64" contentRows={3} />
         <TableSkeleton columns={6} rows={6} />
@@ -116,49 +137,66 @@ export default function ComplianceRunDetails() {
   }
   if (error || !run) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error || t('compliance:errors.runNotFound')}</AlertDescription>
-      </Alert>
+      <div className={classes.state}>
+        <Alert color="red" variant="light" icon={<AlertCircle />}>
+          {error || t('compliance:errors.runNotFound')}
+        </Alert>
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft /> {t('common:actions.back')}
+        </Button>
+      </div>
     );
   }
 
   return (
-    <div className="py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate(-1)} size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('common:actions.back')}
-        </Button>
-        <div className="flex items-center gap-2">
-          <Link to={`/compliance/policies/${run.policy_id}`} className="text-sm text-primary hover:underline">{t('compliance:runDetails.viewPolicy')}</Link>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">{t('compliance:runDetails.runTitle', { id: run.id })}</CardTitle>
-          <CardDescription>
-            {t('compliance:runDetails.statusLabel')} <span className="font-medium">{run.status}</span> • {t('compliance:runDetails.scoreLabel')} <span className="font-medium">{run.score}%</span> •
-            {' '}{t('compliance:runDetails.passedLabel')} <span className="font-medium text-green-600">{run.success_count}</span> / {t('compliance:runDetails.failedLabel')} <span className="font-medium text-red-600">{run.failure_count}</span>
-          </CardDescription>
+    <PageLayout
+      header={
+        <PageHeader
+          title={t('compliance:runDetails.runTitle', { id: run.id })}
+          wrapActions
+          actions={
+            <>
+              <Link to={`/compliance/policies/${run.policy_id}`} className={classes.viewPolicy}>
+                {t('compliance:runDetails.viewPolicy')}
+              </Link>
+              <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+                <ArrowLeft /> {t('common:actions.back')}
+              </Button>
+            </>
+          }
+        />
+      }
+    >
+      <PaneStack>
+        <Pane title={t('compliance:policyDetails.runSummary.title')}>
+          <p className={classes.note}>
+            {t('compliance:runDetails.statusLabel')}{' '}
+            <span className={classes.value} data-failed={run.status === 'failed' || undefined}>{run.status}</span>
+            {' • '}
+            {t('compliance:runDetails.startedLabel', { date: new Date(run.started_at).toLocaleString() })}
+          </p>
           {run.status === 'failed' && run.error_message && (
-            <div className="text-sm text-destructive">{t('compliance:runDetails.errorLabel')} {complianceRunErrorText(t, run)}</div>
+            <p className={classes.error}>{t('compliance:runDetails.errorLabel')} {complianceRunErrorText(t, run)}</p>
           )}
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm text-muted-foreground">{t('compliance:runDetails.startedLabel', { date: new Date(run.started_at).toLocaleString() })}</div>
-            <div className="flex items-center gap-2">
+          <div className={classes.stats}>
+            <StatTile label={t('compliance:policyDetails.runSummary.score')} value={`${run.score}%`} />
+            <StatTile label={t('compliance:policyDetails.runSummary.passed')} value={run.success_count} tone="success" />
+            <StatTile label={t('compliance:policyDetails.runSummary.failed')} value={run.failure_count} tone="critical" />
+          </div>
+        </Pane>
+
+        <Pane
+          title={t('compliance:policyDetails.resultsCard.title')}
+          actions={
+            <>
               <Button size="sm" variant={onlyFailed ? 'default' : 'outline'} onClick={() => setOnlyFailed(true)}>{t('compliance:results.showFailed')}</Button>
               <Button size="sm" variant={!onlyFailed ? 'default' : 'outline'} onClick={() => setOnlyFailed(false)}>{t('compliance:results.showAll')}</Button>
-            </div>
-          </div>
+            </>
+          }
+        >
           <DataTable columns={columns} data={results} searchColumn="object_name" />
-        </CardContent>
-      </Card>
-    </div>
+        </Pane>
+      </PaneStack>
+    </PageLayout>
   );
 }
-
-

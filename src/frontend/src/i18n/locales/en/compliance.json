@@ -67,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "Back to List",
+    "detailsPane": "Policy details",
     "run": "Run",
     "id": "ID",
     "examples": "Examples",

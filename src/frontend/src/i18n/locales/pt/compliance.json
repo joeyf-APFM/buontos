@@ -67,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "Voltar para a lista",
+    "detailsPane": "Detalhes da política",
     "run": "Executar",
     "id": "ID",
     "examples": "Exemplos",

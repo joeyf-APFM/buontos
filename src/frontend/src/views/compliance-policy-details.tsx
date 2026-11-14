@@ -1,18 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Alert, Loader } from '@mantine/core';
+import type { ColumnDef } from '@tanstack/react-table';
+import { AlertCircle, ArrowLeft, PlayCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef } from '@tanstack/react-table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, ArrowLeft, PlayCircle, Scale, Pencil } from 'lucide-react';
 import { DetailViewSkeleton } from '@/components/common/list-view-skeleton';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +17,9 @@ import { usePermissions } from '@/stores/permissions-store';
 import { FeatureAccessLevel } from '@/types/settings';
 import { formatRuleWarning, type RuleWarning } from '@/lib/compliance-rule-warnings';
 import { complianceRunErrorText } from '@/lib/compliance-run-error';
+import { DetailsGrid, Dialog, PageHeader, PageLayout, Pane, PaneStack, StatTile, type DetailsRow } from '@/mantine/page';
+import { PolicyForm, type PolicyValues } from './compliance-policy-form';
+import classes from './compliance-details.module.css';
 
 type Policy = {
   id: string; // UUID
@@ -35,7 +32,7 @@ type Policy = {
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
-  examples?: { pass?: any[]; fail?: any[] } | null;
+  examples?: { pass?: unknown[]; fail?: unknown[] } | null;
   warnings?: RuleWarning[]; // returned by update when the rule cannot work as written
 };
 
@@ -65,17 +62,29 @@ type Result = {
   created_at: string;
 };
 
+// How many passed and failed objects the run summary names
+const SAMPLE = 5;
+
+/** An example, as the policy stores it: a string, or any JSON. */
+const exampleText = (example: unknown) => (typeof example === 'string' ? example : JSON.stringify(example));
+
+/** A bulleted list, or its message when there is nothing to list. */
+function ItemList({ items, empty }: { items: ReactElement[]; empty: string }) {
+  if (items.length === 0) return <div className={classes.empty}>{empty}</div>;
+  return <ul className={classes.list}>{items}</ul>;
+}
+
 export default function CompliancePolicyDetails() {
-  const { t } = useTranslation(['compliance', 'common']);
+  const { t } = useTranslation(['compliance', 'common', 'metadata']);
   const { policyId } = useParams<{ policyId: string }>();
   const navigate = useNavigate();
   const { get, post, put } = useApi();
   const { toast } = useToast();
-  // The metadata panel writes on compliance and on data-domains (the metadata routes' feature)
   const { hasPermission, isLoading: permissionsLoading } = usePermissions();
-  const canEditMetadata = !permissionsLoading
-    && hasPermission('compliance', FeatureAccessLevel.READ_WRITE)
-    && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
+  // Edit and Run Now change the policy and may tag objects: they need write access to compliance
+  const canWrite = !permissionsLoading && hasPermission('compliance', FeatureAccessLevel.READ_WRITE);
+  // The metadata panel writes on compliance and on data-domains (the metadata routes' feature)
+  const canEditMetadata = canWrite && hasPermission('data-domains', FeatureAccessLevel.READ_WRITE);
   // Ignored once the page has gone, so a late answer can't name the next page
   const { setStaticSegments, setDynamicTitle } = usePageBreadcrumb();
 
@@ -89,41 +98,50 @@ export default function CompliancePolicyDetails() {
   const [isCommentSidebarOpen, setIsCommentSidebarOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  // Only the latest results request may set the table: an earlier one that answers late is dropped
+  const resultsRequest = useRef(0);
 
+  // Memoised, so the cells keep their focus across renders
   const resultsColumns: ColumnDef<Result>[] = useMemo(() => [
     { accessorKey: 'object_type', header: t('common:labels.type') },
-    { accessorKey: 'object_name', header: t('common:labels.name'), cell: ({ row }) => (
-      <code className="text-xs bg-muted px-2 py-1 rounded">{row.original.object_name || row.original.object_id}</code>
-    ) },
-    { accessorKey: 'passed', header: t('common:labels.status'), cell: ({ row }) => (
-      <Badge variant={row.original.passed ? 'secondary' : 'destructive'}>
-        {row.original.passed ? t('compliance:results.passed') : t('compliance:results.failed')}
-      </Badge>
-    ) },
-    { accessorKey: 'message', header: t('common:labels.message'), cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground break-words">{row.original.message || t('compliance:results.empty')}</span>
-    ) },
+    {
+      accessorKey: 'object_name',
+      header: t('common:labels.name'),
+      cell: ({ row }) => {
+        const name = row.original.object_name || row.original.object_id;
+        return <code className={classes.code} title={name}>{name}</code>;
+      },
+    },
+    {
+      accessorKey: 'passed',
+      header: t('common:labels.status'),
+      cell: ({ row }) => (
+        <Badge variant={row.original.passed ? 'secondary' : 'destructive'}>
+          {row.original.passed ? t('compliance:results.passed') : t('compliance:results.failed')}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'message',
+      header: t('common:labels.message'),
+      cell: ({ row }) => <span className={classes.wrap}>{row.original.message || t('compliance:results.empty')}</span>,
+    },
   ], [t]);
 
   const fetchRuns = useCallback(async (pid: string) => {
     const runsRes = await get<Run[]>(`/api/compliance/policies/${pid}/runs`);
     const items = runsRes.data && Array.isArray(runsRes.data) ? runsRes.data : [];
     setRuns(items);
-    if (items.length > 0) {
-      setActiveRun(items[0]);
-    } else {
-      setActiveRun(null);
-    }
+    setActiveRun(items.length > 0 ? items[0] : null);
   }, [get]);
 
   const fetchResults = useCallback(async (runId?: string, failedOnly?: boolean) => {
+    const request = ++resultsRequest.current;
     if (!runId) { setResults([]); return; }
-    const res = await get<any>(`/api/compliance/runs/${runId}/results?only_failed=${failedOnly ? 'true' : 'false'}`);
-    if (res.data) {
-      setResults(Array.isArray(res.data.results) ? res.data.results : []);
-    } else {
-      setResults([]);
-    }
+    const res = await get<{ results?: Result[] }>(`/api/compliance/runs/${runId}/results?only_failed=${failedOnly ? 'true' : 'false'}`);
+    if (request !== resultsRequest.current) return;
+    setResults(res.data && Array.isArray(res.data.results) ? res.data.results : []);
   }, [get]);
 
   const load = useCallback(async () => {
@@ -132,12 +150,13 @@ export default function CompliancePolicyDetails() {
     setError(null);
     try {
       const policyRes = await get<Policy>(`/api/compliance/policies/${policyId}`);
-      if (!policyRes.data) throw new Error(policyRes.error || t('compliance:errors.loadPolicyFailed'));
+      // An error answer carries an empty object as its data
+      if (policyRes.error || !policyRes.data?.id) throw new Error(policyRes.error || t('compliance:errors.loadPolicyFailed'));
       setPolicy(policyRes.data);
       setDynamicTitle(policyRes.data.name);
       await fetchRuns(policyId);
-    } catch (e: any) {
-      setError(e.message || t('compliance:errors.loadFailed'));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : t('compliance:errors.loadFailed'));
       setPolicy(null);
       setDynamicTitle(t('common:states.error'));
     } finally {
@@ -158,13 +177,19 @@ export default function CompliancePolicyDetails() {
     if (activeRun) {
       fetchResults(activeRun.id, onlyFailed);
     } else {
+      resultsRequest.current += 1;
       setResults([]);
     }
   }, [activeRun, onlyFailed, fetchResults]);
 
+  // A few of the shown results, passed and failed
+  const passedSample = useMemo(() => results.filter((r) => r.passed).slice(0, SAMPLE), [results]);
+  const failedSample = useMemo(() => results.filter((r) => !r.passed).slice(0, SAMPLE), [results]);
+
   const runNow = async () => {
-    if (!policyId) return;
-    setLoading(true);
+    // A second click while the run is out sends nothing
+    if (!policyId || running) return;
+    setRunning(true);
     try {
       const res = await post<Run>(`/api/compliance/policies/${policyId}/runs`, { mode: 'inline' });
       if (res.error) {
@@ -180,34 +205,30 @@ export default function CompliancePolicyDetails() {
         await fetchRuns(policyId);
       }
     } finally {
-      setLoading(false);
+      setRunning(false);
     }
   };
 
-  const handleSave = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSave = async (values: PolicyValues) => {
     if (!policyId || !policy) return;
-    
     setIsSaving(true);
     try {
-      const form = event.target as HTMLFormElement;
       const updatedPolicy = {
         ...policy,
-        name: (form.querySelector('#edit-name') as HTMLInputElement).value,
-        description: (form.querySelector('#edit-description') as HTMLTextAreaElement).value,
-        failure_message: (form.querySelector('#edit-failure-message') as HTMLTextAreaElement)?.value || undefined,
-        category: (form.querySelector('[name="edit-category"]') as HTMLInputElement)?.value || policy.category,
-        severity: (form.querySelector('[name="edit-severity"]') as HTMLInputElement)?.value || policy.severity,
-        rule: (form.querySelector('#edit-rule') as HTMLTextAreaElement).value,
+        name: values.name,
+        description: values.description,
+        failure_message: values.failure_message || undefined,
+        category: values.category || policy.category,
+        severity: values.severity || policy.severity,
+        rule: values.rule,
         updated_at: new Date().toISOString(),
       };
 
       const response = await put<Policy>(`/api/compliance/policies/${policyId}`, updatedPolicy);
-      
       if (response.error || !response.data) {
         throw new Error(response.error || t('compliance:errors.savePolicyFailed'));
       }
-      
+
       setPolicy(response.data);
       setDynamicTitle(response.data.name);
       const warnings = response.data.warnings ?? [];
@@ -218,16 +239,14 @@ export default function CompliancePolicyDetails() {
           }
         : {
             title: t('common:toast.success'),
-            description: t('compliance:toast.policySaved', { name: response.data.name })
+            description: t('compliance:toast.policySaved', { name: response.data.name }),
           });
-      
       setIsEditDialogOpen(false);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('compliance:errors.savePolicyFailed');
       toast({
         variant: 'destructive',
         title: t('compliance:errors.savingPolicy'),
-        description: errorMessage
+        description: err instanceof Error ? err.message : t('compliance:errors.savePolicyFailed'),
       });
     } finally {
       setIsSaving(false);
@@ -235,311 +254,208 @@ export default function CompliancePolicyDetails() {
   };
 
   if (loading) {
-    return <DetailViewSkeleton cards={4} actionButtons={3} />;
+    return (
+      <div className={classes.state}>
+        <DetailViewSkeleton cards={4} actionButtons={3} />
+      </div>
+    );
   }
   if (error || !policy) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error || t('compliance:errors.policyNotFound')}</AlertDescription>
-      </Alert>
+      <div className={classes.state}>
+        <Alert color="red" variant="light" icon={<AlertCircle />}>
+          {error || t('compliance:errors.policyNotFound')}
+        </Alert>
+        <Button variant="outline" size="sm" onClick={() => navigate('/compliance')}>
+          <ArrowLeft /> {t('compliance:policyDetails.backToList')}
+        </Button>
+      </div>
     );
   }
 
+  const formId = 'compliance-policy-details-form';
+  const startedAt = activeRun ? new Date(activeRun.started_at).toLocaleString() : '';
+  const examples = policy.examples && (policy.examples.pass?.length || policy.examples.fail?.length) ? policy.examples : null;
+  const exampleItems = (items: unknown[] | undefined, key: string) =>
+    (Array.isArray(items) ? items : []).map((ex, i) => (
+      <li key={`${key}-${i}`}><code className={classes.code}>{exampleText(ex)}</code></li>
+    ));
+  const sampleItems = (rows: Result[], key: string, withMessage: boolean) =>
+    rows.map((r) => (
+      <li key={`${key}-${r.id}`}>
+        <code className={classes.code}>{r.object_name || r.object_id}</code>
+        {withMessage && r.message ? <span> — {r.message}</span> : null}
+      </li>
+    ));
+
+  const detailRows: DetailsRow[] = [
+    { label: t('common:labels.description'), value: <span className={classes.wrap}>{policy.description}</span> },
+    { label: t('compliance:policyDetails.id'), value: <code className={classes.code}>{policy.id}</code> },
+    { label: t('common:labels.category'), value: <Badge variant="outline">{policy.category || 'General'}</Badge> },
+    { label: t('common:labels.severity'), value: <Badge>{policy.severity || 'medium'}</Badge> },
+  ];
+
   return (
-    <div className="py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate('/compliance')} size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('compliance:policyDetails.backToList')}
-        </Button>
-        <div className="flex items-center gap-2">
-          <CommentSidebar
-            entityType="compliance_policy"
-            entityId={policyId!}
-            isOpen={isCommentSidebarOpen}
-            onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
-            className="h-8"
+    <>
+      <PageLayout
+        header={
+          <PageHeader
+            title={policy.name}
+            wrapActions
+            actions={
+              <>
+                <Button variant="outline" size="sm" onClick={() => navigate('/compliance')}>
+                  <ArrowLeft /> {t('compliance:policyDetails.backToList')}
+                </Button>
+                <CommentSidebar
+                  entityType="compliance_policy"
+                  entityId={policyId!}
+                  isOpen={isCommentSidebarOpen}
+                  onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                />
+                {canWrite && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+                      <Pencil /> {t('common:actions.edit')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={runNow} disabled={running}>
+                      {running ? <Loader size={12} color="currentColor" /> : <PlayCircle />} {t('compliance:policyDetails.run')}
+                    </Button>
+                  </>
+                )}
+              </>
+            }
           />
-          <Button variant="outline" onClick={() => setIsEditDialogOpen(true)} size="sm">
-            <Pencil className="mr-2 h-4 w-4" /> {t('common:actions.edit')}
-          </Button>
-          <Button variant="outline" onClick={runNow} size="sm"><PlayCircle className="mr-2 h-4 w-4" /> {t('compliance:policyDetails.run')}</Button>
-        </div>
-      </div>
+        }
+      >
+        <PaneStack>
+          <Pane aria-label={t('compliance:policyDetails.detailsPane')}>
+            <DetailsGrid rows={detailRows} columns={1} />
+          </Pane>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold flex items-center">
-            <Scale className="mr-3 h-7 w-7 text-primary" />{policy.name}
-          </CardTitle>
-          <CardDescription className="pt-1">{policy.description}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <div>
-            <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.id')}</div>
-            <code className="text-xs bg-muted px-2 py-1 rounded">{policy.id}</code>
-          </div>
-          <div>
-            <div className="text-sm text-muted-foreground">{t('common:labels.category')}</div>
-            <Badge variant="outline">{policy.category || 'General'}</Badge>
-          </div>
-          <div>
-            <div className="text-sm text-muted-foreground">{t('common:labels.severity')}</div>
-            <Badge>{policy.severity || 'medium'}</Badge>
-          </div>
-          <div className="md:col-span-3">
-            <div className="text-sm text-muted-foreground">{t('common:labels.rule')}</div>
-            <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-48 whitespace-pre-wrap">{policy.rule}</pre>
-          </div>
-          {policy.examples && (policy.examples.pass?.length || policy.examples.fail?.length) ? (
-            <div className="md:col-span-3">
-              <div className="text-sm font-semibold mb-2">{t('compliance:policyDetails.examples')}</div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <div className="mb-2">
+          <Pane title={t('common:labels.rule')}>
+            <pre className={classes.rule}>{policy.rule}</pre>
+            {examples && (
+              <section className={classes.section}>
+                <h3 className={classes.sectionTitle}>{t('compliance:policyDetails.examples')}</h3>
+                <div className={classes.examples}>
+                  <div>
                     <Badge variant="secondary">{t('compliance:policyDetails.shouldPass')}</Badge>
+                    <ItemList items={exampleItems(examples.pass, 'pass')} empty={t('compliance:policyDetails.noExamples')} />
                   </div>
-                  {policy.examples.pass && policy.examples.pass.length > 0 ? (
-                    <ul className="list-disc pl-5 space-y-1">
-                      {policy.examples.pass.map((ex, i) => (
-                        <li key={`pass-${i}`} className="text-sm text-muted-foreground break-words">
-                          <code className="text-xs bg-muted px-1 py-0.5 rounded">{typeof ex === 'string' ? ex : JSON.stringify(ex)}</code>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.noExamples')}</div>
-                  )}
+                  <div>
+                    <Badge variant="destructive">{t('compliance:policyDetails.shouldFail')}</Badge>
+                    <ItemList items={exampleItems(examples.fail, 'fail')} empty={t('compliance:policyDetails.noExamples')} />
+                  </div>
+                </div>
+              </section>
+            )}
+          </Pane>
+
+          {activeRun && (
+            <Pane title={t('compliance:policyDetails.runSummary.title')}>
+              <p className={classes.note}>
+                {t('compliance:policyDetails.runSummary.lastRunStarted', { date: startedAt })} • {t('compliance:policyDetails.runSummary.statusLabel')}{' '}
+                <span className={classes.value}>{activeRun.status}</span>
+              </p>
+              {activeRun.status === 'failed' && activeRun.error_message && (
+                <p className={classes.error}>{t('compliance:policyDetails.runSummary.errorLabel')} {complianceRunErrorText(t, activeRun)}</p>
+              )}
+              <div className={classes.stats}>
+                <StatTile label={t('compliance:policyDetails.runSummary.score')} value={`${activeRun.score}%`} />
+                <StatTile label={t('compliance:policyDetails.runSummary.passed')} value={activeRun.success_count} tone="success" />
+                <StatTile label={t('compliance:policyDetails.runSummary.failed')} value={activeRun.failure_count} tone="critical" />
+              </div>
+              <div className={classes.examples}>
+                <div>
+                  <Badge variant="secondary">{t('compliance:policyDetails.runSummary.passedExamples')}</Badge>
+                  <ItemList items={sampleItems(passedSample, 'pass-prev', false)} empty={t('compliance:policyDetails.runSummary.noPassedExamples')} />
                 </div>
                 <div>
-                  <div className="mb-2">
-                    <Badge variant="destructive">{t('compliance:policyDetails.shouldFail')}</Badge>
-                  </div>
-                  {policy.examples.fail && policy.examples.fail.length > 0 ? (
-                    <ul className="list-disc pl-5 space-y-1">
-                      {policy.examples.fail.map((ex, i) => (
-                        <li key={`fail-${i}`} className="text-sm text-muted-foreground break-words">
-                          <code className="text-xs bg-muted px-1 py-0.5 rounded">{typeof ex === 'string' ? ex : JSON.stringify(ex)}</code>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.noExamples')}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {activeRun && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">{t('compliance:policyDetails.runSummary.title')}</CardTitle>
-            <CardDescription>
-              {t('compliance:policyDetails.runSummary.lastRunStarted', { date: new Date(activeRun.started_at).toLocaleString() })} • {t('compliance:policyDetails.runSummary.statusLabel')} <span className="font-medium">{activeRun.status}</span>
-            </CardDescription>
-            {activeRun.status === 'failed' && activeRun.error_message && (
-              <div className="text-sm text-destructive">{t('compliance:policyDetails.runSummary.errorLabel')} {complianceRunErrorText(t, activeRun)}</div>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.runSummary.score')}</div>
-                <div className="text-2xl font-semibold">{activeRun.score}%</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.runSummary.passed')}</div>
-                <div className="text-2xl font-semibold text-green-600">{activeRun.success_count}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.runSummary.failed')}</div>
-                <div className="text-2xl font-semibold text-red-600">{activeRun.failure_count}</div>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <div className="mb-2">
-                  <Badge variant="secondary">{t('compliance:policyDetails.runSummary.passedExamples')}</Badge>
-                </div>
-                <ul className="list-disc pl-5 space-y-1">
-                  {results.filter(r => r.passed).slice(0, 5).map((r) => (
-                    <li key={`pass-prev-${r.id}`} className="text-sm text-muted-foreground break-words">
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{r.object_name || r.object_id}</code>
-                    </li>
-                  ))}
-                  {results.filter(r => r.passed).length === 0 && (
-                    <li className="text-sm text-muted-foreground">{t('compliance:policyDetails.runSummary.noPassedExamples')}</li>
-                  )}
-                </ul>
-              </div>
-              <div>
-                <div className="mb-2">
                   <Badge variant="destructive">{t('compliance:policyDetails.runSummary.failedExamples')}</Badge>
+                  <ItemList items={sampleItems(failedSample, 'fail-prev', true)} empty={t('compliance:policyDetails.runSummary.noFailures')} />
                 </div>
-                <ul className="list-disc pl-5 space-y-1">
-                  {results.filter(r => !r.passed).slice(0, 5).map((r) => (
-                    <li key={`fail-prev-${r.id}`} className="text-sm text-muted-foreground break-words">
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{r.object_name || r.object_id}</code>
-                      {r.message ? <span className="ml-2">— {r.message}</span> : null}
-                    </li>
-                  ))}
-                  {results.filter(r => !r.passed).length === 0 && (
-                    <li className="text-sm text-muted-foreground">{t('compliance:policyDetails.runSummary.noFailures')}</li>
-                  )}
-                </ul>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">{t('compliance:policyDetails.runsList.title')}</CardTitle>
-          <CardDescription>{t('compliance:policyDetails.runsList.mostRecentFirst')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {runs.length === 0 ? (
-            <div className="text-sm text-muted-foreground">{t('compliance:policyDetails.runsList.noRuns')}</div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {runs.map(r => (
-                <button key={r.id} onClick={() => setActiveRun(r)} className={`text-left p-2 rounded border ${activeRun?.id === r.id ? 'bg-muted' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline">{r.status}</Badge>
-                    <div className="text-sm">{new Date(r.started_at).toLocaleString()}</div>
-                    <div className="ml-auto text-sm">{t('compliance:policyDetails.runsList.scoreLabel')} <span className="font-semibold">{r.score}%</span> • {t('compliance:policyDetails.runsList.scoreDetail', { passed: r.success_count, failed: r.failure_count })}</div>
-                  </div>
-                  <div className="mt-2 text-xs">
-                    <a href={`/compliance/runs/${r.id}`} className="text-primary hover:underline">{t('compliance:policyDetails.runsList.openRunDetails')}</a>
-                  </div>
-                </button>
-              ))}
-            </div>
+            </Pane>
           )}
-        </CardContent>
-      </Card>
 
-      {activeRun && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">{t('compliance:policyDetails.resultsCard.title')}</CardTitle>
-            <CardDescription>{onlyFailed
-              ? t('compliance:policyDetails.resultsCard.filteredFailed', { date: new Date(activeRun.started_at).toLocaleString() })
-              : t('compliance:policyDetails.resultsCard.filteredAll', { date: new Date(activeRun.started_at).toLocaleString() })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-3">
-              <div />
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant={onlyFailed ? 'default' : 'outline'} onClick={() => setOnlyFailed(true)}>{t('compliance:results.showFailed')}</Button>
-                <Button size="sm" variant={!onlyFailed ? 'default' : 'outline'} onClick={() => setOnlyFailed(false)}>{t('compliance:results.showAll')}</Button>
+          <Pane title={t('compliance:policyDetails.runsList.title')}>
+            <p className={classes.note}>{t('compliance:policyDetails.runsList.mostRecentFirst')}</p>
+            {runs.length === 0 ? (
+              <div className={classes.empty}>{t('compliance:policyDetails.runsList.noRuns')}</div>
+            ) : (
+              <div className={classes.runs}>
+                {runs.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setActiveRun(r)}
+                    className={classes.run}
+                    data-selected={activeRun?.id === r.id || undefined}
+                  >
+                    <div className={classes.runLine}>
+                      <Badge variant="outline">{r.status}</Badge>
+                      <div>{new Date(r.started_at).toLocaleString()}</div>
+                      <div className={classes.runScore}>
+                        {t('compliance:policyDetails.runsList.scoreLabel')} <span className={classes.value}>{r.score}%</span> • {t('compliance:policyDetails.runsList.scoreDetail', { passed: r.success_count, failed: r.failure_count })}
+                      </div>
+                    </div>
+                    <div className={classes.runLink}>
+                      <a href={`/compliance/runs/${r.id}`}>{t('compliance:policyDetails.runsList.openRunDetails')}</a>
+                    </div>
+                  </button>
+                ))}
               </div>
-            </div>
-            <DataTable columns={resultsColumns} data={results} searchColumn="object_name" />
-          </CardContent>
-        </Card>
-      )}
+            )}
+          </Pane>
 
-      <EntityMetadataPanel entityId={policyId!} entityType="compliance_policy" canEdit={canEditMetadata} />
+          {activeRun && (
+            <Pane
+              title={t('compliance:policyDetails.resultsCard.title')}
+              actions={
+                <>
+                  <Button size="sm" variant={onlyFailed ? 'default' : 'outline'} onClick={() => setOnlyFailed(true)}>{t('compliance:results.showFailed')}</Button>
+                  <Button size="sm" variant={!onlyFailed ? 'default' : 'outline'} onClick={() => setOnlyFailed(false)}>{t('compliance:results.showAll')}</Button>
+                </>
+              }
+            >
+              <p className={classes.note}>
+                {onlyFailed
+                  ? t('compliance:policyDetails.resultsCard.filteredFailed', { date: startedAt })
+                  : t('compliance:policyDetails.resultsCard.filteredAll', { date: startedAt })}
+              </p>
+              <DataTable columns={resultsColumns} data={results} searchColumn="object_name" />
+            </Pane>
+          )}
+
+          {/* The panel keeps its own head (ruling R27 of wave 2), so the pane has no title */}
+          <Pane aria-label={t('metadata:title', 'Metadata')}>
+            <EntityMetadataPanel entityId={policyId!} entityType="compliance_policy" flush canEdit={canEditMetadata} />
+          </Pane>
+        </PaneStack>
+      </PageLayout>
 
       {/* Edit Policy Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('compliance:editRule')}</DialogTitle>
-            <DialogDescription>
-              {t('common:labels.editDescription', { name: policy.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSave} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">{t('common:labels.name')}</Label>
-              <Input
-                id="edit-name"
-                defaultValue={policy.name}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">{t('common:labels.description')}</Label>
-              <Textarea
-                id="edit-description"
-                defaultValue={policy.description}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('common:labels.category')}</Label>
-                <Select name="edit-category" defaultValue={policy.category || 'General'}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('common:placeholders.selectCategory')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Security">{t('compliance:categories.security')}</SelectItem>
-                    <SelectItem value="Data Quality">{t('compliance:categories.dataQuality')}</SelectItem>
-                    <SelectItem value="Privacy">{t('compliance:categories.privacy')}</SelectItem>
-                    <SelectItem value="Governance">{t('compliance:categories.governance')}</SelectItem>
-                    <SelectItem value="Maturity">{t('compliance:categories.maturity', 'Maturity')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t('common:labels.severity')}</Label>
-                <Select name="edit-severity" defaultValue={policy.severity || 'medium'}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('common:placeholders.selectSeverity')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-rule">{t('compliance:form.ruleCode')}</Label>
-              <Textarea
-                id="edit-rule"
-                defaultValue={policy.rule}
-                className="font-mono text-sm"
-                rows={8}
-                required
-                placeholder={t('compliance:form.rulePlaceholder')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-failure-message">{t('compliance:form.failureMessage')}</Label>
-              <Textarea
-                id="edit-failure-message"
-                defaultValue={policy.failure_message}
-                rows={3}
-                placeholder={t('compliance:form.failureMessagePlaceholder')}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('compliance:form.failureMessageHint')}
-              </p>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSaving}>
-                {t('common:actions.cancel')}
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? t('common:states.saving') : t('common:actions.save')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+      <Dialog
+        opened={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        size="lg"
+        title={t('compliance:editRule')}
+        description={t('common:labels.editDescription', { name: policy.name })}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSaving}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button type="submit" form={formId} disabled={isSaving}>
+              {isSaving && <Loader size={12} color="currentColor" />}
+              {isSaving ? t('common:states.saving') : t('common:actions.save')}
+            </Button>
+          </>
+        }
+      >
+        <PolicyForm key={policy.id} formId={formId} policy={policy} onSave={handleSave} />
       </Dialog>
-    </div>
+    </>
   );
 }
-
-

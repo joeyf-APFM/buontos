@@ -55,27 +55,3 @@
 .score[data-tone='critical'] {
   color: var(--aura-critical);
 }
-
-/* The policy form: fields 12px apart (the shared dialog-form rules) */
-.form {
-  composes: form from '../components/common/dialog-form.module.css';
-}
-
-.label {
-  composes: label from '../components/common/dialog-form.module.css';
-}
-
-.hintText {
-  composes: hint from '../components/common/dialog-form.module.css';
-}
-
-.option {
-  composes: option from '../components/common/dialog-form.module.css';
-}
-
-/* The rule DSL: code, so the one mono field; `textarea.` outranks Mantine's input font (R10) */
-textarea.rule {
-  font-family: var(--aura-font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-}

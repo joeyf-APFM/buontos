@@ -47,8 +47,11 @@ export const FULL_BLEED_ROUTES: readonly string[] = [
   '/search',
   '/search/llm',
   '/search/index',
-  // Govern: the policy list (full bleed: one pane fills the area)
+  // Govern: the policy list (full bleed: one pane fills the area), and a
+  // policy and a run (their panes stacked at their own height)
   '/compliance',
+  '/compliance/policies/:policyId',
+  '/compliance/runs/:runId',
 ];
 
 export const isFullBleed = (pathname: string, routes: readonly string[] = FULL_BLEED_ROUTES) =>

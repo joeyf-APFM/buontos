@@ -67,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "Terug naar Lijst",
+    "detailsPane": "Beleidsdetails",
     "run": "Uitvoeren",
     "id": "ID",
     "examples": "Voorbeelden",
