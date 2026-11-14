@@ -53,7 +53,8 @@
     "sourceContract": "Contrato de origen",
     "keyColumn": "Columna Clave",
     "matchColumns": "Columnas de Coincidencia",
-    "noSources": "No hay contratos fuente vinculados aún."
+    "noSources": "No hay contratos fuente vinculados aún.",
+    "removeSource": "Quitar vínculo de origen"
   },
   "rulesTab": {
     "title": "Reglas de Coincidencia",
