@@ -1,50 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionIcon, Divider, Loader, ScrollArea, Table, TextInput, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-// Select imports commented out - not currently used
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
+  ArrowLeft,
   ArrowRight,
   Check,
   X,
   Edit2,
-  // RefreshCw - unused
   Database,
   GitCompare,
-  Loader2,
   AlertCircle,
   Sparkles,
   ArrowLeftRight,
@@ -52,6 +16,9 @@ import {
   SkipForward,
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { FIELD_CLASSES } from '@/components/common/dialog-form';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -60,6 +27,7 @@ import {
   MdmMatchType,
   SurvivorshipStrategy,
 } from '@/types/mdm';
+import classes from './mdm-editors.module.css';
 
 interface MdmMatchReviewProps {
   assetFqn: string; // mdm://config_id/run_id/candidate_id
@@ -106,6 +74,68 @@ function areValuesEqual(a: unknown, b: unknown): boolean {
   return String(a).toLowerCase().trim() === String(b).toLowerCase().trim();
 }
 
+const isEmpty = (value: unknown) => value === null || value === undefined || value === '';
+
+/** A candidate, not an error's empty object, a list or text. */
+const isCandidate = (data: unknown): data is MdmMatchCandidate =>
+  !!data && typeof data === 'object' && !Array.isArray(data) && typeof (data as MdmMatchCandidate).status === 'string';
+
+// Filter out internal/system fields
+const SYSTEM_FIELDS = ['golden_id', 'source_record_id', 'created_at', 'updated_at', 'last_merged_at', 'confidence_score', 'source_systems'];
+
+/** One field's values and initial choice, sorted by field name. */
+function initialFieldValues(data: MdmMatchCandidate): FieldValue[] {
+  const masterData = data.master_record_data || {};
+  const sourceData = data.source_record_data || {};
+  const mergedData = data.merged_record_data || {};
+
+  // Get all unique fields from both records
+  const allFields = new Set([
+    ...Object.keys(masterData),
+    ...Object.keys(sourceData),
+  ]);
+
+  return Array.from(allFields)
+    .filter((field) => !SYSTEM_FIELDS.includes(field))
+    .map((field) => {
+      const masterValue = masterData[field];
+      const sourceValue = sourceData[field];
+      const mergedValue = mergedData[field];
+
+      // Determine initial selection
+      let selectedSource: 'master' | 'source' | 'custom' = 'master';
+      let customValue: unknown = undefined;
+
+      if (mergedValue !== undefined) {
+        // Already has a merged value
+        if (areValuesEqual(mergedValue, masterValue)) {
+          selectedSource = 'master';
+        } else if (areValuesEqual(mergedValue, sourceValue)) {
+          selectedSource = 'source';
+        } else {
+          selectedSource = 'custom';
+          customValue = mergedValue;
+        }
+      } else if (data.match_type === 'new') {
+        // New record - default to source
+        selectedSource = 'source';
+      } else if (sourceValue !== null && sourceValue !== undefined &&
+                 (masterValue === null || masterValue === undefined)) {
+        // Source has value, master doesn't
+        selectedSource = 'source';
+      }
+
+      return {
+        field,
+        masterValue,
+        sourceValue,
+        selectedSource,
+        customValue,
+      };
+    })
+    .sort((a, b) => a.field.localeCompare(b.field));
+}
+
 export default function MdmMatchReview({
   assetFqn,
   onReviewComplete,
@@ -125,11 +155,14 @@ export default function MdmMatchReview({
   const [fieldValues, setFieldValues] = useState<FieldValue[]>([]);
   const [comments, setComments] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // A second click (Approve twice, Approve then Reject) sends nothing while one is out
+  const busy = useRef(false);
 
   const parsedFqn = useMemo(() => parseMdmFqn(assetFqn), [assetFqn]);
 
-  // Fetch candidate details
+  // Fetch candidate details; a late answer for the previous asset is dropped
   useEffect(() => {
+    let current = true;
     const fetchCandidate = async () => {
       if (!parsedFqn) {
         setError(t('mdm:matchReview.invalidFqn'));
@@ -144,82 +177,33 @@ export default function MdmMatchReview({
         const response = await get<MdmMatchCandidate>(
           `/api/mdm/candidates/${parsedFqn.candidateId}`
         );
+        if (!current) return;
 
         if (response.error) {
           setError(response.error);
           return;
         }
 
-        if (response.data) {
+        if (isCandidate(response.data)) {
           setCandidate(response.data);
-          initializeFieldValues(response.data);
+          setFieldValues(initialFieldValues(response.data));
+        } else {
+          setCandidate(null);
         }
       } catch (err: any) {
-        setError(err.message || t('mdm:matchReview.loadFailed'));
+        if (current) setError(err.message || t('mdm:matchReview.loadFailed'));
       } finally {
-        setLoading(false);
+        if (current) setLoading(false);
       }
     };
 
     fetchCandidate();
+    return () => {
+      current = false;
+    };
+    // t is stable; only another asset loads again
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedFqn, get]);
-
-  const initializeFieldValues = (data: MdmMatchCandidate) => {
-    const masterData = data.master_record_data || {};
-    const sourceData = data.source_record_data || {};
-    const mergedData = data.merged_record_data || {};
-
-    // Get all unique fields from both records
-    const allFields = new Set([
-      ...Object.keys(masterData),
-      ...Object.keys(sourceData),
-    ]);
-
-    // Filter out internal/system fields
-    const systemFields = ['golden_id', 'source_record_id', 'created_at', 'updated_at', 'last_merged_at', 'confidence_score', 'source_systems'];
-    
-    const values: FieldValue[] = Array.from(allFields)
-      .filter(field => !systemFields.includes(field))
-      .map(field => {
-        const masterValue = masterData[field];
-        const sourceValue = sourceData[field];
-        const mergedValue = mergedData[field];
-
-        // Determine initial selection
-        let selectedSource: 'master' | 'source' | 'custom' = 'master';
-        let customValue: unknown = undefined;
-
-        if (mergedValue !== undefined) {
-          // Already has a merged value
-          if (areValuesEqual(mergedValue, masterValue)) {
-            selectedSource = 'master';
-          } else if (areValuesEqual(mergedValue, sourceValue)) {
-            selectedSource = 'source';
-          } else {
-            selectedSource = 'custom';
-            customValue = mergedValue;
-          }
-        } else if (data.match_type === 'new') {
-          // New record - default to source
-          selectedSource = 'source';
-        } else if (sourceValue !== null && sourceValue !== undefined && 
-                   (masterValue === null || masterValue === undefined)) {
-          // Source has value, master doesn't
-          selectedSource = 'source';
-        }
-
-        return {
-          field,
-          masterValue,
-          sourceValue,
-          selectedSource,
-          customValue,
-        };
-      })
-      .sort((a, b) => a.field.localeCompare(b.field));
-
-    setFieldValues(values);
-  };
 
   const handleFieldSourceChange = (index: number, source: 'master' | 'source' | 'custom') => {
     setFieldValues(prev => {
@@ -246,7 +230,7 @@ export default function MdmMatchReview({
 
   const buildMergedRecord = (): Record<string, unknown> => {
     const merged: Record<string, unknown> = {};
-    
+
     // Include system fields from master if it's a match
     if (candidate?.master_record_data) {
       merged['golden_id'] = candidate.master_record_data['golden_id'];
@@ -267,12 +251,13 @@ export default function MdmMatchReview({
   };
 
   const handleApprove = async (): Promise<boolean> => {
-    if (!candidate || !parsedFqn) return false;
+    if (!candidate || !parsedFqn || busy.current) return false;
 
+    busy.current = true;
     setSaving(true);
     try {
       const mergedData = buildMergedRecord();
-      
+
       const response = await put<MdmMatchCandidate>(
         `/api/mdm/candidates/${parsedFqn.candidateId}`,
         {
@@ -305,6 +290,7 @@ export default function MdmMatchReview({
       });
       return false;
     } finally {
+      busy.current = false;
       setSaving(false);
     }
   };
@@ -317,8 +303,9 @@ export default function MdmMatchReview({
   };
 
   const handleReject = async () => {
-    if (!candidate || !parsedFqn) return;
+    if (!candidate || !parsedFqn || busy.current) return;
 
+    busy.current = true;
     setSaving(true);
     try {
       const response = await put<MdmMatchCandidate>(
@@ -350,6 +337,7 @@ export default function MdmMatchReview({
         variant: 'destructive',
       });
     } finally {
+      busy.current = false;
       setSaving(false);
     }
   };
@@ -370,8 +358,7 @@ export default function MdmMatchReview({
         return { ...fv, selectedSource: 'master' as const };
       }
       // If master is empty but source has value, use source
-      if ((fv.masterValue === null || fv.masterValue === undefined || fv.masterValue === '') 
-          && fv.sourceValue !== null && fv.sourceValue !== undefined && fv.sourceValue !== '') {
+      if (isEmpty(fv.masterValue) && !isEmpty(fv.sourceValue)) {
         return { ...fv, selectedSource: 'source' as const };
       }
       // Otherwise keep master (trust existing data)
@@ -386,17 +373,17 @@ export default function MdmMatchReview({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-muted-foreground">{t('mdm:matchReview.loadingDetails')}</span>
+      <div className={classes.message} role="status">
+        <Loader size={16} />
+        <span>{t('mdm:matchReview.loadingDetails')}</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center p-8 text-destructive">
-        <AlertCircle className="h-6 w-6 mr-2" />
+      <div className={classes.message} data-error="" role="alert">
+        <AlertCircle size={18} aria-hidden />
         <span>{error}</span>
       </div>
     );
@@ -404,303 +391,262 @@ export default function MdmMatchReview({
 
   if (!candidate) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
-        <AlertCircle className="h-6 w-6 mr-2" />
+      <div className={classes.message}>
+        <AlertCircle size={18} aria-hidden />
         <span>{t('mdm:matchReview.notFound')}</span>
       </div>
     );
   }
 
   const isAlreadyReviewed = candidate.status !== MdmMatchCandidateStatus.PENDING;
+  const choosable = !readOnly && !isAlreadyReviewed;
+
+  /** A master or source value: a toggle to choose it while the review is open, else its text. */
+  const valueCell = (fv: FieldValue, index: number, side: 'master' | 'source') => {
+    const value = side === 'master' ? fv.masterValue : fv.sourceValue;
+    const text = formatValue(value);
+    const chosen = fv.selectedSource === side;
+    const content = (
+      <>
+        <span className={`${classes.valueText} ${isEmpty(value) ? classes.emptyValue : ''}`} title={text}>
+          {text}
+        </span>
+        {chosen && <Check size={14} className={classes.check} data-side={side} aria-hidden />}
+      </>
+    );
+    if (!choosable) {
+      return <span className={classes.value}>{content}</span>;
+    }
+    return (
+      <UnstyledButton
+        className={classes.choice}
+        data-side={side}
+        aria-pressed={chosen}
+        onClick={() => handleFieldSourceChange(index, side)}
+      >
+        {content}
+      </UnstyledButton>
+    );
+  };
+
+  const bulkButton = (label: string, tooltip: string, icon: ReactNode, onClick: () => void) => (
+    <Tooltip label={tooltip}>
+      <Button variant="outline" size="sm" onClick={onClick}>
+        {icon}
+        {label}
+      </Button>
+    </Tooltip>
+  );
 
   return (
-    <div className="space-y-4">
+    <div className={classes.review}>
       {/* Match Summary */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <GitCompare className="h-5 w-5" />
-              <CardTitle className="text-lg">{t('mdm:matchReview.title')}</CardTitle>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={candidate.match_type !== MdmMatchType.NEW ? 'default' : 'secondary'}>
-                {candidate.match_type !== MdmMatchType.NEW ? t('mdm:matchReview.matchFound') : t('mdm:matchReview.newRecord')}
-              </Badge>
-              <Badge 
-                variant={
-                  candidate.status === MdmMatchCandidateStatus.APPROVED ? 'default' :
-                  candidate.status === MdmMatchCandidateStatus.REJECTED ? 'destructive' :
-                  'outline'
-                }
-              >
-                {candidate.status}
-              </Badge>
-            </div>
+      <section className={classes.block}>
+        <div className={classes.blockHead}>
+          <h3 className={classes.blockTitle}>
+            <GitCompare size={16} aria-hidden />
+            {t('mdm:matchReview.title')}
+          </h3>
+          <div className={classes.badges}>
+            <Badge variant={candidate.match_type !== MdmMatchType.NEW ? 'default' : 'secondary'}>
+              {candidate.match_type !== MdmMatchType.NEW ? t('mdm:matchReview.matchFound') : t('mdm:matchReview.newRecord')}
+            </Badge>
+            <Badge
+              variant={
+                candidate.status === MdmMatchCandidateStatus.APPROVED ? 'default' :
+                candidate.status === MdmMatchCandidateStatus.REJECTED ? 'destructive' :
+                'outline'
+              }
+            >
+              {candidate.status}
+            </Badge>
           </div>
-          <CardDescription>
-            {t('mdm:matchReview.confidenceScore')}: <span className="font-semibold">{(candidate.confidence_score * 100).toFixed(1)}%</span>
-            {candidate.matched_fields && candidate.matched_fields.length > 0 && (
-              <span className="ml-4">
-                {t('mdm:matchReview.matchedOn')}: {candidate.matched_fields.join(', ')}
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+        </div>
+        <p className={classes.summary}>
+          <span>
+            {t('mdm:matchReview.confidenceScore')}: <span className={classes.score}>{(candidate.confidence_score * 100).toFixed(1)}%</span>
+          </span>
+          {candidate.matched_fields && candidate.matched_fields.length > 0 && (
+            <span>
+              {t('mdm:matchReview.matchedOn')}: {candidate.matched_fields.join(', ')}
+            </span>
+          )}
+        </p>
+      </section>
 
       {/* Field Comparison Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              {t('mdm:matchReview.fieldComparison')}
-            </CardTitle>
-            {!readOnly && !isAlreadyReviewed && (
-              <div className="flex gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={applyAllMaster}>
-                        <ArrowRight className="h-4 w-4 mr-1" />
-                        {t('mdm:matchReview.allMaster')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('mdm:matchReview.allMasterTooltip')}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={applyAllSource}>
-                        <ArrowRight className="h-4 w-4 mr-1 rotate-180" />
-                        {t('mdm:matchReview.allSource')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('mdm:matchReview.allSourceTooltip')}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={applySmartMerge}>
-                        <Sparkles className="h-4 w-4 mr-1" />
-                        {t('mdm:matchReview.smartMerge')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('mdm:matchReview.smartMergeTooltip')}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[400px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[180px]">{t('mdm:matchReview.field')}</TableHead>
-                  <TableHead>{t('mdm:matchReview.masterValue')}</TableHead>
-                  <TableHead className="w-[100px] text-center">
-                    <ArrowLeftRight className="h-4 w-4 mx-auto" />
-                  </TableHead>
-                  <TableHead>{t('mdm:matchReview.sourceValue')}</TableHead>
-                  <TableHead className="w-[200px]">{t('mdm:matchReview.finalValue')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fieldValues.map((fv, index) => {
-                  const valuesMatch = areValuesEqual(fv.masterValue, fv.sourceValue);
-                  const masterEmpty = fv.masterValue === null || fv.masterValue === undefined || fv.masterValue === '';
-                  const sourceEmpty = fv.sourceValue === null || fv.sourceValue === undefined || fv.sourceValue === '';
+      <section className={classes.block}>
+        <div className={classes.blockHead}>
+          <h3 className={classes.blockTitle}>
+            <Database size={16} aria-hidden />
+            {t('mdm:matchReview.fieldComparison')}
+          </h3>
+          {choosable && (
+            <div className={classes.bulk}>
+              {bulkButton(t('mdm:matchReview.allMaster'), t('mdm:matchReview.allMasterTooltip'), <ArrowRight size={14} />, applyAllMaster)}
+              {bulkButton(t('mdm:matchReview.allSource'), t('mdm:matchReview.allSourceTooltip'), <ArrowLeft size={14} />, applyAllSource)}
+              {bulkButton(t('mdm:matchReview.smartMerge'), t('mdm:matchReview.smartMergeTooltip'), <Sparkles size={14} />, applySmartMerge)}
+            </div>
+          )}
+        </div>
+        <ScrollArea.Autosize mah={400} type="auto" offsetScrollbars="y">
+          <Table className={classes.table} withRowBorders>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th className={classes.colField}>{t('mdm:matchReview.field')}</Table.Th>
+                <Table.Th>{t('mdm:matchReview.masterValue')}</Table.Th>
+                <Table.Th className={classes.colCompare}>
+                  <ArrowLeftRight size={14} aria-hidden />
+                </Table.Th>
+                <Table.Th>{t('mdm:matchReview.sourceValue')}</Table.Th>
+                <Table.Th className={classes.colFinal}>{t('mdm:matchReview.finalValue')}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {fieldValues.map((fv, index) => {
+                const valuesMatch = areValuesEqual(fv.masterValue, fv.sourceValue);
+                const finalText = fv.selectedSource === 'custom'
+                  ? formatValue(fv.customValue)
+                  : fv.selectedSource === 'master'
+                    ? formatValue(fv.masterValue)
+                    : formatValue(fv.sourceValue);
 
-                  return (
-                    <TableRow key={fv.field} className={valuesMatch ? 'bg-muted/30' : ''}>
-                      <TableCell className="font-medium">
-                        {fv.field}
+                return (
+                  <Table.Tr key={fv.field} className={valuesMatch ? classes.same : undefined}>
+                    <Table.Td>
+                      <div className={classes.fieldCell}>
+                        <span className={classes.fieldName} title={fv.field}>{fv.field}</span>
                         {candidate.matched_fields?.includes(fv.field) && (
-                          <Badge variant="outline" className="ml-2 text-xs">{t('mdm:matchReview.matched')}</Badge>
+                          <Badge variant="outline">{t('mdm:matchReview.matched')}</Badge>
                         )}
-                      </TableCell>
-                      <TableCell 
-                        className={`cursor-pointer hover:bg-muted/50 ${fv.selectedSource === 'master' ? 'bg-green-500/10 border-l-2 border-green-500' : ''}`}
-                        onClick={() => !readOnly && !isAlreadyReviewed && handleFieldSourceChange(index, 'master')}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={masterEmpty ? 'text-muted-foreground italic' : ''}>
-                            {formatValue(fv.masterValue)}
+                      </div>
+                    </Table.Td>
+                    <Table.Td>{valueCell(fv, index, 'master')}</Table.Td>
+                    <Table.Td className={classes.colCompare}>
+                      <span className={classes.compare} data-same={valuesMatch ? '' : undefined}>
+                        {valuesMatch ? '=' : '≠'}
+                      </span>
+                    </Table.Td>
+                    <Table.Td>{valueCell(fv, index, 'source')}</Table.Td>
+                    <Table.Td>
+                      {!choosable ? (
+                        <span className={classes.finalValue} title={finalText}>{finalText}</span>
+                      ) : fv.selectedSource === 'custom' ? (
+                        <TextInput
+                          value={String(fv.customValue || '')}
+                          onChange={(e) => handleCustomValueChange(index, e.currentTarget.value)}
+                          aria-label={`${t('mdm:matchReview.finalValue')}: ${fv.field}`}
+                          classNames={FIELD_CLASSES}
+                        />
+                      ) : (
+                        <div className={classes.final}>
+                          <span>
+                            {fv.selectedSource === 'master' ? t('mdm:matchReview.master') : t('mdm:matchReview.source')}
                           </span>
-                          {fv.selectedSource === 'master' && (
-                            <Check className="h-4 w-4 text-green-500 ml-2" />
-                          )}
+                          <ActionIcon
+                            variant="subtle"
+                            className={classes.edit}
+                            onClick={() => handleFieldSourceChange(index, 'custom')}
+                            aria-label={t('common:actions.edit')}
+                            title={t('common:actions.edit')}
+                          >
+                            <Edit2 size={12} />
+                          </ActionIcon>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {valuesMatch ? (
-                          <Badge variant="secondary" className="text-xs">=</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs">≠</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell 
-                        className={`cursor-pointer hover:bg-muted/50 ${fv.selectedSource === 'source' ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}`}
-                        onClick={() => !readOnly && !isAlreadyReviewed && handleFieldSourceChange(index, 'source')}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={sourceEmpty ? 'text-muted-foreground italic' : ''}>
-                            {formatValue(fv.sourceValue)}
-                          </span>
-                          {fv.selectedSource === 'source' && (
-                            <Check className="h-4 w-4 text-blue-500 ml-2" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {readOnly || isAlreadyReviewed ? (
-                          <span className="text-sm">
-                            {fv.selectedSource === 'custom' 
-                              ? formatValue(fv.customValue)
-                              : fv.selectedSource === 'master' 
-                                ? formatValue(fv.masterValue)
-                                : formatValue(fv.sourceValue)
-                            }
-                          </span>
-                        ) : fv.selectedSource === 'custom' ? (
-                          <Input
-                            value={String(fv.customValue || '')}
-                            onChange={(e) => handleCustomValueChange(index, e.target.value)}
-                            className="h-8"
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">
-                              {fv.selectedSource === 'master' ? t('mdm:matchReview.master') : t('mdm:matchReview.source')}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2"
-                              onClick={() => handleFieldSourceChange(index, 'custom')}
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                      )}
+                    </Table.Td>
+                  </Table.Tr>
+                );
+              })}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea.Autosize>
+      </section>
 
       {/* Review Actions */}
-      {!readOnly && !isAlreadyReviewed && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="review-comments">{t('mdm:matchReview.commentsLabel')}</Label>
-                <Textarea
-                  id="review-comments"
-                  placeholder={t('mdm:matchReview.commentsPlaceholder')}
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  rows={2}
-                />
-              </div>
-              
-              <Separator />
+      {choosable && (
+        <section className={classes.block}>
+          <Textarea
+            id="review-comments"
+            label={t('mdm:matchReview.commentsLabel')}
+            placeholder={t('mdm:matchReview.commentsPlaceholder')}
+            value={comments}
+            onChange={(e) => setComments(e.currentTarget.value)}
+            autosize
+            minRows={2}
+            maxRows={6}
+            classNames={FIELD_CLASSES}
+          />
 
-              <div className="flex items-center justify-between">
-                {/* Progress indicator */}
-                {currentIndex !== undefined && totalCount !== undefined && (
-                  <div className="text-sm text-muted-foreground">
-                    {t('mdm:matchReview.reviewingProgress', { current: currentIndex, total: totalCount })}
-                  </div>
-                )}
-                {currentIndex === undefined && <div />}
+          <Divider />
 
-                <div className="flex gap-3">
-                  {/* Skip to next without saving */}
-                  {hasNext && onNext && (
-                    <Button
-                      variant="ghost"
-                      onClick={onNext}
-                      disabled={saving}
-                    >
-                      <SkipForward className="h-4 w-4 mr-2" />
-                      {t('mdm:matchReview.skip')}
-                    </Button>
-                  )}
-                  
-                  <Button
-                    variant="destructive"
-                    onClick={handleReject}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <X className="h-4 w-4 mr-2" />
-                    )}
-                    {t('common:actions.reject')}
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={handleApprove}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4 mr-2" />
-                    )}
-                    {t('common:actions.approve')}
-                  </Button>
+          <div className={classes.actions}>
+            {/* Progress indicator */}
+            {currentIndex !== undefined && totalCount !== undefined && (
+              <p className={classes.progress}>
+                {t('mdm:matchReview.reviewingProgress', { current: currentIndex, total: totalCount })}
+              </p>
+            )}
 
-                  {/* Save & Next button - only shown when there's a next item */}
-                  {hasNext && onNext && (
-                    <Button
-                      variant="default"
-                      onClick={handleApproveAndNext}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 mr-2" />
-                      )}
-                      {t('mdm:matchReview.approveAndNext')}
-                    </Button>
-                  )}
-                </div>
-              </div>
+            <div className={classes.buttons}>
+              {/* Skip to next without saving */}
+              {hasNext && onNext && (
+                <Button
+                  variant="ghost"
+                  onClick={onNext}
+                  disabled={saving}
+                >
+                  <SkipForward size={14} />
+                  {t('mdm:matchReview.skip')}
+                </Button>
+              )}
+
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={saving}
+              >
+                {saving ? <Loader size={12} color="currentColor" /> : <X size={14} />}
+                {t('common:actions.reject')}
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleApprove}
+                disabled={saving}
+              >
+                {saving ? <Loader size={12} color="currentColor" /> : <Check size={14} />}
+                {t('common:actions.approve')}
+              </Button>
+
+              {/* Save & Next button - only shown when there's a next item */}
+              {hasNext && onNext && (
+                <Button
+                  variant="default"
+                  onClick={handleApproveAndNext}
+                  disabled={saving}
+                >
+                  {saving ? <Loader size={12} color="currentColor" /> : <ChevronRight size={14} />}
+                  {t('mdm:matchReview.approveAndNext')}
+                </Button>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       )}
 
       {isAlreadyReviewed && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <AlertCircle className="h-5 w-5" />
-              <span>
-                {t('mdm:matchReview.alreadyReviewed', { status: candidate.status.toLowerCase() })}
-                {candidate.reviewed_by && ` ${t('mdm:matchReview.byReviewer', { reviewer: candidate.reviewed_by })}`}
-                {candidate.reviewed_at && ` ${t('mdm:matchReview.onDate', { date: new Date(candidate.reviewed_at).toLocaleString() })}`}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        <section className={`${classes.block} ${classes.reviewed}`}>
+          <div className={classes.message}>
+            <AlertCircle size={18} aria-hidden />
+            <span>
+              {t('mdm:matchReview.alreadyReviewed', { status: candidate.status.toLowerCase() })}
+              {candidate.reviewed_by && ` ${t('mdm:matchReview.byReviewer', { reviewer: candidate.reviewed_by })}`}
+              {candidate.reviewed_at && ` ${t('mdm:matchReview.onDate', { date: new Date(candidate.reviewed_at).toLocaleString() })}`}
+            </span>
+          </div>
+        </section>
       )}
     </div>
   );
 }
-
