@@ -90,6 +90,11 @@
       "success": "成功",
       "failed": "失敗",
       "in_progress": "進行中"
+    },
+    "listPane": "同期設定の一覧",
+    "deleteDialog": {
+      "title": "設定を削除しますか?",
+      "description": "同期設定「{{name}}」を削除しますか?この操作は元に戻せません。"
     }
   },
   "details": {

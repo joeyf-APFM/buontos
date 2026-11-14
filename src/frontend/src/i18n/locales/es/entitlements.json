@@ -90,6 +90,11 @@
       "success": "Éxito",
       "failed": "Fallido",
       "in_progress": "En Progreso"
+    },
+    "listPane": "Lista de configuraciones de sincronización",
+    "deleteDialog": {
+      "title": "¿Eliminar la configuración?",
+      "description": "¿Eliminar la configuración de sincronización «{{name}}»? Esta acción no se puede deshacer."
     }
   },
   "details": {

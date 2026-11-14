@@ -90,6 +90,11 @@
       "success": "Succès",
       "failed": "Échec",
       "in_progress": "En Cours"
+    },
+    "listPane": "Liste des configurations de synchronisation",
+    "deleteDialog": {
+      "title": "Supprimer la configuration ?",
+      "description": "Supprimer la configuration de synchronisation « {{name}} » ? Cette action est irréversible."
     }
   },
   "details": {

@@ -90,6 +90,11 @@
       "success": "Succes",
       "failed": "Mislukt",
       "in_progress": "Bezig"
+    },
+    "listPane": "Lijst met synchronisatieconfiguraties",
+    "deleteDialog": {
+      "title": "Configuratie verwijderen?",
+      "description": "De synchronisatieconfiguratie \"{{name}}\" verwijderen? Dit kan niet ongedaan worden gemaakt."
     }
   },
   "details": {

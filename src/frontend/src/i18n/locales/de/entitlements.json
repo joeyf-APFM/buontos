@@ -90,6 +90,11 @@
       "success": "Erfolg",
       "failed": "Fehlgeschlagen",
       "in_progress": "In Bearbeitung"
+    },
+    "listPane": "Liste der Sync-Konfigurationen",
+    "deleteDialog": {
+      "title": "Konfiguration löschen?",
+      "description": "Die Sync-Konfiguration „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden."
     }
   },
   "details": {
