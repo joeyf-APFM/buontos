@@ -5,6 +5,11 @@
   "createRule": "ルールを作成",
   "editRule": "コンプライアンスルールを編集",
   "createNewRule": "新規コンプライアンスルールを作成",
+  "listPane": "ポリシー一覧",
+  "deleteDialog": {
+    "title": "ポリシーを削除しますか？",
+    "description": "ポリシー「{{name}}」とその実行履歴を削除しますか？この操作は元に戻せません。"
+  },
   "searchPlaceholder": "ポリシーを検索...",
   "loading": "コンプライアンスデータを読み込み中...",
   "stats": {
@@ -62,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "一覧に戻る",
+    "detailsPane": "ポリシーの詳細",
     "run": "実行",
     "id": "ID",
     "examples": "例",

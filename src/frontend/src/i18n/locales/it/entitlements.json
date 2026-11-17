@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Aggiunta privilegio fallita",
       "privilegeRemoveFailed": "Rimozione privilegio fallita",
       "groupsUpdateFailed": "Aggiornamento gruppi fallito"
+    },
+    "privilegeCount_one": "{{count}} privilegio",
+    "privilegeCount_other": "{{count}} privilegi",
+    "removePrivilege": "Rimuovi privilegio",
+    "deleteDialog": {
+      "title": "Eliminare la persona?",
+      "description": "Eliminare la persona «{{name}}»? L'operazione non può essere annullata."
+    },
+    "removeDialog": {
+      "title": "Rimuovere il privilegio?",
+      "description": "Rimuovere da questa persona il privilegio su «{{name}}»?"
     }
   },
   "filters": {
@@ -90,6 +101,11 @@
       "success": "Successo",
       "failed": "Fallito",
       "in_progress": "In Corso"
+    },
+    "listPane": "Elenco delle configurazioni di sincronizzazione",
+    "deleteDialog": {
+      "title": "Eliminare la configurazione?",
+      "description": "Eliminare la configurazione di sincronizzazione \"{{name}}\"? L'azione non può essere annullata."
     }
   },
   "details": {

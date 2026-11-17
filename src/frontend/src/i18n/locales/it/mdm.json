@@ -53,7 +53,8 @@
     "sourceContract": "Contratto di origine",
     "keyColumn": "Colonna Chiave",
     "matchColumns": "Colonne di Corrispondenza",
-    "noSources": "Nessun contratto sorgente collegato ancora."
+    "noSources": "Nessun contratto sorgente collegato ancora.",
+    "removeSource": "Rimuovi collegamento alla sorgente"
   },
   "rulesTab": {
     "title": "Regole di Corrispondenza",

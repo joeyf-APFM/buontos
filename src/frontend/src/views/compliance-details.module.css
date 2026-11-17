@@ -1,0 +1,192 @@
+/*
+ * A policy (/compliance/policies/:policyId) and a run (/compliance/runs/:runId)
+ * on the page kit (wave 3 Task 3): the shell's breadcrumb, the kit header,
+ * then panes stacked at their own height. Both pages share this module.
+ * Long names wrap (overflow-wrap: anywhere) so nothing widens the page.
+ */
+
+/* Loading, error and not found: the breadcrumb above, in the kit's margin */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px 14px;
+}
+
+.state > * {
+  align-self: stretch;
+}
+
+.state > button {
+  align-self: flex-start;
+}
+
+/* A value in the details grid: long text wraps */
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+/* Identifiers, object names and rule text: code, so mono */
+.code {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+/* The rule DSL, in the Rule pane */
+.rule {
+  margin: 0;
+  max-height: 192px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-canvas);
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A line of muted text: a run's dates, a filter's description */
+.note {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.value {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.value[data-failed] {
+  color: var(--aura-critical);
+}
+
+.error {
+  margin: 0 0 8px;
+  color: var(--aura-critical);
+  overflow-wrap: anywhere;
+}
+
+/* The run's three figures */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px 24px;
+  margin-bottom: 12px;
+}
+
+/* Two columns of examples: should pass and should fail, passed and failed */
+.examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 24px;
+}
+
+.section {
+  margin-top: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aura-navy);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0 0 0 16px;
+  color: var(--aura-text-secondary);
+}
+
+.list li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The runs, one button each; the chosen one on the accent-subtle fill */
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+button.run {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: left;
+  font: inherit;
+  color: var(--aura-text-body);
+  background: transparent;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button.run:hover {
+  background: var(--aura-accent-subtle);
+}
+
+button.run[data-selected] {
+  background: var(--aura-accent-subtle);
+  box-shadow: inset 2px 0 0 var(--aura-accent);
+}
+
+button.run:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.runLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.runScore {
+  margin-left: auto;
+}
+
+.runLink {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.runLink a {
+  color: var(--aura-accent);
+}
+
+.runLink a:hover {
+  text-decoration: underline;
+}
+
+/* A run's results: the table under its description, 12px in */
+.tableBody {
+  padding: 8px 12px 12px;
+}
+
+/* The View Policy link, in the header's actions */
+.viewPolicy {
+  font-size: 12px;
+  color: var(--aura-accent);
+  white-space: nowrap;
+}
+
+.viewPolicy:hover {
+  text-decoration: underline;
+}
+
+.empty {
+  color: var(--aura-text-secondary);
+}

@@ -1,0 +1,463 @@
+/*
+ * Master Data (/master-data) on the page kit (wave 3 Task 7): the kit header
+ * with New MDM Configuration at its end and the page's subtitle under it, then
+ * a PaneStack of two panes, the configurations (1/3) and the selected one
+ * (2/3) with its tabs. The row buttons and alerts it shares with the list
+ * pages are in components/common/list-page.module.css; what is left here is
+ * the page's own.
+ */
+
+/* The kit header, and the subtitle the kit's header has no room for (R7) */
+.headerBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.subtitle {
+  margin: -4px 14px 10px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* The list's rows while it loads: 28px lines to match the configuration rows */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.state .stateAlert {
+  align-self: stretch;
+  margin: 0;
+}
+
+.emptyList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.emptyList p {
+  margin: 0;
+}
+
+/* A configuration's row: the name, then its entity type and source count */
+.rowName {
+  color: inherit;
+}
+
+.rowSub {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--aura-text-muted);
+}
+
+.rowMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The detail pane: the description, then the tabs */
+.description {
+  margin: 0 0 8px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* The sections of a tab: a heading line with its action, then the content */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.section + .section {
+  margin-top: 12px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.sectionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.sectionTitle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.divider {
+  margin: 12px 0;
+}
+
+/* Overview: four figures in one row */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stats > * {
+  padding: 8px 10px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.lastRun {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.lastRun[data-tone='good'] .lastRunStatus {
+  color: var(--aura-good);
+}
+
+.lastRun[data-tone='critical'] .lastRunStatus {
+  color: var(--aura-critical);
+}
+
+.lastRun[data-tone='warning'] .lastRunStatus {
+  color: var(--aura-warning);
+}
+
+/* Tables, in the data table's look: 28px rows, 11px headers on the strong
+   surface; the cells wrap, so a long name never widens the pane */
+.scroll {
+  overflow-x: auto;
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.table > thead > tr > th {
+  height: 28px;
+  padding: 0 10px;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+  background: var(--aura-surface-strong);
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.table > tbody > tr > td {
+  height: 28px;
+  padding: 3px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--aura-border-subtle);
+}
+
+.table > tbody > tr:last-child > td {
+  border-bottom-width: 0;
+}
+
+.table > tbody > tr:hover > td {
+  background: var(--aura-canvas);
+}
+
+/* Table cells ignore max-width, so the text's own box sets the measure */
+.cellText {
+  display: block;
+  min-width: 80px;
+  max-width: 320px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.name {
+  composes: cellText;
+  font-weight: 500;
+}
+
+/* An identifier (a table's full name, a record id): mono */
+.ident {
+  composes: cellText;
+  font-family: var(--aura-font-mono);
+  font-size: 11.5px;
+}
+
+.muted {
+  color: var(--aura-text-muted);
+}
+
+.newRecord {
+  font-style: italic;
+  color: var(--aura-text-muted);
+}
+
+.actionCell {
+  width: 36px;
+  text-align: right;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.confidence {
+  font-weight: 600;
+}
+
+.confidence[data-tone='good'] {
+  color: var(--aura-good);
+}
+
+.confidence[data-tone='warning'] {
+  color: var(--aura-warning);
+}
+
+.confidence[data-tone='critical'] {
+  color: var(--aura-critical);
+}
+
+/* Rules and runs: one bordered row each */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--aura-text-body);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cardText {
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* A run: clicking it opens its candidates */
+.run {
+  composes: card;
+  cursor: pointer;
+}
+
+.run:hover:not([data-selected]) {
+  border-color: var(--aura-accent);
+}
+
+.run[data-selected] {
+  border-color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+.runMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--aura-text-secondary);
+}
+
+.runMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.runMeta svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.runFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.count[data-tone='good'] {
+  color: var(--aura-good);
+}
+
+.count[data-tone='info'] {
+  color: var(--aura-info);
+}
+
+.count[data-tone='warning'] {
+  color: var(--aura-text-body);
+}
+
+.count[data-tone='ready'] {
+  color: var(--aura-good);
+  font-weight: 600;
+}
+
+.runActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.runError {
+  font-size: 12px;
+  color: var(--aura-critical);
+  overflow-wrap: anywhere;
+}
+
+.progress {
+  margin-top: 4px;
+}
+
+/* An empty tab: its message, then its action */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--aura-text-muted);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.empty svg {
+  width: 32px;
+  height: 32px;
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--aura-text-muted);
+}
+
+/* Nothing selected: the hint, centred in the pane */
+.hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 240px;
+  text-align: center;
+  color: var(--aura-text-muted);
+}
+
+.hint p {
+  margin: 0;
+}
+
+.hint > svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+}
+
+.hintTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+}
+
+.hint button {
+  margin-top: 12px;
+}
+
+.candidatesHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.candidatesTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+  overflow-wrap: anywhere;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+/* The confirm's name: a long one wraps */
+.confirmName {
+  overflow-wrap: anywhere;
+}

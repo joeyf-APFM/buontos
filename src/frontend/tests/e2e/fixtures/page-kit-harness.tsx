@@ -17,7 +17,7 @@ import { AppMantineProvider } from '@/mantine/provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs as RadixTabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, Tabs, type DialogProps } from '@/mantine/page';
+import { Dialog, DetailsGrid, FilterBar, PageHeader, PageLayout, Pane, PaneStack, SelectableList, StatTile, Tabs, type DialogProps } from '@/mantine/page';
 import { AssistantWindow } from '@/mantine/assistant/assistant-window';
 
 function Layout({ fullBleed, id }: { fullBleed?: boolean; id: string }) {
@@ -46,6 +46,32 @@ function Stage() {
         <PageLayout header={<PageHeader title="Lone" />}>
           <Pane aria-label="Only">only</Pane>
         </PageLayout>
+      </div>
+      <div data-testid="sized" style={{ display: 'flex', width: 901, height: 120 }}>
+        <PaneStack sizes={[1, 2]}>
+          <Pane aria-label="Narrow">narrow</Pane>
+          <Pane aria-label="Wide">wide</Pane>
+        </PaneStack>
+      </div>
+      <div data-testid="unsized" style={{ display: 'flex', width: 900 }}>
+        <PaneStack>
+          <Pane aria-label="First">first</Pane>
+          <Pane aria-label="Second">second</Pane>
+        </PaneStack>
+      </div>
+      <div data-testid="selectable" style={{ width: 240 }}>
+        <SelectableList
+          aria-label="Personas"
+          selectedId="b"
+          onSelect={() => {}}
+          items={[{ id: 'a', label: 'Analyst' }, { id: 'b', label: 'Steward', meta: '2' }]}
+        />
+      </div>
+      <div data-testid="stats" style={{ display: 'flex', gap: 8 }}>
+        <StatTile label="Neutral" value="1" />
+        <StatTile label="Good" value="2" tone="success" />
+        <StatTile label="Warn" value="3" tone="warning" />
+        <StatTile label="Crit" value="4" tone="critical" />
       </div>
       <div data-testid="details" style={{ width: 420 }}>
         <DetailsGrid rows={[{ label: 'Type', value: 'Table' }, { label: 'Owner', value: 'Sales Analytics' }, { label: 'Status', value: 'Draft' }]} />

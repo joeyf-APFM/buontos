@@ -1,0 +1,137 @@
+/*
+ * Security Features (/security-features) on the page kit (wave 3 Task 4):
+ * full bleed, the shell's breadcrumb, the kit header with Add at its end,
+ * then one flush pane holding the table. The list look it shares with the
+ * other list pages (body margin, row buttons, alerts) is in
+ * components/common/list-page.module.css; what is left here is the page's own.
+ */
+
+/* The table, in the data table's look: 28px rows, 11px headers on the strong surface */
+.scroll {
+  overflow-x: auto;
+  background: var(--aura-surface);
+  border: 1px solid var(--aura-border);
+  border-radius: 6px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--aura-text-body);
+}
+
+.table > thead > tr > th {
+  height: 28px;
+  padding: 0 10px;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  white-space: nowrap;
+  background: var(--aura-surface-strong);
+  border-bottom: 1px solid var(--aura-border);
+}
+
+.table > thead > tr > th.end {
+  text-align: right;
+}
+
+.table > tbody > tr > td {
+  min-height: 28px;
+  padding: 3px 10px;
+  vertical-align: middle;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--aura-border-subtle);
+}
+
+.table > tbody > tr:last-child > td {
+  border-bottom-width: 0;
+}
+
+.table > tbody > tr:hover > td {
+  background: var(--aura-canvas);
+}
+
+/* A long name wraps; table cells ignore max-width, so the text's own box sets the measure */
+.name {
+  display: block;
+  min-width: 140px;
+  max-width: 320px;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The target is an object's full name: an identifier, so mono */
+.target {
+  display: block;
+  min-width: 120px;
+  max-width: 300px;
+  font-family: var(--aura-font-mono);
+  font-size: 11.5px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The conditions, wrapping in their cell; a condition is code, so mono */
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 120px;
+  max-width: 320px;
+}
+
+.condition {
+  max-width: 100%;
+  font-family: var(--aura-font-mono);
+  font-size: 10.5px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.date {
+  white-space: nowrap;
+  color: var(--aura-text-secondary);
+}
+
+.end {
+  text-align: right;
+}
+
+/* An empty list: its message in the table's place */
+.empty {
+  padding: 24px 10px;
+  text-align: center;
+  color: var(--aura-text-muted);
+}
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.state .stateAlert {
+  align-self: stretch;
+  margin: 4px 0 0;
+}
+
+.form {
+  composes: form from '../components/common/dialog-form.module.css';
+}
+
+.label {
+  composes: label from '../components/common/dialog-form.module.css';
+}
+
+.option {
+  composes: option from '../components/common/dialog-form.module.css';
+}

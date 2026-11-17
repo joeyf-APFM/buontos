@@ -5,6 +5,11 @@
   "createRule": "Créer une Règle",
   "editRule": "Modifier la Règle de Conformité",
   "createNewRule": "Créer une Nouvelle Règle de Conformité",
+  "listPane": "Liste des politiques",
+  "deleteDialog": {
+    "title": "Supprimer la politique ?",
+    "description": "Supprimer la politique « {{name}} » et son historique d’exécutions ? Cette action est irréversible."
+  },
   "searchPlaceholder": "Rechercher des politiques...",
   "loading": "Chargement des données de conformité...",
   "stats": {
@@ -62,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "Retour à la liste",
+    "detailsPane": "Détails de la politique",
     "run": "Exécuter",
     "id": "ID",
     "examples": "Exemples",

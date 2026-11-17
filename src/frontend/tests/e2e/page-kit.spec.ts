@@ -429,3 +429,46 @@ test.describe('kit Dialog', () => {
     expect(await zIndex(page.locator('[data-radix-popper-content-wrapper]'))).toBeGreaterThan(modal);
   });
 });
+
+test('PaneStack: sizes [1, 2] gives the second pane twice the width', async ({ page }) => {
+  const panes = page.getByTestId('sized').locator('section');
+  const [a, b] = await Promise.all([0, 1].map((i) => panes.nth(i).boundingBox()));
+  expect(Math.abs(b!.width - 2 * a!.width)).toBeLessThanOrEqual(1);
+  expect(b!.x).toBe(a!.x + a!.width);
+  expect(Math.abs(a!.width + b!.width - 901)).toBeLessThanOrEqual(1);
+});
+
+test('PaneStack without sizes keeps equal panes', async ({ page }) => {
+  const panes = page.getByTestId('unsized').locator('section');
+  const [a, b] = await Promise.all([0, 1].map((i) => panes.nth(i).boundingBox()));
+  expect(a!.width).toBe(b!.width);
+  expect(b!.y).toBeGreaterThanOrEqual(a!.y + a!.height - 1);
+});
+
+test('SelectableList: 28px rows, the selected one in accent-subtle with a 2px accent bar', async ({ page }) => {
+  const list = page.getByTestId('selectable');
+  const selected = list.getByRole('option', { name: /Steward/ });
+  const other = list.getByRole('option', { name: /Analyst/ });
+  const s = await style(selected, ['height', 'background-color', 'box-shadow']);
+  expect(s.height).toBe('28px');
+  expect(near(s['background-color'], 'rgb(240, 245, 255)', 3)).toBe(true);
+  expect(s['box-shadow']).toBe('rgb(79, 106, 197) 2px 0px 0px 0px inset');
+  const o = await style(other, ['height', 'background-color', 'box-shadow']);
+  expect(o.height).toBe('28px');
+  expect(o['background-color']).toBe('rgba(0, 0, 0, 0)');
+  expect(o['box-shadow']).toBe(NO_SHADOW);
+});
+
+test('StatTile: label 12px muted above a 16px value, and the tone changes the value colour', async ({ page }) => {
+  const tiles = page.getByTestId('stats').locator('[data-tone]');
+  const colours: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const c = await style(tiles.nth(i), ['font-size', 'color']);
+    expect(c['font-size']).toBe('16px');
+    colours.push(c.color);
+  }
+  expect(new Set(colours).size).toBe(4);
+  expect(colours[3]).toBe('rgb(212, 28, 22)');
+  const label = await style(page.getByTestId('stats').getByText('Crit'), ['font-size']);
+  expect(label['font-size']).toBe('12px');
+});

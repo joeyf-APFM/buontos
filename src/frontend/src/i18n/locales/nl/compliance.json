@@ -5,6 +5,11 @@
   "createRule": "Regel Aanmaken",
   "editRule": "Compliance Regel Bewerken",
   "createNewRule": "Nieuwe Compliance Regel Aanmaken",
+  "listPane": "Beleidslijst",
+  "deleteDialog": {
+    "title": "Beleid verwijderen?",
+    "description": "Het beleid \"{{name}}\" en de uitvoeringsgeschiedenis verwijderen? Dit kan niet ongedaan worden gemaakt."
+  },
   "searchPlaceholder": "Zoek beleid...",
   "loading": "Compliance data laden...",
   "stats": {
@@ -62,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "Terug naar Lijst",
+    "detailsPane": "Beleidsdetails",
     "run": "Uitvoeren",
     "id": "ID",
     "examples": "Voorbeelden",

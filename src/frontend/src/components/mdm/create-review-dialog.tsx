@@ -1,27 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { Input, Loader, Textarea } from '@mantine/core';
+import { FileCheck } from 'lucide-react';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileCheck } from 'lucide-react';
-
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { MdmCreateReviewRequest, MdmCreateReviewResponse } from '@/types/mdm';
 import { PrincipalPicker } from '@/components/common/principal-picker';
-import { Controller } from 'react-hook-form';
+import { useOpenSession } from './use-open-session';
+import classes from './mdm-dialogs.module.css';
 
 type FormValues = {
   reviewer_email: string;
@@ -36,18 +30,11 @@ interface CreateReviewDialogProps {
   onSuccess: (reviewId: string) => void;
 }
 
-export default function CreateReviewDialog({
-  isOpen,
-  runId,
-  candidateCount,
-  onClose,
-  onSuccess,
-}: CreateReviewDialogProps) {
-  const [submitting, setSubmitting] = useState(false);
+const FORM_ID = 'mdm-create-review-form';
 
+/** The form: the dialog's body, so its fields start afresh each time it opens. */
+function ReviewForm({ candidateCount, onSave }: { candidateCount: number; onSave: (data: MdmCreateReviewRequest) => void }) {
   const { t } = useTranslation(['mdm', 'common']);
-  const { post } = useApi();
-  const { toast } = useToast();
 
   const formSchema = useMemo(
     () =>
@@ -58,28 +45,88 @@ export default function CreateReviewDialog({
     [t]
   );
 
-  const form = useForm<FormValues>({
+  const { control, register, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       reviewer_email: '',
       notes: '',
     },
   });
+  const error = formState.errors.reviewer_email?.message;
 
-  const onSubmit = async (values: FormValues) => {
+  const submit = handleSubmit((values) =>
+    onSave({
+      reviewer_email: values.reviewer_email,
+      notes: values.notes || undefined,
+    })
+  );
+
+  return (
+    <form id={FORM_ID} onSubmit={submit} className={form.form} noValidate>
+      <div className={form.box}>
+        <p className={form.muted}>
+          {t('mdm:review.willCreatePrefix')}{' '}
+          <span className={classes.count}>{candidateCount}</span>{' '}
+          {t('mdm:review.willCreateSuffix')}
+        </p>
+      </div>
+
+      <Input.Wrapper id="reviewer_email" label={t('common:labels.reviewer')} error={error} classNames={FIELD_CLASSES}>
+        <Controller
+          name="reviewer_email"
+          control={control}
+          render={({ field }) => (
+            <PrincipalPicker
+              id="reviewer_email"
+              accepts={['user']}
+              value={field.value || null}
+              onChange={(next) => field.onChange(next ?? '')}
+              placeholder={t('mdm:review.reviewerPlaceholder')}
+              aria-label={t('common:labels.reviewer')}
+            />
+          )}
+        />
+      </Input.Wrapper>
+
+      <Textarea
+        id="notes"
+        label={t('mdm:review.notesLabel')}
+        placeholder={t('mdm:review.notesPlaceholder')}
+        autosize
+        minRows={3}
+        maxRows={8}
+        classNames={FIELD_CLASSES}
+        {...register('notes')}
+      />
+    </form>
+  );
+}
+
+export default function CreateReviewDialog({
+  isOpen,
+  runId,
+  candidateCount,
+  onClose,
+  onSuccess,
+}: CreateReviewDialogProps) {
+  const [submitting, setSubmitting] = useState(false);
+  // A second click, or a click on the way out, sends nothing
+  const busy = useRef(false);
+  const session = useOpenSession(isOpen);
+
+  const { t } = useTranslation(['mdm', 'common']);
+  const { post } = useApi();
+  const { toast } = useToast();
+
+  const save = async (data: MdmCreateReviewRequest) => {
+    if (busy.current || !isOpen) return;
+    busy.current = true;
     setSubmitting(true);
     try {
-      const data: MdmCreateReviewRequest = {
-        reviewer_email: values.reviewer_email,
-        notes: values.notes || undefined,
-      };
-
-      console.log('[CreateReviewDialog] Posting to:', `/api/mdm/runs/${runId}/create-review`, data);
       const response = await post<MdmCreateReviewResponse>(
         `/api/mdm/runs/${runId}/create-review`,
         data
       );
-      console.log('[CreateReviewDialog] Response:', response);
 
       // Check for errors first (useApi returns empty object on error, not null)
       if (response.error) {
@@ -112,77 +159,42 @@ export default function CreateReviewDialog({
         variant: 'destructive',
       });
     } finally {
+      busy.current = false;
       setSubmitting(false);
     }
   };
 
+  // Escape and Cancel wait while the request is out
+  const close = () => {
+    if (busy.current) return;
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5" />
-            {t('mdm:review.dialogTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('mdm:review.dialogDescription')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              {t('mdm:review.willCreatePrefix')}{' '}
-              <span className="font-medium text-foreground">{candidateCount}</span>{' '}
-              {t('mdm:review.willCreateSuffix')}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="reviewer_email">{t('common:labels.reviewer')}</Label>
-            <Controller
-              name="reviewer_email"
-              control={form.control}
-              render={({ field }) => (
-                <PrincipalPicker
-                  id="reviewer_email"
-                  accepts={['user']}
-                  value={field.value || null}
-                  onChange={(next) => field.onChange(next ?? '')}
-                  placeholder={t('mdm:review.reviewerPlaceholder')}
-                  aria-label={t('common:labels.reviewer')}
-                />
-              )}
-            />
-            {form.formState.errors.reviewer_email && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.reviewer_email.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">{t('mdm:review.notesLabel')}</Label>
-            <Textarea
-              id="notes"
-              placeholder={t('mdm:review.notesPlaceholder')}
-              rows={3}
-              {...form.register('notes')}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t('mdm:candidates.createReview')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+    <Dialog
+      opened={isOpen}
+      onClose={close}
+      size="sm"
+      title={
+        <span className={form.titleLine}>
+          <FileCheck size={16} aria-hidden />
+          {t('mdm:review.dialogTitle')}
+        </span>
+      }
+      description={t('mdm:review.dialogDescription')}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            {t('common:actions.cancel')}
+          </Button>
+          <Button type="submit" form={FORM_ID} disabled={submitting}>
+            {submitting && <Loader size={12} color="currentColor" />}
+            {t('mdm:candidates.createReview')}
+          </Button>
+        </>
+      }
+    >
+      <ReviewForm key={session} candidateCount={candidateCount} onSave={save} />
     </Dialog>
   );
 }
-

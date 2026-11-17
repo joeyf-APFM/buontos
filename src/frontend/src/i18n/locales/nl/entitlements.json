@@ -41,6 +41,17 @@
       "privilegeAddFailed": "Kon privilege niet toevoegen",
       "privilegeRemoveFailed": "Kon privilege niet verwijderen",
       "groupsUpdateFailed": "Kon groepen niet bijwerken"
+    },
+    "privilegeCount_one": "{{count}} privilege",
+    "privilegeCount_other": "{{count}} privileges",
+    "removePrivilege": "Privilege verwijderen",
+    "deleteDialog": {
+      "title": "Persona verwijderen?",
+      "description": "De persona \"{{name}}\" verwijderen? Dit kan niet ongedaan worden gemaakt."
+    },
+    "removeDialog": {
+      "title": "Privilege verwijderen?",
+      "description": "Het privilege op \"{{name}}\" van deze persona verwijderen?"
     }
   },
   "filters": {
@@ -90,6 +101,11 @@
       "success": "Succes",
       "failed": "Mislukt",
       "in_progress": "Bezig"
+    },
+    "listPane": "Lijst met synchronisatieconfiguraties",
+    "deleteDialog": {
+      "title": "Configuratie verwijderen?",
+      "description": "De synchronisatieconfiguratie \"{{name}}\" verwijderen? Dit kan niet ongedaan worden gemaakt."
     }
   },
   "details": {

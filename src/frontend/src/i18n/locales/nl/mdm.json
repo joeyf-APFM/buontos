@@ -53,7 +53,8 @@
     "sourceContract": "Broncontract",
     "keyColumn": "Sleutelkolom",
     "matchColumns": "Match Kolommen",
-    "noSources": "Nog geen broncontracten gekoppeld."
+    "noSources": "Nog geen broncontracten gekoppeld.",
+    "removeSource": "Bronkoppeling verwijderen"
   },
   "rulesTab": {
     "title": "Matching Regels",

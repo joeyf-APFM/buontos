@@ -5,6 +5,12 @@
   "addFeature": "Adicionar recurso de segurança",
   "editFeature": "Editar recurso de segurança",
   "searchPlaceholder": "Buscar recursos de segurança...",
+  "listPane": "Lista de recursos de segurança",
+  "empty": "Ainda não há recursos de segurança.",
+  "deleteDialog": {
+    "title": "Excluir o recurso de segurança?",
+    "description": "Excluir o recurso de segurança \"{{name}}\"? Esta ação não pode ser desfeita."
+  },
   "loading": "Carregando recursos de segurança...",
   "toast": {
     "featureCreated": "Recurso de segurança criado com sucesso",

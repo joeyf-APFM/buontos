@@ -5,6 +5,12 @@
   "addFeature": "Aggiungi Funzionalità di Sicurezza",
   "editFeature": "Modifica Funzionalità di Sicurezza",
   "searchPlaceholder": "Cerca funzionalità di sicurezza...",
+  "listPane": "Elenco delle funzioni di sicurezza",
+  "empty": "Nessuna funzione di sicurezza ancora.",
+  "deleteDialog": {
+    "title": "Eliminare la funzione di sicurezza?",
+    "description": "Eliminare la funzione di sicurezza \"{{name}}\"? L'operazione non può essere annullata."
+  },
   "loading": "Caricamento funzionalità di sicurezza...",
   "toast": {
     "featureCreated": "Funzionalità di sicurezza creata con successo",

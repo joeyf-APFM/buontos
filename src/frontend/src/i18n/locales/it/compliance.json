@@ -5,6 +5,11 @@
   "createRule": "Crea Regola",
   "editRule": "Modifica Regola di Conformità",
   "createNewRule": "Crea Nuova Regola di Conformità",
+  "listPane": "Elenco delle policy",
+  "deleteDialog": {
+    "title": "Eliminare la policy?",
+    "description": "Eliminare la policy «{{name}}» e la sua cronologia di esecuzioni? L’operazione non può essere annullata."
+  },
   "searchPlaceholder": "Cerca policy...",
   "loading": "Caricamento dati di conformità...",
   "stats": {
@@ -62,6 +67,7 @@
   },
   "policyDetails": {
     "backToList": "Torna all'elenco",
+    "detailsPane": "Dettagli della policy",
     "run": "Esegui",
     "id": "ID",
     "examples": "Esempi",

@@ -8,3 +8,9 @@ export { PaneStack, type PaneStackProps } from './pane-stack';
 export { DetailsGrid, type DetailsGridProps, type DetailsRow } from './details-grid';
 export { Tabs } from './tabs';
 export { Dialog, type DialogProps } from './dialog';
+export {
+  SelectableList,
+  type SelectableListItem,
+  type SelectableListProps,
+} from './selectable-list';
+export { StatTile, type StatTileProps } from './stat-tile';

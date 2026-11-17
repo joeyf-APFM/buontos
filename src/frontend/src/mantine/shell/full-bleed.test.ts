@@ -3,7 +3,11 @@ import { FULL_BLEED_ROUTES, isFullBleed } from './full-bleed';
 
 describe('isFullBleed', () => {
   it('matches the explorer, asset detail and Data Catalog routes exactly', () => {
-    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId', '/data-products', '/data-products/:productId', '/my-products', '/my-products/:productId', '/data-contracts', '/data-contracts/:contractId', '/my-requests', '/business-owners', '/owner-consumers', '/marketplace', '/search', '/search/llm', '/search/index']);
+    expect(FULL_BLEED_ROUTES).toEqual(['/assets', '/assets/:assetId', '/data-catalog', '/data-catalog/*', '/schema-importer', '/settings/asset-types', '/data-asset-reviews', '/data-asset-reviews/:requestId', '/data-products', '/data-products/:productId', '/my-products', '/my-products/:productId', '/data-contracts', '/data-contracts/:contractId', '/my-requests', '/business-owners', '/owner-consumers', '/marketplace', '/search', '/search/llm', '/search/index', '/compliance', '/compliance/policies/:policyId', '/compliance/runs/:runId', '/security-features', '/entitlements-sync', '/entitlements', '/master-data']);
+    // The policy list (wave 3 Task 2), a policy and a run (Task 3)
+    expect(isFullBleed('/compliance')).toBe(true);
+    expect(isFullBleed('/compliance/policies/p1')).toBe(true);
+    expect(isFullBleed('/compliance/runs/r1')).toBe(true);
     expect(isFullBleed('/assets')).toBe(true);
     // React Router's trailing slash: the explorer at /assets/ is full bleed too
     expect(isFullBleed('/assets/')).toBe(true);

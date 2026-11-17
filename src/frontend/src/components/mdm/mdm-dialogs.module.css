@@ -1,0 +1,123 @@
+/*
+ * The Master Data dialogs' own parts (wave 3 Task 8a), on top of the shared
+ * dialog-form.module.css: the configuration's rules preview, the source
+ * link's column mappings and its add row. Column and rule names are
+ * identifiers, so they are set in the mono font; long ones wrap.
+ */
+
+/* The rules preview's heading and its list */
+.previewHeading {
+  margin: 0;
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.previewList {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.previewList li + li {
+  margin-top: 2px;
+}
+
+.more {
+  font-size: 11px;
+}
+
+.ident {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+/* The mapping section's head: the label and hint, Suggest at the end */
+.mappingHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mappingHead > div {
+  min-width: 0;
+}
+
+.mappingHead .label {
+  margin-bottom: 0;
+}
+
+/* The mappings: one chip each, wrapping; a long name wraps inside its chip */
+.mappings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mapping {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  color: var(--aura-text-body);
+}
+
+.mappingText {
+  min-width: 0;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* The chip's remove: 18px, so the chip stays 22px; `button.` outranks
+   Mantine's ActionIcon colour (R10) */
+button.remove {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  color: var(--aura-text-secondary);
+}
+
+button.remove:hover:not(:disabled) {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+/* Source column → master column, then Add */
+.addRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.arrow {
+  color: var(--aura-text-secondary);
+}
+
+button.add {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+/* The review's candidate count */
+.count {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}

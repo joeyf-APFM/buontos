@@ -1,34 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { Alert, Loader, Select, TextInput, Textarea } from '@mantine/core';
+import { Info } from 'lucide-react';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Loader2, Info } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-
+import { Dialog } from '@/mantine/page';
+import { FIELD_CLASSES, SELECT_CLASSES, uniqueOptions } from '@/components/common/dialog-form';
+import form from '@/components/common/dialog-form.module.css';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { MdmEntityType, MdmConfigCreate, MatchingRule, SurvivorshipRule, MatchRuleType, SurvivorshipStrategy } from '@/types/mdm';
+import { useOpenSession } from './use-open-session';
+import classes from './mdm-dialogs.module.css';
 
 interface DataContract {
   id: string;
@@ -49,6 +35,8 @@ interface MdmConfigDialogProps {
   onClose: () => void;
   onSuccess: () => void;
 }
+
+const FORM_ID = 'mdm-config-form';
 
 // Helper to parse rules from contract customProperties
 function parseContractMdmRules(customProps: Record<string, any> | undefined): {
@@ -92,18 +80,36 @@ function parseContractMdmRules(customProps: Record<string, any> | undefined): {
   return { matchingRules, survivorshipRules };
 }
 
-export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfigDialogProps) {
+// Sensible defaults when the contract has no MDM rules
+const DEFAULT_MATCHING_RULES: MatchingRule[] = [
+  { name: 'email_match', type: MatchRuleType.DETERMINISTIC, fields: ['email'], weight: 1.0, threshold: 1.0 },
+  { name: 'name_fuzzy', type: MatchRuleType.PROBABILISTIC, fields: ['customer_name'], weight: 0.8, threshold: 0.8, algorithm: 'jaro_winkler' },
+];
+const DEFAULT_SURVIVORSHIP_RULES: SurvivorshipRule[] = [
+  { field: 'email', strategy: SurvivorshipStrategy.MOST_TRUSTED },
+  { field: 'customer_name', strategy: SurvivorshipStrategy.MOST_RECENT },
+];
+
+/** The form: the dialog's body, so its fields, rules and loads start afresh each time it opens. */
+function ConfigForm({ onSave }: { onSave: (data: MdmConfigCreate) => void }) {
+  const { t } = useTranslation(['mdm', 'common']);
+  const { get } = useApi();
+  const { toast } = useToast();
   const [contracts, setContracts] = useState<DataContract[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadingContract, setLoadingContract] = useState(false);
   const [matchingRules, setMatchingRules] = useState<MatchingRule[]>([]);
   const [survivorshipRules, setSurvivorshipRules] = useState<SurvivorshipRule[]>([]);
   const [rulesSource, setRulesSource] = useState<'contract' | 'default' | 'empty'>('empty');
-
-  const { t } = useTranslation(['mdm', 'common']);
-  const { get, post } = useApi();
-  const { toast } = useToast();
+  // The contract whose rules are wanted now: a late answer for another is dropped
+  const wanted = useRef<string | null>(null);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   const formSchema = useMemo(
     () =>
@@ -116,7 +122,7 @@ export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfi
     [t]
   );
 
-  const form = useForm<FormValues>({
+  const { control, register, handleSubmit, watch, formState } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
@@ -125,49 +131,36 @@ export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfi
       master_contract_id: '',
     },
   });
-
-  const selectedContractId = form.watch('master_contract_id');
+  const { errors } = formState;
+  const selectedContractId = watch('master_contract_id');
 
   useEffect(() => {
-    if (isOpen) {
-      fetchContracts();
-      form.reset();
-      setMatchingRules([]);
-      setSurvivorshipRules([]);
-      setRulesSource('empty');
-    }
-  }, [isOpen]);
-
-  // When contract is selected, fetch its customProperties for MDM rules
-  useEffect(() => {
-    if (selectedContractId) {
-      fetchContractRules(selectedContractId);
-    }
-  }, [selectedContractId]);
-
-  const fetchContracts = async () => {
-    setLoading(true);
-    try {
-      const response = await get<DataContract[]>('/api/data-contracts');
-      if (response.data) {
-        // Filter to only active contracts
-        const activeContracts = response.data.filter(c => c.status === 'active');
-        setContracts(activeContracts);
+    (async () => {
+      try {
+        const response = await get<DataContract[]>('/api/data-contracts');
+        if (!alive.current) return;
+        // Only active contracts; an error answer or a non-list is no contracts
+        setContracts(Array.isArray(response.data) ? response.data.filter((c) => c.status === 'active') : []);
+      } catch (err) {
+        console.error('Error fetching contracts:', err);
+      } finally {
+        if (alive.current) setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching contracts:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+  }, [get]);
 
-  const fetchContractRules = async (contractId: string) => {
+  // When a contract is chosen, its customProperties give the MDM rules
+  useEffect(() => {
+    if (!selectedContractId) return;
+    const contractId = selectedContractId;
+    wanted.current = contractId;
+    const current = () => alive.current && wanted.current === contractId;
     setLoadingContract(true);
-    try {
-      const response = await get<DataContract>(`/api/data-contracts/${contractId}`);
-      if (response.data) {
+    (async () => {
+      try {
+        const response = await get<DataContract>(`/api/data-contracts/${contractId}`);
+        if (!current() || !response.data) return;
         const { matchingRules: mr, survivorshipRules: sr } = parseContractMdmRules(response.data.customProperties);
-        
         if (mr.length > 0 || sr.length > 0) {
           setMatchingRules(mr);
           setSurvivorshipRules(sr);
@@ -177,37 +170,166 @@ export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfi
             description: t('mdm:config.rulesLoaded', { matching: mr.length, survivorship: sr.length }),
           });
         } else {
-          // Use sensible defaults if contract has no MDM rules
-          setMatchingRules([
-            { name: 'email_match', type: MatchRuleType.DETERMINISTIC, fields: ['email'], weight: 1.0, threshold: 1.0 },
-            { name: 'name_fuzzy', type: MatchRuleType.PROBABILISTIC, fields: ['customer_name'], weight: 0.8, threshold: 0.8, algorithm: 'jaro_winkler' },
-          ]);
-          setSurvivorshipRules([
-            { field: 'email', strategy: SurvivorshipStrategy.MOST_TRUSTED },
-            { field: 'customer_name', strategy: SurvivorshipStrategy.MOST_RECENT },
-          ]);
+          setMatchingRules(DEFAULT_MATCHING_RULES);
+          setSurvivorshipRules(DEFAULT_SURVIVORSHIP_RULES);
           setRulesSource('default');
         }
+      } catch (err) {
+        console.error('Error fetching contract:', err);
+      } finally {
+        if (current()) setLoadingContract(false);
       }
-    } catch (err) {
-      console.error('Error fetching contract:', err);
-    } finally {
-      setLoadingContract(false);
-    }
-  };
+    })();
+    // toast and t are stable enough; only a new contract loads again
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedContractId, get]);
 
-  const onSubmit = async (values: FormValues) => {
+  const entityTypes = useMemo(
+    () => [
+      { value: MdmEntityType.CUSTOMER, label: t('mdm:entityTypes.customer') },
+      { value: MdmEntityType.PRODUCT, label: t('mdm:entityTypes.product') },
+      { value: MdmEntityType.SUPPLIER, label: t('mdm:entityTypes.supplier') },
+      { value: MdmEntityType.LOCATION, label: t('mdm:entityTypes.location') },
+      { value: MdmEntityType.OTHER, label: t('mdm:entityTypes.other') },
+    ],
+    [t]
+  );
+  const contractOptions = useMemo(
+    () => uniqueOptions(contracts.map((c) => ({ value: c.id, label: c.name }))),
+    [contracts]
+  );
+  const contractName = contracts.find((c) => c.id === selectedContractId)?.name;
+
+  const submit = handleSubmit((values) =>
+    onSave({
+      name: values.name,
+      description: values.description || undefined,
+      entity_type: values.entity_type,
+      master_contract_id: values.master_contract_id,
+      matching_rules: matchingRules,
+      survivorship_rules: survivorshipRules,
+    })
+  );
+
+  return (
+    <form id={FORM_ID} onSubmit={submit} className={form.form} noValidate>
+      <TextInput
+        id="name"
+        label={t('mdm:config.nameLabel')}
+        placeholder={t('mdm:config.namePlaceholder')}
+        error={errors.name?.message}
+        classNames={FIELD_CLASSES}
+        data-autofocus
+        {...register('name')}
+      />
+
+      <Textarea
+        id="description"
+        label={t('common:labels.description')}
+        placeholder={t('mdm:config.descriptionPlaceholder')}
+        autosize
+        minRows={3}
+        maxRows={8}
+        classNames={FIELD_CLASSES}
+        {...register('description')}
+      />
+
+      {/* No clearing: the Radix Selects these replace could not be cleared either */}
+      <Controller
+        name="entity_type"
+        control={control}
+        render={({ field }) => (
+          <Select
+            id="entity_type"
+            label={t('mdm:overview.entityType')}
+            placeholder={t('mdm:config.selectEntityType')}
+            data={entityTypes}
+            value={field.value}
+            onChange={(next) => next && field.onChange(next as MdmEntityType)}
+            allowDeselect={false}
+            classNames={SELECT_CLASSES}
+          />
+        )}
+      />
+
+      <Controller
+        name="master_contract_id"
+        control={control}
+        render={({ field }) => (
+          <Select
+            id="master_contract"
+            label={t('mdm:config.masterContractLabel')}
+            placeholder={loading ? t('common:states.loading') : t('mdm:config.selectMasterContract')}
+            data={contractOptions}
+            value={field.value || null}
+            onChange={(next) => next && field.onChange(next)}
+            allowDeselect={false}
+            disabled={loading}
+            rightSection={loading ? <Loader size={12} /> : undefined}
+            nothingFoundMessage={t('mdm:messages.noActiveContracts')}
+            error={errors.master_contract_id?.message}
+            title={contractName}
+            classNames={SELECT_CLASSES}
+          />
+        )}
+      />
+
+      {/* The rules preview */}
+      {selectedContractId && (
+        <div className={form.section}>
+          {loadingContract ? (
+            <div className={form.loading}>
+              <Loader size={12} />
+              {t('mdm:config.loadingRules')}
+            </div>
+          ) : (
+            <>
+              {rulesSource !== 'empty' && (
+                <Alert color="blue" variant="light" icon={<Info size={16} />}>
+                  {rulesSource === 'contract'
+                    ? t('mdm:config.rulesFromContract', { matching: matchingRules.length, survivorship: survivorshipRules.length })
+                    : t('mdm:config.rulesDefaults')}
+                </Alert>
+              )}
+
+              {matchingRules.length > 0 && (
+                <div>
+                  <p className={classes.previewHeading}>{t('mdm:config.matchingRulesHeading')}</p>
+                  <ul className={classes.previewList}>
+                    {matchingRules.slice(0, 3).map((rule, i) => (
+                      <li key={i}>
+                        <span className={classes.ident} title={rule.name}>{rule.name}</span>: {(Array.isArray(rule.fields) ? rule.fields : []).join(', ')} ({rule.type})
+                      </li>
+                    ))}
+                    {matchingRules.length > 3 && (
+                      <li className={classes.more}>{t('mdm:config.andMore', { count: matchingRules.length - 3 })}</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </form>
+  );
+}
+
+export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfigDialogProps) {
+  const [submitting, setSubmitting] = useState(false);
+  // A second click, or a click on the way out, sends nothing
+  const busy = useRef(false);
+  const session = useOpenSession(isOpen);
+
+  const { t } = useTranslation(['mdm', 'common']);
+  const { post } = useApi();
+  const { toast } = useToast();
+
+  const save = async (data: MdmConfigCreate) => {
+    if (busy.current || !isOpen) return;
+    busy.current = true;
     setSubmitting(true);
     try {
-      const data: MdmConfigCreate = {
-        name: values.name,
-        description: values.description || undefined,
-        entity_type: values.entity_type,
-        master_contract_id: values.master_contract_id,
-        matching_rules: matchingRules,
-        survivorship_rules: survivorshipRules,
-      };
-
       const response = await post('/api/mdm/configs', data);
       if (response.error) {
         console.error('[MDM Config] Creation failed:', response.error);
@@ -219,12 +341,10 @@ export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfi
         return;
       }
       if (response.data) {
-        console.log('[MDM Config] Created successfully:', response.data);
         const configData = response.data as { name?: string };
         toast({ title: t('common:status.success'), description: t('mdm:config.createSuccess', { name: configData.name }) });
         onSuccess();
       } else {
-        console.warn('[MDM Config] No data in response:', response);
         toast({
           title: t('common:status.warning'),
           description: t('mdm:config.createUncertain'),
@@ -239,152 +359,37 @@ export default function MdmConfigDialog({ isOpen, onClose, onSuccess }: MdmConfi
         variant: 'destructive',
       });
     } finally {
+      busy.current = false;
       setSubmitting(false);
     }
   };
 
+  // Escape and Cancel wait while the create is out
+  const close = () => {
+    if (busy.current) return;
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t('mdm:newConfiguration')}</DialogTitle>
-          <DialogDescription>
-            {t('mdm:config.dialogDescription')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('mdm:config.nameLabel')}</Label>
-            <Input
-              id="name"
-              placeholder={t('mdm:config.namePlaceholder')}
-              {...form.register('name')}
-            />
-            {form.formState.errors.name && (
-              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('common:labels.description')}</Label>
-            <Textarea
-              id="description"
-              placeholder={t('mdm:config.descriptionPlaceholder')}
-              rows={3}
-              {...form.register('description')}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="entity_type">{t('mdm:overview.entityType')}</Label>
-            <Select
-              value={form.watch('entity_type')}
-              onValueChange={(value) => form.setValue('entity_type', value as MdmEntityType)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('mdm:config.selectEntityType')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={MdmEntityType.CUSTOMER}>{t('mdm:entityTypes.customer')}</SelectItem>
-                <SelectItem value={MdmEntityType.PRODUCT}>{t('mdm:entityTypes.product')}</SelectItem>
-                <SelectItem value={MdmEntityType.SUPPLIER}>{t('mdm:entityTypes.supplier')}</SelectItem>
-                <SelectItem value={MdmEntityType.LOCATION}>{t('mdm:entityTypes.location')}</SelectItem>
-                <SelectItem value={MdmEntityType.OTHER}>{t('mdm:entityTypes.other')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="master_contract">{t('mdm:config.masterContractLabel')}</Label>
-            <Select
-              value={form.watch('master_contract_id')}
-              onValueChange={(value) => form.setValue('master_contract_id', value)}
-              disabled={loading}
-            >
-              <SelectTrigger>
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('common:states.loading')}
-                  </span>
-                ) : (
-                  <SelectValue placeholder={t('mdm:config.selectMasterContract')} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {contracts.map((contract) => (
-                  <SelectItem key={contract.id} value={contract.id}>
-                    {contract.name}
-                  </SelectItem>
-                ))}
-                {contracts.length === 0 && !loading && (
-                  <SelectItem value="_none" disabled>
-                    {t('mdm:messages.noActiveContracts')}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.master_contract_id && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.master_contract_id.message}
-              </p>
-            )}
-          </div>
-
-          {/* Rules Preview */}
-          {selectedContractId && (
-            <div className="space-y-2 pt-2 border-t">
-              {loadingContract ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t('mdm:config.loadingRules')}
-                </div>
-              ) : (
-                <>
-                  <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      {rulesSource === 'contract' ? (
-                        <>{t('mdm:config.rulesFromContract', { matching: matchingRules.length, survivorship: survivorshipRules.length })}</>
-                      ) : rulesSource === 'default' ? (
-                        <>{t('mdm:config.rulesDefaults')}</>
-                      ) : null}
-                    </AlertDescription>
-                  </Alert>
-                  
-                  {matchingRules.length > 0 && (
-                    <div className="text-sm space-y-1">
-                      <p className="font-medium">{t('mdm:config.matchingRulesHeading')}</p>
-                      <ul className="list-disc list-inside text-muted-foreground pl-2">
-                        {matchingRules.slice(0, 3).map((rule, i) => (
-                          <li key={i}>
-                            {rule.name}: {rule.fields.join(', ')} ({rule.type})
-                          </li>
-                        ))}
-                        {matchingRules.length > 3 && (
-                          <li className="text-xs">{t('mdm:config.andMore', { count: matchingRules.length - 3 })}</li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t('mdm:config.createButton')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+    <Dialog
+      opened={isOpen}
+      onClose={close}
+      size="md"
+      title={t('mdm:newConfiguration')}
+      description={t('mdm:config.dialogDescription')}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            {t('common:actions.cancel')}
+          </Button>
+          <Button type="submit" form={FORM_ID} disabled={submitting}>
+            {submitting && <Loader size={12} color="currentColor" />}
+            {t('mdm:config.createButton')}
+          </Button>
+        </>
+      }
+    >
+      <ConfigForm key={session} onSave={save} />
     </Dialog>
   );
 }
-

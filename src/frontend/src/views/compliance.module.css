@@ -1,0 +1,57 @@
+/*
+ * Compliance (/compliance) on the page kit (wave 3 Task 2): full bleed, the
+ * shell's breadcrumb, the kit header, then one flush pane holding the four
+ * figures and the shared DataTable. The list look it shares with the other
+ * list pages is in components/common/list-page.module.css; what is left here
+ * is the page's own.
+ */
+
+/* The four figures, ruled off from the table below */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px 24px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--aura-border);
+}
+
+/* A figure's caption, under its value */
+.hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 14px;
+  color: var(--aura-text-secondary);
+}
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.state .stateAlert {
+  align-self: stretch;
+  margin: 4px 0 0;
+}
+
+/* A score, in its status colour (the figure's tone sets its own) */
+.score {
+  font-weight: 600;
+}
+
+.score[data-tone='good'] {
+  color: var(--aura-good);
+}
+
+.score[data-tone='warning'] {
+  color: var(--aura-text-body);
+}
+
+.score[data-tone='critical'] {
+  color: var(--aura-critical);
+}

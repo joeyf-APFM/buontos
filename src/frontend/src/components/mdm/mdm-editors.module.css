@@ -1,0 +1,396 @@
+/*
+ * The Master Data rules editor and match review (wave 3 Task 8b), on top of
+ * the shared dialog-form.module.css. Rules are bordered boxes on the subtle
+ * surface; the match review is the comparison table with its chosen side
+ * marked. Field names, rule names and record values are identifiers or data,
+ * so field and rule names are set in mono; long ones wrap or truncate with a
+ * title. 12px text, 28px fields and rows, 4px corners.
+ */
+
+/* ---- Rules editor ---- */
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* A section's hint, with Add Rule at the end */
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionHead p {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface-strong);
+  min-width: 0;
+}
+
+/* The rule's head: grip, name (or field tag), remove at the end */
+.ruleHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.grip {
+  flex: none;
+  color: var(--aura-text-secondary);
+}
+
+.ruleName {
+  flex: 0 1 240px;
+  min-width: 0;
+}
+
+.ruleHead .spacer {
+  flex: 1;
+}
+
+/* The survivorship rule's field, as a tag: one line, truncated, with a title */
+.fieldTag {
+  min-width: 0;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface);
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unnamed {
+  font-family: inherit;
+  color: var(--aura-text-secondary);
+}
+
+.ruleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+/* Identifiers typed in a field */
+.monoInput {
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+}
+
+/* `button.` outranks Mantine's ActionIcon colour (R10) */
+button.remove {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-critical);
+}
+
+button.remove:hover:not(:disabled) {
+  background: var(--aura-critical-bg);
+  color: var(--aura-critical);
+}
+
+.empty {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+/* ---- Match review ---- */
+
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* A section: 1px border, 4px corners, 12px inside */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 4px;
+  background: var(--aura-surface);
+  min-width: 0;
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blockTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aura-text-navy);
+}
+
+.blockTitle > svg {
+  flex: none;
+}
+
+.badges,
+.bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.score {
+  font-weight: 600;
+  color: var(--aura-text-body);
+}
+
+.table {
+  table-layout: fixed;
+  width: 100%;
+  font-size: 12px;
+}
+
+.table th {
+  height: 28px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-text-secondary);
+  background: var(--aura-surface-strong);
+}
+
+.table td {
+  height: 28px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  vertical-align: middle;
+}
+
+.colField {
+  width: 22%;
+}
+
+.colCompare {
+  width: 44px;
+  text-align: center;
+}
+
+.colFinal {
+  width: 20%;
+}
+
+/* Rows whose two values agree, on the subtle surface */
+.same {
+  background: var(--aura-surface-strong);
+}
+
+.fieldCell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.fieldName {
+  min-width: 0;
+  font-family: var(--aura-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* A value to choose: the whole cell is the button; the chosen side is tinted
+   with a 2px rule on its left */
+button.choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  font: inherit;
+  color: var(--aura-text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+button.choice:hover {
+  background: var(--aura-accent-hover);
+}
+
+button.choice:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+button.choice[aria-pressed='true'][data-side='master'] {
+  border-left-color: var(--aura-good);
+  background: var(--aura-good-bg);
+}
+
+button.choice[aria-pressed='true'][data-side='source'] {
+  border-left-color: var(--aura-accent);
+  background: var(--aura-accent-subtle);
+}
+
+/* A value that can't be chosen (read-only, reviewed) */
+.value {
+  display: block;
+  padding: 2px 6px;
+  overflow-wrap: anywhere;
+}
+
+.valueText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.emptyValue {
+  font-style: italic;
+  color: var(--aura-text-secondary);
+}
+
+.check {
+  flex: none;
+}
+
+.check[data-side='master'] {
+  color: var(--aura-good);
+}
+
+.check[data-side='source'] {
+  color: var(--aura-accent);
+}
+
+.compare {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--aura-border);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--aura-text-secondary);
+}
+
+.compare[data-same] {
+  background: var(--aura-surface-strong);
+}
+
+.final {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--aura-text-secondary);
+}
+
+.finalValue {
+  overflow-wrap: anywhere;
+}
+
+button.edit {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--aura-accent);
+}
+
+/* The review's actions: progress, then the buttons at the end */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.progress {
+  margin: 0;
+  color: var(--aura-text-secondary);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* The loading, error, not-found and already-reviewed messages */
+.message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--aura-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.message > svg {
+  flex: none;
+}
+
+.message[data-error] {
+  color: var(--aura-critical);
+}
+
+.reviewed {
+  justify-content: center;
+  padding: 12px;
+}

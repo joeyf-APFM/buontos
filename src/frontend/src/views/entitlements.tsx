@@ -1,20 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Settings, Plus, Edit2, Trash2, Shield } from 'lucide-react';
+import { ActionIcon, Alert, Loader, Select, TextInput, Textarea } from '@mantine/core';
+import { AlertCircle, Edit2, Plus, Settings, Trash2 } from 'lucide-react';
 import { ListItemSkeleton } from '@/components/common/list-view-skeleton';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { PrincipalPicker } from '@/components/common/principal-picker';
+import { badgeToneStyle, type StatusTone } from '@/components/common/aura-status';
+import { Dialog, PageHeader, PageLayout, Pane, PaneStack, SelectableList, Tabs } from '@/mantine/page';
+import list from '@/components/common/list-page.module.css';
+import classes from './entitlements.module.css';
 
 interface Privilege {
   securable_id: string;
@@ -32,222 +28,325 @@ interface Persona {
   groups: string[];
 }
 
+interface PersonaValues {
+  name: string;
+  description: string;
+}
+
+const DEFAULT_PRIVILEGE: Privilege = { securable_id: '', securable_type: 'table', permission: 'READ' };
+
+const SECURABLE_TYPES = [
+  { value: 'catalog', label: 'Catalog' },
+  { value: 'schema', label: 'Schema' },
+  { value: 'table', label: 'Table' },
+  { value: 'view', label: 'View' },
+];
+const PERMISSIONS = ['READ', 'WRITE', 'MANAGE'].map((value) => ({ value, label: value }));
+
+const PERMISSION_TONES: Record<string, StatusTone> = { READ: 'info', WRITE: 'good', MANAGE: 'warning' };
+
+const FIELD_CLASSES = { label: classes.label };
+const SELECT_CLASSES = { label: classes.label, option: classes.option };
+const PERSONA_FORM_ID = 'persona-form';
+const PRIVILEGE_FORM_ID = 'privilege-form';
+
+/** The create/edit form: the dialog's body, so its fields start afresh each time it opens. */
+function PersonaForm({ persona, onSave }: { persona: Persona | null; onSave: (values: PersonaValues) => void }) {
+  const { t } = useTranslation(['entitlements', 'common']);
+  const [values, setValues] = useState<PersonaValues>({
+    name: persona?.name ?? '',
+    description: persona?.description ?? '',
+  });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    onSave(values);
+  };
+  return (
+    <form id={PERSONA_FORM_ID} onSubmit={submit} className={classes.form}>
+      <TextInput
+        id="name"
+        label={t('entitlements:personas.personaName')}
+        value={values.name}
+        onChange={(e) => {
+          const name = e.currentTarget.value;
+          setValues((prev) => ({ ...prev, name }));
+        }}
+        classNames={FIELD_CLASSES}
+        required
+        data-autofocus
+      />
+      <Textarea
+        id="description"
+        label={t('common:labels.description')}
+        autosize
+        minRows={2}
+        maxRows={8}
+        value={values.description}
+        onChange={(e) => {
+          const description = e.currentTarget.value;
+          setValues((prev) => ({ ...prev, description }));
+        }}
+        classNames={FIELD_CLASSES}
+      />
+    </form>
+  );
+}
+
+/** The Add Privilege form, afresh each time the dialog opens. */
+function PrivilegeForm({
+  value,
+  onChange,
+  onSave,
+}: {
+  value: Privilege;
+  onChange: (next: Privilege) => void;
+  onSave: () => void;
+}) {
+  const { t } = useTranslation(['entitlements', 'common']);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (value.securable_id) onSave();
+  };
+  return (
+    <form id={PRIVILEGE_FORM_ID} onSubmit={submit} className={classes.form}>
+      <TextInput
+        id="securable_id"
+        label={t('common:labels.securableId')}
+        placeholder={t('common:placeholders.exampleCatalogSchemaTable')}
+        value={value.securable_id}
+        onChange={(e) => onChange({ ...value, securable_id: e.currentTarget.value })}
+        classNames={FIELD_CLASSES}
+        required
+        data-autofocus
+      />
+      {/* No clearing: the Radix Select these replace could not be cleared either */}
+      <Select
+        id="securable_type"
+        label={t('common:labels.securableType')}
+        placeholder={t('common:placeholders.selectType')}
+        data={SECURABLE_TYPES}
+        value={value.securable_type}
+        onChange={(next) => onChange({ ...value, securable_type: next ?? value.securable_type })}
+        allowDeselect={false}
+        classNames={SELECT_CLASSES}
+      />
+      <Select
+        id="permission"
+        label={t('common:labels.permission')}
+        placeholder={t('common:placeholders.selectPermission')}
+        data={PERMISSIONS}
+        value={value.permission}
+        onChange={(next) => onChange({ ...value, permission: next ?? value.permission })}
+        allowDeselect={false}
+        classNames={SELECT_CLASSES}
+      />
+    </form>
+  );
+}
+
 const Entitlements: React.FC = () => {
   const { t } = useTranslation(['entitlements', 'common']);
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isPrivilegeDialogOpen, setIsPrivilegeDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [newPrivilege, setNewPrivilege] = useState<Partial<Privilege>>({
-    securable_id: '',
-    securable_type: 'table',
-    permission: 'READ'
-  });
   const { toast } = useToast();
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  // The list's failed load, shown with a Retry; the last good list stays under it
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // A failed save, delete or update: said once, cleared by the next success
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
+  const [personaDialog, setPersonaDialog] = useState<'create' | 'edit' | null>(null);
+  const [savingPersona, setSavingPersona] = useState(false);
+  const [privilegeDialogOpen, setPrivilegeDialogOpen] = useState(false);
+  const [newPrivilege, setNewPrivilege] = useState<Privilege>(DEFAULT_PRIVILEGE);
+  const [savingPrivilege, setSavingPrivilege] = useState(false);
 
-  useEffect(() => {
-    fetchPersonas();
-    setStaticSegments([]);
-    setDynamicTitle(t('entitlements:title'));
+  // The confirms keep the name they were opened for while they close
+  const [deletePersonaOpen, setDeletePersonaOpen] = useState(false);
+  const [deletePersonaName, setDeletePersonaName] = useState('');
+  const [deletingPersona, setDeletingPersona] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [removeName, setRemoveName] = useState('');
+  const [removing, setRemoving] = useState(false);
 
-    return () => {
-        setStaticSegments([]);
-        setDynamicTitle(null);
-    };
-  }, [setStaticSegments, setDynamicTitle]);
+  // Only the latest load may set the list: an earlier one that answers late is dropped
+  const loadId = useRef(0);
+  // A second click while a request is out sends nothing
+  const busy = useRef(false);
+  const createButton = useRef<HTMLButtonElement>(null);
+  const addPrivilegeButton = useRef<HTMLButtonElement>(null);
+  // Where focus goes once a confirm has closed: a control that is still there
+  // once the persona or privilege is gone; none otherwise, so the kit gives it
+  // back to the button that opened the confirm
+  const afterDeletePersona = useRef<HTMLElement | null>(null);
+  const afterRemovePrivilege = useRef<HTMLElement | null>(null);
 
-  const fetchPersonas = async () => {
+  const selectedPersona = personas.find((p) => p.id === selectedId) ?? null;
+
+  const loadPersonas = useCallback(async () => {
+    const id = ++loadId.current;
     try {
-      setIsLoading(true);
       const response = await fetch('/api/entitlements/personas');
       if (!response.ok) throw new Error('Failed to fetch personas');
       const data = await response.json();
-      setPersonas(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('entitlements:personas.errors.loadFailed'));
-      toast({
-        title: t('common:toast.error'),
-        description: t('entitlements:personas.errors.loadFailed'),
-        variant: 'destructive',
-      });
+      if (id !== loadId.current) return;
+      setPersonas(Array.isArray(data) ? data : []);
+      setLoadError(null);
+      setActionError(null);
+    } catch {
+      if (id !== loadId.current) return;
+      const message = t('entitlements:personas.errors.loadFailed');
+      setLoadError(message);
+      toast({ title: t('common:toast.error'), description: message, variant: 'destructive' });
     } finally {
-      setIsLoading(false);
+      if (id === loadId.current) setIsLoading(false);
+    }
+  }, [t, toast]);
+
+  useEffect(() => {
+    // Load once on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPersonas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fail = (message: string) => {
+    setActionError(message);
+    toast({ title: t('common:toast.error'), description: message, variant: 'destructive' });
+  };
+
+  const succeed = (message: string) => {
+    setActionError(null);
+    toast({ title: t('common:toast.success'), description: message });
+  };
+
+  /** Puts an updated persona (the answer to a privilege or group change) in the list. */
+  const replacePersona = (updated: Persona) =>
+    setPersonas((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+
+  const handleSavePersona = async (values: PersonaValues) => {
+    // Not once the dialog has closed (a second click on its way out)
+    if (busy.current || personaDialog === null) return;
+    busy.current = true;
+    setSavingPersona(true);
+    const editing = personaDialog === 'edit' ? selectedPersona : null;
+    try {
+      const response = await fetch(
+        editing ? `/api/entitlements/personas/${editing.id}` : '/api/entitlements/personas',
+        {
+          method: editing ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        },
+      );
+      if (!response.ok) throw new Error('Failed to save persona');
+      succeed(editing ? t('entitlements:personas.toast.personaUpdated') : t('entitlements:personas.toast.personaCreated'));
+      setPersonaDialog(null);
+      await loadPersonas();
+    } catch {
+      fail(t('entitlements:personas.errors.saveFailed'));
+    } finally {
+      busy.current = false;
+      setSavingPersona(false);
     }
   };
 
-  const handleSelectPersona = (persona: Persona) => {
-    setSelectedPersona(persona);
+  const closePersonaDialog = () => {
+    if (savingPersona) return;
+    setPersonaDialog(null);
   };
 
-  const handleAddPersona = () => {
-    setIsEditMode(false);
-    setSelectedPersona(null);
-    setIsDialogOpen(true);
-  };
-
-  const handleEditPersona = () => {
-    if (selectedPersona) {
-      setIsEditMode(true);
-      setIsDialogOpen(true);
-    }
+  const closeDeletePersona = () => {
+    if (deletingPersona) return;
+    afterDeletePersona.current = null;
+    setDeletePersonaOpen(false);
   };
 
   const handleDeletePersona = async () => {
-    if (!selectedPersona) return;
-    
+    if (!selectedPersona || busy.current) return;
+    busy.current = true;
+    const { id } = selectedPersona;
+    setDeletingPersona(true);
+    let deleted = false;
     try {
-      const response = await fetch(`/api/entitlements/personas/${selectedPersona.id}`, {
-        method: 'DELETE',
-      });
-      
+      const response = await fetch(`/api/entitlements/personas/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete persona');
-      
-      await fetchPersonas();
-      setSelectedPersona(null);
-      toast({
-        title: t('common:toast.success'),
-        description: t('entitlements:personas.toast.personaDeleted'),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('entitlements:personas.errors.deleteFailed'));
-      toast({
-        title: t('common:toast.error'),
-        description: t('entitlements:personas.errors.deleteFailed'),
-        variant: 'destructive',
-      });
+      deleted = true;
+      // Gone for good, even if the reload fails
+      setPersonas((prev) => prev.filter((p) => p.id !== id));
+      setSelectedId(null);
+      succeed(t('entitlements:personas.toast.personaDeleted'));
+      await loadPersonas();
+    } catch {
+      if (!deleted) fail(t('entitlements:personas.errors.deleteFailed'));
+    } finally {
+      afterDeletePersona.current = deleted ? createButton.current : null;
+      busy.current = false;
+      setDeletingPersona(false);
+      setDeletePersonaOpen(false);
     }
   };
 
-  const handleSavePersona = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    const personaData: Partial<Persona> = {
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-    };
-    
-    try {
-      const method = isEditMode ? 'PUT' : 'POST';
-      const url = isEditMode 
-        ? `/api/entitlements/personas/${selectedPersona?.id}`
-        : '/api/entitlements/personas';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(personaData),
-      });
-
-      if (!response.ok) throw new Error('Failed to save persona');
-      
-      await fetchPersonas();
-      setIsDialogOpen(false);
-      toast({
-        title: t('common:toast.success'),
-        description: isEditMode ? t('entitlements:personas.toast.personaUpdated') : t('entitlements:personas.toast.personaCreated'),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('entitlements:personas.errors.saveFailed'));
-      toast({
-        title: t('common:toast.error'),
-        description: t('entitlements:personas.errors.saveFailed'),
-        variant: 'destructive',
-      });
-    }
+  const closePrivilegeDialog = () => {
+    if (savingPrivilege) return;
+    setPrivilegeDialogOpen(false);
   };
 
-  const handleAddPrivilege = () => {
-    setIsPrivilegeDialogOpen(true);
+  const openAddPrivilege = () => {
+    setNewPrivilege(DEFAULT_PRIVILEGE);
+    setPrivilegeDialogOpen(true);
   };
 
   const handleSavePrivilege = async () => {
-    if (!selectedPersona || !newPrivilege.securable_id) return;
-    
+    if (!selectedPersona || !newPrivilege.securable_id || !privilegeDialogOpen || busy.current) return;
+    busy.current = true;
+    setSavingPrivilege(true);
     try {
       const response = await fetch(`/api/entitlements/personas/${selectedPersona.id}/privileges`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPrivilege),
       });
-
       if (!response.ok) throw new Error('Failed to add privilege');
-      
-      const updatedPersona = await response.json();
-      setSelectedPersona(updatedPersona);
-      setPersonas(personas.map(p => 
-        p.id === updatedPersona.id ? updatedPersona : p
-      ));
-      
-      setIsPrivilegeDialogOpen(false);
-      setNewPrivilege({
-        securable_id: '',
-        securable_type: 'table',
-        permission: 'READ'
-      });
-      toast({
-        title: t('common:toast.success'),
-        description: t('entitlements:personas.toast.privilegeAdded'),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('entitlements:personas.errors.privilegeAddFailed'));
-      toast({
-        title: t('common:toast.error'),
-        description: t('entitlements:personas.errors.privilegeAddFailed'),
-        variant: 'destructive',
-      });
+      replacePersona(await response.json());
+      setPrivilegeDialogOpen(false);
+      succeed(t('entitlements:personas.toast.privilegeAdded'));
+    } catch {
+      fail(t('entitlements:personas.errors.privilegeAddFailed'));
+    } finally {
+      busy.current = false;
+      setSavingPrivilege(false);
     }
   };
 
-  const handleRemovePrivilege = async (securableId: string) => {
-    if (!selectedPersona) return;
-    
+  const closeRemove = () => {
+    if (removing) return;
+    afterRemovePrivilege.current = null;
+    setRemoveTarget(null);
+  };
+
+  const handleRemovePrivilege = async () => {
+    if (!selectedPersona || removeTarget === null || busy.current) return;
+    busy.current = true;
+    setRemoving(true);
+    let removed = false;
     try {
-      const response = await fetch(`/api/entitlements/personas/${selectedPersona.id}/privileges/${securableId}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(
+        `/api/entitlements/personas/${selectedPersona.id}/privileges/${encodeURIComponent(removeTarget)}`,
+        { method: 'DELETE' },
+      );
       if (!response.ok) throw new Error('Failed to remove privilege');
-      
-      const updatedPersona = await response.json();
-      setSelectedPersona(updatedPersona);
-      setPersonas(personas.map(p => 
-        p.id === updatedPersona.id ? updatedPersona : p
-      ));
-      toast({
-        title: t('common:toast.success'),
-        description: t('entitlements:personas.toast.privilegeRemoved'),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('entitlements:personas.errors.privilegeRemoveFailed'));
-      toast({
-        title: t('common:toast.error'),
-        description: t('entitlements:personas.errors.privilegeRemoveFailed'),
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getPermissionColor = (permission: string) => {
-    switch (permission) {
-      case 'READ':
-        return 'bg-blue-100 text-blue-800';
-      case 'WRITE':
-        return 'bg-green-100 text-green-800';
-      case 'MANAGE':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      const updated = await response.json();
+      removed = true;
+      replacePersona(updated);
+      succeed(t('entitlements:personas.toast.privilegeRemoved'));
+    } catch {
+      if (!removed) fail(t('entitlements:personas.errors.privilegeRemoveFailed'));
+    } finally {
+      afterRemovePrivilege.current = removed ? addPrivilegeButton.current : null;
+      busy.current = false;
+      setRemoving(false);
+      setRemoveTarget(null);
     }
   };
 
@@ -255,295 +354,282 @@ const Entitlements: React.FC = () => {
     try {
       const response = await fetch(`/api/entitlements/personas/${personaId}/groups`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ groups }),
       });
-
       if (!response.ok) throw new Error('Failed to update groups');
-      
-      const updatedPersona = await response.json();
-      setSelectedPersona(updatedPersona);
-      setPersonas(personas.map(p => 
-        p.id === updatedPersona.id ? updatedPersona : p
-      ));
-      toast({
-        title: t('common:toast.success'),
-        description: t('entitlements:personas.toast.groupsUpdated'),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('entitlements:personas.errors.groupsUpdateFailed'));
-      toast({
-        title: t('common:toast.error'),
-        description: t('entitlements:personas.errors.groupsUpdateFailed'),
-        variant: 'destructive',
-      });
+      replacePersona(await response.json());
+      succeed(t('entitlements:personas.toast.groupsUpdated'));
+    } catch {
+      fail(t('entitlements:personas.errors.groupsUpdateFailed'));
     }
   };
 
+  const items = personas.map((persona) => ({
+    id: persona.id,
+    label: <span title={persona.name}>{persona.name}</span>,
+    meta: t('entitlements:personas.privilegeCount', { count: persona.privileges?.length ?? 0 }),
+  }));
+
+  const privileges = selectedPersona?.privileges ?? [];
+
   return (
-    <div className="py-6">
-      <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
-        <Shield className="w-8 h-8" /> {t('entitlements:title')}
-      </h1>
-      <div className="flex justify-between items-center mb-6">
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAddPersona} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {t('entitlements:personas.createPersona')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{isEditMode ? t('entitlements:personas.editPersona') : t('entitlements:personas.createNewPersona')}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSavePersona}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">{t('entitlements:personas.personaName')}</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    defaultValue={isEditMode && selectedPersona ? selectedPersona.name : ''}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">{t('common:labels.description')}</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    defaultValue={isEditMode && selectedPersona ? selectedPersona.description : ''}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  {t('common:actions.cancel')}
-                </Button>
-                <Button type="submit">
-                  {isEditMode ? t('common:actions.saveChanges') : t('entitlements:personas.createPersona')}
+    <>
+      <PageLayout
+        header={
+          <PageHeader
+            title={t('entitlements:title')}
+            actions={
+              <Button ref={createButton} onClick={() => setPersonaDialog('create')}>
+                <Plus />
+                {t('entitlements:personas.createPersona')}
+              </Button>
+            }
+          />
+        }
+      >
+        <PaneStack sizes={[1, 3]}>
+          <Pane title={t('entitlements:personas.title')} flush>
+            {loadError && (
+              <div className={classes.state}>
+                <Alert
+                  color="red"
+                  variant="light"
+                  icon={<AlertCircle />}
+                  className={`${list.alert} ${classes.stateAlert}`}
+                  classNames={{ message: list.alertMessage }}
+                >
+                  {loadError}
+                </Alert>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setLoadError(null);
+                    loadPersonas();
+                  }}
+                >
+                  {t('common:retry')}
                 </Button>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            )}
+            {isLoading ? (
+              <ListItemSkeleton count={5} className={classes.skeleton} />
+            ) : (
+              <SelectableList
+                aria-label={t('entitlements:personas.title')}
+                items={items}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                emptyMessage={loadError ? null : t('entitlements:personas.noPersonas')}
+              />
+            )}
+          </Pane>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Personas List */}
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>{t('entitlements:personas.title')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[70vh]">
-              {isLoading ? (
-                <ListItemSkeleton count={5} height="h-16" className="space-y-2" />
-              ) : personas.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  {t('entitlements:personas.noPersonas')}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {personas.map((persona) => (
-                    <div
-                      key={persona.id}
-                      className={`p-4 rounded-md cursor-pointer ${
-                        selectedPersona?.id === persona.id
-                          ? 'bg-primary/10'
-                          : 'hover:bg-muted'
-                      }`}
-                      onClick={() => handleSelectPersona(persona)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <User className="w-5 h-5" />
-                        <div>
-                          <h3 className="font-medium">{persona.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {persona.privileges.length} privileges
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Persona Details */}
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>
-                {selectedPersona ? selectedPersona.name : t('entitlements:personas.selectPersona')}
-              </CardTitle>
-              {selectedPersona && (
-                <div className="flex space-x-2">
-                  <Button variant="outline" onClick={handleEditPersona}>
-                    <Edit2 className="w-4 h-4 mr-2" />
+          <Pane
+            title={selectedPersona ? selectedPersona.name : t('entitlements:personas.selectPersona')}
+            titleTooltip
+            actions={
+              selectedPersona && (
+                <>
+                  <Button variant="outline" onClick={() => setPersonaDialog('edit')}>
+                    <Edit2 />
                     {t('common:actions.edit')}
                   </Button>
-                  <Button variant="outline" onClick={handleDeletePersona}>
-                    <Trash2 className="w-4 h-4 mr-2" />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setDeletePersonaName(selectedPersona.name);
+                      setDeletePersonaOpen(true);
+                    }}
+                  >
+                    <Trash2 />
                     {t('common:actions.delete')}
                   </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
+                </>
+              )
+            }
+          >
+            {actionError && (
+              <Alert
+                color="red"
+                variant="light"
+                icon={<AlertCircle />}
+                className={`${list.alert} ${classes.actionAlert}`}
+                classNames={{ message: list.alertMessage }}
+              >
+                {actionError}
+              </Alert>
+            )}
             {selectedPersona ? (
               <Tabs defaultValue="privileges">
-                <TabsList>
-                  <TabsTrigger value="privileges">{t('entitlements:personas.accessPrivileges')}</TabsTrigger>
-                  <TabsTrigger value="groups">{t('entitlements:personas.groupAssignments')}</TabsTrigger>
-                </TabsList>
-                <TabsContent value="privileges">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-medium">{t('entitlements:personas.accessPrivileges')}</h3>
-                      <Button onClick={handleAddPrivilege}>
-                        <Plus className="w-4 h-4 mr-2" />
+                <Tabs.List>
+                  <Tabs.Tab value="privileges">{t('entitlements:personas.accessPrivileges')}</Tabs.Tab>
+                  <Tabs.Tab value="groups">{t('entitlements:personas.groupAssignments')}</Tabs.Tab>
+                </Tabs.List>
+                <Tabs.Panel value="privileges">
+                  <div className={classes.section}>
+                    <div className={classes.sectionHead}>
+                      <h3 className={classes.sectionTitle}>{t('entitlements:personas.accessPrivileges')}</h3>
+                      <Button ref={addPrivilegeButton} onClick={openAddPrivilege}>
+                        <Plus />
                         {t('entitlements:personas.addPrivilege')}
                       </Button>
                     </div>
-                    {selectedPersona.privileges.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-4">
-                        {t('entitlements:personas.noPrivileges')}
-                      </div>
+                    {privileges.length === 0 ? (
+                      <div className={classes.empty}>{t('entitlements:personas.noPrivileges')}</div>
                     ) : (
-                      <div className="space-y-2">
-                        {selectedPersona.privileges.map((privilege) => (
-                          <div
-                            key={privilege.securable_id}
-                            className="flex items-center justify-between p-4 border rounded-md"
-                          >
-                            <div>
-                              <div className="font-medium">{privilege.securable_id}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {privilege.securable_type}
-                              </div>
+                      <div className={classes.privileges}>
+                        {privileges.map((privilege) => (
+                          <div key={privilege.securable_id} className={classes.privilege}>
+                            <div className={classes.privilegeText}>
+                              <span className={classes.securable} title={privilege.securable_id}>
+                                {privilege.securable_id}
+                              </span>
+                              <span className={classes.securableType}>{privilege.securable_type}</span>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge className={getPermissionColor(privilege.permission)}>
-                                {privilege.permission}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemovePrivilege(privilege.securable_id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+                            <Badge
+                              variant="outline"
+                              style={badgeToneStyle(PERMISSION_TONES[privilege.permission] ?? 'neutral')}
+                            >
+                              {privilege.permission}
+                            </Badge>
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              className={`${list.action} ${list.delete}`}
+                              aria-label={t('entitlements:personas.removePrivilege')}
+                              onClick={() => {
+                                setRemoveName(privilege.securable_id);
+                                setRemoveTarget(privilege.securable_id);
+                              }}
+                            >
+                              <Trash2 aria-hidden />
+                            </ActionIcon>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
-                </TabsContent>
-                <TabsContent value="groups">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t('entitlements:personas.groupAssignments')}</h3>
-                    <div className="space-y-2">
-                      <Label>{t('entitlements:personas.addGroups')}</Label>
+                </Tabs.Panel>
+                <Tabs.Panel value="groups">
+                  <div className={classes.section}>
+                    <h3 className={classes.sectionTitle}>{t('entitlements:personas.groupAssignments')}</h3>
+                    <div className={classes.groups}>
+                      <span className={classes.label}>{t('entitlements:personas.addGroups')}</span>
                       <PrincipalPicker
                         multiple
                         accepts={['group']}
-                        value={selectedPersona.groups}
+                        value={selectedPersona.groups ?? []}
                         onChange={(next) => handleUpdateGroups(selectedPersona.id, next)}
                         placeholder={t('common:placeholders.selectGroup')}
                         aria-label={t('entitlements:personas.groupAssignments')}
                       />
                     </div>
                   </div>
-                </TabsContent>
+                </Tabs.Panel>
               </Tabs>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[70vh] text-muted-foreground">
-                <Settings className="w-12 h-12 mb-4" />
-                <p className="text-lg">{t('entitlements:personas.selectPersonaHint')}</p>
-                <p className="text-sm">{t('entitlements:personas.createPersonaHint')}</p>
+              <div className={classes.hint}>
+                <Settings aria-hidden />
+                <p className={classes.hintTitle}>{t('entitlements:personas.selectPersonaHint')}</p>
+                <p>{t('entitlements:personas.createPersonaHint')}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </Pane>
+        </PaneStack>
+      </PageLayout>
 
-      {/* Add Privilege Dialog */}
-      <Dialog open={isPrivilegeDialogOpen} onOpenChange={setIsPrivilegeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('entitlements:personas.addPrivilege')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="securable_id">{t('common:labels.securableId')}</Label>
-              <Input
-                id="securable_id"
-                value={newPrivilege.securable_id}
-                onChange={(e) => setNewPrivilege({...newPrivilege, securable_id: e.target.value})}
-                placeholder={t('common:placeholders.exampleCatalogSchemaTable')}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="securable_type">{t('common:labels.securableType')}</Label>
-              <Select
-                value={newPrivilege.securable_type}
-                onValueChange={(value) => setNewPrivilege({...newPrivilege, securable_type: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('common:placeholders.selectType')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="catalog">Catalog</SelectItem>
-                  <SelectItem value="schema">Schema</SelectItem>
-                  <SelectItem value="table">Table</SelectItem>
-                  <SelectItem value="view">View</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="permission">{t('common:labels.permission')}</Label>
-              <Select
-                value={newPrivilege.permission}
-                onValueChange={(value) => setNewPrivilege({...newPrivilege, permission: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('common:placeholders.selectPermission')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="READ">READ</SelectItem>
-                  <SelectItem value="WRITE">WRITE</SelectItem>
-                  <SelectItem value="MANAGE">MANAGE</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setIsPrivilegeDialogOpen(false)}>
+      {/* Create and edit persona */}
+      <Dialog
+        opened={personaDialog !== null}
+        onClose={closePersonaDialog}
+        size="md"
+        title={personaDialog === 'edit' ? t('entitlements:personas.editPersona') : t('entitlements:personas.createNewPersona')}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={closePersonaDialog} disabled={savingPersona}>
               {t('common:actions.cancel')}
             </Button>
-            <Button onClick={handleSavePrivilege} disabled={!newPrivilege.securable_id}>
+            <Button type="submit" form={PERSONA_FORM_ID} disabled={savingPersona}>
+              {savingPersona && <Loader size={12} color="currentColor" />}
+              {personaDialog === 'edit' ? t('common:actions.saveChanges') : t('entitlements:personas.createPersona')}
+            </Button>
+          </>
+        }
+      >
+        <PersonaForm
+          key={personaDialog === 'edit' ? selectedPersona?.id : 'new'}
+          persona={personaDialog === 'edit' ? selectedPersona : null}
+          onSave={handleSavePersona}
+        />
+      </Dialog>
+
+      {/* Add Privilege */}
+      <Dialog
+        opened={privilegeDialogOpen}
+        onClose={closePrivilegeDialog}
+        size="md"
+        title={t('entitlements:personas.addPrivilege')}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={closePrivilegeDialog} disabled={savingPrivilege}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button type="submit" form={PRIVILEGE_FORM_ID} disabled={!newPrivilege.securable_id || savingPrivilege}>
+              {savingPrivilege && <Loader size={12} color="currentColor" />}
               {t('common:actions.add')}
             </Button>
-          </div>
-        </DialogContent>
+          </>
+        }
+      >
+        <PrivilegeForm value={newPrivilege} onChange={setNewPrivilege} onSave={handleSavePrivilege} />
       </Dialog>
-    </div>
+
+      {/* Delete persona */}
+      <Dialog
+        opened={deletePersonaOpen}
+        onClose={closeDeletePersona}
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={afterDeletePersona}
+        title={t('entitlements:personas.deleteDialog.title')}
+        description={t('entitlements:personas.deleteDialog.description', { name: deletePersonaName })}
+        footer={
+          <>
+            <Button variant="outline" onClick={closeDeletePersona} disabled={deletingPersona}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePersona} disabled={deletingPersona}>
+              {deletingPersona && <Loader size={12} color="currentColor" />}
+              {t('common:actions.delete')}
+            </Button>
+          </>
+        }
+      />
+
+      {/* Remove privilege */}
+      <Dialog
+        opened={removeTarget !== null}
+        onClose={closeRemove}
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={afterRemovePrivilege}
+        title={t('entitlements:personas.removeDialog.title')}
+        description={t('entitlements:personas.removeDialog.description', { name: removeName })}
+        footer={
+          <>
+            <Button variant="outline" onClick={closeRemove} disabled={removing}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleRemovePrivilege} disabled={removing}>
+              {removing && <Loader size={12} color="currentColor" />}
+              {t('common:actions.remove')}
+            </Button>
+          </>
+        }
+      />
+    </>
   );
 };
 
-export default Entitlements; 
+export default Entitlements;

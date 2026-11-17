@@ -53,7 +53,8 @@
     "sourceContract": "ソース契約",
     "keyColumn": "キー列",
     "matchColumns": "マッチ列",
-    "noSources": "ソース契約がまだリンクされていません。"
+    "noSources": "ソース契約がまだリンクされていません。",
+    "removeSource": "ソースリンクを削除"
   },
   "rulesTab": {
     "title": "マッチングルール",

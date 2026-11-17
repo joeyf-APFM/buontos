@@ -393,3 +393,125 @@
   outline: 2px solid var(--aura-accent);
   outline-offset: 2px;
 }
+
+/* PaneStack with sizes: a row of weighted panes sharing 1px borders. Each
+   cell takes its weight of the width; the pane inside fills it. */
+.stack[data-sizes] {
+  flex-direction: row;
+}
+
+.stackCell {
+  flex: var(--pane-size, 1) 1 0;
+  min-width: 0;
+  display: flex;
+}
+
+.stackCell > section {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0;
+}
+
+.stackCell + .stackCell > section {
+  border-left-width: 0;
+}
+
+.stackCell:first-child > section {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.stackCell:last-child > section {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Selectable list: the explorer tree's selected row (asset-explorer/explorer.module.css) */
+.selectable {
+  display: flex;
+  flex-direction: column;
+}
+
+.selectableRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--aura-text-body);
+  cursor: pointer;
+}
+
+.selectableRow:hover:not([data-selected], [aria-disabled='true']) {
+  background: var(--aura-canvas);
+}
+
+.selectableRow[data-selected] {
+  background: var(--aura-accent-subtle);
+  color: var(--aura-accent-hover);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--aura-accent);
+}
+
+.selectableRow:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: -2px;
+}
+
+.selectableRow[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.selectableLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectableMeta {
+  flex: none;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--aura-text-muted);
+}
+
+.listEmpty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--aura-text-muted);
+}
+
+/* Stat tile */
+.statTile {
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--aura-text-muted);
+}
+
+.statValue {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 700;
+  color: var(--aura-navy);
+  overflow-wrap: anywhere;
+}
+
+.statValue[data-tone='success'] {
+  color: var(--aura-good);
+}
+
+.statValue[data-tone='warning'] {
+  color: var(--aura-warning);
+}
+
+.statValue[data-tone='critical'] {
+  color: var(--aura-critical);
+}

@@ -1,27 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ActionIcon, Alert, Divider, Loader, Progress, Table } from '@mantine/core';
+import {
+  AlertCircle, Clock, Eye, FileCheck, GitCompare, Link2, Merge, Play, Plus, RefreshCw, Settings2, Trash2, Users,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
-import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import { RelativeDate } from '@/components/common/relative-date';
-import { 
-  GitCompare, Plus, Play, FileCheck, Link2, 
-  Database, AlertCircle,
-  // CheckCircle2, // Available for future use
-  Clock, Trash2, Settings2, RefreshCw, Users,
-  Merge, Eye
-} from 'lucide-react';
-import { SplitPaneSkeleton } from '@/components/common/list-view-skeleton';
+import { ListItemSkeleton } from '@/components/common/list-view-skeleton';
+import {
+  Dialog, DetailsGrid, PageHeader, PageLayout, Pane, PaneStack, SelectableList, StatTile, Tabs,
+} from '@/mantine/page';
+import list from '@/components/common/list-page.module.css';
 
 import MdmConfigDialog from '@/components/mdm/mdm-config-dialog';
 import LinkSourceDialog from '@/components/mdm/link-source-dialog';
@@ -38,6 +31,44 @@ import {
   MdmMatchType,
 } from '@/types/mdm';
 import { deleteOrThrow } from '@/lib/delete-or-throw';
+import classes from './master-data-management.module.css';
+
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+
+const STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  active: 'default',
+  completed: 'default',
+  running: 'secondary',
+  pending: 'outline',
+  approved: 'default',
+  rejected: 'destructive',
+  merged: 'default',
+  failed: 'destructive',
+  paused: 'outline',
+  archived: 'outline',
+};
+
+const MATCH_TYPE_VARIANTS: Record<string, BadgeVariant> = {
+  exact: 'default',
+  fuzzy: 'secondary',
+  probabilistic: 'outline',
+  new: 'secondary',
+};
+
+const StatusBadge = ({ status }: { status: string }) => (
+  <Badge variant={STATUS_VARIANTS[status] || 'outline'}>{status}</Badge>
+);
+
+const MatchTypeBadge = ({ matchType }: { matchType: MdmMatchType }) => (
+  <Badge variant={MATCH_TYPE_VARIANTS[matchType] || 'outline'}>{matchType}</Badge>
+);
+
+/** Green from 90%, amber from 80%, below that the warning's stronger colour. */
+const confidenceTone = (score: number) => (score >= 0.9 ? 'good' : score >= 0.8 ? 'warning' : 'critical');
+
+const lastRunTone = (status: string) => (status === 'completed' ? 'good' : status === 'failed' ? 'critical' : 'warning');
+
+const asArray = <T,>(data: unknown): T[] => (Array.isArray(data) ? (data as T[]) : []);
 
 export default function MasterDataManagement() {
   const { t } = useTranslation(['mdm', 'common']);
@@ -47,207 +78,264 @@ export default function MasterDataManagement() {
   const [matchRuns, setMatchRuns] = useState<MdmMatchRun[]>([]);
   const [candidates, setCandidates] = useState<MdmMatchCandidate[]>([]);
   const [selectedRun, setSelectedRun] = useState<MdmMatchRun | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  // The list's failed load, shown with a Retry; the last good list stays under it
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [isRulesEditorOpen, setIsRulesEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // The confirms keep what they were opened for while they close
+  const [deleteConfigOpen, setDeleteConfigOpen] = useState(false);
+  const [deleteConfigTarget, setDeleteConfigTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deletingConfig, setDeletingConfig] = useState(false);
+  const [removeSourceOpen, setRemoveSourceOpen] = useState(false);
+  const [removeSourceTarget, setRemoveSourceTarget] = useState<{ id: string; name: string } | null>(null);
+  const [removingSource, setRemovingSource] = useState(false);
+
   const { get, post, delete: deleteApi } = useApi();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const setStaticSegments = useBreadcrumbStore((state) => state.setStaticSegments);
-  const setDynamicTitle = useBreadcrumbStore((state) => state.setDynamicTitle);
 
-  useEffect(() => {
-    setStaticSegments([]);
-    setDynamicTitle(t('mdm:title'));
-    return () => {
-      setStaticSegments([]);
-      setDynamicTitle(null);
-    };
-  }, [setStaticSegments, setDynamicTitle]);
+  // Only the latest answer of each kind may land: an earlier one that answers
+  // late, or one for a configuration or run no longer chosen, is dropped
+  const configsReq = useRef(0);
+  const sourcesReq = useRef(0);
+  const runsReq = useRef(0);
+  const candidatesReq = useRef(0);
+  const selectedId = useRef<string | null>(null);
+  const selectedRunId = useRef<string | null>(null);
+  // A second click while a request is out sends nothing
+  const busy = useRef({ start: false, merge: false, delete: false });
 
-  useEffect(() => {
-    fetchConfigs();
-  }, []);
+  const newButton = useRef<HTMLButtonElement>(null);
+  const linkSourceButton = useRef<HTMLButtonElement>(null);
+  // Where focus goes once a confirm has closed: a control that is still there
+  // once the row is gone; none otherwise, so the kit gives it back to the opener
+  const afterDeleteConfig = useRef<HTMLElement | null>(null);
+  const afterRemoveSource = useRef<HTMLElement | null>(null);
 
   const fetchConfigs = async () => {
-    setLoading(true);
-    setError(null);
+    const id = ++configsReq.current;
     try {
       const response = await get<MdmConfig[]>('/api/mdm/configs');
+      if (id !== configsReq.current) return;
       if (response.error) {
-        setError(response.error);
-        setConfigs([]);
+        setLoadError(response.error);
         return;
       }
-      if (response.data && Array.isArray(response.data)) {
-        setConfigs(response.data);
-        // If we had a selected config, refresh it
-        if (selectedConfig) {
-          const updated = response.data.find(c => c.id === selectedConfig.id);
-          if (updated) {
-            setSelectedConfig(updated);
-          }
-        }
-      } else {
-        setConfigs([]);
-      }
+      const next = asArray<MdmConfig>(response.data);
+      setConfigs(next);
+      setLoadError(null);
+      // The chosen configuration follows the list's newer copy of it
+      setSelectedConfig((prev) => (prev ? next.find((c) => c.id === prev.id) ?? prev : prev));
     } catch (err: any) {
-      setError(err.message || t('mdm:errors.loadFailed'));
-      setConfigs([]);
+      if (id !== configsReq.current) return;
+      setLoadError(err?.message || t('mdm:errors.loadFailed'));
     } finally {
-      setLoading(false);
+      if (id === configsReq.current) setInitialLoading(false);
     }
   };
 
   const fetchSourceLinks = async (configId: string) => {
+    const id = ++sourcesReq.current;
     try {
       const response = await get<MdmSourceLink[]>(`/api/mdm/configs/${configId}/sources`);
-      if (response.data) {
-        setSourceLinks(response.data);
-      }
+      if (id !== sourcesReq.current || configId !== selectedId.current || response.error) return;
+      setSourceLinks(asArray<MdmSourceLink>(response.data));
     } catch (err: any) {
       console.error('Error fetching source links:', err);
     }
   };
 
   const fetchMatchRuns = async (configId: string) => {
+    const id = ++runsReq.current;
     try {
       const response = await get<MdmMatchRun[]>(`/api/mdm/configs/${configId}/runs`);
-      if (response.data) {
-        setMatchRuns(response.data);
-      }
+      if (id !== runsReq.current || configId !== selectedId.current || response.error) return;
+      setMatchRuns(asArray<MdmMatchRun>(response.data));
     } catch (err: any) {
       console.error('Error fetching match runs:', err);
     }
   };
 
   const fetchCandidates = async (runId: string) => {
+    const id = ++candidatesReq.current;
     try {
       const response = await get<MdmMatchCandidate[]>(`/api/mdm/runs/${runId}/candidates`);
-      if (response.data) {
-        setCandidates(response.data);
-      }
+      if (id !== candidatesReq.current || runId !== selectedRunId.current || response.error) return;
+      setCandidates(asArray<MdmMatchCandidate>(response.data));
     } catch (err: any) {
       console.error('Error fetching candidates:', err);
     }
   };
 
-  const handleSelectConfig = (config: MdmConfig) => {
-    setSelectedConfig(config);
-    setSelectedRun(null);
+  useEffect(() => {
+    // Load once on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchConfigs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const chooseRun = (run: MdmMatchRun | null) => {
+    const changed = (run?.id ?? null) !== selectedRunId.current;
+    selectedRunId.current = run?.id ?? null;
+    setSelectedRun(run);
+    // Another run's candidates never show (or gate Merge Approved) under this one
+    if (run && changed) {
+      setCandidates([]);
+      fetchCandidates(run.id);
+    }
+  };
+
+  const clearSelection = () => {
+    selectedId.current = null;
+    setSelectedConfig(null);
+    setSourceLinks([]);
+    setMatchRuns([]);
+    chooseRun(null);
     setCandidates([]);
+  };
+
+  const handleSelectConfig = (config: MdmConfig) => {
+    selectedId.current = config.id;
+    setSelectedConfig(config);
+    // The last configuration's sources and runs don't show under this one
+    setSourceLinks([]);
+    setMatchRuns([]);
+    chooseRun(null);
+    setCandidates([]);
+    // Its Candidates tab goes with the run
+    if (activeTab === 'candidates') setActiveTab('overview');
     fetchSourceLinks(config.id);
     fetchMatchRuns(config.id);
   };
 
+  const openRun = (run: MdmMatchRun) => {
+    chooseRun(run);
+    setActiveTab('candidates');
+  };
+
   const handleStartMatching = async (configId: string) => {
+    if (busy.current.start) return;
+    busy.current.start = true;
     try {
       const response = await post<MdmMatchRun>(`/api/mdm/configs/${configId}/start-run`, {});
+      if (response.error) throw new Error(response.error);
       if (response.data) {
         toast({ title: t('common:toast.success'), description: t('mdm:toast.matchingStarted') });
         fetchMatchRuns(configId);
       }
     } catch (err: any) {
       toast({ title: t('common:toast.error'), description: err.message || t('mdm:errors.startMatchingFailed'), variant: 'destructive' });
+    } finally {
+      busy.current.start = false;
     }
   };
 
   const handleMergeApproved = async (runId: string) => {
+    if (busy.current.merge) return;
+    busy.current.merge = true;
     try {
       const response = await post(`/api/mdm/runs/${runId}/merge-approved`, {});
+      if (response.error) throw new Error(response.error);
       if (response.data) {
-        toast({ 
-          title: t('common:toast.success'), 
-          description: (response.data as any).message || t('mdm:toast.mergeCompleted') 
+        toast({
+          title: t('common:toast.success'),
+          description: (response.data as any).message || t('mdm:toast.mergeCompleted'),
         });
-        if (selectedConfig) {
-          fetchMatchRuns(selectedConfig.id);
-        }
-        if (selectedRun) {
-          fetchCandidates(selectedRun.id);
-        }
+        if (selectedId.current) fetchMatchRuns(selectedId.current);
+        if (selectedRunId.current) fetchCandidates(selectedRunId.current);
       }
     } catch (err: any) {
       toast({ title: t('common:toast.error'), description: err.message || t('mdm:errors.mergeFailed'), variant: 'destructive' });
+    } finally {
+      busy.current.merge = false;
     }
   };
 
-  const handleDeleteConfig = async (configId: string) => {
-    if (!confirm(t('mdm:confirm.deleteConfig'))) return;
-    
+  const askDeleteConfig = (config: MdmConfig) => {
+    setDeleteConfigTarget({ id: config.id, name: config.name });
+    setDeleteConfigOpen(true);
+  };
+
+  const closeDeleteConfig = () => {
+    if (deletingConfig) return;
+    afterDeleteConfig.current = null;
+    setDeleteConfigOpen(false);
+  };
+
+  const handleDeleteConfig = async () => {
+    if (!deleteConfigTarget || !deleteConfigOpen || busy.current.delete) return;
+    busy.current.delete = true;
+    const { id } = deleteConfigTarget;
+    setDeletingConfig(true);
+    let deleted = false;
     try {
-      await deleteOrThrow(deleteApi, `/api/mdm/configs/${configId}`);
+      await deleteOrThrow(deleteApi, `/api/mdm/configs/${id}`);
+      deleted = true;
+      // Gone for good, even if the reload fails
+      setConfigs((prev) => prev.filter((c) => c.id !== id));
+      if (selectedId.current === id) clearSelection();
       toast({ title: t('common:toast.success'), description: t('mdm:toast.configDeleted') });
-      if (selectedConfig?.id === configId) {
-        setSelectedConfig(null);
-      }
       fetchConfigs();
     } catch (err: any) {
       toast({ title: t('common:toast.error'), description: err.message || t('mdm:errors.deleteFailed'), variant: 'destructive' });
+    } finally {
+      afterDeleteConfig.current = deleted ? newButton.current : null;
+      busy.current.delete = false;
+      setDeletingConfig(false);
+      setDeleteConfigOpen(false);
     }
   };
 
-  const handleDeleteSourceLink = async (linkId: string) => {
-    if (!confirm(t('mdm:confirm.deleteSource'))) return;
-    
+  const askRemoveSource = (link: MdmSourceLink) => {
+    setRemoveSourceTarget({ id: link.id, name: link.source_contract_name || link.source_contract_id });
+    setRemoveSourceOpen(true);
+  };
+
+  const closeRemoveSource = () => {
+    if (removingSource) return;
+    afterRemoveSource.current = null;
+    setRemoveSourceOpen(false);
+  };
+
+  const handleRemoveSource = async () => {
+    if (!removeSourceTarget || !removeSourceOpen || busy.current.delete) return;
+    busy.current.delete = true;
+    const { id } = removeSourceTarget;
+    setRemovingSource(true);
+    let removed = false;
     try {
-      await deleteOrThrow(deleteApi, `/api/mdm/sources/${linkId}`);
+      await deleteOrThrow(deleteApi, `/api/mdm/sources/${id}`);
+      removed = true;
+      setSourceLinks((prev) => prev.filter((l) => l.id !== id));
       toast({ title: t('common:toast.success'), description: t('mdm:toast.sourceRemoved') });
-      if (selectedConfig) {
-        fetchSourceLinks(selectedConfig.id);
+      if (selectedId.current) {
+        fetchSourceLinks(selectedId.current);
         fetchConfigs(); // Refresh source count
       }
     } catch (err: any) {
       toast({ title: t('common:toast.error'), description: err.message || t('mdm:errors.deleteFailed'), variant: 'destructive' });
+    } finally {
+      afterRemoveSource.current = removed ? linkSourceButton.current : null;
+      busy.current.delete = false;
+      setRemovingSource(false);
+      setRemoveSourceOpen(false);
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      active: 'default',
-      completed: 'default',
-      running: 'secondary',
-      pending: 'outline',
-      approved: 'default',
-      rejected: 'destructive',
-      merged: 'default',
-      failed: 'destructive',
-      paused: 'outline',
-      archived: 'outline',
-    };
-    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
-  };
-
-  const getMatchTypeBadge = (matchType: MdmMatchType) => {
-    const variants: Record<string, "default" | "secondary" | "outline"> = {
-      exact: 'default',
-      fuzzy: 'secondary',
-      probabilistic: 'outline',
-      new: 'secondary',
-    };
-    return <Badge variant={variants[matchType] || 'outline'}>{matchType}</Badge>;
-  };
-
-  const getConfidenceColor = (score: number) => {
-    if (score >= 0.9) return 'text-green-600';
-    if (score >= 0.8) return 'text-yellow-600';
-    return 'text-orange-600';
   };
 
   // Calculate statistics for selected config
   const configStats = useMemo(() => {
     if (!matchRuns.length) return null;
-    
-    const completedRuns = matchRuns.filter(r => r.status === MdmMatchRunStatus.COMPLETED);
+
+    const completedRuns = matchRuns.filter((r) => r.status === MdmMatchRunStatus.COMPLETED);
     const totalMatches = completedRuns.reduce((sum, r) => sum + r.matches_found, 0);
     const totalNew = completedRuns.reduce((sum, r) => sum + r.new_records, 0);
     const pendingReview = matchRuns.reduce((sum, r) => sum + r.pending_review_count, 0);
-    
+
     return {
       totalRuns: matchRuns.length,
       completedRuns: completedRuns.length,
@@ -257,589 +345,532 @@ export default function MasterDataManagement() {
     };
   }, [matchRuns]);
 
-  return (
-    <div className="py-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <GitCompare className="w-8 h-8" />
-            {t('mdm:title')}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {t('mdm:subtitle')}
-          </p>
-        </div>
-        <Button onClick={() => setIsConfigDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t('mdm:newConfiguration')}
+  const items = configs.map((config) => ({
+    id: config.id,
+    label: (
+      <>
+        <span className={classes.rowName} title={config.name}>{config.name}</span>
+        <span className={classes.rowSub}>
+          {config.entity_type} • {config.source_count} {t('mdm:sources')}
+        </span>
+      </>
+    ),
+    meta: (
+      <span className={classes.rowMeta}>
+        <StatusBadge status={config.status} />
+        {/* Unnamed, as in the Task 1 baseline (R10) */}
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          className={`${list.action} ${list.delete}`}
+          onClick={(event) => {
+            // The row's own button: its click is not the row's
+            event.stopPropagation();
+            askDeleteConfig(config);
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <Trash2 aria-hidden />
+        </ActionIcon>
+      </span>
+    ),
+  }));
+
+  const counts = {
+    pending: candidates.filter((c) => c.status === MdmMatchCandidateStatus.PENDING).length,
+    approved: candidates.filter((c) => c.status === MdmMatchCandidateStatus.APPROVED).length,
+    merged: candidates.filter((c) => c.status === MdmMatchCandidateStatus.MERGED).length,
+  };
+
+  const renderOverview = (config: MdmConfig) => (
+    <>
+      <DetailsGrid
+        rows={[
+          { label: t('mdm:overview.masterContract'), value: config.master_contract_name || t('mdm:overview.notSet') },
+          { label: t('mdm:overview.entityType'), value: <span className={classes.capitalize}>{config.entity_type}</span> },
+          { label: t('mdm:overview.linkedSources'), value: config.source_count },
+          { label: t('common:labels.status'), value: <StatusBadge status={config.status} /> },
+          {
+            label: t('mdm:lastRun'),
+            value: config.last_run_at ? (
+              <span className={classes.lastRun} data-tone={config.last_run_status ? lastRunTone(config.last_run_status) : undefined}>
+                <RelativeDate date={config.last_run_at} />
+                {config.last_run_status && <span className={classes.lastRunStatus}>({config.last_run_status})</span>}
+              </span>
+            ) : (
+              '-'
+            ),
+          },
+        ]}
+      />
+      {configStats && (
+        <>
+          <Divider className={classes.divider} />
+          <div className={classes.stats}>
+            <StatTile label={t('mdm:stats.totalRuns')} value={configStats.totalRuns} />
+            <StatTile label={t('mdm:stats.matchesFound')} value={configStats.totalMatches} tone="success" />
+            <StatTile label={t('mdm:stats.newRecords')} value={configStats.totalNew} />
+            <StatTile label={t('mdm:stats.pendingReview')} value={configStats.pendingReview} tone="warning" />
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  const renderSources = () =>
+    sourceLinks.length > 0 ? (
+      <div className={classes.scroll}>
+        <Table className={classes.table} withRowBorders={false}>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t('mdm:sourcesTab.sourceContract')}</Table.Th>
+              <Table.Th>{t('common:labels.table')}</Table.Th>
+              <Table.Th>{t('mdm:sourcesTab.keyColumn')}</Table.Th>
+              <Table.Th>{t('common:labels.priority')}</Table.Th>
+              <Table.Th>{t('common:labels.status')}</Table.Th>
+              <Table.Th className={classes.actionCell} />
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {sourceLinks.map((link) => {
+              const name = link.source_contract_name || link.source_contract_id;
+              return (
+                <Table.Tr key={link.id}>
+                  <Table.Td>
+                    <span className={classes.name} title={name}>{name}</span>
+                  </Table.Td>
+                  <Table.Td>
+                    <span className={classes.ident} title={link.source_table_fqn || undefined}>
+                      {link.source_table_fqn || '-'}
+                    </span>
+                  </Table.Td>
+                  <Table.Td>
+                    <span className={classes.cellText} title={link.key_column}>{link.key_column}</span>
+                  </Table.Td>
+                  <Table.Td>{link.priority}</Table.Td>
+                  <Table.Td><StatusBadge status={link.status} /></Table.Td>
+                  <Table.Td className={classes.actionCell}>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      className={`${list.action} ${list.delete}`}
+                      aria-label={t('mdm:sourcesTab.removeSource')}
+                      onClick={() => askRemoveSource(link)}
+                    >
+                      <Trash2 aria-hidden />
+                    </ActionIcon>
+                  </Table.Td>
+                </Table.Tr>
+              );
+            })}
+          </Table.Tbody>
+        </Table>
+      </div>
+    ) : (
+      <div className={classes.empty}>
+        <Link2 aria-hidden />
+        <p>{t('mdm:sourcesTab.noSources')}</p>
+        <Button variant="outline" onClick={() => setIsLinkDialogOpen(true)}>
+          <Plus />
+          {t('mdm:configDetails.linkSource')}
         </Button>
       </div>
+    );
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {loading ? (
-        <SplitPaneSkeleton
-          sidebarWidth="w-1/3"
-          sidebarVariant="cards"
-          sidebarItems={4}
-          main="panel"
-          tableRows={4}
-          showHeader={false}
-        />
-      ) : (
-        <div className="grid grid-cols-12 gap-6">
-          {/* MDM Configurations List */}
-          <div className="col-span-4">
-            <Card className="h-full">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Database className="h-5 w-5" />
-                  {t('mdm:configurations')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[calc(100vh-320px)]">
-                  <div className="space-y-3 pr-4">
-                    {configs.map(config => (
-                      <div
-                        key={config.id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                          selectedConfig?.id === config.id 
-                            ? 'border-primary bg-primary/5 shadow-sm' 
-                            : 'hover:border-primary/50'
-                        }`}
-                        onClick={() => handleSelectConfig(config)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{config.name}</h4>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {config.entity_type} • {config.source_count} {t('mdm:sources')}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            {getStatusBadge(config.status)}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteConfig(config.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        {config.last_run_at && (
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {t('mdm:lastRun')}: <RelativeDate date={config.last_run_at} />
-                            {config.last_run_status && (
-                              <span className={
-                                config.last_run_status === 'completed' 
-                                  ? 'text-green-600' 
-                                  : config.last_run_status === 'failed' 
-                                    ? 'text-red-600' 
-                                    : 'text-yellow-600'
-                              }>
-                                ({config.last_run_status})
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {configs.length === 0 && (
-                      <div className="text-center py-12">
-                        <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">
-                          {t('mdm:noConfigurations')}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {t('mdm:emptyState.createOne')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+  const renderRules = (config: MdmConfig) => {
+    const matching = asArray<MdmConfig['matching_rules'][number]>(config.matching_rules);
+    const survivorship = asArray<MdmConfig['survivorship_rules'][number]>(config.survivorship_rules);
+    return (
+      <>
+        <div className={classes.section}>
+          <div className={classes.sectionHead}>
+            <h3 className={classes.sectionTitle}>
+              <Settings2 aria-hidden />
+              {t('mdm:rulesTab.title')}
+            </h3>
+            <Button variant="outline" size="sm" onClick={() => setIsRulesEditorOpen(true)}>
+              {t('mdm:rulesTab.editRules')}
+            </Button>
           </div>
-
-          {/* Configuration Details */}
-          <div className="col-span-8">
-            {selectedConfig ? (
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl">{selectedConfig.name}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {selectedConfig.description || t('mdm:overview.masterContractFor', { entityType: selectedConfig.entity_type })}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => handleStartMatching(selectedConfig.id)}
-                        disabled={selectedConfig.status !== MdmConfigStatus.ACTIVE}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        {t('mdm:configDetails.startMatching')}
-                      </Button>
-                      <Button variant="outline" onClick={() => setIsLinkDialogOpen(true)}>
-                        <Link2 className="h-4 w-4 mr-2" />
-                        {t('mdm:buttons.linkSource')}
-                      </Button>
-                    </div>
+          {matching.length > 0 ? (
+            <div className={classes.rows}>
+              {matching.map((rule, idx) => (
+                <div key={idx} className={classes.card}>
+                  <div className={classes.cardHead}>
+                    <span className={classes.cardTitle} title={rule.name}>{rule.name}</span>
+                    <Badge variant="outline">{rule.type}</Badge>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="overview">{t('mdm:tabs.overview')}</TabsTrigger>
-                      <TabsTrigger value="sources">
-                        {t('mdm:tabs.sources')} ({sourceLinks.length})
-                      </TabsTrigger>
-                      <TabsTrigger value="rules">{t('mdm:tabs.matchingRules')}</TabsTrigger>
-                      <TabsTrigger value="runs">
-                        {t('mdm:tabs.matchRuns')} ({matchRuns.length})
-                      </TabsTrigger>
-                      {selectedRun && (
-                        <TabsTrigger value="candidates">
-                          {t('mdm:tabs.candidates')} ({candidates.length})
-                        </TabsTrigger>
-                      )}
-                    </TabsList>
+                  <div className={classes.cardText}>
+                    {[
+                      `${t('mdm:rulesTab.fields')}: ${asArray<string>(rule.fields).join(', ')}`,
+                      `${t('mdm:rulesTab.weight')}: ${rule.weight}`,
+                      `${t('mdm:rulesTab.threshold')}: ${rule.threshold}`,
+                      ...(rule.algorithm ? [`${t('mdm:rulesTab.algorithm')}: ${rule.algorithm}`] : []),
+                    ].join(' • ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={classes.note}>{t('mdm:rulesTab.noRulesDefault')}</p>
+          )}
+        </div>
 
-                    {/* Overview Tab */}
-                    <TabsContent value="overview" className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-lg border bg-muted/30">
-                          <p className="text-sm text-muted-foreground">{t('mdm:overview.masterContract')}</p>
-                          <p className="font-medium mt-1">{selectedConfig.master_contract_name || t('mdm:overview.notSet')}</p>
-                        </div>
-                        <div className="p-4 rounded-lg border bg-muted/30">
-                          <p className="text-sm text-muted-foreground">{t('mdm:overview.entityType')}</p>
-                          <p className="font-medium capitalize mt-1">{selectedConfig.entity_type}</p>
-                        </div>
-                        <div className="p-4 rounded-lg border bg-muted/30">
-                          <p className="text-sm text-muted-foreground">{t('mdm:overview.linkedSources')}</p>
-                          <p className="font-medium mt-1">{selectedConfig.source_count}</p>
-                        </div>
-                        <div className="p-4 rounded-lg border bg-muted/30">
-                          <p className="text-sm text-muted-foreground">{t('common:labels.status')}</p>
-                          <div className="mt-1">{getStatusBadge(selectedConfig.status)}</div>
-                        </div>
-                      </div>
+        <Divider className={classes.divider} />
 
-                      {configStats && (
-                        <>
-                          <Separator />
-                          <div className="grid grid-cols-4 gap-4">
-                            <div className="text-center p-4 rounded-lg border">
-                              <p className="text-2xl font-bold text-primary">{configStats.totalRuns}</p>
-                              <p className="text-sm text-muted-foreground">{t('mdm:stats.totalRuns')}</p>
-                            </div>
-                            <div className="text-center p-4 rounded-lg border">
-                              <p className="text-2xl font-bold text-green-600">{configStats.totalMatches}</p>
-                              <p className="text-sm text-muted-foreground">{t('mdm:stats.matchesFound')}</p>
-                            </div>
-                            <div className="text-center p-4 rounded-lg border">
-                              <p className="text-2xl font-bold text-blue-600">{configStats.totalNew}</p>
-                              <p className="text-sm text-muted-foreground">{t('mdm:stats.newRecords')}</p>
-                            </div>
-                            <div className="text-center p-4 rounded-lg border">
-                              <p className="text-2xl font-bold text-yellow-600">{configStats.pendingReview}</p>
-                              <p className="text-sm text-muted-foreground">{t('mdm:stats.pendingReview')}</p>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </TabsContent>
+        <div className={classes.section}>
+          <div className={classes.sectionHead}>
+            <h3 className={classes.sectionTitle}>
+              <Merge aria-hidden />
+              {t('mdm:survivorship.title')}
+            </h3>
+          </div>
+          {survivorship.length > 0 ? (
+            <div className={classes.rows}>
+              {survivorship.map((rule, idx) => (
+                <div key={idx} className={classes.card}>
+                  <div className={classes.cardHead}>
+                    <span className={classes.cardTitle} title={rule.field}>{rule.field}</span>
+                    <Badge variant="secondary">{rule.strategy}</Badge>
+                  </div>
+                  {rule.priority && (
+                    <div className={classes.cardText}>
+                      {t('common:labels.priority')}: {rule.priority.join(' > ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={classes.note}>{t('mdm:survivorship.noRules')}</p>
+          )}
+        </div>
+      </>
+    );
+  };
 
-                    {/* Sources Tab */}
-                    <TabsContent value="sources">
-                      {sourceLinks.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>{t('mdm:sourcesTab.sourceContract')}</TableHead>
-                              <TableHead>{t('common:labels.table')}</TableHead>
-                              <TableHead>{t('mdm:sourcesTab.keyColumn')}</TableHead>
-                              <TableHead>{t('common:labels.priority')}</TableHead>
-                              <TableHead>{t('common:labels.status')}</TableHead>
-                              <TableHead className="w-16"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sourceLinks.map(link => (
-                              <TableRow key={link.id}>
-                                <TableCell className="font-medium">
-                                  {link.source_contract_name || link.source_contract_id}
-                                </TableCell>
-                                <TableCell className="font-mono text-sm">
-                                  {link.source_table_fqn || '-'}
-                                </TableCell>
-                                <TableCell>{link.key_column}</TableCell>
-                                <TableCell>{link.priority}</TableCell>
-                                <TableCell>{getStatusBadge(link.status)}</TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive"
-                                    onClick={() => handleDeleteSourceLink(link.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Link2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <p className="text-muted-foreground">{t('mdm:sourcesTab.noSources')}</p>
-                          <Button
-                            variant="outline"
-                            className="mt-4"
-                            onClick={() => setIsLinkDialogOpen(true)}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            {t('mdm:configDetails.linkSource')}
-                          </Button>
-                        </div>
-                      )}
-                    </TabsContent>
+  const renderRuns = (config: MdmConfig) =>
+    matchRuns.length > 0 ? (
+      <div className={classes.rows}>
+        {matchRuns.map((run) => (
+          <div
+            key={run.id}
+            className={classes.run}
+            data-selected={selectedRun?.id === run.id || undefined}
+            onClick={() => openRun(run)}
+          >
+            <div className={classes.cardHead}>
+              <div>
+                <span className={classes.cardTitle}>{t('mdm:runsTab.runLabel', { id: run.id.slice(0, 8) })}</span>
+                <div className={classes.runMeta}>
+                  <span>
+                    <Clock aria-hidden />
+                    <RelativeDate date={run.started_at || ''} />
+                  </span>
+                  {run.triggered_by && (
+                    <span>
+                      <Users aria-hidden />
+                      {run.triggered_by}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <StatusBadge status={run.status} />
+            </div>
 
-                    {/* Matching Rules Tab */}
-                    <TabsContent value="rules" className="space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium flex items-center gap-2">
-                            <Settings2 className="h-4 w-4" />
-                            {t('mdm:rulesTab.title')}
-                          </h4>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsRulesEditorOpen(true)}
-                          >
-                            {t('mdm:rulesTab.editRules')}
-                          </Button>
-                        </div>
-                        {selectedConfig.matching_rules?.length > 0 ? (
-                          <div className="space-y-2">
-                            {selectedConfig.matching_rules.map((rule, idx) => (
-                              <div key={idx} className="p-3 rounded-lg border">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium">{rule.name}</span>
-                                  <Badge variant="outline">{rule.type}</Badge>
-                                </div>
-                                <div className="mt-2 text-sm text-muted-foreground">
-                                  {t('mdm:rulesTab.fields')}: {rule.fields.join(', ')} •
-                                  {t('mdm:rulesTab.weight')}: {rule.weight} •
-                                  {t('mdm:rulesTab.threshold')}: {rule.threshold}
-                                  {rule.algorithm && ` • ${t('mdm:rulesTab.algorithm')}: ${rule.algorithm}`}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-muted-foreground text-sm">{t('mdm:rulesTab.noRulesDefault')}</p>
-                        )}
-                      </div>
+            {run.status === MdmMatchRunStatus.RUNNING && (
+              <Progress value={50} size="sm" className={classes.progress} />
+            )}
 
-                      <Separator />
-
-                      <div>
-                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                          <Merge className="h-4 w-4" />
-                          {t('mdm:survivorship.title')}
-                        </h4>
-                        {selectedConfig.survivorship_rules?.length > 0 ? (
-                          <div className="space-y-2">
-                            {selectedConfig.survivorship_rules.map((rule, idx) => (
-                              <div key={idx} className="p-3 rounded-lg border">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium">{rule.field}</span>
-                                  <Badge variant="secondary">{rule.strategy}</Badge>
-                                </div>
-                                {rule.priority && (
-                                  <div className="mt-1 text-sm text-muted-foreground">
-                                    {t('common:labels.priority')}: {rule.priority.join(' > ')}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-muted-foreground text-sm">{t('mdm:survivorship.noRules')}</p>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    {/* Match Runs Tab */}
-                    <TabsContent value="runs">
-                      {matchRuns.length > 0 ? (
-                        <div className="space-y-3">
-                          {matchRuns.map(run => (
-                            <div 
-                              key={run.id} 
-                              className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                                selectedRun?.id === run.id 
-                                  ? 'border-primary bg-primary/5' 
-                                  : 'hover:border-primary/50'
-                              }`}
-                              onClick={() => {
-                                setSelectedRun(run);
-                                fetchCandidates(run.id);
-                                setActiveTab('candidates');
-                              }}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="font-medium">
-                                    {t('mdm:runsTab.runLabel', { id: run.id.slice(0, 8) })}
-                                  </p>
-                                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      <RelativeDate date={run.started_at || ''} />
-                                    </span>
-                                    {run.triggered_by && (
-                                      <span className="flex items-center gap-1">
-                                        <Users className="h-3 w-3" />
-                                        {run.triggered_by}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {getStatusBadge(run.status)}
-                                </div>
-                              </div>
-
-                              {run.status === MdmMatchRunStatus.RUNNING && (
-                                <div className="mt-3">
-                                  <Progress value={50} className="h-2" />
-                                </div>
-                              )}
-
-                              {run.status === MdmMatchRunStatus.COMPLETED && (
-                                <div className="mt-3 flex items-center justify-between">
-                                  <div className="flex gap-4 text-sm">
-                                    <span className="text-green-600">
-                                      {t('mdm:runsTab.matchesCount', { count: run.matches_found })}
-                                    </span>
-                                    <span className="text-blue-600">
-                                      {t('mdm:runsTab.newCount', { count: run.new_records })}
-                                    </span>
-                                    {run.pending_review_count > 0 && (
-                                      <span className="text-yellow-600">
-                                        {t('mdm:runsTab.pendingReviewCount', { count: run.pending_review_count })}
-                                      </span>
-                                    )}
-                                    {run.approved_count > 0 && (
-                                      <span className="text-emerald-600 font-medium">
-                                        {t('mdm:runsTab.readyToMergeCount', { count: run.approved_count })}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-2">
-                                    {run.approved_count > 0 && (
-                                      <Button 
-                                        size="sm"
-                                        variant="default"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleMergeApproved(run.id);
-                                        }}
-                                      >
-                                        <Merge className="h-4 w-4 mr-1" />
-                                        {t('mdm:runsTab.mergeButton', { count: run.approved_count })}
-                                      </Button>
-                                    )}
-                                    {run.pending_review_count > 0 && (
-                                      <Button 
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedRun(run);
-                                          setIsReviewDialogOpen(true);
-                                        }}
-                                      >
-                                        <FileCheck className="h-4 w-4 mr-1" />
-                                        {t('mdm:runsTab.createReview')}
-                                      </Button>
-                                    )}
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedRun(run);
-                                        fetchCandidates(run.id);
-                                        setActiveTab('candidates');
-                                      }}
-                                    >
-                                      <Eye className="h-4 w-4 mr-1" />
-                                      {t('common:actions.view')}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-
-                              {run.status === MdmMatchRunStatus.FAILED && run.error_message && (
-                                <div className="mt-3 text-sm text-destructive">
-                                  {t('common:status.error')}: {run.error_message}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <RefreshCw className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <p className="text-muted-foreground">{t('mdm:runsTab.noRunsShort')}</p>
-                          <Button
-                            className="mt-4"
-                            onClick={() => handleStartMatching(selectedConfig.id)}
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            {t('mdm:runsTab.startFirstRun')}
-                          </Button>
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    {/* Candidates Tab */}
-                    {selectedRun && (
-                      <TabsContent value="candidates">
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h4 className="font-medium">
-                                {t('mdm:candidates.forRun', { id: selectedRun.id.slice(0, 8) })}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                {t('mdm:candidates.summary', {
-                                  pending: candidates.filter(c => c.status === MdmMatchCandidateStatus.PENDING).length,
-                                  approved: candidates.filter(c => c.status === MdmMatchCandidateStatus.APPROVED).length,
-                                  merged: candidates.filter(c => c.status === MdmMatchCandidateStatus.MERGED).length,
-                                })}
-                              </p>
-                            </div>
-                            <div className="flex gap-2">
-                              {candidates.some(c => c.status === MdmMatchCandidateStatus.APPROVED) && (
-                                <Button onClick={() => handleMergeApproved(selectedRun.id)}>
-                                  <Merge className="h-4 w-4 mr-2" />
-                                  {t('mdm:candidates.mergeApproved')}
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          {candidates.length > 0 ? (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>{t('common:labels.type')}</TableHead>
-                                  <TableHead>{t('mdm:candidates.masterId')}</TableHead>
-                                  <TableHead>{t('mdm:candidates.sourceId')}</TableHead>
-                                  <TableHead>{t('mdm:candidates.confidence')}</TableHead>
-                                  <TableHead>{t('mdm:candidates.matchedFields')}</TableHead>
-                                  <TableHead>{t('common:labels.status')}</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {candidates.map(candidate => (
-                                  <TableRow 
-                                    key={candidate.id}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => {
-                                      // Navigate to review or show detail modal
-                                      if (candidate.review_request_id) {
-                                        navigate(`/data-asset-reviews/${candidate.review_request_id}`);
-                                      }
-                                    }}
-                                  >
-                                    <TableCell>{getMatchTypeBadge(candidate.match_type)}</TableCell>
-                                    <TableCell className="font-mono text-sm">
-                                      {candidate.master_record_id || <span className="text-muted-foreground italic">{t('mdm:candidates.new')}</span>}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-sm">
-                                      {candidate.source_record_id}
-                                    </TableCell>
-                                    <TableCell>
-                                      <span className={`font-medium ${getConfidenceColor(candidate.confidence_score)}`}>
-                                        {(candidate.confidence_score * 100).toFixed(1)}%
-                                      </span>
-                                    </TableCell>
-                                    <TableCell>
-                                      {candidate.matched_fields && candidate.matched_fields.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {candidate.matched_fields.slice(0, 3).map((field, idx) => (
-                                            <Badge key={idx} variant="outline" className="text-xs">
-                                              {field}
-                                            </Badge>
-                                          ))}
-                                          {candidate.matched_fields.length > 3 && (
-                                            <Badge variant="outline" className="text-xs">
-                                              +{candidate.matched_fields.length - 3}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>{getStatusBadge(candidate.status)}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          ) : (
-                            <div className="text-center py-8 text-muted-foreground">
-                              {t('mdm:candidates.noCandidatesFound')}
-                            </div>
-                          )}
-                        </div>
-                      </TabsContent>
-                    )}
-                  </Tabs>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <GitCompare className="h-16 w-16 mx-auto text-muted-foreground mb-6" />
-                  <h3 className="text-lg font-medium mb-2">{t('mdm:emptyState.selectTitle')}</h3>
-                  <p className="text-muted-foreground mb-6">
-                    {t('mdm:emptyState.selectDescription')}
-                  </p>
-                  <Button onClick={() => setIsConfigDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('mdm:emptyState.createNew')}
+            {run.status === MdmMatchRunStatus.COMPLETED && (
+              <div className={classes.runFoot}>
+                <div className={classes.counts}>
+                  <span className={classes.count} data-tone="good">
+                    {t('mdm:runsTab.matchesCount', { count: run.matches_found })}
+                  </span>
+                  <span className={classes.count} data-tone="info">
+                    {t('mdm:runsTab.newCount', { count: run.new_records })}
+                  </span>
+                  {run.pending_review_count > 0 && (
+                    <span className={classes.count} data-tone="warning">
+                      {t('mdm:runsTab.pendingReviewCount', { count: run.pending_review_count })}
+                    </span>
+                  )}
+                  {run.approved_count > 0 && (
+                    <span className={classes.count} data-tone="ready">
+                      {t('mdm:runsTab.readyToMergeCount', { count: run.approved_count })}
+                    </span>
+                  )}
+                </div>
+                <div className={classes.runActions}>
+                  {run.approved_count > 0 && (
+                    <Button size="sm" variant="default" onClick={(event) => {
+                        event.stopPropagation();
+                        handleMergeApproved(run.id);
+                      }}>
+                      <Merge />
+                      {t('mdm:runsTab.mergeButton', { count: run.approved_count })}
+                    </Button>
+                  )}
+                  {run.pending_review_count > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        chooseRun(run);
+                        setIsReviewDialogOpen(true);
+                      }}
+                    >
+                      <FileCheck />
+                      {t('mdm:runsTab.createReview')}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={(event) => {
+                      event.stopPropagation();
+                      openRun(run);
+                    }}>
+                    <Eye />
+                    {t('common:actions.view')}
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            )}
+
+            {run.status === MdmMatchRunStatus.FAILED && run.error_message && (
+              <div className={classes.runError}>
+                {t('common:status.error')}: {run.error_message}
+              </div>
             )}
           </div>
+        ))}
+      </div>
+    ) : (
+      <div className={classes.empty}>
+        <RefreshCw aria-hidden />
+        <p>{t('mdm:runsTab.noRunsShort')}</p>
+        <Button onClick={() => handleStartMatching(config.id)}>
+          <Play />
+          {t('mdm:runsTab.startFirstRun')}
+        </Button>
+      </div>
+    );
+
+  const renderCandidates = (run: MdmMatchRun) => (
+    <div className={classes.section}>
+      <div className={classes.candidatesHead}>
+        <div>
+          <h3 className={classes.candidatesTitle}>{t('mdm:candidates.forRun', { id: run.id.slice(0, 8) })}</h3>
+          <p className={classes.note}>{t('mdm:candidates.summary', counts)}</p>
+        </div>
+        {counts.approved > 0 && (
+          <Button onClick={() => handleMergeApproved(run.id)}>
+            <Merge />
+            {t('mdm:candidates.mergeApproved')}
+          </Button>
+        )}
+      </div>
+
+      {candidates.length > 0 ? (
+        <div className={classes.scroll}>
+          <Table className={classes.table} withRowBorders={false}>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t('common:labels.type')}</Table.Th>
+                <Table.Th>{t('mdm:candidates.masterId')}</Table.Th>
+                <Table.Th>{t('mdm:candidates.sourceId')}</Table.Th>
+                <Table.Th>{t('mdm:candidates.confidence')}</Table.Th>
+                <Table.Th>{t('mdm:candidates.matchedFields')}</Table.Th>
+                <Table.Th>{t('common:labels.status')}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {candidates.map((candidate) => {
+                const fields = asArray<string>(candidate.matched_fields);
+                return (
+                  <Table.Tr
+                    key={candidate.id}
+                    className={classes.clickableRow}
+                    onClick={() => {
+                      // Navigate to review or show detail modal
+                      if (candidate.review_request_id) {
+                        navigate(`/data-asset-reviews/${candidate.review_request_id}`);
+                      }
+                    }}
+                  >
+                    <Table.Td><MatchTypeBadge matchType={candidate.match_type} /></Table.Td>
+                    <Table.Td>
+                      {candidate.master_record_id ? (
+                        <span className={classes.ident} title={candidate.master_record_id}>{candidate.master_record_id}</span>
+                      ) : (
+                        <span className={classes.newRecord}>{t('mdm:candidates.new')}</span>
+                      )}
+                    </Table.Td>
+                    <Table.Td>
+                      <span className={classes.ident} title={candidate.source_record_id}>{candidate.source_record_id}</span>
+                    </Table.Td>
+                    <Table.Td>
+                      <span className={classes.confidence} data-tone={confidenceTone(candidate.confidence_score)}>
+                        {(candidate.confidence_score * 100).toFixed(1)}%
+                      </span>
+                    </Table.Td>
+                    <Table.Td>
+                      {fields.length > 0 ? (
+                        <div className={classes.fields}>
+                          {fields.slice(0, 3).map((field, idx) => (
+                            <Badge key={idx} variant="outline">{field}</Badge>
+                          ))}
+                          {fields.length > 3 && <Badge variant="outline">+{fields.length - 3}</Badge>}
+                        </div>
+                      ) : (
+                        <span className={classes.muted}>-</span>
+                      )}
+                    </Table.Td>
+                    <Table.Td><StatusBadge status={candidate.status} /></Table.Td>
+                  </Table.Tr>
+                );
+              })}
+            </Table.Tbody>
+          </Table>
+        </div>
+      ) : (
+        <div className={classes.empty}>
+          <p>{t('mdm:candidates.noCandidatesFound')}</p>
         </div>
       )}
+    </div>
+  );
 
-      {/* Dialogs */}
+  return (
+    <>
+      <PageLayout
+        header={
+          <div className={classes.headerBlock}>
+            <PageHeader
+              title={t('mdm:title')}
+              actions={
+                <Button ref={newButton} onClick={() => setIsConfigDialogOpen(true)}>
+                  <Plus />
+                  {t('mdm:newConfiguration')}
+                </Button>
+              }
+            />
+            <p className={classes.subtitle}>{t('mdm:subtitle')}</p>
+          </div>
+        }
+      >
+        <PaneStack sizes={[1, 2]}>
+          <Pane title={t('mdm:configurations')} flush>
+            {loadError && (
+              <div className={classes.state}>
+                <Alert
+                  color="red"
+                  variant="light"
+                  icon={<AlertCircle />}
+                  className={`${list.alert} ${classes.stateAlert}`}
+                  classNames={{ message: list.alertMessage }}
+                >
+                  {loadError}
+                </Alert>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setLoadError(null);
+                    fetchConfigs();
+                  }}
+                >
+                  {t('common:retry')}
+                </Button>
+              </div>
+            )}
+            {initialLoading ? (
+              <ListItemSkeleton count={4} className={classes.skeleton} />
+            ) : (
+              <SelectableList
+                aria-label={t('mdm:configurations')}
+                items={items}
+                selectedId={selectedConfig?.id ?? null}
+                onSelect={(id) => {
+                  const config = configs.find((c) => c.id === id);
+                  if (config) handleSelectConfig(config);
+                }}
+                emptyMessage={
+                  loadError ? null : (
+                    <div className={classes.emptyList}>
+                      <p>{t('mdm:noConfigurations')}</p>
+                      <p>{t('mdm:emptyState.createOne')}</p>
+                    </div>
+                  )
+                }
+              />
+            )}
+          </Pane>
+
+          <Pane
+            title={selectedConfig ? selectedConfig.name : t('mdm:configDetails.title')}
+            titleTooltip
+            actions={
+              selectedConfig && (
+                <>
+                  <Button
+                    onClick={() => handleStartMatching(selectedConfig.id)}
+                    disabled={selectedConfig.status !== MdmConfigStatus.ACTIVE}
+                  >
+                    <Play />
+                    {t('mdm:configDetails.startMatching')}
+                  </Button>
+                  <Button ref={linkSourceButton} variant="outline" onClick={() => setIsLinkDialogOpen(true)}>
+                    <Link2 />
+                    {t('mdm:buttons.linkSource')}
+                  </Button>
+                </>
+              )
+            }
+          >
+            {selectedConfig ? (
+              <>
+                <p className={classes.description}>
+                  {selectedConfig.description || t('mdm:overview.masterContractFor', { entityType: selectedConfig.entity_type })}
+                </p>
+                <Tabs value={activeTab} onChange={(next) => next && setActiveTab(next)}>
+                  <Tabs.List>
+                    <Tabs.Tab value="overview">{t('mdm:tabs.overview')}</Tabs.Tab>
+                    <Tabs.Tab value="sources">
+                      {t('mdm:tabs.sources')} ({sourceLinks.length})
+                    </Tabs.Tab>
+                    <Tabs.Tab value="rules">{t('mdm:tabs.matchingRules')}</Tabs.Tab>
+                    <Tabs.Tab value="runs">
+                      {t('mdm:tabs.matchRuns')} ({matchRuns.length})
+                    </Tabs.Tab>
+                    {selectedRun && (
+                      <Tabs.Tab value="candidates">
+                        {t('mdm:tabs.candidates')} ({candidates.length})
+                      </Tabs.Tab>
+                    )}
+                  </Tabs.List>
+                  <Tabs.Panel value="overview">{renderOverview(selectedConfig)}</Tabs.Panel>
+                  <Tabs.Panel value="sources">{renderSources()}</Tabs.Panel>
+                  <Tabs.Panel value="rules">{renderRules(selectedConfig)}</Tabs.Panel>
+                  <Tabs.Panel value="runs">{renderRuns(selectedConfig)}</Tabs.Panel>
+                  {selectedRun && <Tabs.Panel value="candidates">{renderCandidates(selectedRun)}</Tabs.Panel>}
+                </Tabs>
+              </>
+            ) : (
+              <div className={classes.hint}>
+                <GitCompare aria-hidden />
+                <p className={classes.hintTitle}>{t('mdm:emptyState.selectTitle')}</p>
+                <p>{t('mdm:emptyState.selectDescription')}</p>
+                <Button onClick={() => setIsConfigDialogOpen(true)}>
+                  <Plus />
+                  {t('mdm:emptyState.createNew')}
+                </Button>
+              </div>
+            )}
+          </Pane>
+        </PaneStack>
+      </PageLayout>
+
+      {/* Dialogs (Task 8's, consumed as they are) */}
       <MdmConfigDialog
         isOpen={isConfigDialogOpen}
         onClose={() => setIsConfigDialogOpen(false)}
@@ -882,18 +913,69 @@ export default function MasterDataManagement() {
           onClose={() => setIsRulesEditorOpen(false)}
           onSuccess={() => {
             fetchConfigs();
-            // Refresh selectedConfig with new rules
-            if (selectedConfig) {
-              get<MdmConfig>(`/api/mdm/configs/${selectedConfig.id}`).then((response) => {
-                if (response.data) {
-                  setSelectedConfig(response.data);
-                }
-              });
-            }
+            // Refresh selectedConfig with new rules (only the one still chosen, and only a real answer)
+            const id = selectedConfig.id;
+            get<MdmConfig>(`/api/mdm/configs/${id}`).then((response) => {
+              if (!response.error && response.data && (response.data as MdmConfig).id === id && selectedId.current === id) {
+                setSelectedConfig(response.data);
+              }
+            });
           }}
           config={selectedConfig}
         />
       )}
-    </div>
+
+      {/* Delete a configuration */}
+      <Dialog
+        opened={deleteConfigOpen}
+        onClose={closeDeleteConfig}
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={afterDeleteConfig}
+        title={t('mdm:configDetails.deleteConfig')}
+        description={
+          <>
+            {t('mdm:confirm.deleteConfig')} <strong className={classes.confirmName}>{deleteConfigTarget?.name}</strong>
+          </>
+        }
+        footer={
+          <>
+            <Button variant="outline" onClick={closeDeleteConfig} disabled={deletingConfig}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfig} disabled={deletingConfig}>
+              {deletingConfig && <Loader size={12} color="currentColor" />}
+              {t('common:actions.delete')}
+            </Button>
+          </>
+        }
+      />
+
+      {/* Remove a source link */}
+      <Dialog
+        opened={removeSourceOpen}
+        onClose={closeRemoveSource}
+        size="sm"
+        role="alertdialog"
+        returnFocusTo={afterRemoveSource}
+        title={t('mdm:sourcesTab.removeSource')}
+        description={
+          <>
+            {t('mdm:confirm.deleteSource')} <strong className={classes.confirmName}>{removeSourceTarget?.name}</strong>
+          </>
+        }
+        footer={
+          <>
+            <Button variant="outline" onClick={closeRemoveSource} disabled={removingSource}>
+              {t('common:actions.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveSource} disabled={removingSource}>
+              {removingSource && <Loader size={12} color="currentColor" />}
+              {t('common:actions.remove')}
+            </Button>
+          </>
+        }
+      />
+    </>
   );
 }

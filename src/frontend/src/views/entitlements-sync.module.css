@@ -1,0 +1,92 @@
+/*
+ * Entitlements Sync (/entitlements-sync) on the page kit (wave 3 Task 5):
+ * full bleed, the shell's breadcrumb, the kit header with New Configuration
+ * at its end, then one flush pane holding the shared DataTable. The list look
+ * it shares with the other list pages (body margin, row buttons, alerts) is in
+ * components/common/list-page.module.css; what is left here is the page's own.
+ */
+
+/* A long name or connection wraps; table cells ignore max-width, so the text's own box sets the measure */
+.name {
+  display: block;
+  min-width: 140px;
+  max-width: 320px;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The connection is an id: an identifier, so mono */
+.connection {
+  display: block;
+  min-width: 100px;
+  max-width: 260px;
+  font-family: var(--aura-font-mono);
+  font-size: 11.5px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The cron expression is code, so mono */
+.schedule {
+  font-family: var(--aura-font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.status,
+.lastSync {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.status svg,
+.lastSync svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.good {
+  color: var(--aura-good);
+}
+
+.neutral {
+  color: var(--aura-text-secondary);
+}
+
+.critical {
+  color: var(--aura-critical);
+}
+
+.info {
+  color: var(--aura-info);
+}
+
+/* A failed load: the error, then its Retry */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.state .stateAlert {
+  align-self: stretch;
+  margin: 4px 0 0;
+}
+
+.form {
+  composes: form from '../components/common/dialog-form.module.css';
+}
+
+.label {
+  composes: label from '../components/common/dialog-form.module.css';
+}
+
+.option {
+  composes: option from '../components/common/dialog-form.module.css';
+}

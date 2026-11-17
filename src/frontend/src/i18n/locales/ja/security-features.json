@@ -5,6 +5,12 @@
   "addFeature": "セキュリティ機能を追加",
   "editFeature": "セキュリティ機能を編集",
   "searchPlaceholder": "セキュリティ機能を検索...",
+  "listPane": "セキュリティ機能の一覧",
+  "empty": "セキュリティ機能はまだありません。",
+  "deleteDialog": {
+    "title": "セキュリティ機能を削除しますか?",
+    "description": "セキュリティ機能「{{name}}」を削除しますか?この操作は元に戻せません。"
+  },
   "loading": "セキュリティ機能を読み込み中...",
   "toast": {
     "featureCreated": "セキュリティ機能が正常に作成されました",
