@@ -42,7 +42,7 @@ def test_front_matter_defaults():
     assert article.tags == []
     assert article.roles == []
     assert article.route is None
-    assert article.summary == "x" * 200
+    assert article.summary == "x" * 199 + "…"
 
 
 def test_missing_title_falls_back_to_first_h1_then_raises():
@@ -170,3 +170,49 @@ def test_summary_empty_when_only_non_prose_blocks():
 def test_front_matter_summary_wins_over_prose():
     text = "---\ntitle: T\nsummary: Explicit.\n---\nSome prose.\n"
     assert parse_article("t", text).summary == "Explicit."
+
+
+def _extra(tmp_path: Path, text: str):
+    f = tmp_path / "G.md"
+    f.write_text(text, encoding="utf-8")
+    return load_articles(tmp_path / "none", extra_files={"g": f})[0]
+
+
+ROLES_GUIDE = "# G\n\nIntro.\n\n## Setup\nA.\n\n## {h}\nOutdated.\n\n## After\nB.\n"
+
+
+@pytest.mark.parametrize(
+    "heading",
+    ["User Roles and Permissions", "User Roles And Permissions", "  user   roles and permissions  ", "User Roles and Permissions   "],
+)
+def test_extra_file_skips_user_roles_and_permissions_section(tmp_path: Path, heading: str):
+    a = _extra(tmp_path, ROLES_GUIDE.format(h=heading))
+    assert [s.anchor for s in a.sections] == ["overview", "setup", "after"]
+    assert "Outdated." not in " ".join(s.body for s in a.sections)
+
+
+def test_content_dir_article_with_roles_section_is_indexed(tmp_path: Path):
+    (tmp_path / "r.md").write_text("---\ntitle: R\n---\n" + ROLES_GUIDE.format(h="User Roles and Permissions"), encoding="utf-8")
+    a = load_articles(tmp_path)[0]
+    assert [s.anchor for s in a.sections] == ["overview", "setup", "user-roles-and-permissions", "after"]
+
+
+def test_fallback_summary_is_plain_text():
+    text = "# T\n\n**Nucleus** is a [great](http://x) tool with `code` inside.\n"
+    assert parse_article("t", text).summary == "Nucleus is a great tool with code inside."
+
+
+def test_fallback_summary_cut_on_word_boundary():
+    text = "# T\n\n" + " ".join(["wordy"] * 100) + "\n"
+    s = parse_article("t", text).summary
+    assert len(s) <= 200 and s.endswith("…")
+    assert set(s[:-1].split()) == {"wordy"}
+
+
+def test_short_fallback_summary_unchanged():
+    assert parse_article("t", "# T\n\nShort one.\n").summary == "Short one."
+
+
+def test_front_matter_summary_not_altered():
+    text = "---\ntitle: T\nsummary: '**Keep** this ' \n---\nBody.\n"
+    assert parse_article("t", text).summary == "**Keep** this"

@@ -1,6 +1,7 @@
 """Integrity tests for the help articles shipped in src/help/content."""
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -86,9 +87,16 @@ def test_internal_help_links_resolve(by_slug):
     assert found > 0, "expected the articles to cross-link"
 
 
-def test_no_links_to_unbuilt_user_guide_page():
+def test_user_guide_help_links_resolve_when_guide_is_loaded():
+    guide = Path(__file__).resolve().parents[3].parent / "docs" / "USER-GUIDE.md"
+    assert guide.is_file(), guide
+    by_slug = {a.slug: a for a in load_articles(CONTENT_DIR, extra_files={"user-guide": guide})}
+    assert "user-guide" in by_slug
+    anchors = {s.anchor for s in by_slug["user-guide"].sections}
     for path in _md_files():
-        assert "/help/user-guide" not in path.read_text(encoding="utf-8"), path.name
+        for slug, anchor in HELP_LINK.findall(path.read_text(encoding="utf-8")):
+            if slug == "user-guide" and anchor:
+                assert anchor in anchors, f"{path.name}: /help/user-guide#{anchor}"
 
 
 def test_roles_article_mentions_every_default_role_name(by_slug):

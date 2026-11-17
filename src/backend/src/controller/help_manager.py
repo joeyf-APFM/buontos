@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 from typing import List, Optional
 
@@ -7,6 +6,7 @@ from src.common.search_config_loader import get_search_config_loader
 from src.common.search_interfaces import SearchableAsset, SearchIndexItem
 from src.controller.search_scoring import score_and_rank
 from src.help.article_loader import HelpArticle, load_articles
+from src.help.plain_text import markdown_to_plain, truncate_plain
 from src.models.help import HelpArticleRead, HelpArticleSummary, HelpSectionRead
 
 logger = get_logger(__name__)
@@ -14,28 +14,10 @@ logger = get_logger(__name__)
 DEFAULT_CONTENT_DIR = Path(__file__).parent.parent / "help" / "content"
 EXCERPT_MAX_CHARS = 200
 
-_FENCE_RE = re.compile(r"^(```|~~~).*?^\1[^\n]*$", re.MULTILINE | re.DOTALL)
-_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
-_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
-_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+", re.MULTILINE)
-_LIST_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+", re.MULTILINE)
-_QUOTE_RE = re.compile(r"^\s*>\s?", re.MULTILINE)
-_EMPHASIS_RE = re.compile(r"(\*\*|__|\*|_|~~|`)")
-
 
 def _plain_excerpt(markdown: str, max_chars: int = EXCERPT_MAX_CHARS) -> str:
     """Strip markdown to plain text and truncate to max_chars."""
-    text = _FENCE_RE.sub("", markdown)
-    text = _IMAGE_RE.sub(r"\1", text)
-    text = _LINK_RE.sub(r"\1", text)
-    text = _HEADING_RE.sub("", text)
-    text = _LIST_RE.sub("", text)
-    text = _QUOTE_RE.sub("", text)
-    text = _EMPHASIS_RE.sub("", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    if len(text) <= max_chars:
-        return text
-    return text[: max_chars - 1].rstrip() + "…"
+    return truncate_plain(markdown_to_plain(markdown), max_chars)
 
 
 def resolve_help_extra_files(settings_manager) -> Optional[dict[str, Path]]:

@@ -70,5 +70,6 @@ Then select **Publish** on the product page and pick a **Publication scope**: **
 ## Who can do what with products
 
 By default, Data Consumers can view products, Data Producers and Data Stewards can create
-and change them, and Data Governance Officers and Admins can also manage and approve them.
+and change them, Data Governance Officers and Admins can also manage them, and Data
+Stewards, Data Governance Officers and Admins may approve them.
 See [Roles and permissions](/help/roles-and-permissions#what-each-role-can-do).

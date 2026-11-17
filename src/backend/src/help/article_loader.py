@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from src.common.logging import get_logger
+from src.help.plain_text import markdown_to_plain, truncate_plain
 
 logger = get_logger(__name__)
 
@@ -16,6 +17,8 @@ DEFAULT_ORDER = 100
 EXTRA_FILE_TOPIC = "Reference"
 EXTRA_FILE_ORDER = 900
 SKIPPED_SECTION_HEADINGS = {"table of contents"}
+# Extra (non-content-dir) files only: sections known to be stale vs. the checked help articles.
+EXTRA_FILE_SKIPPED_SECTION_HEADINGS = {"user roles and permissions"}
 
 
 @dataclass
@@ -108,7 +111,11 @@ def _first_paragraph(body: str) -> str:
     return " ".join(para)
 
 
-def _split_sections(title: str, body: str) -> list[HelpSection]:
+def _normalise_heading(heading: str) -> str:
+    return " ".join(heading.split()).lower()
+
+
+def _split_sections(title: str, body: str, skipped: frozenset[str] | set[str] = frozenset()) -> list[HelpSection]:
     sections: list[HelpSection] = []
     used: set[str] = {"overview"}
     heading, anchor = title, "overview"
@@ -123,7 +130,7 @@ def _split_sections(title: str, body: str) -> list[HelpSection]:
         if not in_fence and line.startswith("## "):
             flush()
             heading = line[3:].strip()
-            skip = heading.lower() in SKIPPED_SECTION_HEADINGS
+            skip = _normalise_heading(heading) in SKIPPED_SECTION_HEADINGS | set(skipped)
             base = slugify_heading(heading) or "section"
             anchor, n = base, 1
             while anchor in used:
@@ -137,7 +144,9 @@ def _split_sections(title: str, body: str) -> list[HelpSection]:
     return sections
 
 
-def parse_article(slug: str, text: str, defaults: dict | None = None) -> HelpArticle:
+def parse_article(
+    slug: str, text: str, defaults: dict | None = None, extra_file: bool = False
+) -> HelpArticle:
     """Parse one article; `defaults` supplies metadata the file's front matter may override."""
     file_meta, body = _split_front_matter(text)
     meta = {**(defaults or {}), **file_meta}
@@ -147,7 +156,10 @@ def parse_article(slug: str, text: str, defaults: dict | None = None) -> HelpArt
         raise ValueError("article has no title")
 
     summary = meta.get("summary")
-    summary = str(summary).strip() if summary else _first_paragraph(body)[:SUMMARY_MAX_CHARS]
+    if summary:
+        summary = str(summary).strip()
+    else:
+        summary = truncate_plain(markdown_to_plain(_first_paragraph(body)), SUMMARY_MAX_CHARS, word_boundary=True)
 
     def as_list(value) -> list[str]:
         if value is None:
@@ -172,7 +184,9 @@ def parse_article(slug: str, text: str, defaults: dict | None = None) -> HelpArt
         topic=str(meta.get("topic") or DEFAULT_TOPIC),
         route=str(route) if route else None,
         body=body,
-        sections=_split_sections(title, body),
+        sections=_split_sections(
+            title, body, EXTRA_FILE_SKIPPED_SECTION_HEADINGS if extra_file else frozenset()
+        ),
     )
 
 
@@ -195,7 +209,8 @@ def load_articles(
             logger.warning("Duplicate help article slug %r from %s ignored", slug, path)
             continue
         try:
-            articles[slug] = parse_article(slug, path.read_text(encoding="utf-8-sig"), defaults)
+            text = path.read_text(encoding="utf-8-sig")
+            articles[slug] = parse_article(slug, text, defaults, extra_file=defaults is not None)
         except (OSError, UnicodeDecodeError, ValueError) as e:
             logger.warning("Skipping help article %s: %s", path, e)
     return sorted(articles.values(), key=lambda a: (a.order, a.title))
