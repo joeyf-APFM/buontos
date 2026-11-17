@@ -104,6 +104,43 @@ describe('HelpDrawer', () => {
     expect(screen.getByText('Newer hit')).toBeInTheDocument();
   });
 
+  it('a_failed_article_list_is_retried_the_next_time_the_drawer_opens', async () => {
+    let calls = 0;
+    global.fetch = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) !== '/api/help/articles') return respond(HITS);
+      calls += 1;
+      return calls === 1 ? respond({}, false) : respond(ARTICLES);
+    }) as unknown as typeof fetch;
+    const { rerender } = renderWithMantine(<HelpDrawer opened onClose={() => {}} />);
+    expect(await screen.findByText('Help is unavailable right now')).toBeInTheDocument();
+    rerender(<HelpDrawer opened={false} onClose={() => {}} />);
+    rerender(<HelpDrawer opened onClose={() => {}} />);
+    expect(await screen.findByText('Alpha one')).toBeInTheDocument();
+    expect(screen.queryByText('Help is unavailable right now')).not.toBeInTheDocument();
+    const articleCalls = vi.mocked(global.fetch).mock.calls.filter(([u]) => String(u) === '/api/help/articles');
+    expect(articleCalls).toHaveLength(2);
+  });
+
+  it('a_successful_article_list_is_not_fetched_again_on_reopen', async () => {
+    const { rerender } = renderWithMantine(<HelpDrawer opened onClose={() => {}} />);
+    await screen.findByText('Alpha one');
+    rerender(<HelpDrawer opened={false} onClose={() => {}} />);
+    rerender(<HelpDrawer opened onClose={() => {}} />);
+    await screen.findByText('Alpha one');
+    const articleCalls = vi.mocked(global.fetch).mock.calls.filter(([u]) => String(u) === '/api/help/articles');
+    expect(articleCalls).toHaveLength(1);
+  });
+
+  it('a_failed_article_list_does_not_hide_search', async () => {
+    global.fetch = vi.fn((input: RequestInfo | URL) =>
+      String(input) === '/api/help/articles' ? respond({}, false) : respond(HITS),
+    ) as unknown as typeof fetch;
+    renderWithMantine(<HelpDrawer opened onClose={() => {}} />);
+    await screen.findByText('Help is unavailable right now');
+    await userEvent.type(screen.getByPlaceholderText('Search help'), 'contr');
+    expect(await screen.findByText('Data contracts')).toBeInTheDocument();
+  });
+
   it('view_all_links_to_/help', async () => {
     const onClose = vi.fn();
     renderWithMantine(<HelpDrawer opened onClose={onClose} />);

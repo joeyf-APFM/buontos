@@ -47,9 +47,14 @@ export function HelpDrawer({ opened, onClose }: HelpDrawerProps) {
   useEffect(() => {
     if (!opened || articlesRequested.current) return;
     articlesRequested.current = true;
+    setArticlesFailed(false);
     fetchHelpArticles()
       .then(setArticles)
-      .catch(() => setArticlesFailed(true));
+      .catch(() => {
+        // Let the next open retry
+        articlesRequested.current = false;
+        setArticlesFailed(true);
+      });
   }, [opened]);
 
   useEffect(() => {
