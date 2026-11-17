@@ -88,13 +88,24 @@ def _first_h1(body: str) -> str | None:
     return None
 
 
+_NON_PROSE_RE = re.compile(r"^\s*(?:#|[-*+]\s|\d+[.)]\s|\||>|(?:-{3,}|\*{3,}|_{3,})\s*$)")
+
+
 def _first_paragraph(body: str) -> str:
-    for para in re.split(r"\n\s*\n", body.strip()):
-        lines = [ln for ln in para.splitlines() if not ln.lstrip().startswith("#")]
-        candidate = " ".join(ln.strip() for ln in lines).strip()
-        if candidate:
-            return candidate
-    return ""
+    """First genuine prose paragraph: skips headings, lists, tables, quotes, rules,
+    fenced code, and everything under a Table of Contents heading."""
+    para: list[str] = []
+    in_toc = False
+    for line, in_fence in _iter_unfenced(body):
+        if in_fence or not line.strip() or _NON_PROSE_RE.match(line):
+            if para:
+                break
+            if not in_fence and line.lstrip().startswith("#"):
+                in_toc = line.lstrip("# ").strip().lower() in SKIPPED_SECTION_HEADINGS
+            continue
+        if not in_toc:
+            para.append(line.strip())
+    return " ".join(para)
 
 
 def _split_sections(title: str, body: str) -> list[HelpSection]:

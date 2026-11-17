@@ -150,3 +150,23 @@ def test_extra_file_with_missing_path_is_skipped(tmp_path: Path):
     (tmp_path / "good.md").write_text("---\ntitle: Good\n---\nBody\n", encoding="utf-8")
     articles = load_articles(tmp_path, extra_files={"gone": tmp_path / "missing.md"})
     assert [a.slug for a in articles] == ["good"]
+
+
+GUIDE_SHAPED = (
+    "# Guide\n\n## Table of Contents\n\n1. [Intro](#intro)\n2. [Next](#next)\n\n---\n\n"
+    "## Introduction\n\n```\nnot prose\n```\n\nWelcome to the guide. It explains things.\n\nSecond para.\n"
+)
+
+
+def test_summary_skips_toc_and_takes_first_prose_paragraph():
+    assert parse_article("g", GUIDE_SHAPED).summary == "Welcome to the guide. It explains things."
+
+
+def test_summary_empty_when_only_non_prose_blocks():
+    text = "# T\n\n- a\n- b\n\n| x | y |\n|---|---|\n\n> quote\n\n```\ncode\n```\n"
+    assert parse_article("t", text).summary == ""
+
+
+def test_front_matter_summary_wins_over_prose():
+    text = "---\ntitle: T\nsummary: Explicit.\n---\nSome prose.\n"
+    assert parse_article("t", text).summary == "Explicit."
