@@ -112,3 +112,13 @@ def test_index_items_built_once_and_stable_across_calls(manager):
     second = manager.get_search_index_items()
     assert [i.model_dump() for i in first] == [i.model_dump() for i in second]
     assert manager.search("zebras")
+
+
+def test_manager_indexes_extra_files(tmp_path):
+    guide = tmp_path / "GUIDE.md"
+    guide.write_text("# Nucleus User Guide\n\nIntro.\n\n## Compliance Checks\nRules about quokkas.\n", encoding="utf-8")
+    mgr = HelpManager(content_dir=tmp_path / "none", extra_files={"user-guide": guide})
+    assert [a.slug for a in mgr.list_articles()] == ["user-guide"]
+    items = {i.id: i for i in mgr.get_search_index_items()}
+    item = items["help::user-guide#compliance-checks"]
+    assert item.link == "/help/user-guide#compliance-checks"

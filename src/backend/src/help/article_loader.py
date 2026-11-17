@@ -13,6 +13,9 @@ logger = get_logger(__name__)
 SUMMARY_MAX_CHARS = 200
 DEFAULT_TOPIC = "General"
 DEFAULT_ORDER = 100
+EXTRA_FILE_TOPIC = "Reference"
+EXTRA_FILE_ORDER = 900
+SKIPPED_SECTION_HEADINGS = {"table of contents"}
 
 
 @dataclass
@@ -96,21 +99,26 @@ def _first_paragraph(body: str) -> str:
 
 def _split_sections(title: str, body: str) -> list[HelpSection]:
     sections: list[HelpSection] = []
-    used: dict[str, int] = {"overview": 1}
+    used: set[str] = {"overview"}
     heading, anchor = title, "overview"
     buf: list[str] = []
+    skip = False
 
     def flush() -> None:
-        sections.append(HelpSection(anchor=anchor, heading=heading, body="\n".join(buf).strip()))
+        if not skip:
+            sections.append(HelpSection(anchor=anchor, heading=heading, body="\n".join(buf).strip()))
 
     for line, in_fence in _iter_unfenced(body):
         if not in_fence and line.startswith("## "):
             flush()
             heading = line[3:].strip()
+            skip = heading.lower() in SKIPPED_SECTION_HEADINGS
             base = slugify_heading(heading) or "section"
-            count = used.get(base, 0) + 1
-            used[base] = count
-            anchor = base if count == 1 else f"{base}-{count}"
+            anchor, n = base, 1
+            while anchor in used:
+                n += 1
+                anchor = f"{base}-{n}"
+            used.add(anchor)
             buf = []
         else:
             buf.append(line)
@@ -118,8 +126,10 @@ def _split_sections(title: str, body: str) -> list[HelpSection]:
     return sections
 
 
-def parse_article(slug: str, text: str) -> HelpArticle:
-    meta, body = _split_front_matter(text)
+def parse_article(slug: str, text: str, defaults: dict | None = None) -> HelpArticle:
+    """Parse one article; `defaults` supplies metadata the file's front matter may override."""
+    file_meta, body = _split_front_matter(text)
+    meta = {**(defaults or {}), **file_meta}
     title = meta.get("title")
     title = str(title).strip() if title else (_first_h1(body) or "")
     if not title:
@@ -159,21 +169,22 @@ def load_articles(
     content_dir: Path, extra_files: dict[str, Path] | None = None
 ) -> list[HelpArticle]:
     """Load all articles; never raises. Bad files are skipped, first slug wins."""
-    candidates: list[tuple[str, Path]] = []
+    candidates: list[tuple[str, Path, dict | None]] = []
     try:
         if content_dir.is_dir():
-            candidates.extend((p.stem, p) for p in sorted(content_dir.glob("*.md")))
+            candidates.extend((p.stem, p, None) for p in sorted(content_dir.glob("*.md")))
     except OSError as e:
         logger.warning("Cannot list help content dir %s: %s", content_dir, e)
-    candidates.extend((slug, path) for slug, path in (extra_files or {}).items())
+    extra_defaults = {"topic": EXTRA_FILE_TOPIC, "order": EXTRA_FILE_ORDER}
+    candidates.extend((slug, path, extra_defaults) for slug, path in (extra_files or {}).items())
 
     articles: dict[str, HelpArticle] = {}
-    for slug, path in candidates:
+    for slug, path, defaults in candidates:
         if slug in articles:
             logger.warning("Duplicate help article slug %r from %s ignored", slug, path)
             continue
         try:
-            articles[slug] = parse_article(slug, path.read_text(encoding="utf-8"))
+            articles[slug] = parse_article(slug, path.read_text(encoding="utf-8-sig"), defaults)
         except (OSError, UnicodeDecodeError, ValueError) as e:
             logger.warning("Skipping help article %s: %s", path, e)
     return sorted(articles.values(), key=lambda a: (a.order, a.title))
