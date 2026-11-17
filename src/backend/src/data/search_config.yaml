@@ -221,13 +221,6 @@ asset_types:
   help:
     enabled: true
     inherit_defaults: true
-    extra_fields:
-      title:
-        indexed: true
-        source: "title"
-        match_type: substring
-        priority: 4
-        boost: 3.0
 
 # Result ranking behavior
 ranking:

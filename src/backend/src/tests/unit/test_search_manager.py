@@ -397,3 +397,23 @@ class TestHelpItemVisibility:
         auth.get_user_effective_permissions.side_effect = Exception("boom")
         results = manager.search("search", auth, user)
         assert [r.id for r in results] == ["help::search"]
+
+
+def test_help_title_match_outranks_help_description_match_with_real_config():
+    """Help titles must keep the inherited default title priority/boost (not be demoted)."""
+    from src.common.search_config_loader import get_search_config_loader
+    from src.controller import search_scoring
+
+    config = get_search_config_loader().load()
+    desc_only = SearchIndexItem(
+        id="help::desc", type="help", feature_id="help",
+        title="Getting started", description="Learn about zebra features",
+        link="/help/desc", tags=[],
+    )
+    title_hit = SearchIndexItem(
+        id="help::title", type="help", feature_id="help",
+        title="Zebra guide", description="Unrelated text",
+        link="/help/title", tags=[],
+    )
+    ranked = search_scoring.score_and_rank([desc_only, title_hit], "zebra", config)
+    assert [r.item.id for r in ranked][0] == "help::title"
