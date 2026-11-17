@@ -56,17 +56,18 @@ other people can find it in the **Marketplace**.
 3. Add a note for the reviewer, for example `Ready for review: daily orders for Sales.`
 4. Select **Send Request**.
 
-The product moves to **Proposed**. In the standard setup, the request goes to the owners of
-the product's domain. Watch the bell for the decision.
+The product moves straight to **Under Review** (it passes through Proposed on the way). In
+the standard setup, the request goes to the owners of the product's domain. Watch the bell
+for the decision.
 
 ## Step 4: take it to Active
 
-Once the review is done, the product is moved on one status at a time. Open
-**Request...**, choose **Change Status**, and pick the next step under **Target Status**:
+From **Under Review**, the product is moved on one status at a time. Open **Request...**,
+choose **Change Status**, and pick the next step under **Target Status**:
 
-1. **Start Review**: the product becomes **Under Review**.
-2. **Approve**: the product becomes **Approved**.
-3. **Publish/Activate**: the product becomes **Active**.
+1. **Approve**: the product becomes **Approved**. (**Reject (Return to Draft)** sends it
+   back to Draft instead.)
+2. **Publish/Activate**: the product becomes **Active**.
 
 Depending on your setup, a reviewer may do these steps for you, or the dialog may offer
 **Request Status Change** instead, which sends the change to an admin for approval.

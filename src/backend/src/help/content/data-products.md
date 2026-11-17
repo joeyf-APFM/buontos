@@ -46,8 +46,8 @@ A product moves through these statuses:
 **Draft → Proposed → Under Review → Approved → Active → Deprecated → Retired**
 
 You can also park a draft in **Sandbox** while you experiment. Use **Request...** on the
-product page to move it on: **Request Review** sends a draft for review (it becomes
-Proposed), and **Change Status** (or **Request Status Change**, when you need approval)
+product page to move it on: **Request Review** sends a draft for review (it moves
+straight to Under Review), and **Change Status** (or **Request Status Change**, when you need approval)
 moves it between the other statuses.
 
 Your admins can attach workflows to these steps, so some steps may ask for approval or

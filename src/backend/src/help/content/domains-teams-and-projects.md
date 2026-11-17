@@ -24,9 +24,10 @@ A **team** is a group of people who do the work, such as "Sales Data Team". A te
 - a **Team Name** and an optional **Display Title** and **Description**,
 - one or more domains it works in (**Data Domain**),
 - **Team Members**. Each member is either a **User** (an email address) or a **Group** (a
-  directory group name). A member can have a **Role Override**: the role suggested for
-  them when the team's members are imported into a contract or product. It does not change
-  their app role or permissions.
+  directory group name). A member can have a **Role Override**: an app role that replaces
+  the member's own role when Nucleus checks what they may do, so it can raise or lower
+  their access. Admins should set it with care. Leave it as **No override** unless the
+  member needs different access.
 
 Teams appear as the **Owner Team** of contracts and products.
 
