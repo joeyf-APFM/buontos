@@ -13,6 +13,7 @@ import {
   type HelpSearchItem,
 } from '@/mantine/help/help-api';
 import { HelpMarkdown } from '@/mantine/help/help-markdown';
+import { startsWithH1 } from './help-body';
 
 const byOrderThenTitle = (a: HelpArticleSummary, b: HelpArticleSummary) =>
   a.order - b.order || a.title.localeCompare(b.title);
@@ -164,9 +165,7 @@ function HelpArticlePage({ slug }: { slug: string }) {
   useEffect(() => {
     if (!article || !hash) return;
     const id = decodeURIComponent(hash.slice(1));
-    const target = document.getElementById(id);
-    if (target) target.scrollIntoView();
-    else if (id === 'overview') window.scrollTo({ top: 0 });
+    document.getElementById(id)?.scrollIntoView();
   }, [article, hash]);
 
   let content;
@@ -186,10 +185,16 @@ function HelpArticlePage({ slug }: { slug: string }) {
   } else {
     // The implicit `overview` entry is the title, not a `##` heading
     const toc = article.sections.filter((s) => s.anchor !== 'overview');
-    // The body carries the page's h1, so the metadata sits beside it
+    // The page needs exactly one h1 (id `overview`): the body's when it opens
+    // with one (HelpMarkdown ids it), else the article's title. Metadata sits beside it.
     content = (
       <Grid gutter="lg">
         <Grid.Col span={{ base: 12, md: 8 }} order={{ base: 2, md: 1 }}>
+          {!startsWithH1(article.body) && (
+            <Title order={1} id="overview">
+              {article.title}
+            </Title>
+          )}
           <HelpMarkdown text={article.body} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 4 }} order={{ base: 1, md: 2 }}>

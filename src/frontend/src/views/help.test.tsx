@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import useBreadcrumbStore from '@/stores/breadcrumb-store';
 import HelpView from './help';
+import { startsWithH1 } from './help-body';
 
 const ARTICLES = [
   { slug: 'b-two', title: 'Beta two', summary: 'Second basics', tags: [], roles: [], order: 20, topic: 'Basics', route: null },
@@ -177,20 +178,67 @@ describe('HelpView', () => {
     await waitFor(() => expect(scrollSpy.mock.contexts.slice(-1)[0]).toBe(document.getElementById('review')));
   });
 
-  it('overview_hash_scrolls_to_top_when_no_element', async () => {
-    mockApi({ ...ARTICLE, body: 'No heading here.' });
-    const top = vi.fn();
-    window.scrollTo = top as unknown as typeof window.scrollTo;
-    renderAt('/help/contracts#overview');
-    await screen.findByText('No heading here.');
-    await waitFor(() => expect(top).toHaveBeenCalledWith({ top: 0 }));
-  });
-
   it('sets_breadcrumb_and_clears_on_unmount', async () => {
     const { unmount } = renderAt('/help/contracts');
     await screen.findByText('Intro text.');
     await waitFor(() => expect(useBreadcrumbStore.getState().dynamicTitle).toBe('Data contracts'));
     unmount();
     expect(useBreadcrumbStore.getState().dynamicTitle).toBeNull();
+  });
+});
+
+describe('startsWithH1', () => {
+  it.each([
+    ['# T\n\ntext', true],
+    ['Some prose\n\n# Later', false],
+    ['## Sub\n\ntext', false],
+    ['\n\n  \n# T', true],
+    ['```\n# not a title\n```\n\ntext', false],
+    ['~~~\n# not a title\n~~~', false],
+    ['', false],
+    ['#NoSpace', false],
+  ])('%j -> %s', (body, expected) => {
+    expect(startsWithH1(body)).toBe(expected);
+  });
+});
+
+describe('HelpView title heading', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn() as unknown as typeof Element.prototype.scrollIntoView;
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('body_without_h1_gets_a_page_title_h1_with_overview_id', async () => {
+    mockApi({ ...ARTICLE, body: 'Plain intro.\n\n## Create one\n\nSteps.' });
+    renderAt('/help/contracts');
+    await screen.findByText('Plain intro.');
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent('Data contracts');
+    expect(h1s[0]).toHaveAttribute('id', 'overview');
+    expect(document.querySelectorAll('#overview')).toHaveLength(1);
+  });
+
+  it('body_with_h1_is_not_duplicated', async () => {
+    mockApi({ ...ARTICLE, body: '# Something else\n\nIntro.' });
+    renderAt('/help/contracts');
+    await screen.findByText('Intro.');
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent('Something else');
+    expect(document.querySelectorAll('#overview')).toHaveLength(1);
+  });
+
+  it('overview_hash_scrolls_to_the_rendered_title', async () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy as unknown as typeof Element.prototype.scrollIntoView;
+    const top = vi.fn();
+    window.scrollTo = top as unknown as typeof window.scrollTo;
+    mockApi({ ...ARTICLE, body: 'Plain intro.' });
+    renderAt('/help/contracts#overview');
+    await screen.findByText('Plain intro.');
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(spy.mock.contexts.slice(-1)[0]).toBe(document.getElementById('overview'));
+    expect(top).not.toHaveBeenCalled();
   });
 });
