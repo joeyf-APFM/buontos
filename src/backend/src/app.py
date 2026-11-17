@@ -46,6 +46,7 @@ from src.routes import (
     metadata_routes,
     notifications_routes,
     search_routes,
+    help_routes,
     security_features_routes,
     self_service_routes,
     settings_routes,
@@ -474,6 +475,7 @@ workspace_routes.register_routes(app)
 comments_routes.register_routes(app)
 notifications_routes.register_routes(app)
 search_routes.register_routes(app)
+help_routes.register_routes(app)
 llm_search_routes.register_routes(app)
 jobs_routes.register_routes(app)
 user_routes.register_routes(app)

@@ -105,3 +105,10 @@ def test_description_is_plain_text_excerpt_max_200(manager, tmp_path):
     long_items = [i for i in HelpManager(content_dir=tmp_path).get_search_index_items()
                   if i.id == "help::long#overview"]
     assert len(long_items[0].description) <= 200
+
+
+def test_index_items_built_once_and_stable_across_calls(manager):
+    first = manager.get_search_index_items()
+    second = manager.get_search_index_items()
+    assert [i.model_dump() for i in first] == [i.model_dump() for i in second]
+    assert manager.search("zebras")

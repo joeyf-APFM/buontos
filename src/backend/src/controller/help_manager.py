@@ -50,6 +50,7 @@ class HelpManager(SearchableAsset):
             content_dir or DEFAULT_CONTENT_DIR, extra_files
         )
         self._by_slug = {a.slug: a for a in self._articles}
+        self._index_items: List[SearchIndexItem] = self._build_index_items()
         logger.debug("HelpManager initialized with %d articles.", len(self._articles))
 
     def list_articles(self) -> List[HelpArticleSummary]:
@@ -73,6 +74,9 @@ class HelpManager(SearchableAsset):
         )
 
     def get_search_index_items(self) -> List[SearchIndexItem]:
+        return list(self._index_items)
+
+    def _build_index_items(self) -> List[SearchIndexItem]:
         items: List[SearchIndexItem] = []
         for a in self._articles:
             for s in a.sections:
@@ -100,5 +104,5 @@ class HelpManager(SearchableAsset):
         if not query or not query.strip():
             return []
         config = get_search_config_loader().load()
-        scored = score_and_rank(self.get_search_index_items(), query, config)
+        scored = score_and_rank(self._index_items, query, config)
         return [s.item for s in scored[:limit]]

@@ -533,6 +533,10 @@ def initialize_managers(app: FastAPI):
         app.state.teams_manager = TeamsManager()
         app.state.projects_manager = ProjectsManager()
 
+        # Help articles (searchable asset; must precede the SearchManager step)
+        from src.controller.help_manager import HelpManager
+        app.state.help_manager = HelpManager()
+
         # Reference Data Managers
         from src.controller.assets_manager import AssetsManager
         from src.controller.business_roles_manager import BusinessRolesManager
