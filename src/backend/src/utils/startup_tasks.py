@@ -534,11 +534,11 @@ def initialize_managers(app: FastAPI):
         app.state.projects_manager = ProjectsManager()
 
         # Help articles (searchable asset; must precede the SearchManager step)
-        from src.controller.help_manager import HelpManager
+        from src.controller.help_manager import HelpManager, resolve_help_extra_files
         # The User Guide is indexed from the same registry that serves /api/docs
-        user_guide = app.state.settings_manager.get_available_docs().get("user-guide")
-        extra_files = {"user-guide": Path(user_guide["path"])} if user_guide else None
-        app.state.help_manager = HelpManager(extra_files=extra_files)
+        app.state.help_manager = HelpManager(
+            extra_files=resolve_help_extra_files(app.state.settings_manager)
+        )
 
         # Reference Data Managers
         from src.controller.assets_manager import AssetsManager

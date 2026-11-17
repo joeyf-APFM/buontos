@@ -122,3 +122,29 @@ def test_manager_indexes_extra_files(tmp_path):
     items = {i.id: i for i in mgr.get_search_index_items()}
     item = items["help::user-guide#compliance-checks"]
     assert item.link == "/help/user-guide#compliance-checks"
+
+
+class _Settings:
+    def __init__(self, docs=None, exc=None):
+        self._docs, self._exc = docs, exc
+
+    def get_available_docs(self):
+        if self._exc:
+            raise self._exc
+        return self._docs
+
+
+def test_resolve_help_extra_files_survives_malformed_registry():
+    from src.controller.help_manager import resolve_help_extra_files
+    assert resolve_help_extra_files(_Settings(exc=KeyError("file"))) is None
+
+
+def test_resolve_help_extra_files_none_without_user_guide():
+    from src.controller.help_manager import resolve_help_extra_files
+    assert resolve_help_extra_files(_Settings(docs={"other": {"path": "/x.md"}})) is None
+
+
+def test_resolve_help_extra_files_returns_path():
+    from src.controller.help_manager import resolve_help_extra_files
+    docs = {"user-guide": {"path": "/docs/USER-GUIDE.md"}}
+    assert resolve_help_extra_files(_Settings(docs=docs)) == {"user-guide": Path("/docs/USER-GUIDE.md")}

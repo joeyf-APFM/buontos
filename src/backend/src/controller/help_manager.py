@@ -38,6 +38,16 @@ def _plain_excerpt(markdown: str, max_chars: int = EXCERPT_MAX_CHARS) -> str:
     return text[: max_chars - 1].rstrip() + "…"
 
 
+def resolve_help_extra_files(settings_manager) -> Optional[dict[str, Path]]:
+    """Locate the User Guide via the docs registry; never raises (help must not break startup)."""
+    try:
+        guide = settings_manager.get_available_docs().get("user-guide")
+        return {"user-guide": Path(guide["path"])} if guide else None
+    except Exception:
+        logger.warning("Could not resolve the User Guide for the help index", exc_info=True)
+        return None
+
+
 class HelpManager(SearchableAsset):
     """Serves help articles and indexes each section for global search."""
 
