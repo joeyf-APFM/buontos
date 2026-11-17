@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderWithMantine, userEvent } from '@/test/utils';
 import { HelpMarkdown } from './help-markdown';
@@ -11,6 +12,29 @@ describe('HelpMarkdown', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.id)).toEqual(['setup', 'docsx', 'setup-2']);
     expect(screen.getByRole('heading', { level: 3 })).not.toHaveAttribute('id');
     expect(screen.getByRole('heading', { level: 4 })).not.toHaveAttribute('id');
+  });
+
+  it('keeps_backend_anchors_under_strict_mode', () => {
+    const md = '# T\n\n## One\n\n## Two\n\n## Three\n';
+    renderWithMantine(
+      <StrictMode>
+        <HelpMarkdown text={md} />
+      </StrictMode>
+    );
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.id)).toEqual(['one', 'two', 'three']);
+  });
+
+  it('gives_no_id_to_h2s_the_backend_does_not_count', () => {
+    const md = '> ## Quoted\n\nSetext\n------\n\n## Real\n\n- ## Listed\n\n## Second\n';
+    renderWithMantine(<HelpMarkdown text={md} />);
+    const h2s = screen.getAllByRole('heading', { level: 2 });
+    expect(h2s.map((h) => [h.textContent, h.getAttribute('id')])).toEqual([
+      ['Quoted', null],
+      ['Setext', null],
+      ['Real', 'real'],
+      ['Listed', null],
+      ['Second', 'second'],
+    ]);
   });
 
   it('does_not_render_raw_html', () => {

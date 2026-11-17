@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeSectionAnchors, createAnchorGenerator, slugifyHeading } from './help-slug';
+import { computeSectionAnchors, computeSectionAnchorsByLine, createAnchorGenerator, slugifyHeading } from './help-slug';
 
 describe('slugifyHeading', () => {
   it('matches the backend vectors', () => {
@@ -58,5 +58,23 @@ describe('computeSectionAnchors', () => {
 
   it('uses the section fallback and the working vectors', () => {
     expect(computeSectionAnchors('## ???\n## What\'s a data product?\n')).toEqual(['section', 'whats-a-data-product']);
+  });
+});
+
+describe('computeSectionAnchorsByLine', () => {
+  it('maps 1-based line numbers, skipping fences and numbering duplicates', () => {
+    const md = '# T\n## A\n```\n## x\n```\n## A\n';
+    expect([...computeSectionAnchorsByLine(md)]).toEqual([
+      [2, 'a'],
+      [6, 'a-2'],
+    ]);
+  });
+
+  it('counts CRLF and bare CR as single line breaks', () => {
+    expect([...computeSectionAnchorsByLine('# T\r\n## A\r\n\r\n## B\r## C')]).toEqual([
+      [2, 'a'],
+      [4, 'b'],
+      [5, 'c'],
+    ]);
   });
 });

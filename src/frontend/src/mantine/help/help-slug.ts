@@ -26,27 +26,32 @@ export function createAnchorGenerator(): (text: string) => string {
 }
 
 /**
- * Anchors of the `## ` sections of raw markdown, in document order (the
- * implicit `overview` section is not included). Mirrors the backend: fenced
- * blocks are skipped, heading text is the raw text after `## `.
+ * Anchors of the `## ` sections of raw markdown, keyed by 1-based line number
+ * (line breaks: \r\n, \r or \n, as in mdast). The implicit `overview`
+ * section is not included. Mirrors the backend: fenced blocks are skipped,
+ * heading text is the raw text after `## `.
  */
-export function computeSectionAnchors(markdown: string): string[] {
+export function computeSectionAnchorsByLine(markdown: string): Map<number, string> {
   const next = createAnchorGenerator();
-  const anchors: string[] = [];
+  const byLine = new Map<number, string>();
   let fence: string | null = null;
-  for (const line of markdown.split(/\r\n|\r|\n/)) {
-    const stripped = line.trimStart();
-    const head = stripped.slice(0, 3);
+  markdown.split(/\r\n|\r|\n/).forEach((line, index) => {
+    const head = line.trimStart().slice(0, 3);
     const marker = head === '```' || head === '~~~' ? head : null;
     if (fence === null) {
       if (marker) {
         fence = marker;
       } else if (line.startsWith('## ')) {
-        anchors.push(next(line.slice(3).trim()));
+        byLine.set(index + 1, next(line.slice(3).trim()));
       }
     } else if (marker === fence) {
       fence = null;
     }
-  }
-  return anchors;
+  });
+  return byLine;
+}
+
+/** Anchors of the `## ` sections in document order. */
+export function computeSectionAnchors(markdown: string): string[] {
+  return [...computeSectionAnchorsByLine(markdown).values()];
 }

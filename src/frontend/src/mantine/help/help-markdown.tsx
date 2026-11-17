@@ -3,10 +3,11 @@
  * external links in a new tab, in-app links via react-router. The h1 is `overview` and
  * h2s carry the backend section anchors.
  */
+import { useMemo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { Link } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
-import { computeSectionAnchors } from './help-slug';
+import { computeSectionAnchorsByLine } from './help-slug';
 
 const SAFE_ABSOLUTE = /^(https?:|mailto:)/i;
 
@@ -19,13 +20,13 @@ function safeUrl(url: string): string {
 }
 
 export function HelpMarkdown({ text }: { text: string }) {
-  // Backend anchors exist for `##` sections only; the Nth rendered h2 takes
-  // the Nth anchor. Counter is per render so double renders stay deterministic.
-  const anchors = computeSectionAnchors(text);
-  let h2Index = 0;
+  // Backend anchors exist for unfenced `## ` lines only. Ids are looked up by
+  // the heading's source line, so rendering is pure; h2s the backend does not
+  // count (blockquote, list, setext, indented) have no entry and get no id.
+  const anchorsByLine = useMemo(() => computeSectionAnchorsByLine(text), [text]);
   const components: Components = {
     h1: ({ children }) => <h1 id="overview">{children}</h1>,
-    h2: ({ children }) => <h2 id={anchors[h2Index++]}>{children}</h2>,
+    h2: ({ node, children }) => <h2 id={anchorsByLine.get(node?.position?.start.line ?? -1)}>{children}</h2>,
     a: ({ href, children }) => {
       if (!href) return <span>{children}</span>;
       if (href.startsWith('#')) return <a href={href}>{children}</a>;
