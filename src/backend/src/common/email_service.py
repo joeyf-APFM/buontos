@@ -22,7 +22,7 @@ class EmailService:
         *,
         provider: str = "smtp",
         from_address: str = "",
-        from_name: str = "Ontos Notifications",
+        from_name: str = "Nucleus Notifications",
         smtp_host: str = "",
         smtp_port: int = 587,
         smtp_username: str = "",
@@ -65,7 +65,7 @@ class EmailService:
         return cls(
             provider=config.get("provider", "smtp"),
             from_address=config.get("from_address", ""),
-            from_name=config.get("from_name", "Ontos Notifications"),
+            from_name=config.get("from_name", "Nucleus Notifications"),
             smtp_host=config.get("smtp_host", ""),
             smtp_port=config.get("smtp_port", 587),
             smtp_username=config.get("smtp_username", ""),

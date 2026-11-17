@@ -1,16 +1,16 @@
 # Data Contract Lifecycle
 
-A data contract in Ontos is the technical and semantic agreement that a
+A data contract in Nucleus is the technical and semantic agreement that a
 data product's Deliverable implements — schema, quality expectations, SLAs,
-server endpoints, support channels, pricing. Ontos implements the **Open
+server endpoints, support channels, pricing. Nucleus implements the **Open
 Data Contract Standard (ODCS) v3.1.0**.
 
-The model customers reach for: *Ontos is the lifecycle manager of data
-contracts. Create v2, inform users about the changes from v1. Ontos can diff
+The model customers reach for: *Nucleus is the lifecycle manager of data
+contracts. Create v2, inform users about the changes from v1. Nucleus can diff
 and include the list of changes.* The two operational ideas underneath that
 sentence are **editor-of-record** and **indirect delivery**.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### What a contract is {#what-is-a-contract}
 
@@ -37,14 +37,14 @@ explicit versioning.
 
 ### Editor of record {#editor-of-record}
 
-The default mental model: **Ontos is the editor of record for the
+The default mental model: **Nucleus is the editor of record for the
 contract**. You draft, edit, propose, review, and version the contract
-in Ontos. The contract has a stable DB row, an immutable agreement
+in Nucleus. The contract has a stable DB row, an immutable agreement
 trail (when approval workflows are involved), and a diff view between
 versions.
 
 The alternative: customers who already have YAML contracts in their
-workspace repo can run **indirect delivery via volume** — Ontos pushes
+workspace repo can run **indirect delivery via volume** — Nucleus pushes
 the canonical YAML representation into a configured Databricks Volume,
 where the workspace deployment pipelines pick it up. The seam is
 deliberate:
@@ -54,11 +54,11 @@ deliberate:
 
 If a team edits the YAML in their workspace and then re-imports it,
 they're choosing to make the workspace the editor of record — at which
-point Ontos becomes the observer. Pick one direction and stay there
+point Nucleus becomes the observer. Pick one direction and stay there
 per contract; round-tripping leads to drift.
 
 This pattern is exactly the answer to the customer question: *"Switching
-contract versions >>> trigger a job and notify people."* Ontos owns the
+contract versions >>> trigger a job and notify people."* Nucleus owns the
 event of v1 → v2 (with diff + approval gate + notification fan-out);
 the volume / job system owns the *deployment* of the new YAML.
 
@@ -163,10 +163,10 @@ contract's quality checks fail.
 
 Versions are explicit rows grouped by a stable family identifier —
 historically `base_name` paired with the `parent_contract_id`
-parent-walk, and in the current Ontos version moving toward a canonical
+parent-walk, and in the current Nucleus version moving toward a canonical
 `version_family_id` column that survives renames. The customer-voice
-framing — *Create v2, inform users about the changes from v1, Ontos can
-diff and include the list of changes* — maps onto two Ontos behaviors:
+framing — *Create v2, inform users about the changes from v1, Nucleus can
+diff and include the list of changes* — maps onto two Nucleus behaviors:
 
 1. The diff view between two contract versions presents schema, quality
    check, SLA, and server changes side-by-side.
@@ -183,7 +183,7 @@ lets authors and consumers move across versions without losing context.
 If you also push the YAML to a volume (Indirect delivery — see
 [Delivery and Propagation](delivery-and-propagation.md#indirect-mode)),
 a workspace job picks up the new version and applies it — but the diff
-and the notification fan-out happens in Ontos.
+and the notification fan-out happens in Nucleus.
 
 ## Under the hood
 
@@ -222,7 +222,7 @@ across version edits.
 ### Contract roles {#contract-roles}
 
 A contract declares its own access roles (`DataContractRoleDb`)
-independent of Ontos's RBAC roles. Each entry names a role with
+independent of Nucleus's RBAC roles. Each entry names a role with
 `access`, `first_level_approvers`, `second_level_approvers`, and
 optional custom properties. These represent the **access role** layer of
 the contract — the business statement of who can read or write the
@@ -249,13 +249,13 @@ to allow single-string or array references.
 
 ## Common questions {#common-questions}
 
-**"Does edits to the YAML in my workspace flow back into Ontos?"**
+**"Does edits to the YAML in my workspace flow back into Nucleus?"**
 
-In the current Ontos version: not automatically. Ontos is the editor
+In the current Nucleus version: not automatically. Nucleus is the editor
 of record; the workspace volume is the deployment surface. If your
 team edits the YAML in the workspace, you're implicitly choosing the
 workspace as the editor of record — re-importing the edited YAML into
-Ontos is possible, but it overwrites whatever Ontos held. Pick one
+Nucleus is possible, but it overwrites whatever Nucleus held. Pick one
 direction and stick to it for a given contract.
 
 **"What does 'switching contract versions' do — does it trigger a
@@ -266,7 +266,7 @@ Switching to a new active version transitions the previous version to
 configured event-driven workflows (e.g., `on_status_change`). Those
 workflows are how customers wire downstream side effects: trigger a
 deployment job, fan out notifications to subscribers, post to ITSM,
-push the YAML to a volume. Ontos owns the event; the workflows you
+push the YAML to a volume. Nucleus owns the event; the workflows you
 configure own the side effects.
 
 **"Where do I see what changed between v1 and v2?"**

@@ -20,7 +20,7 @@ import SchemaImporterView from './schema-importer';
 
 // The store fetches its settings when it loads, before fetch is mocked
 vi.mock('@/stores/ui-customization-store', () => ({
-  useUICustomizationStore: (select: (s: { getAppName: () => string }) => unknown) => select({ getAppName: () => 'Ontos' }),
+  useUICustomizationStore: (select: (s: { getAppName: () => string }) => unknown) => select({ getAppName: () => 'Nucleus' }),
 }));
 
 const json = (body: unknown, status = 200) =>

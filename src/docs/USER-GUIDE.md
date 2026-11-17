@@ -1,11 +1,11 @@
-# Ontos User Guide
+# Nucleus User Guide
 
 ## Table of Contents
 
 1. [Introduction](#introduction)
 2. [Core Concepts](#core-concepts)
 3. [Getting Started](#getting-started)
-4. [Growing with Ontos](#growing-with-ontos)
+4. [Growing with Nucleus](#growing-with-ontos)
 5. [Working with Domains](#working-with-domains)
 6. [Managing Teams](#managing-teams)
 7. [Organizing Projects](#organizing-projects)
@@ -25,7 +25,7 @@
 
 ## Introduction
 
-**Ontos** is a comprehensive data governance and management platform built for Databricks Unity Catalog. It provides enterprise teams with the tools to organize, govern, and deliver high-quality data products following Data Mesh principles and industry standards like ODCS (Open Data Contract Standard) and ODPS (Open Data Product Specification).
+**Nucleus** is a comprehensive data governance and management platform built for Databricks Unity Catalog. It provides enterprise teams with the tools to organize, govern, and deliver high-quality data products following Data Mesh principles and industry standards like ODCS (Open Data Contract Standard) and ODPS (Open Data Product Specification).
 
 ### Key Capabilities
 
@@ -53,9 +53,9 @@ This guide is intended for:
 
 ## Core Concepts
 
-Understanding these foundational concepts will help you effectively use Ontos.
+Understanding these foundational concepts will help you effectively use Nucleus.
 
-![Ontos Object Model](/ontos-obj-model.svg)
+![Nucleus Object Model](/ontos-obj-model.svg)
 
 ### Domains
 
@@ -86,7 +86,7 @@ Understanding these foundational concepts will help you effectively use Ontos.
 
 ### Assets & Asset Explorer
 
-**Assets** are the unified representation of all cataloged objects in Ontos, powered by the ontology-driven data model. Asset types (Dataset, Table, View, Dashboard, API Endpoint, Stream, etc.) are defined in the ontology (`ontos-ontology.ttl`) and synced automatically at startup.
+**Assets** are the unified representation of all cataloged objects in Nucleus, powered by the ontology-driven data model. Asset types (Dataset, Table, View, Dashboard, API Endpoint, Stream, etc.) are defined in the ontology (`ontos-ontology.ttl`) and synced automatically at startup.
 
 - **Ontology-Driven**: Asset types, their fields, and valid relationships are all derived from the OWL ontology
 - **Unified Model**: Replaces bespoke tables for datasets, tables, views, etc. with a single `assets` table using typed properties
@@ -138,7 +138,7 @@ Understanding these foundational concepts will help you effectively use Ontos.
 
 ### Connectors (Platform Integrations)
 
-**Connectors** are pluggable components that enable Ontos to discover and manage assets from different data platforms.
+**Connectors** are pluggable components that enable Nucleus to discover and manage assets from different data platforms.
 
 - **Unified Interface**: All connectors implement the same asset discovery and metadata API
 - **Platform-Agnostic Governance**: Write policies that work across Unity Catalog, Snowflake, Kafka, etc.
@@ -157,7 +157,7 @@ Understanding these foundational concepts will help you effectively use Ontos.
 
 ## Getting Started
 
-When you first access Ontos as an enterprise, the application will be empty. Here's how to set up your data governance foundation.
+When you first access Nucleus as an enterprise, the application will be empty. Here's how to set up your data governance foundation.
 
 ### Initial Setup Checklist
 
@@ -169,7 +169,7 @@ When you first access Ontos as an enterprise, the application will be empty. Her
 6. **Create Compliance Policies**
 7. **Begin Creating Datasets, Contracts, and Products**
 
-**Tip**: See the [Growing with Ontos](#growing-with-ontos) section for a recommended progression path from datasets → contracts → products → compliance.
+**Tip**: See the [Growing with Nucleus](#growing-with-ontos) section for a recommended progression path from datasets → contracts → products → compliance.
 
 ### Step 1: Configure Roles and Permissions
 
@@ -179,7 +179,7 @@ Navigate to **Settings → RBAC** to configure roles and permissions.
 
 #### Default Roles
 
-Ontos comes with predefined roles:
+Nucleus comes with predefined roles:
 
 - **Admin**: Full system access
 - **Data Governance Officer**: Broad governance capabilities
@@ -307,7 +307,7 @@ Navigate to **Projects** in the sidebar.
 
 **Who**: Data Governance Officer or Admin
 
-Semantic models provide business context for your data. Ontos includes sample taxonomies, or you can create custom ones.
+Semantic models provide business context for your data. Nucleus includes sample taxonomies, or you can create custom ones.
 
 #### Using Built-in Taxonomies
 
@@ -357,9 +357,9 @@ This policy ensures all production tables and views are organized into data prod
 
 ---
 
-## Growing with Ontos
+## Growing with Nucleus
 
-Ontos is designed to support your data governance journey at any stage. Whether you're just starting to catalog existing data assets or building a mature data mesh, Ontos provides a natural progression path.
+Nucleus is designed to support your data governance journey at any stage. Whether you're just starting to catalog existing data assets or building a mature data mesh, Nucleus provides a natural progression path.
 
 ### The Growth Journey
 
@@ -424,7 +424,7 @@ Tags: customer, pii, crm
 
 **What to Do**:
 1. From a Dataset, click **Create Contract from Dataset**
-2. Ontos infers schema from Unity Catalog (if UC-backed)
+2. Nucleus infers schema from Unity Catalog (if UC-backed)
 3. Enrich with:
    - Column descriptions and business meaning
    - Data quality rules (not null, valid ranges, patterns)
@@ -802,7 +802,7 @@ Personal projects are automatically created for each user when they first use ce
 > and manage datasets alongside all other asset types. The legacy Datasets API (`/api/datasets`)
 > remains available for backward compatibility but will be removed in a future version.
 
-Datasets are the entry point for bringing your existing data assets into Ontos. They represent logical groupings of related physical tables and views.
+Datasets are the entry point for bringing your existing data assets into Nucleus. They represent logical groupings of related physical tables and views.
 
 ### What is a Dataset?
 
@@ -818,7 +818,7 @@ A Dataset is:
 - **Data Contract** = What should exist (specification, quality rules)
 - **Data Product** = How value is delivered (packaged, documented, monitored)
 
-**Multi-Platform Capability**: Ontos uses a pluggable connector architecture to support assets from multiple platforms. Unity Catalog is fully supported with native connectivity. Connectors for Snowflake, Kafka, and Power BI are planned for future releases.
+**Multi-Platform Capability**: Nucleus uses a pluggable connector architecture to support assets from multiple platforms. Unity Catalog is fully supported with native connectivity. Connectors for Snowflake, Kafka, and Power BI are planned for future releases.
 
 ### Viewing Datasets
 
@@ -962,7 +962,7 @@ Customer Master Data (Dataset)
 
 ### Multi-System Support
 
-Ontos uses a **pluggable connector architecture** that supports multiple data platforms through a unified asset registry. This enables you to manage assets from different systems within the same governance framework.
+Nucleus uses a **pluggable connector architecture** that supports multiple data platforms through a unified asset registry. This enables you to manage assets from different systems within the same governance framework.
 
 #### Supported Platforms
 
@@ -1032,7 +1032,7 @@ Connect your dataset to a formal specification:
 
 1. Open dataset details
 2. Click **Create Contract from Dataset** (if UC-backed)
-3. Ontos infers schema from Unity Catalog
+3. Nucleus infers schema from Unity Catalog
 4. Enrich and submit for review
 5. Contract is automatically linked
 
@@ -1239,7 +1239,7 @@ Service Level Objectives:
 
 ### Semantic Linking (Three-Tier System)
 
-Ontos supports semantic linking at three levels:
+Nucleus supports semantic linking at three levels:
 
 #### 1. Contract-Level Links
 
@@ -2364,7 +2364,7 @@ The workflow designer provides a visual canvas for building workflows:
 
 ### Default Workflows
 
-Ontos includes pre-configured default workflows that cover common governance patterns. These can be edited or duplicated but not deleted.
+Nucleus includes pre-configured default workflows that cover common governance patterns. These can be edited or duplicated but not deleted.
 
 #### Validation Workflows
 
@@ -2718,7 +2718,7 @@ Navigate to **Audit Trail** to see detailed review history.
 
 ## User Roles and Permissions
 
-Ontos uses Role-Based Access Control (RBAC) to manage permissions.
+Nucleus uses Role-Based Access Control (RBAC) to manage permissions.
 
 ### Default Roles
 
@@ -2812,13 +2812,13 @@ Each feature has permission levels:
 - **Read/Write**: Full CRUD operations
 - **Admin**: Full access including configuration
 
-### Troubleshooting: "I can open Ontos but see no assets"
+### Troubleshooting: "I can open Nucleus but see no assets"
 
 **What you see:** the Asset Explorer shows 0 next to every type, and lists say "Nothing here yet", while colleagues see the same catalog full.
 
-**Why:** being allowed to open the app and having an Ontos role are separate.
+**Why:** being allowed to open the app and having a Nucleus role are separate.
 - Access to the Databricks app (CAN_USE) only lets you in.
-- What you see inside comes from the Ontos role your groups map to.
+- What you see inside comes from the Nucleus role your groups map to.
 - Only users whose role has **Assets** at **Read/Write** or higher see every asset.
 - Everyone else, including users with no role at all, sees only the assets linked to Data Products they can access. With none of those, every count is 0.
 - Members of the app's default admin groups are admins automatically. Other groups get nothing until they're added to a role.
@@ -2905,7 +2905,7 @@ This allows flexible, context-specific permissions.
 
 ## MCP Integration (AI Assistants)
 
-Ontos provides a **Model Context Protocol (MCP)** server that enables AI assistants (like Claude, GPT, or custom LLM agents) to programmatically discover and execute tools within your data governance platform.
+Nucleus provides a **Model Context Protocol (MCP)** server that enables AI assistants (like Claude, GPT, or custom LLM agents) to programmatically discover and execute tools within your data governance platform.
 
 ### What is MCP?
 
@@ -3033,7 +3033,7 @@ POST /mcp
 > The server is also mounted at the legacy path `/api/mcp`, which continues to
 > work for existing clients. New integrations should use `/mcp`.
 >
-> **On-behalf-of (OBO):** when the MCP server is reached through the Ontos app
+> **On-behalf-of (OBO):** when the MCP server is reached through the Nucleus app
 > proxy (native integration), tools that read Unity Catalog run **as the calling
 > user**, scoped to that user's grants. External agents calling with only an
 > `X-API-Key` (no forwarded user identity) run as the app service principal, as
@@ -3207,7 +3207,7 @@ The following tools are available through the MCP endpoint:
 
 #### Claude Desktop Configuration
 
-Add Ontos as an MCP server in your Claude Desktop config:
+Add Nucleus as an MCP server in your Claude Desktop config:
 
 ```json
 {
@@ -3367,11 +3367,11 @@ curl https://your-ontos-instance/mcp/health
 
 ## Delivery Modes
 
-Delivery Modes control how Ontos persists and propagates changes to external systems when entities (Data Products, Data Contracts, Datasets, Domains, Roles, Tags) are created or updated.
+Delivery Modes control how Nucleus persists and propagates changes to external systems when entities (Data Products, Data Contracts, Datasets, Domains, Roles, Tags) are created or updated.
 
 ### What are Delivery Modes?
 
-When you create or update an entity in Ontos, the change can be **delivered** to external systems in different ways:
+When you create or update an entity in Nucleus, the change can be **delivered** to external systems in different ways:
 
 - **Direct Mode**: Automatically apply changes to Unity Catalog (e.g., GRANTs, permissions)
 - **Indirect Mode**: Export changes as YAML files to a Git repository for GitOps/CI-CD workflows
@@ -3418,7 +3418,7 @@ Multiple modes can be active simultaneously. For example, you might use Direct m
 - Apply security policies to new datasets
 
 **How It Works**:
-1. Entity is created or updated in Ontos
+1. Entity is created or updated in Nucleus
 2. Delivery Service detects active Direct mode
 3. Grant Manager applies the appropriate changes to Unity Catalog
 4. Changes take effect immediately
@@ -3450,7 +3450,7 @@ User creates a Data Product with output port:
 - Multi-environment promotion (dev → staging → prod)
 
 **How It Works**:
-1. Entity is created or updated in Ontos
+1. Entity is created or updated in Nucleus
 2. Delivery Service detects active Indirect mode
 3. Entity is serialized to YAML using File Models
 4. YAML file is written to the local Git repository
@@ -3559,7 +3559,7 @@ The following entities are exported to YAML:
 
 **Workflow Example**:
 ```text
-1. Create Data Product in Ontos UI
+1. Create Data Product in Nucleus UI
    ↓
 2. YAML file written: data-products/abc123.yaml
    ↓
@@ -3585,7 +3585,7 @@ The following entities are exported to YAML:
 - Environments where automated access is restricted
 
 **How It Works**:
-1. Entity is created or updated in Ontos
+1. Entity is created or updated in Nucleus
 2. Delivery Service detects active Manual mode
 3. A notification is created with:
    - Change details (entity type, ID, what changed)
@@ -3920,13 +3920,13 @@ Notify consumers of changes:
 - **Bug Fixes**: Release notes, patch version bump
 - **Deprecations**: Multiple reminders over 90 days
 
-Use Ontos notifications and external channels (email, Slack).
+Use Nucleus notifications and external channels (email, Slack).
 
 ---
 
 ## Conclusion
 
-Ontos provides comprehensive tools for data governance and management at enterprise scale. By following the practices outlined in this guide, your organization can:
+Nucleus provides comprehensive tools for data governance and management at enterprise scale. By following the practices outlined in this guide, your organization can:
 
 - Establish clear organizational structure with domains, teams, and projects
 - Formalize data specifications with contracts
@@ -3946,14 +3946,14 @@ Ontos provides comprehensive tools for data governance and management at enterpr
 7. **Scale Adoption**: Expand to additional domains and teams
 8. **Continuous Improvement**: Iterate based on user feedback
 
-**Recommended Path**: Follow the [Growing with Ontos](#growing-with-ontos) journey for a structured adoption approach.
+**Recommended Path**: Follow the [Growing with Nucleus](#growing-with-ontos) journey for a structured adoption approach.
 
 ### Getting Help
 
 - **Documentation**: Refer to this guide and linked references
 - **Settings → About**: View feature documentation and API docs
 - **Audit Trail**: Track what changes were made and by whom
-- **Support**: Contact your Ontos administrator or support team
+- **Support**: Contact your Nucleus administrator or support team
 
 ### Additional Resources
 
@@ -3967,11 +3967,11 @@ Ontos provides comprehensive tools for data governance and management at enterpr
 
 ---
 
-*This user guide covers the stable, non-beta/alpha features of Ontos. Features marked as "alpha" or "beta" in the UI may have incomplete documentation or evolving functionality.*
+*This user guide covers the stable, non-beta/alpha features of Nucleus. Features marked as "alpha" or "beta" in the UI may have incomplete documentation or evolving functionality.*
 
 **App Version**: 0.4.6  
 **Last Updated**: January 2026  
-**Target Audience**: Ontos End Users (Data Product Teams, Data Stewards, Data Consumers)
+**Target Audience**: Nucleus End Users (Data Product Teams, Data Stewards, Data Consumers)
 
 For detailed changes between versions, see the [Release Notes](/user-docs/release-notes).
 

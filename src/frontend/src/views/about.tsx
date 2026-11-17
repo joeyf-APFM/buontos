@@ -85,6 +85,7 @@ export default function About() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-6">{t('about:title', { appName })}</h1>
       <p className="text-lg text-muted-foreground mb-6">{t('about:intro')}</p>
+      <p className="text-sm text-muted-foreground mb-6">{t('about:attribution')}</p>
       
       {/* Version and Runtime Info */}
       <div className="mb-10 p-4 border rounded-lg bg-card text-card-foreground">

@@ -93,7 +93,7 @@ def validate_contexts(
     for ctx in ontology_contexts:
         if ctx in INTERNAL_BLOCKED_CONTEXTS:
             raise InvalidContextError(
-                f"Context '{ctx}' is internal to Ontos and not assignable. "
+                f"Context '{ctx}' is internal to Nucleus and not assignable. "
                 f"Select a concept scheme instead."
             )
         if ctx in SHIPPED_OPT_IN_CONTEXTS:
@@ -112,7 +112,7 @@ def validate_contexts(
     for ctx in include_shipped:
         if ctx in INTERNAL_BLOCKED_CONTEXTS:
             raise InvalidContextError(
-                f"Context '{ctx}' is internal to Ontos and not assignable."
+                f"Context '{ctx}' is internal to Nucleus and not assignable."
             )
         if ctx not in SHIPPED_OPT_IN_CONTEXTS:
             raise InvalidContextError(

@@ -51,14 +51,14 @@ describe('SyncDomainsView', () => {
   it('describes the export flow, anchor and top-level target after switching direction', async () => {
     render(<SyncDomainsView />);
     expect(await screen.findByText('Place under')).toBeInTheDocument();
-    expect(screen.getByText('Unity Catalog → Ontos')).toBeInTheDocument();
+    expect(screen.getByText('Unity Catalog → Nucleus')).toBeInTheDocument();
     expect(screen.getByText('Top level (no parent)')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('radio', { name: /Export to Unity Catalog/ }));
 
     expect(await screen.findByText('Anchor')).toBeInTheDocument();
     expect(screen.getByText('Its children become UC roots; grandchildren become subdomains.')).toBeInTheDocument();
-    expect(screen.getByText('Ontos → Unity Catalog')).toBeInTheDocument();
+    expect(screen.getByText('Nucleus → Unity Catalog')).toBeInTheDocument();
     expect(screen.getByText('Top-level domains')).toBeInTheDocument();
     expect(screen.queryByText('Place under')).not.toBeInTheDocument();
   });

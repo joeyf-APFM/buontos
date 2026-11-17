@@ -1,7 +1,7 @@
 # Personas Quick Reference
 
 This file orients the copilot to "what does this persona typically need from
-Ask Ontos?" Each persona maps to one of the seeded roles described in
+Ask Nucleus?" Each persona maps to one of the seeded roles described in
 [roles-and-rbac.md](roles-and-rbac.md#built-in-roles) — except the
 Knowledge Engineer, which is a persona without a seeded role (no permission
 matrix; described here for completeness).
@@ -10,13 +10,13 @@ The framings below are in the persona's own voice. The questions are
 representative, not exhaustive — they shape ranking and disambiguation, not
 gating.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### Admin {#admin}
 
 **What you do.** You own the deployment. Roles, workflows, integrations,
 demo data, the MCP token store — when something is broken, you're the
-person Ontos expects to fix it. You almost never edit individual
+person Nucleus expects to fix it. You almost never edit individual
 products or contracts; you edit the rules that govern them.
 
 **Where you spend time.** Settings → RBAC, Settings → Workflows,
@@ -24,7 +24,7 @@ Settings → Semantic Models, Settings → MCP, Settings → Connectors,
 Settings → Demo Data, the workspace logs page when something is
 broken.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "Why is user X not seeing feature Y?" — debug a permission gap.
 - "Which roles have access to data-contracts at Read/Write?"
@@ -47,7 +47,7 @@ You don't build; you certify and audit.
 the Compliance dashboard, Estate Manager, Master Data Management, the
 Asset Reviews queue, the Glossary across all collections.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "Which data products are missing a domain assignment?"
 - "Which contracts have no quality checks for the `accuracy`
@@ -72,7 +72,7 @@ certification queue, the Glossary editor for your domain, the Asset
 Reviews assigned to you, the Schema tab on contracts (where DQX
 suggestions land), Semantic Links panels on products and contracts.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "Which contracts in my domain are stuck in `under_review`?"
 - "What asset reviews are assigned to me right now?"
@@ -99,7 +99,7 @@ the product detail page (Deliverables, Consumables, semantic links,
 quality), the contract detail page (Schema tab, quality, SLAs),
 sometimes the Asset Explorer for UC ingestion.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "How do I move my product from `draft` to `proposed`?"
 - "What does `auto_approve` on a Deliverable do?"
@@ -129,7 +129,7 @@ subscribe to changes or breaks.
 section, individual product detail pages, your "My Subscriptions"
 view, the Notification center.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "Where can I find a product about customer churn?"
 - "Who owns the daily-orders product?"
@@ -153,7 +153,7 @@ you sign off on the security side of the certification.
 Entitlements, Settings → Entitlements Sync, the Compliance dashboard,
 sometimes contract approval queues for sensitive data.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "Which entitlement personas have admin on `security-features`?"
 - "What sync jobs are configured for entitlements, and when did they
@@ -169,30 +169,30 @@ security-features, entitlements, and entitlements-sync, with
 ### Knowledge Engineer / Data Architect {#knowledge-engineer}
 
 **What you do.** You author the ontology in OWL/TTL/SHACL externally
-and load it into Ontos. You decide what the canonical concepts are,
-how they relate, and where SHACL constraints live. Ontos uses your
+and load it into Nucleus. You decide what the canonical concepts are,
+how they relate, and where SHACL constraints live. Nucleus uses your
 ontology to drive asset types, drive concept search, ground Ask
-Ontos, and feed agents via MCP.
+Nucleus, and feed agents via MCP.
 
-**Where you spend time.** Outside Ontos in Protégé or TopBraid
-authoring TTL. Inside Ontos: Settings → Semantic Models (upload),
+**Where you spend time.** Outside Nucleus in Protégé or TopBraid
+authoring TTL. Inside Nucleus: Settings → Semantic Models (upload),
 the Concept Browser, the Knowledge Graph view, the SPARQL search
 tab, the Ontology Generator when starting from UC metadata.
 
 **Not a seeded role.** The Knowledge Engineer doesn't have a built-in
-Ontos role. Most knowledge engineers map to Data Producer or Data
+Nucleus role. Most knowledge engineers map to Data Producer or Data
 Steward depending on whether they also work on data products.
 Permissions to author semantic models come from the
 `semantic-models` feature's `Read/Write` or `Admin` level.
 
-**Typical questions for Ask Ontos:**
+**Typical questions for Ask Nucleus:**
 
 - "What concepts does our ontology cover for the Sales domain?"
 - "Which concepts have no data mapping yet?" (Gap analysis.)
 - "What's the difference between an ontology and a knowledge graph
-  in Ontos?"
+  in Nucleus?"
 - "Can I use SHACL shapes for validation?"
-- "How do I bring my Protégé file into Ontos?"
+- "How do I bring my Protégé file into Nucleus?"
 - "What does it mean for the ontology to be prescriptive?"
 
 Knowledge Engineers expect technical, RDF-aware answers — saying
@@ -204,7 +204,7 @@ distinguishing the source artifact from the runtime graph.
 ### The empty-groups persona ("anon") {#anon}
 
 Used in testing to exercise fully-denied paths. A request from a
-user with zero groups should resolve to no Ontos role and hit `None`
+user with zero groups should resolve to no Nucleus role and hit `None`
 on every feature. The copilot should answer such users only on
 **public** concept questions (e.g., "what is a data contract?") and
 refuse to surface specific entity data.

@@ -1,23 +1,23 @@
 # Installation, Updates, Maintenance, and Common UI Errors
 
-This doc covers how Ontos gets into a workspace, how it gets updated, the
+This doc covers how Nucleus gets into a workspace, how it gets updated, the
 day-2 maintenance footwork it expects, and the UI errors users surface
-most often. Step-by-step setup screenshots live in `docs/Ontos Setup.md`;
+most often. Step-by-step setup screenshots live in `docs/Nucleus Setup.md`;
 this file is the conceptual layer around it — what the choices mean,
 where they trade off, and what breaks when something is misconfigured.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### Distribution channels {#distribution-channels}
 
-Ontos ships through two channels. They install the same application,
+Nucleus ships through two channels. They install the same application,
 but they expect different operator skills and different update
 discipline.
 
 #### Databricks Marketplace {#marketplace-channel}
 
 The default path. From the workspace's Marketplace UI, an admin searches
-for "Ontos", clicks Install, and the workspace's Apps service handles
+for "Nucleus", clicks Install, and the workspace's Apps service handles
 the rest — container build, OAuth scope acceptance, Lakebase wiring,
 and first deploy. Each Marketplace listing version is a semver release
 of the OSS repo packaged for distribution. Receiving an update means
@@ -54,7 +54,7 @@ only option; see [Customer fork hygiene](#customer-fork-hygiene).
 
 ### First-time installation {#first-install}
 
-`docs/Ontos Setup.md` walks the step-by-step. What matters
+`docs/Nucleus Setup.md` walks the step-by-step. What matters
 conceptually:
 
 #### Prerequisites {#install-prerequisites}
@@ -71,10 +71,10 @@ conceptually:
 - **On-behalf-of (OBO) authentication enabled** on the workspace's
   Apps service. OBO is in Public Preview at time of writing; the
   toggle lives in workspace Previews. With OBO enabled no setting is
-  needed: the proxy forwards each user's token and Ontos calls
+  needed: the proxy forwards each user's token and Nucleus calls
   Databricks as that user. A deployment without OBO must set
   `OBO_ALLOW_SP_FALLBACK=true`; then the routes that call Databricks as
-  the user (Data Catalog, Catalog Commander, schema import, Ask Ontos,
+  the user (Data Catalog, Catalog Commander, schema import, Ask Nucleus,
   the ontology generator, domain sync, asset review content) use the
   app's service principal instead. Without it they answer 403
   (`user_token_required`). Most lifecycle actions still fail without
@@ -84,7 +84,7 @@ conceptually:
 
 #### First-admin bootstrap {#first-admin-bootstrap}
 
-The very first user reaching a freshly seeded Ontos database hits a
+The very first user reaching a freshly seeded Nucleus database hits a
 chicken-and-egg problem: no role is yet bound to their groups. Two
 mechanisms cover this:
 
@@ -107,7 +107,7 @@ permission model.
 
 #### Demo presets {#demo-presets}
 
-Ontos ships with five self-contained demo packs — `retail` (default),
+Nucleus ships with five self-contained demo packs — `retail` (default),
 `hls`, `fsi`, `mfg`, `auto`. Each is delivered as a standalone SQL
 file under `src/backend/src/data/demo_data_{preset}.sql` and uses a
 per-preset UUID prefix segment (`0000`, `0001`, `0002`, …). Loading is
@@ -257,7 +257,7 @@ root causes. Each entry covers symptom, cause, and fix.
 
 ##### "Request role" prompt on every page load {#request-role-prompt}
 
-The user lands on Ontos and is asked to pick a role on every visit,
+The user lands on Nucleus and is asked to pick a role on every visit,
 because the role-resolution step found no matching `assigned_groups`
 intersection.
 
@@ -305,7 +305,7 @@ agreement they're listed on. Two causes recur:
 
 - **Approver-role filter mismatch.** The agreement's approval
   workflow definition filters approvers by role, and the user's
-  current Ontos role doesn't match. Fix: check the workflow's
+  current Nucleus role doesn't match. Fix: check the workflow's
   approver-role spec and the user's role assignment.
 - **Not a recipient of this approval.** `POST /api/workflows/handle-approval`
   has no feature-level permission gate. It only checks that the caller
@@ -368,7 +368,7 @@ deeper, re-sync from `src/`. Also check for missing required env
 vars in `app.yaml` — a missing env binding can stall the container
 the same way.
 
-##### Ask Ontos returns "I don't have authoritative information" for everything conceptual {#corpus-not-found}
+##### Ask Nucleus returns "I don't have authoritative information" for everything conceptual {#corpus-not-found}
 
 The `docs/handbook/` tree wasn't packaged into the deployment. The
 `search_ontos_handbook` tool can't find the corpus on disk, so
@@ -386,7 +386,7 @@ files.
 - **Contributing:** see `CONTRIBUTING.md` in the repo for the PR
   workflow, testing expectations, and code-style conventions.
 - **Customer support:** Marketplace deployments are supported
-  through the workspace's Ontos administrator; Git-channel
+  through the workspace's Nucleus administrator; Git-channel
   deployments take support questions directly to GitHub.
 
 ## Under the hood
@@ -398,11 +398,11 @@ This whole doc speaks to deployment operators, so the line between user-facing a
 - [Roles and RBAC — first-admin bootstrap and permission model](roles-and-rbac.md#permission-model)
 - [Agreement workflow — grant_permissions step](agreement-workflow.md#grant-permissions-step)
 - [Delivery and propagation — Indirect mode requires the Volume-backed Git repo](delivery-and-propagation.md#indirect-mode)
-- [MCP and Ask Ontos — what the copilot grounds against, and how the corpus is consumed](mcp-and-ask-ontos.md#grounding-sources)
+- [MCP and Ask Nucleus — what the copilot grounds against, and how the corpus is consumed](mcp-and-ask-ontos.md#grounding-sources)
 
 ## Common questions {#common-questions}
 
-**"What's the difference between installing Ontos from Marketplace and from the GitHub repo?"**
+**"What's the difference between installing Nucleus from Marketplace and from the GitHub repo?"**
 
 Marketplace gives a packaged, versioned, governed install — the
 workspace receives a known release, scope acceptance happens once
@@ -414,7 +414,7 @@ Git is the right choice for partner forks, hot-patches, or
 deployments that need a custom scope set. See
 [Distribution channels](#distribution-channels).
 
-**"How do I update Ontos to a new version?"**
+**"How do I update Nucleus to a new version?"**
 
 If the deployment came from Marketplace, re-install or upgrade
 through the workspace's Marketplace UI; the running deployment is

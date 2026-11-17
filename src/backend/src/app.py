@@ -343,14 +343,14 @@ openapi_tags = [
     {"name": "Self Service", "description": "Self-service data product creation"},
     {"name": "Settings", "description": "Application settings and configuration"},
     {"name": "Connections", "description": "Manage external data platform connections"},
-    {"name": "Schema Import", "description": "Browse remote systems and import schemas as Ontos assets"},
+    {"name": "Schema Import", "description": "Browse remote systems and import schemas as Nucleus assets"},
     {"name": "Asset Bulk", "description": "Bulk import and export of assets via CSV/XLSX"},
     {"name": "Delivery Methods", "description": "Manage delivery methods for output ports"},
 ]
 
 # Create single FastAPI app with settings dependency
 app = FastAPI(
-    title="Ontos",
+    title="Nucleus",
     description="A Databricks App for managing data products, contracts, and more",
     version=__version__,
     dependencies=[Depends(get_settings)],

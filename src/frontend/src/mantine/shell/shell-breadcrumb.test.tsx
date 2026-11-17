@@ -29,7 +29,7 @@ vi.mock('@/components/ui/project-chooser', () => ({ ProjectChooser: () => null }
 vi.mock('@/components/common/language-selector', () => ({ LanguageSelector: () => null }));
 vi.mock('@/stores/ui-customization-store', () => ({
   useUICustomizationStore: (select: (s: { getShortName: () => string; getAppName: () => string }) => unknown) =>
-    select({ getShortName: () => 'APFM', getAppName: () => 'Ontos' }),
+    select({ getShortName: () => 'APFM', getAppName: () => 'Nucleus' }),
 }));
 
 const allPermissionIds = Object.values(NAV).flatMap((sections) =>

@@ -280,7 +280,7 @@ export default function GeneralSettings() {
               <p className="text-sm text-muted-foreground">
                 {t(
                   'settings:general.instanceIdentity.id.help',
-                  'Stable identifier of this Ontos instance, stamped on exported entities. Default: {{default}}. Clear the field to restore the default.',
+                  'Stable identifier of this Nucleus instance, stamped on exported entities. Default: {{default}}. Clear the field to restore the default.',
                   { default: settings.instanceIdDefault }
                 )}
               </p>

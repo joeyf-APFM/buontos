@@ -235,7 +235,7 @@ describe('AppShell', () => {
 
   it('renders the brand and the page content', () => {
     renderShell();
-    expect(screen.getByRole('link', { name: 'APFM · Ontos' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'APFM · Nucleus' })).toHaveAttribute('href', '/');
     expect(screen.getByText('page content')).toBeInTheDocument();
   });
 });
@@ -258,7 +258,7 @@ describe('the side strip', () => {
 
   const controls = (el: HTMLElement) => [...el.querySelectorAll('a, button')].map((c) => c.textContent);
 
-  it('lists Discover, Build, Organization, Semantics, Workflows, Helix, Ontos, then Settings', async () => {
+  it('lists Discover, Build, Organization, Semantics, Workflows, Helix, Nucleus, then Settings', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       const body =
@@ -269,11 +269,11 @@ describe('the side strip', () => {
     }));
     renderShell();
     await within(strip()).findByRole('button', { name: 'Ask Helix' });
-    await within(strip()).findByRole('button', { name: 'Ask Ontos' });
+    await within(strip()).findByRole('button', { name: 'Ask Nucleus' });
 
     const names = [...strip().querySelectorAll('button, a')].map((el) => el.getAttribute('aria-label') ?? el.textContent);
     expect(names).toEqual([
-      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Ask Helix', 'Ask Ontos', 'Settings',
+      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Ask Helix', 'Ask Nucleus', 'Settings',
     ]);
   });
 

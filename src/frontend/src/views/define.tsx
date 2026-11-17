@@ -474,7 +474,7 @@ export default function DefineView() {
                 'semantic-models:define.generate.tip',
                 'A guided interview drafts an OWL ontology from your tables: classes (owl:Class, hierarchy via rdfs:subClassOf) and properties (owl:ObjectProperty / owl:DatatypeProperty). Every candidate carries its source and is saved as Draft for review.'
               )}
-              description={t('semantic-models:define.generate.desc', 'Answer a few questions; Ontos drafts the scheme.')}
+              description={t('semantic-models:define.generate.desc', 'Answer a few questions; Nucleus drafts the scheme.')}
               action={
                 <Button className={classes.cta} {...requiresGenerate} onClick={() => setGuidedOpen(true)}>
                   {t('semantic-models:define.generate.cta', 'Start guided build')}

@@ -165,7 +165,7 @@ function tailwindIn(root: HTMLElement): string[] {
   return [...found];
 }
 
-const chat = () => screen.getByRole('region', { name: 'Ask Ontos' });
+const chat = () => screen.getByRole('region', { name: 'Ask Nucleus' });
 const log = () => screen.getByRole('log', { name: 'Messages' });
 const composer = () => screen.getByRole('textbox', { name: 'Ask a question about your data...' });
 
@@ -207,12 +207,12 @@ describe('search on the page kit', () => {
     expect(heading.parentElement).toHaveClass(kit.header);
     const tabs = screen.getByRole('tablist', { name: 'Search' });
     expect(tabs).toHaveClass(kit.tabList);
-    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Ask Ontos', 'Index Search']);
-    expect(within(tabs).getByRole('tab', { name: 'Ask Ontos' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Ask Nucleus', 'Index Search']);
+    expect(within(tabs).getByRole('tab', { name: 'Ask Nucleus' })).toHaveAttribute('aria-selected', 'true');
 
     // Ask Ontos: one kit pane filling the page (full bleed), the log and the composer in it
-    const panel = screen.getByRole('tabpanel', { name: 'Ask Ontos' });
-    expect(within(panel).getByRole('region', { name: 'Ask Ontos' })).toHaveClass(kit.pane);
+    const panel = screen.getByRole('tabpanel', { name: 'Ask Nucleus' });
+    expect(within(panel).getByRole('region', { name: 'Ask Nucleus' })).toHaveClass(kit.pane);
     expect(container.querySelector(`.${kit.page}`)).toHaveAttribute('data-full-bleed');
     for (const route of ['/search', '/search/llm', '/search/index']) expect(isFullBleed(route)).toBe(true);
     await within(chat()).findByRole('button', { name: 'History' });
@@ -241,10 +241,10 @@ describe('search on the page kit', () => {
     expect(location.search).toBe('?query=sales');
     expect(window.history.length).toBe(entries);
     // On Ask Ontos too: no duplicate entry
-    await user.click(screen.getByRole('tab', { name: 'Ask Ontos' }));
+    await user.click(screen.getByRole('tab', { name: 'Ask Nucleus' }));
     expect(location.pathname).toBe('/search/llm');
     const onLlm = window.history.length;
-    await user.click(screen.getByRole('tab', { name: 'Ask Ontos' }));
+    await user.click(screen.getByRole('tab', { name: 'Ask Nucleus' }));
     expect(window.history.length).toBe(onLlm);
   });
 
@@ -256,7 +256,7 @@ describe('search on the page kit', () => {
   });
 
   for (const level of [FeatureAccessLevel.READ_WRITE, FeatureAccessLevel.READ_ONLY]) {
-    it(`search keeps every control on Ask Ontos (${level})`, async () => {
+    it(`search keeps every control on Ask Nucleus (${level})`, async () => {
       grant(level);
       const user = userEvent.setup();
       renderPage();
@@ -282,7 +282,7 @@ describe('search on the page kit', () => {
       expect(await within(log()).findByText('Where is customer data?')).toBeInTheDocument();
       expect(within(log()).getByText('Sales orders', { selector: 'strong' })).toBeInTheDocument();
       expect(within(log()).getByRole('table')).toBeInTheDocument();
-      expect(within(log()).getAllByRole('img', { name: /You|Ontos/ }).map((i) => i.getAttribute('aria-label'))).toEqual(['You', 'Ontos']);
+      expect(within(log()).getAllByRole('img', { name: /You|Nucleus/ }).map((i) => i.getAttribute('aria-label'))).toEqual(['You', 'Nucleus']);
 
       // A question's Edit & resend and Run again
       expect(within(log()).getByRole('button', { name: 'Edit & resend' })).toBeInTheDocument();
@@ -507,7 +507,7 @@ describe('search on the page kit', () => {
     expect(within(log()).getByText('How can I help you today?')).toBeInTheDocument();
   });
 
-  it('Ask Ontos with the LLM off shows its disabled state', async () => {
+  it('Ask Nucleus with the LLM off shows its disabled state', async () => {
     status = { enabled: false, disclaimer: '' };
     renderPage();
     const pane = await screen.findByRole('region', { name: 'AI-Powered Search' });
@@ -519,7 +519,7 @@ describe('search on the page kit', () => {
     expect(screen.getByRole('tab', { name: 'Index Search' })).toBeInTheDocument();
   });
 
-  it('Ask Ontos status and session load failures show an Alert with Retry', async () => {
+  it('Ask Nucleus status and session load failures show an Alert with Retry', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
     failing.add('/api/llm-search/status');
@@ -527,7 +527,7 @@ describe('search on the page kit', () => {
     const alert = await within(log()).findByRole('alert');
     expect(alert).toHaveTextContent('Failed to load LLM search. Please try again later.');
     // Its own title, not the details' (final review, Minor 4)
-    expect(alert).toHaveTextContent('Could not load Ask Ontos.');
+    expect(alert).toHaveTextContent('Could not load Ask Nucleus.');
     expect(alert).not.toHaveTextContent('Could not load the details.');
     expect(consoleError).toHaveBeenCalledWith('Failed to load LLM search data:', expect.any(Error));
     consoleError.mockRestore();

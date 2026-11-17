@@ -17,7 +17,7 @@ variables:
     default: "app_files"
   app_config:
     type: complex
-    description: "Configuration for Ontos"
+    description: "Configuration for Nucleus"
     default:
       command:
         - "uvicorn"
@@ -40,7 +40,7 @@ resources:
   apps:
     ontos:
       name: "ontos"
-      description: "Ontos"
+      description: "Nucleus"
       source_code_path: "."
       config: ${var.app_config}
       resources:

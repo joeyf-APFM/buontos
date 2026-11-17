@@ -144,7 +144,7 @@
       "title": "Identité de l'instance",
       "id": {
         "label": "ID de l'instance",
-        "help": "Identifiant stable de cette instance Ontos, apposé sur les entités exportées. Par défaut : {{default}}. Videz le champ pour rétablir la valeur par défaut.",
+        "help": "Identifiant stable de cette instance Nucleus, apposé sur les entités exportées. Par défaut : {{default}}. Videz le champ pour rétablir la valeur par défaut.",
         "invalid": "Utilisez 1 à 128 lettres, chiffres, \".\", \"_\", \":\" ou \"-\", en commençant par une lettre ou un chiffre."
       },
       "name": {

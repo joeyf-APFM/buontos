@@ -1,5 +1,5 @@
 version: 1
-name: "ontos"
+name: "nucleus"
 description: "An app for managing data products, contracts, and more"
 resource_specs:
   - name: "postgres"
@@ -11,7 +11,7 @@ resource_specs:
     sql_warehouse_spec:
       permission: "CAN_USE"
   - name: "serving-endpoint"
-    description: "LLM serving endpoint for Ask Ontos"
+    description: "LLM serving endpoint for Ask Nucleus"
     serving_endpoint_spec:
       permission: "CAN_QUERY"
   - name: "volume"

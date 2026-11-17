@@ -6,27 +6,27 @@ import { HELIX_DEFAULTS, useHelixStore } from './helix-store';
 const helixOpen = () => useHelixStore.getState().isOpen;
 const copilotOpen = () => useCopilotStore.getState().isOpen;
 
-describe('Helix and Ask Ontos panels', () => {
+describe('Helix and Ask Nucleus panels', () => {
   beforeEach(() => {
     useHelixStore.setState(HELIX_DEFAULTS);
     useCopilotStore.setState({ isOpen: false });
   });
 
-  it('opening Helix closes Ask Ontos', () => {
+  it('opening Helix closes Ask Nucleus', () => {
     useCopilotStore.getState().actions.openPanel();
     useHelixStore.getState().actions.open();
     expect(helixOpen()).toBe(true);
     expect(copilotOpen()).toBe(false);
   });
 
-  it('opening Ask Ontos closes Helix', () => {
+  it('opening Ask Nucleus closes Helix', () => {
     useHelixStore.getState().actions.open();
     useCopilotStore.getState().actions.openPanel();
     expect(copilotOpen()).toBe(true);
     expect(helixOpen()).toBe(false);
   });
 
-  it('toggling Ask Ontos open closes Helix', () => {
+  it('toggling Ask Nucleus open closes Helix', () => {
     useHelixStore.getState().actions.open();
     useCopilotStore.getState().actions.togglePanel();
     expect(copilotOpen()).toBe(true);

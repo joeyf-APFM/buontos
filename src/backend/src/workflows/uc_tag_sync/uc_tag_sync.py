@@ -1903,7 +1903,7 @@ def build_desired_for_dataset(d: DatasetTagInfo, tag_sync_configs: List[Dict[str
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Sync Ontos metadata to UC governed tags")
+    parser = argparse.ArgumentParser(description="Sync Nucleus metadata to UC governed tags")
     parser.add_argument("--tag_sync_configs", type=str, default="[]")
     parser.add_argument("--prefix", type=str, default="x_ontos_")
     parser.add_argument("--dry_run", type=str, default="false")

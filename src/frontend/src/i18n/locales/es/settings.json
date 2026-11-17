@@ -144,7 +144,7 @@
       "title": "Identidad de la instancia",
       "id": {
         "label": "ID de la instancia",
-        "help": "Identificador estable de esta instancia de Ontos, incluido en las entidades exportadas. Valor predeterminado: {{default}}. Vacía el campo para restaurarlo.",
+        "help": "Identificador estable de esta instancia de Nucleus, incluido en las entidades exportadas. Valor predeterminado: {{default}}. Vacía el campo para restaurarlo.",
         "invalid": "Usa de 1 a 128 letras, dígitos, \".\", \"_\", \":\" o \"-\", y empieza por una letra o un dígito."
       },
       "name": {

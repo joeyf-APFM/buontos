@@ -161,19 +161,19 @@
   },
   "sync": {
     "title": "Sincronizar domínios",
-    "description": "Importe domínios do Unity Catalog para o Ontos ou exporte seus domínios para o Unity Catalog. O UC suporta dois níveis (domínios e subdomínios); domínios mais profundos são ignorados.",
+    "description": "Importe domínios do Unity Catalog para o Nucleus ou exporte seus domínios para o Unity Catalog. O UC suporta dois níveis (domínios e subdomínios); domínios mais profundos são ignorados.",
     "direction": {
       "title": "Direção",
       "description": "Em que sentido sincronizar",
       "importLabel": "Importar do Unity Catalog",
-      "importHint": "Criar/vincular domínios do Ontos a partir do UC",
+      "importHint": "Criar/vincular domínios do Nucleus a partir do UC",
       "exportLabel": "Exportar para o Unity Catalog",
-      "exportHint": "Publicar domínios do Ontos no UC"
+      "exportHint": "Publicar domínios do Nucleus no UC"
     },
     "target": {
       "importTitle": "Colocar em",
       "exportTitle": "Âncora",
-      "importHint": "Domínio do Ontos sob o qual colocar as raízes importadas do UC.",
+      "importHint": "Domínio do Nucleus sob o qual colocar as raízes importadas do UC.",
       "exportHint": "Seus filhos viram raízes no UC; os netos viram subdomínios.",
       "importTopLevel": "Nível superior (sem pai)",
       "exportTopLevel": "Domínios de nível superior"
@@ -185,8 +185,8 @@
     "panel": {
       "resultTitle": "Resultado da sincronização",
       "previewTitle": "Pré-visualização",
-      "importFlow": "Unity Catalog → Ontos",
-      "exportFlow": "Ontos → Unity Catalog"
+      "importFlow": "Unity Catalog → Nucleus",
+      "exportFlow": "Nucleus → Unity Catalog"
     },
     "emptyHint": "Escolha uma direção e clique em <b>Pré-visualizar</b> para ver o que mudaria.",
     "warnings": "Avisos",

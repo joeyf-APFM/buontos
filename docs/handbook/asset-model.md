@@ -4,15 +4,15 @@ A quick reference for the unified Asset entity and its ontology-driven type
 system. For the longer story behind why the ontology is prescriptive,
 see [Ontology and Knowledge Graph](ontology-and-knowledge-graph.md#prescriptive-principle).
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### What an Asset is {#what-is-an-asset}
 
-An **Asset** is the Ontos-side handle Ontos keeps for a governed "thing".
+An **Asset** is the Nucleus-side handle Nucleus keeps for a governed "thing".
 The thing might be a UC table, a UC view, a notebook, a model, a
 dashboard, a job, a pipeline, an API endpoint, a Power BI report — any
 named resource the organization wants to apply governance to. The Asset
-is the Ontos record; the thing itself lives in its native system.
+is the Nucleus record; the thing itself lives in its native system.
 
 Each Asset carries a name and description, a typed asset type (driven
 by the ontology), an optional domain, a platform, a location (the
@@ -22,7 +22,7 @@ on the Asset detail page.
 
 ### Ontology-driven Asset Types {#asset-types-ontology-driven}
 
-Asset types in Ontos are **not** a hardcoded list. They are derived
+Asset types in Nucleus are **not** a hardcoded list. They are derived
 from the ontology that ships with the deployment, per the
 [prescriptive-ontology principle](ontology-and-knowledge-graph.md#prescriptive-principle).
 
@@ -95,7 +95,7 @@ types to the unified model.
 
 ### Entity Relationships {#entity-relationships}
 
-Assets connect to each other — and to other Ontos entities — through
+Assets connect to each other — and to other Nucleus entities — through
 `EntityRelationshipDb` (`entity_relationships` table). The model is
 deliberately polymorphic:
 
@@ -132,6 +132,6 @@ through `/api/assets`.
 - [Ontology — prescriptive principle](ontology-and-knowledge-graph.md#prescriptive-principle)
 - [Semantic Link — the bridge from a concept to an asset](ontology-and-knowledge-graph.md#three-tier-linking)
 - [Data Product — Deliverable / Output Port](data-product-lifecycle.md#output-port) — output ports point at assets
-- [End-to-end Flow A — Step 1, "Bring an asset from UC into Ontos"](end-to-end-flows.md#step-a-1)
+- [End-to-end Flow A — Step 1, "Bring an asset from UC into Nucleus"](end-to-end-flows.md#step-a-1)
 
 _Last verified against codebase: 2026-05-28_

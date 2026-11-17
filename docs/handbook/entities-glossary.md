@@ -1,10 +1,10 @@
 # Entities Glossary
 
-One-paragraph definitions of every first-class entity in Ontos. Cross-links
+One-paragraph definitions of every first-class entity in Nucleus. Cross-links
 go to the appropriate lifecycle, concept, or role document for the longer
 story.
 
-## What you see in Ontos
+## What you see in Nucleus
 
 ### Organizational hierarchy {#organizational}
 
@@ -17,7 +17,7 @@ story.
   Stored in `teams` with `team_members` for membership. Teams can be
   the owner of a data product (`owner_team_id`) or contract. A team
   member may carry an `app_role_override` that elevates that user's
-  effective Ontos role for the lifetime of the membership.
+  effective Nucleus role for the lifetime of the membership.
 - **Project** {#project} — A bounded initiative under a team or domain.
   Projects scope data products and contracts (`project_id`). Workflows
   can also be scoped to projects via `ScopeType.PROJECT`.
@@ -164,9 +164,9 @@ story.
 ### Identity and access {#identity-access}
 
 - **User** {#user} — A caller identified by email and the groups
-  Ontos resolves for them at request time. See
+  Nucleus resolves for them at request time. See
   [roles-and-rbac.md](roles-and-rbac.md#identity-resolution).
-- **Role** {#role} — An Ontos role: a named bundle of feature →
+- **Role** {#role} — A Nucleus role: a named bundle of feature →
   access-level mappings, with a list of `assigned_groups`. The seeded
   roles are Admin, Data Governance Officer, Data Steward, Data
   Producer, Data Consumer, Security Officer. See
@@ -190,10 +190,10 @@ story.
 - **Workspace Admin** {#workspace-admin} — A user who is a member of
   a Databricks group listed in `APP_ADMIN_DEFAULT_GROUPS`. Granted
   admin treatment for cascade-bypass checks **independent of the
-  Ontos role system**. See
+  Nucleus role system**. See
   [roles-and-rbac.md](roles-and-rbac.md#workspace-admin-shortcut).
-- **Ontos Admin** {#ontos-admin} — A user resolved (via group or
-  email-as-group fallback) to an Ontos role that holds the `Admin`
+- **Nucleus Admin** {#ontos-admin} — A user resolved (via group or
+  email-as-group fallback) to a Nucleus role that holds the `Admin`
   level on the `Admin` row (or on the relevant feature). Distinct
   from Workspace Admin: a user can be one without the other.
 - **Subscription** {#subscription} — A consumer's registration to a
@@ -204,11 +204,11 @@ story.
 ### People (not seeded roles) {#people-personas}
 
 - **Knowledge Engineer / Data Architect** {#knowledge-engineer} —
-  Not a seeded Ontos role; the persona behind ontology authoring.
+  Not a seeded Nucleus role; the persona behind ontology authoring.
   Authors the ontology in OWL/TTL/SHACL externally and loads it into
-  Ontos. Decides what the canonical concepts are, how they relate,
-  and where SHACL constraints live. Ontos uses their ontology to
-  drive asset types, ground Ask Ontos, and feed agents via MCP. See
+  Nucleus. Decides what the canonical concepts are, how they relate,
+  and where SHACL constraints live. Nucleus uses their ontology to
+  drive asset types, ground Ask Nucleus, and feed agents via MCP. See
   [personas-quick-reference.md](personas-quick-reference.md#knowledge-engineer).
 
 ### Other {#other-entities}
@@ -223,7 +223,7 @@ story.
 - **Business Owner** {#business-owner} — A persisted business-side
   owner of an asset, separate from the technical team owner. Used by
   workflow approval steps that route to "business owners" for sign
-  off. In the current Ontos version, Business Owners and the
+  off. In the current Nucleus version, Business Owners and the
   team-based Owner surface are increasingly presented through a
   single consolidated Ownership panel on data product and contract
   detail pages, with provenance shown for imported (ODCS/ODPS)
@@ -231,7 +231,7 @@ story.
   exports for standards compliance.
 - **Business Role** {#business-role} — A configurable business-side
   role (e.g., "Head of Sales Analytics") that can be assigned to a
-  person and referenced by workflows. Distinct from Ontos's
+  person and referenced by workflows. Distinct from Nucleus's
   authorization roles.
 
 ## Under the hood

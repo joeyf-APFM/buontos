@@ -145,7 +145,7 @@ function DialogScene({ size, assistant, long, late, height, openerTooltip }: Dia
     <>
       {assistant && (
         <AssistantWindow
-          title="Ask Ontos"
+          title="Ask Nucleus"
           icon={null}
           closeLabel="Close assistant"
           onClose={() => {}}

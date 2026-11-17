@@ -128,7 +128,7 @@ def import_status(
             'params': {'status': original, 'mappedTo': 'active'},
             'message': (
                 f"'{original}' is not a status any more, so it was imported as 'active'. "
-                "Certification isn't imported: certify the entity in Ontos."
+                "Certification isn't imported: certify the entity in Nucleus."
             ),
         }
     legacy = _LEGACY_IMPORT_STATUSES.get(normalized)

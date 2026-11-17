@@ -10,7 +10,7 @@
  */
 
 /** Canonical fallback product name. Single source of truth for the client. */
-export const DEFAULT_APP_NAME = 'Ontos';
+export const DEFAULT_APP_NAME = 'Nucleus';
 
 /** Filesystem path of the shipped favicon, kept in sync with `index.html`. */
 const DEFAULT_FAVICON_HREF = '/ontos-logo.svg';

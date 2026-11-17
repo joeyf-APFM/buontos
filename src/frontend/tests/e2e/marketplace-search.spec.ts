@@ -318,13 +318,13 @@ test.describe('marketplace', () => {
 });
 
 test.describe('search', () => {
-  test('/search opens Ask Ontos; the kit header and tabs keep their slugs', async ({ page }) => {
+  test('/search opens Ask Nucleus; the kit header and tabs keep their slugs', async ({ page }) => {
     await setUp(page, '/search');
     await expect(page).toHaveURL(/\/search\/llm$/);
     const main = page.locator('main');
     const title = main.getByRole('heading', { level: 1, name: 'Search' });
     expect(await style(title, ['font-size', 'color'])).toEqual({ 'font-size': '16px', color: NAVY });
-    const tab = main.getByRole('tab', { name: 'Ask Ontos' });
+    const tab = main.getByRole('tab', { name: 'Ask Nucleus' });
     await expect(tab).toHaveAttribute('aria-selected', 'true');
     expect((await style(tab, ['font-size']))['font-size']).toBe('12px');
     await main.getByRole('tab', { name: 'Index Search' }).click();
@@ -332,7 +332,7 @@ test.describe('search', () => {
     await expect(main.getByRole('tabpanel', { name: 'Index Search' }).getByRole('region', { name: 'Index Search' })).toBeVisible();
   });
 
-  test('Ask Ontos with the LLM off shows its disabled state', async ({ page }) => {
+  test('Ask Nucleus with the LLM off shows its disabled state', async ({ page }) => {
     await setUp(page, '/search/llm', { '/api/llm-search/status': { enabled: false, disclaimer: '' } });
     const pane = page.locator('main').getByRole('region', { name: 'AI-Powered Search' });
     await expect(pane).toBeVisible();
@@ -386,7 +386,7 @@ test.describe('search', () => {
     await expect(composer).toHaveValue(LONG_MESSAGE);
   });
 
-  test('Ask Ontos status and session load failures show an Alert with Retry', async ({ page }) => {
+  test('Ask Nucleus status and session load failures show an Alert with Retry', async ({ page }) => {
     await consent(page);
     const heal = await failUntilHealed('/api/llm-search/status');
     await setUp(page, '/search/llm', llmEnabled);

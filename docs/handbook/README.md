@@ -1,20 +1,20 @@
-# Ontos Handbook (LLM Grounding Corpus)
+# Nucleus Handbook (LLM Grounding Corpus)
 
-These documents are **internal grounding material for the Ask Ontos copilot**,
+These documents are **internal grounding material for the Ask Nucleus copilot**,
 not user-facing product documentation. They define the canonical vocabulary,
 role model, lifecycle states, ontology stack, data-quality model, and
-end-to-end flows of Ontos so that a retrieval tool (`search_ontos_handbook`,
+end-to-end flows of Nucleus so that a retrieval tool (`search_ontos_handbook`,
 grep-style match) can return citable text fragments to the LLM at answer
 time.
 
 Naming note: this corpus used to be called "concepts", but "Concept" is
-already an Ontos ontology entity (an RDFS class / SKOS concept in the
+already a Nucleus ontology entity (an RDFS class / SKOS concept in the
 knowledge graph). To avoid overloading the noun in code, API surface,
 and docs, the LLM-grounding markdown corpus is "handbook".
 
 ## How to read this corpus {#how-to-read}
 
-If you are new to Ontos, start with
+If you are new to Nucleus, start with
 [end-to-end-flows.md](end-to-end-flows.md) — it walks the bottom-up and
 top-down flows that the rest of the corpus elaborates. Then read the
 [entities-glossary.md](entities-glossary.md) as a one-paragraph map of
@@ -75,7 +75,7 @@ Authoring rules for citation-ready sections:
    every paragraph, but every nameable thing. Aim for 10–20 anchors per
    file.
 3. Ground claims in source (managers, db models, enums). Mark anything
-   in flux as "in the current Ontos version" or "evolving".
+   in flux as "in the current Nucleus version" or "evolving".
 4. Include a Common Questions section if the doc covers something
    customers ask about repeatedly.
 5. Update the file list below.
@@ -85,19 +85,19 @@ Authoring rules for citation-ready sections:
 
 | File | Subject |
 |---|---|
-| [roles-and-rbac.md](roles-and-rbac.md) | Permission model (feature × access level), built-in roles, identity resolution, demo-mode override, per-execution authz, Ontos-admin vs workspace-admin |
+| [roles-and-rbac.md](roles-and-rbac.md) | Permission model (feature × access level), built-in roles, identity resolution, demo-mode override, per-execution authz, Nucleus-admin vs workspace-admin |
 | [data-product-lifecycle.md](data-product-lifecycle.md) | ODPS data product states, deliverables, consumables, delivery methods, consumer principals, version family, common questions |
 | [data-contract-lifecycle.md](data-contract-lifecycle.md) | ODCS v3.1.0 contract states, schema, quality definitions, editor-of-record framing, contracts-first vs products-first, version family, common questions |
 | [agreement-workflow.md](agreement-workflow.md) | Approval workflow runtime, agreement vs execution vs wizard session, approval gates, grant_permissions, webhook extras, common questions |
 | [ontology-and-knowledge-graph.md](ontology-and-knowledge-graph.md) | Ontology, knowledge graph, semantic links, glossary, three-tier linking, runtime graph, SPARQL, round-trip current state, common questions |
 | [asset-model.md](asset-model.md) | One-pager: unified Asset entity, ontology-driven AssetType, AssetTypeCategory, entity relationships, asset reviews |
 | [delivery-and-propagation.md](delivery-and-propagation.md) | Delivery Method vs Delivery Mode, Direct/Indirect/Manual modes, change-type taxonomy, concept→UC tag flow, integration with grant_permissions, common questions |
-| [mcp-and-ask-ontos.md](mcp-and-ask-ontos.md) | In-product Ask Ontos copilot (grounding, permissions, refusals) vs the external MCP server (tokens, scopes, JSON-RPC), common questions |
-| [genie-one-mcp-setup.md](genie-one-mcp-setup.md) | Step-by-step: connect Genie One (and other Databricks agents) to the Ontos MCP server via a single-credential Unity Catalog HTTP connection + keyless-default MCP token; notebook SDK setup, Genie UI steps, troubleshooting |
+| [mcp-and-ask-ontos.md](mcp-and-ask-ontos.md) | In-product Ask Nucleus copilot (grounding, permissions, refusals) vs the external MCP server (tokens, scopes, JSON-RPC), common questions |
+| [genie-one-mcp-setup.md](genie-one-mcp-setup.md) | Step-by-step: connect Genie One (and other Databricks agents) to the Nucleus MCP server via a single-credential Unity Catalog HTTP connection + keyless-default MCP token; notebook SDK setup, Genie UI steps, troubleshooting |
 | [data-quality.md](data-quality.md) | ODCS quality definitions, per-entity quality items, DQX end-to-end flow, source enums, surfacing, common questions |
 | [end-to-end-flows.md](end-to-end-flows.md) | Bottom-up flow (UC → product → contract → concept), top-down flow (ontology → assets → tags), where they meet, common questions |
 | [entities-glossary.md](entities-glossary.md) | One-paragraph definitions of every first-class entity |
 | [installation-and-troubleshooting.md](installation-and-troubleshooting.md) | Distribution channels (Marketplace vs Git), first-install prerequisites, update workflow, alembic discipline, common UI errors users hit (request-role prompt, 403s, scope-missing, grant_permissions, sync layout), common questions |
-| [personas-quick-reference.md](personas-quick-reference.md) | Plain-language persona framings, pages they touch, what they ask Ask Ontos |
+| [personas-quick-reference.md](personas-quick-reference.md) | Plain-language persona framings, pages they touch, what they ask Ask Nucleus |
 
 _Last verified against codebase: 2026-09-19_

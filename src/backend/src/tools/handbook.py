@@ -291,12 +291,12 @@ class SearchOntosHandbookTool(BaseTool):
     # see this tool.
     category = "handbook"
     description = (
-        "Search the Ontos handbook for definitions, role "
+        "Search the Nucleus handbook for definitions, role "
         "responsibilities, lifecycle states (data product / data contract "
         "/ agreement / workflow execution), the approval workflow, the "
         "ontology + knowledge graph model, the data quality model, "
         "delivery modes (Direct / Indirect / Manual), the MCP server vs "
-        "the Ask Ontos copilot, and other platform concepts. "
+        "the Ask Nucleus copilot, and other platform concepts. "
         "USE THIS TOOL FIRST for any 'what is X?' / 'how does Y work?' / "
         "'what's the difference between A and B?' question — do not "
         "answer conceptual questions from training knowledge before "

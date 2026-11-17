@@ -12,7 +12,7 @@ test.afterAll(async ({ request }) => {
 // ---------------------------------------------------------------------------
 // CUJ-5  Ask Ontos — Natural Language Querying
 // ---------------------------------------------------------------------------
-test.describe('CUJ-5 — Ask Ontos / Search', () => {
+test.describe('CUJ-5 — Ask Nucleus / Search', () => {
   test('search page loads and defaults to LLM tab', async ({ page }) => {
     await page.goto('/search')
     // The page should show the search interface with tabs

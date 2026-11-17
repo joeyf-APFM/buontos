@@ -22,7 +22,7 @@ vi.mock('@/components/ui/project-chooser', () => ({ ProjectChooser: () => null }
 vi.mock('@/components/common/language-selector', () => ({ LanguageSelector: () => null }));
 vi.mock('@/stores/ui-customization-store', () => ({
   useUICustomizationStore: (select: (s: { getShortName: () => string }) => unknown) =>
-    select({ getShortName: () => 'Ontos' }),
+    select({ getShortName: () => 'Nucleus' }),
 }));
 
 const STATUS = { enabled: true, endpoint: 'ep', disclaimer: 'Answers may be wrong.', adoption_mode: 'active' };
@@ -101,10 +101,10 @@ function renderShell(route = '/search') {
 }
 
 const strip = () => screen.getByRole('navigation', { name: 'Main menu' });
-const ontosButton = () => within(strip()).findByRole('button', { name: 'Ask Ontos' });
-const ontos = () => screen.queryByRole('dialog', { name: /Ask Ontos/ });
+const ontosButton = () => within(strip()).findByRole('button', { name: 'Ask Nucleus' });
+const ontos = () => screen.queryByRole('dialog', { name: /Ask Nucleus/ });
 const helix = () => screen.queryByRole('dialog', { name: /Helix/ });
-const input = () => within(ontos()!).getByRole('textbox', { name: 'Ask Ontos anything...' });
+const input = () => within(ontos()!).getByRole('textbox', { name: 'Ask Nucleus anything...' });
 
 function giveConsent() {
   localStorage.setItem('llm_consent_state', JSON.stringify({ accepted: true, timestamp: '', config_version: 'ep' }));
@@ -120,7 +120,7 @@ async function openOntos(user: ReturnType<typeof userEvent.setup>) {
   return ontos()!;
 }
 
-describe('Ask Ontos window', () => {
+describe('Ask Nucleus window', () => {
   beforeEach(() => {
     setViewport(1200, 800);
     localStorage.clear();
@@ -148,8 +148,8 @@ describe('Ask Ontos window', () => {
 
     const button = await ontosButton();
     const names = [...strip().querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Discover', 'Build', 'Ask Helix', 'Ask Ontos']);
-    expect(button).toHaveTextContent('Ontos');
+    expect(names).toEqual(['Discover', 'Build', 'Ask Helix', 'Ask Nucleus']);
+    expect(button).toHaveTextContent('Nucleus');
     expect(button).toHaveAttribute('aria-pressed', 'false');
 
     await user.click(button);
@@ -165,12 +165,12 @@ describe('Ask Ontos window', () => {
     expect(ontos()).toBeNull();
   });
 
-  it('is hidden when Ask Ontos is disabled or its status fails', async () => {
+  it('is hidden when Ask Nucleus is disabled or its status fails', async () => {
     const { fetchMock } = mockBackend({ status: { ...STATUS, enabled: false } });
     const { unmount } = renderShell();
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u) === '/api/llm-search/status')).toBe(true));
     await within(strip()).findByRole('button', { name: 'Ask Helix' });
-    expect(within(strip()).queryByRole('button', { name: 'Ask Ontos' })).toBeNull();
+    expect(within(strip()).queryByRole('button', { name: 'Ask Nucleus' })).toBeNull();
     unmount();
 
     useOntosStore.setState(ONTOS_DEFAULTS);
@@ -178,7 +178,7 @@ describe('Ask Ontos window', () => {
     renderShell();
     await within(strip()).findByRole('button', { name: 'Ask Helix' });
     await act(async () => {});
-    expect(within(strip()).queryByRole('button', { name: 'Ask Ontos' })).toBeNull();
+    expect(within(strip()).queryByRole('button', { name: 'Ask Nucleus' })).toBeNull();
   });
 
   it('closes Helix when it opens, and the reverse', async () => {
@@ -216,8 +216,8 @@ describe('Ask Ontos window', () => {
 
     await user.click(within(win).getByRole('button', { name: 'New Conversation' }));
     await user.click(within(win).getByRole('button', { name: /Asking about/ }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Ontos (general)' }));
-    expect(within(win).getByText('Ontos (general)')).toBeInTheDocument();
+    await user.click(await screen.findByRole('menuitem', { name: 'Nucleus (general)' }));
+    expect(within(win).getByText('Nucleus (general)')).toBeInTheDocument();
     await user.click(await within(win).findByRole('button', { name: PROMPT }));
 
     await waitFor(() => expect(chatBodies).toHaveLength(2));
@@ -239,7 +239,7 @@ describe('Ask Ontos window', () => {
     await waitFor(() => expect(chatBodies).toHaveLength(2));
     expect(chatBodies[1]).toMatchObject({ content: 'line one\nline two', session_id: 'sess-1' });
 
-    await user.click(within(ontos()!).getByRole('button', { name: 'Close Ask Ontos' }));
+    await user.click(within(ontos()!).getByRole('button', { name: 'Close Ask Nucleus' }));
     expect(ontos()).toBeNull();
     await openOntos(user);
     expect(within(ontos()!).getByText('First')).toBeInTheDocument();
@@ -352,9 +352,9 @@ describe('Ask Ontos window', () => {
     renderShell();
     const win = await openOntos(user);
 
-    expect(within(win).getByText('Welcome to Ask Ontos!')).toBeInTheDocument();
+    expect(within(win).getByText('Welcome to Ask Nucleus!')).toBeInTheDocument();
     await user.click(within(win).getByRole('button', { name: 'Dismiss' }));
-    expect(within(win).queryByText('Welcome to Ask Ontos!')).toBeNull();
+    expect(within(win).queryByText('Welcome to Ask Nucleus!')).toBeNull();
     expect(localStorage.getItem('copilot-welcome-dismissed')).toBe('true');
   });
 
@@ -364,7 +364,7 @@ describe('Ask Ontos window', () => {
     renderShell();
     const button = await ontosButton();
     const win = await openOntos(user);
-    const handle = within(win).getByRole('heading', { name: 'Ask Ontos' });
+    const handle = within(win).getByRole('heading', { name: 'Ask Nucleus' });
 
     fireEvent.pointerDown(handle, { clientX: 900, clientY: 300, pointerId: 1, button: 0 });
     fireEvent.pointerMove(window, { clientX: -5000, clientY: -5000, pointerId: 1 });
