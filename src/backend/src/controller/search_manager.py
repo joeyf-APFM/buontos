@@ -27,6 +27,11 @@ from src.controller.search_backend import create_backend, PostgresBackend
 from src.common.logging import get_logger
 logger = get_logger(__name__)
 
+# Help items are public documentation: they are visible to every caller regardless
+# of groups or feature permissions. Exempted by TYPE (not feature_id) because
+# deployed roles are stored in the DB and will not contain a "help" feature key.
+HELP_ITEM_TYPE = "help"
+
 
 @dataclass
 class SearchMatch:
@@ -222,20 +227,26 @@ class SearchManager:
                     match_quality=1.0,
                 ))
 
+        # Help items bypass permission filtering; everything else is filtered as before.
+        help_matches = [m for m in matches if m.item.type == HELP_ITEM_TYPE]
+        other_matches = [m for m in matches if m.item.type != HELP_ITEM_TYPE]
+
         # Filter based on permissions using AuthorizationManager
         if not user.groups:
-             logger.warning(f"User {user.username} has no groups, returning empty search results.")
-             return []
-             
-        filtered_matches: List[SearchMatch] = []
-        try:
-             effective_permissions = auth_manager.get_user_effective_permissions(user.groups, team_role_override)
-             for match in matches:
-                 if auth_manager.has_permission(effective_permissions, match.item.feature_id, FeatureAccessLevel.READ_ONLY):
-                     filtered_matches.append(match)
-        except Exception as e:
-            logger.error(f"Error checking permissions during search for user {user.username}: {e}", exc_info=True)
-            return []
+             logger.warning(f"User {user.username} has no groups, returning only help search results.")
+             permitted_matches: List[SearchMatch] = []
+        else:
+            try:
+                 effective_permissions = auth_manager.get_user_effective_permissions(user.groups, team_role_override)
+                 permitted_matches = [
+                     match for match in other_matches
+                     if auth_manager.has_permission(effective_permissions, match.item.feature_id, FeatureAccessLevel.READ_ONLY)
+                 ]
+            except Exception as e:
+                logger.error(f"Error checking permissions during search for user {user.username}: {e}", exc_info=True)
+                permitted_matches = []
+
+        filtered_matches: List[SearchMatch] = help_matches + permitted_matches
 
         # Sort results based on ranking configuration
         sorted_matches = self._sort_matches(filtered_matches, config)
@@ -266,20 +277,28 @@ class SearchManager:
         REST_CANDIDATE_LIMIT = 200
         candidates = self._backend.search_items(query, limit=REST_CANDIDATE_LIMIT)
 
+        permitted_candidates: List[SearchIndexItem] = []
         if not user.groups:
-            logger.warning(f"User {user.username} has no groups, returning empty search results.")
-            return []
-        try:
-            effective_permissions = auth_manager.get_user_effective_permissions(
-                user.groups, team_role_override
-            )
-        except Exception as e:
-            logger.error(f"Error checking permissions during search for user {user.username}: {e}", exc_info=True)
-            return []
+            logger.warning(f"User {user.username} has no groups, returning only help search results.")
+        else:
+            try:
+                effective_permissions = auth_manager.get_user_effective_permissions(
+                    user.groups, team_role_override
+                )
+                permitted_candidates = [
+                    item for item in candidates
+                    if item.type != HELP_ITEM_TYPE
+                    and auth_manager.has_permission(effective_permissions, item.feature_id, FeatureAccessLevel.READ_ONLY)
+                ]
+            except Exception as e:
+                logger.error(f"Error checking permissions during search for user {user.username}: {e}", exc_info=True)
+                permitted_candidates = []
 
+        permitted_ids = {id(item) for item in permitted_candidates}
+        # Keep the DB ranking order; help items are always kept.
         results = [
             item for item in candidates
-            if auth_manager.has_permission(effective_permissions, item.feature_id, FeatureAccessLevel.READ_ONLY)
+            if item.type == HELP_ITEM_TYPE or id(item) in permitted_ids
         ]
         results = self._apply_project_visibility(results, user)
         logger.info(

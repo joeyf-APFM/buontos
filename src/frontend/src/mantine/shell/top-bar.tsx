@@ -4,6 +4,7 @@ import { Anchor, Loader, Popover, TextInput, UnstyledButton } from '@mantine/cor
 import { useDebouncedValue } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
+import { HelpButton } from '@/mantine/help/help-button';
 import UserInfo from '@/components/ui/user-info';
 import NotificationBell from '@/components/ui/notification-bell';
 import { ProjectChooser } from '@/components/ui/project-chooser';
@@ -113,6 +114,7 @@ export function TopBar({ helixSlot }: TopBarProps) {
       <div className={classes.topEnd}>
         {helixSlot}
         <ProjectChooser />
+        <HelpButton />
         <NotificationBell />
         <LanguageSelector />
         <UserInfo />

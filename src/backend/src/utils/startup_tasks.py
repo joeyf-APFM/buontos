@@ -533,6 +533,13 @@ def initialize_managers(app: FastAPI):
         app.state.teams_manager = TeamsManager()
         app.state.projects_manager = ProjectsManager()
 
+        # Help articles (searchable asset; must precede the SearchManager step)
+        from src.controller.help_manager import HelpManager, resolve_help_extra_files
+        # The User Guide is indexed from the same registry that serves /api/docs
+        app.state.help_manager = HelpManager(
+            extra_files=resolve_help_extra_files(app.state.settings_manager)
+        )
+
         # Reference Data Managers
         from src.controller.assets_manager import AssetsManager
         from src.controller.business_roles_manager import BusinessRolesManager

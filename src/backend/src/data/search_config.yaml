@@ -218,6 +218,10 @@ asset_types:
         priority: 4
         boost: 1.0
 
+  help:
+    enabled: true
+    inherit_defaults: true
+
 # Result ranking behavior
 ranking:
   primary_sort: match_priority   # Sort by field priority first (title matches before description)

@@ -21,6 +21,7 @@ import settingsES from './locales/es/settings.json';
 import settingsNL from './locales/nl/settings.json';
 import settingsPT from './locales/pt/settings.json';
 import shellEN from './locales/en/shell.json';
+import helpEN from './locales/en/help.json';
 import assetExplorerEN from './locales/en/asset-explorer.json';
 import helixEN from './locales/en/helix.json';
 import ontosAssistantEN from './locales/en/ontos-assistant.json';
@@ -73,6 +74,8 @@ if (!(resources['en'] as any)['shell']) {
   (resources['en'] as any)['shell'] = shellEN as any;
 }
 if (!namespaces.includes('shell')) namespaces.push('shell');
+resources['en']['help'] ??= helpEN;
+if (!namespaces.includes('help')) namespaces.push('help');
 resources['en']['asset-explorer'] ??= assetExplorerEN;
 if (!namespaces.includes('asset-explorer')) namespaces.push('asset-explorer');
 resources['en']['helix'] ??= helixEN;

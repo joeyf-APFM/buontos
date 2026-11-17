@@ -64,8 +64,8 @@ class TestSearchManager:
         return UserInfo(
             username="testuser",
             email="test@example.com",
-            display_name="Test User",
-            active=True,
+            user="testuser",
+            ip="127.0.0.1",
             groups=["users", "data_consumers"],
         )
 
@@ -279,8 +279,8 @@ class TestSearchManager:
         user_no_groups = UserInfo(
             username="nogroups",
             email="nogroups@example.com",
-            display_name="No Groups User",
-            active=True,
+            user="nogroups",
+            ip="127.0.0.1",
             groups=[],
         )
 
@@ -315,3 +315,105 @@ class TestSearchManager:
         )
         assert len(results) >= 1
 
+
+
+class TestHelpItemVisibility:
+    """Help items (type 'help') are visible to every user; other types are unchanged."""
+
+    HELP = SearchIndexItem(
+        id="help::search", type="help", feature_id="help",
+        title="Searching Nucleus", description="How to use search widget",
+        link="/help/search", tags=[],
+    )
+    PRODUCT = SearchIndexItem(
+        id="dp-1", type="data-product", feature_id="data-products",
+        title="Search Product", description="A product about search widget",
+        link="/products/1", tags=[],
+    )
+
+    @pytest.fixture
+    def manager(self):
+        src = Mock()
+        src.__class__.__name__ = "MockManager"
+        src.get_search_index_items.return_value = [self.HELP, self.PRODUCT]
+        return SearchManager(searchable_managers=[src])
+
+    @pytest.fixture
+    def deny_auth(self):
+        auth = Mock()
+        auth.get_user_effective_permissions.return_value = {}
+        auth.has_permission.return_value = False
+        return auth
+
+    @pytest.fixture
+    def user(self):
+        return UserInfo(username="u", email="u@example.com", user="u", ip="127.0.0.1", groups=["users"])
+
+    @pytest.fixture
+    def user_no_groups(self):
+        return UserInfo(username="ng", email="ng@example.com", user="ng", ip="127.0.0.1", groups=[])
+
+    @staticmethod
+    def _use_postgres(manager):
+        backend = Mock()
+        backend.search_items.return_value = [TestHelpItemVisibility.PRODUCT, TestHelpItemVisibility.HELP]
+        manager._backend = backend
+        manager._uses_postgres = lambda: True
+
+    def test_help_items_visible_when_user_has_groups_but_no_permissions(self, manager, deny_auth, user):
+        results = manager.search("search", deny_auth, user)
+        assert [r.id for r in results] == ["help::search"]
+
+    def test_help_items_visible_to_user_with_no_groups(self, manager, deny_auth, user_no_groups):
+        results = manager.search("search", deny_auth, user_no_groups)
+        assert [r.id for r in results] == ["help::search"]
+
+    def test_help_items_visible_when_permission_lookup_raises(self, manager, user):
+        auth = Mock()
+        auth.get_user_effective_permissions.side_effect = Exception("boom")
+        results = manager.search("search", auth, user)
+        assert [r.id for r in results] == ["help::search"]
+
+    def test_non_help_items_still_filtered_as_before(self, manager, user):
+        auth = Mock()
+        auth.get_user_effective_permissions.return_value = {}
+        auth.has_permission.return_value = True
+        results = manager.search("search", auth, user)
+        assert {r.id for r in results} == {"help::search", "dp-1"}
+
+    def test_postgres_help_items_visible_with_groups_but_no_permissions(self, manager, deny_auth, user):
+        self._use_postgres(manager)
+        results = manager.search("search", deny_auth, user)
+        assert [r.id for r in results] == ["help::search"]
+
+    def test_postgres_help_items_visible_to_user_with_no_groups(self, manager, deny_auth, user_no_groups):
+        self._use_postgres(manager)
+        results = manager.search("search", deny_auth, user_no_groups)
+        assert [r.id for r in results] == ["help::search"]
+
+    def test_postgres_help_items_visible_when_permission_lookup_raises(self, manager, user):
+        self._use_postgres(manager)
+        auth = Mock()
+        auth.get_user_effective_permissions.side_effect = Exception("boom")
+        results = manager.search("search", auth, user)
+        assert [r.id for r in results] == ["help::search"]
+
+
+def test_help_title_match_outranks_help_description_match_with_real_config():
+    """Help titles must keep the inherited default title priority/boost (not be demoted)."""
+    from src.common.search_config_loader import get_search_config_loader
+    from src.controller import search_scoring
+
+    config = get_search_config_loader().load()
+    desc_only = SearchIndexItem(
+        id="help::desc", type="help", feature_id="help",
+        title="Getting started", description="Learn about zebra features",
+        link="/help/desc", tags=[],
+    )
+    title_hit = SearchIndexItem(
+        id="help::title", type="help", feature_id="help",
+        title="Zebra guide", description="Unrelated text",
+        link="/help/title", tags=[],
+    )
+    ranked = search_scoring.score_and_rank([desc_only, title_hit], "zebra", config)
+    assert [r.item.id for r in ranked][0] == "help::title"

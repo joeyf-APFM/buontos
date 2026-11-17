@@ -18,6 +18,8 @@ coverage.xml
 htmlcov/
 **/htmlcov/
 static/
+instructions/
+verify-fork.sh
 
 # misc
 .DS_Store

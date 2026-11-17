@@ -45,6 +45,7 @@ import DataCatalogDetails from './views/data-catalog-details';
 import CatalogCommander from './views/catalog-commander';
 import About from './views/about';
 import UserGuide from './views/user-guide';
+import HelpView from './views/help';
 import DocumentationViewer from './views/documentation-viewer';
 import DatabaseSchema from './views/database-schema';
 import NotFound from './views/not-found';
@@ -296,6 +297,8 @@ export default function App() {
               <Route path="/audit" element={<Navigate to="/settings/audit" replace />} />
               <Route path="/about" element={<About />} />
               <Route path="/user-guide" element={<UserGuide />} />
+              <Route path="/help" element={<HelpView />} />
+              <Route path="/help/:slug" element={<HelpView />} />
               <Route path="/database-schema" element={<DatabaseSchema />} />
               <Route path="/user-docs/:docName" element={<DocumentationViewer />} />
 
