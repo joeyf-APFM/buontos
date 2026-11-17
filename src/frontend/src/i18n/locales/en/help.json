@@ -9,5 +9,12 @@
     "browse": "Browse help",
     "viewAll": "View all help articles",
     "error": "Help is unavailable right now"
+  },
+  "page": {
+    "title": "Help",
+    "notFound": "Help article not found",
+    "backToHelp": "Back to help",
+    "goToScreen": "Go to this screen",
+    "toc": "On this page"
   }
 }
