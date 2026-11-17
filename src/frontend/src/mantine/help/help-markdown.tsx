@@ -1,45 +1,45 @@
 /**
  * Help articles as markdown, safely: no raw HTML, no images (alt text only),
- * external links in a new tab, in-app links via react-router. Headings h1-h4
- * get ids matching the backend section anchors.
+ * external links in a new tab, in-app links via react-router. The h1 is `overview` and
+ * h2s carry the backend section anchors.
  */
-import type { ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { Link } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
-import { createAnchorGenerator } from './help-slug';
+import { computeSectionAnchors } from './help-slug';
 
-function textOf(node: ReactNode): string {
-  if (node == null || typeof node === 'boolean') return '';
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(textOf).join('');
-  if (typeof node === 'object' && 'props' in node) return textOf((node.props as { children?: ReactNode }).children);
-  return '';
+const SAFE_ABSOLUTE = /^(https?:|mailto:)/i;
+
+/** Only http(s), mailto, same-document and root-relative (not `//`) URLs survive. */
+function safeUrl(url: string): string {
+  const u = url.trim();
+  if (u.startsWith('#')) return u;
+  if (u.startsWith('/')) return u.startsWith('//') ? '' : u;
+  return SAFE_ABSOLUTE.test(u) ? u : '';
 }
 
 export function HelpMarkdown({ text }: { text: string }) {
-  const nextAnchor = createAnchorGenerator();
-  const heading = (Tag: 'h1' | 'h2' | 'h3' | 'h4') =>
-    function Heading({ children }: { children?: ReactNode }) {
-      return <Tag id={nextAnchor(textOf(children))}>{children}</Tag>;
-    };
+  // Backend anchors exist for `##` sections only; the Nth rendered h2 takes
+  // the Nth anchor. Counter is per render so double renders stay deterministic.
+  const anchors = computeSectionAnchors(text);
+  let h2Index = 0;
   const components: Components = {
-    h1: heading('h1'),
-    h2: heading('h2'),
-    h3: heading('h3'),
-    h4: heading('h4'),
-    a: ({ href, children }) =>
-      href && (href.startsWith('/') || href.startsWith('#')) ? (
-        href.startsWith('/') ? <Link to={href}>{children}</Link> : <a href={href}>{children}</a>
-      ) : (
+    h1: ({ children }) => <h1 id="overview">{children}</h1>,
+    h2: ({ children }) => <h2 id={anchors[h2Index++]}>{children}</h2>,
+    a: ({ href, children }) => {
+      if (!href) return <span>{children}</span>;
+      if (href.startsWith('#')) return <a href={href}>{children}</a>;
+      if (href.startsWith('/')) return <Link to={href}>{children}</Link>;
+      return (
         <a href={href} target="_blank" rel="noopener noreferrer">
           {children}
         </a>
-      ),
+      );
+    },
     img: ({ alt }) => (alt ? <span>{alt}</span> : null),
   };
   return (
-    <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={components}>
+    <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={components} urlTransform={safeUrl}>
       {text}
     </ReactMarkdown>
   );

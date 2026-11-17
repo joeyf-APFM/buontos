@@ -1,15 +1,16 @@
-import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderWithMantine } from '@/test/utils';
+import { describe, expect, it } from 'vitest';
+import { renderWithMantine, userEvent } from '@/test/utils';
 import { HelpMarkdown } from './help-markdown';
 
 describe('HelpMarkdown', () => {
   it('renders_headings_with_matching_ids', () => {
-    renderWithMantine(<HelpMarkdown text={'# Guide\n\n## Setup\n\n### Setup\n\n#### Deep Dive\n'} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Guide' })).toHaveAttribute('id', 'guide');
-    const setups = screen.getAllByRole('heading', { name: 'Setup' });
-    expect(setups.map((h) => h.id)).toEqual(['setup', 'setup-2']);
-    expect(screen.getByRole('heading', { level: 4 })).toHaveAttribute('id', 'deep-dive');
+    const md = '# Setup\n\n### Setup\n\n## Setup\n\n#### Deep\n\n## [Docs](/x)\n\n## Setup\n';
+    renderWithMantine(<HelpMarkdown text={md} />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('id', 'overview');
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.id)).toEqual(['setup', 'docsx', 'setup-2']);
+    expect(screen.getByRole('heading', { level: 3 })).not.toHaveAttribute('id');
+    expect(screen.getByRole('heading', { level: 4 })).not.toHaveAttribute('id');
   });
 
   it('does_not_render_raw_html', () => {
@@ -22,9 +23,18 @@ describe('HelpMarkdown', () => {
   });
 
   it('internal_link_navigates_without_new_tab', async () => {
-    renderWithMantine(<HelpMarkdown text="[Domains](/domains)" />);
-    const link = screen.getByRole('link', { name: 'Domains' });
-    expect(link).toHaveAttribute('href', '/domains');
+    renderWithMantine(<HelpMarkdown text="[Go](/help/x)" />);
+    const link = screen.getByRole('link', { name: 'Go' });
+    expect(link).toHaveAttribute('href', '/help/x');
+    expect(link).not.toHaveAttribute('target');
+    await userEvent.click(link);
+    expect(window.location.pathname).toBe('/help/x');
+  });
+
+  it('hash_link_is_same_tab_anchor', () => {
+    renderWithMantine(<HelpMarkdown text="[Jump](#setup)" />);
+    const link = screen.getByRole('link', { name: 'Jump' });
+    expect(link).toHaveAttribute('href', '#setup');
     expect(link).not.toHaveAttribute('target');
   });
 
@@ -33,6 +43,16 @@ describe('HelpMarkdown', () => {
     const link = screen.getByRole('link', { name: 'Docs' });
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it.each([
+    ['javascript', '[x](javascript:alert(1))'],
+    ['data', '[x](data:text/html,<b>hi</b>)'],
+    ['protocol-relative', '[x](//evil.com)'],
+  ])('%s link renders as plain text', (_name, md) => {
+    renderWithMantine(<HelpMarkdown text={md} />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('x')).toBeInTheDocument();
   });
 
   it('images_render_alt_text_only', () => {
