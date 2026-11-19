@@ -23,8 +23,10 @@ vi.mock('@/stores/project-store', () => ({
   }),
 }));
 
-/** The dialog, once its teams (and the pickers' lists) have loaded. */
+/** The dialog, once its teams (and the pickers' lists) have loaded. Creating hides the status behind "Add details". */
 async function settled() {
+  const details = screen.queryByRole('button', { name: 'Add details' });
+  if (details) fireEvent.click(details);
   const status = await screen.findByRole('textbox', { name: /Status/ });
   await waitFor(() => expect(screen.getByRole('textbox', { name: /Owner Team/ })).toBeEnabled());
   return status;

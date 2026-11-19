@@ -46,7 +46,7 @@ describe('NAV', () => {
   it('points every item at a route in app.tsx', () => {
     const routes = routePaths(appSource);
     expect(routes.has('/settings/business-roles')).toBe(true); // the parser joins nested routes
-    // A query (New Contract's ?new=1) is not part of the route
+    // A query (Create Contract's ?new=1) is not part of the route
     const missing = allItems()
       .map((i) => i.path?.split('?')[0])
       .filter((p): p is string => !!p && !routes.has(p));
@@ -377,7 +377,7 @@ describe('Build → Concepts (Task 16c)', () => {
 });
 
 describe('Build → Data Contracts (Task 16c)', () => {
-  it('is a parent labelled Data Contracts, with Explorer (its default) and New Contract', () => {
+  it('is a parent labelled Data Contracts, with Explorer (its default) and Create Contract', () => {
     const contracts = buildItem('data-contracts');
     expect(contracts.labelKey).toBe('shell:items.dataContracts');
     expect(contracts.path).toBe('/data-contracts');
@@ -395,7 +395,7 @@ describe('Build → Data Contracts (Task 16c)', () => {
     expect(features['data-contracts'].name).toBe('Contracts');
   });
 
-  it('shows New Contract only with write access, as the page gates its create button', () => {
+  it('shows Create Contract only with write access, as the page gates its create button', () => {
     const children = (has: typeof reader) =>
       visibleNav(has).Build.flatMap((s) => s.items).find((i) => i.id === 'data-contracts')!.children!.map((c) => c.id);
     expect(children(reader)).toEqual(['contracts-explorer']);
@@ -459,7 +459,7 @@ describe('activeLocation (Task 16c)', () => {
     expect(activeLocation('/settings/directory')).toEqual({ group: 'Settings', itemId: 'directory' });
   });
 
-  it('finds New Contract only while ?new=1 is in the URL', () => {
+  it('finds Create Contract only while ?new=1 is in the URL', () => {
     expect(activeLocation('/data-contracts', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'new-contract' });
     expect(activeLocation('/data-contracts', '?status=draft')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });
     expect(activeLocation('/data-contracts/abc', '?new=1')).toEqual({ group: 'Build', itemId: 'data-contracts', childId: 'contracts-explorer' });

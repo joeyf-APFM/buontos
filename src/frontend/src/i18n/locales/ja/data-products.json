@@ -1056,7 +1056,9 @@
       "nameRequired": "製品名は必須です",
       "versionRequired": "バージョンは必須です",
       "statusRequired": "ステータスは必須です"
-    }
+    },
+    "addDetails": "詳細を追加",
+    "detailsSummary": "{{status}}、バージョン {{version}} で開始します。プロダクトタイプ、プロジェクト、テナント、タグ、コンシューマーグループは任意です。"
   },
   "createFromContract": {
     "title": "契約からデータ製品を作成",

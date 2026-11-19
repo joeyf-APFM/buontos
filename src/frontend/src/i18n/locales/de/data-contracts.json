@@ -571,7 +571,9 @@
     "tagsHint": "Fügen Sie Tags hinzu, um diesen Datenvertrag zu kategorisieren und zu organisieren",
     "discardDescription": "Sie haben nicht gespeicherte Änderungen, die verloren gehen, wenn Sie diesen Dialog schließen. Möchten Sie sie wirklich verwerfen?",
     "continueEditing": "Weiter bearbeiten",
-    "discardChanges": "Änderungen verwerfen"
+    "discardChanges": "Änderungen verwerfen",
+    "addDetails": "Details hinzufügen",
+    "detailsSummary": "Startet als {{status}}, Version {{version}}. Projekt, Mandant, Verwendung, Einschränkungen und Tags sind optional."
   },
   "wizard": {
     "title": "Datenvertrags-Assistent",

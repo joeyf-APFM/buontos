@@ -74,6 +74,13 @@ async function optionNames(user: ReturnType<typeof userEvent.setup>, field: HTML
   return names;
 }
 
+/** Creating hides the optional fields behind "Add details". */
+async function openDetails(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await user.click(within(dialog).getByRole('button', { name: 'Add details' }));
+  // The collapse opens on the next animation frame
+  await within(dialog).findByRole('textbox', { name: /Version/ });
+}
+
 function renderDialog(props: Partial<Parameters<typeof DataProductCreateDialog>[0]> = {}) {
   const onOpenChange = vi.fn();
   const onSuccess = vi.fn();
@@ -87,14 +94,22 @@ describe('data product create dialog on the kit Dialog', () => {
   it('data product create dialog keeps every field', async () => {
     const user = userEvent.setup();
     renderDialog();
-    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product' });
     expect(dialog).toHaveClass('mantine-Modal-content', dialogKit.content);
-    expect(dialog).toHaveAccessibleDescription(/Create a new data product with essential information/);
+    expect(dialog).toHaveAccessibleDescription(/Name it, choose the team that owns it/);
 
     expect(within(dialog).getByRole('textbox', { name: /Product Name/ })).toHaveValue('');
+    expect(within(dialog).getByRole('textbox', { name: /Purpose/ })).toHaveProperty('tagName', 'TEXTAREA');
+    // Only what a new product needs is shown; the rest waits behind "Add details", with what it starts as
+    const toggle = within(dialog).getByRole('button', { name: 'Add details' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(within(dialog).getByText(/Starts as Draft, version 0\.0\.1/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole('textbox', { name: /Version/ })).toBeNull();
+    await openDetails(user, dialog);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(within(dialog).getByRole('textbox', { name: /Version/ })).toHaveValue('0.0.1');
     expect(within(dialog).getByRole('textbox', { name: 'Tenant/Organization' })).toBeInTheDocument();
-    for (const name of ['Purpose', 'Limitations', 'Usage']) {
+    for (const name of ['Limitations', 'Usage']) {
       expect(within(dialog).getByRole('textbox', { name })).toHaveProperty('tagName', 'TEXTAREA');
     }
 
@@ -119,12 +134,13 @@ describe('data product create dialog on the kit Dialog', () => {
   it('data product create dialog validates, then posts the product', async () => {
     const user = userEvent.setup();
     const { onSuccess, onOpenChange } = renderDialog();
-    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product' });
     await user.click(within(dialog).getByRole('button', { name: 'Create Product' }));
     expect(await within(dialog).findByText('Product name is required')).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: /Product Name/ })).toHaveAttribute('aria-invalid', 'true');
 
     await user.type(within(dialog).getByRole('textbox', { name: /Product Name/ }), 'Orders');
+    await openDetails(user, dialog);
     await user.click(selectField(dialog, /Product Type/));
     await user.click(await screen.findByRole('option', { name: 'Aggregate', hidden: true }));
     await user.click(within(dialog).getByRole('button', { name: 'Create Product' }));
@@ -151,7 +167,8 @@ describe('data product create dialog on the kit Dialog', () => {
   it('data product create dialog asks before discarding a change made only in a Select', async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();
-    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product' });
+    await openDetails(user, dialog);
     await user.click(selectField(dialog, /Product Type/));
     await user.click(await screen.findByRole('option', { name: 'Aggregate', hidden: true }));
 
@@ -159,7 +176,7 @@ describe('data product create dialog on the kit Dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     const confirm = await screen.findByRole('alertdialog', { name: 'Discard unsaved changes?' });
     expect(confirm).toHaveClass(dialogKit.content);
-    expect(screen.getByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Create Data Product' })).toBeInTheDocument();
     expect(onOpenChange).not.toHaveBeenCalled();
 
     // Escape closes only the confirm
@@ -183,7 +200,7 @@ describe('data product create dialog on the kit Dialog', () => {
   it('data product create dialog asks before discarding a typed name, on the first close', async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();
-    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product' });
     await user.type(within(dialog).getByRole('textbox', { name: /Product Name/ }), 'Orders');
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByRole('alertdialog', { name: 'Discard unsaved changes?' })).toBeInTheDocument();
@@ -193,7 +210,7 @@ describe('data product create dialog on the kit Dialog', () => {
   it('data product create dialog closes from Cancel, Escape and the corner close', async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();
-    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Create Data Product' });
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     onOpenChange.mockClear();

@@ -571,7 +571,9 @@
     "tagsHint": "Voeg tags toe om dit datacontract te categoriseren en te ordenen",
     "discardDescription": "U hebt niet-opgeslagen wijzigingen die verloren gaan als u dit dialoogvenster sluit. Weet u zeker dat u ze wilt verwerpen?",
     "continueEditing": "Doorgaan met bewerken",
-    "discardChanges": "Wijzigingen verwerpen"
+    "discardChanges": "Wijzigingen verwerpen",
+    "addDetails": "Details toevoegen",
+    "detailsSummary": "Begint als {{status}}, versie {{version}}. Project, tenant, gebruik, beperkingen en tags zijn optioneel."
   },
   "wizard": {
     "title": "Datacontract-wizard",

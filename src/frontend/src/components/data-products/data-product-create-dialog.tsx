@@ -15,6 +15,7 @@ import TagSelector from '@/components/ui/tag-selector';
 import { ConsumerGroupsPicker } from '@/components/data-products/consumer-groups-picker';
 import { useProjectContext } from '@/stores/project-store';
 import { apiErrorOf, statusChangeErrorText } from '@/lib/status-change-error';
+import { FormMoreDetails } from '@/components/common/form-more-details';
 import classes from './data-product-create-dialog.module.css';
 
 /**
@@ -80,6 +81,8 @@ export default function DataProductCreateDialog({
   const { currentProject, availableProjects, isLoading: projectsLoading, fetchUserProjects } = useProjectContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // Creating shows only what a new product needs; the rest sits behind "Add details"
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const formId = useId();
 
   const dataProductCreateSchema = useMemo(() => buildDataProductCreateSchema(t), [t]);
@@ -114,6 +117,7 @@ export default function DataProductCreateDialog({
   // Reset or populate form when dialog opens
   useEffect(() => {
     if (open) {
+      setDetailsOpen(false);
       if (mode === 'edit' && product) {
         // Populate form with existing product data
         const productType = product.customProperties?.find(p => p.property === 'productType')?.value as any;
@@ -352,10 +356,154 @@ export default function DataProductCreateDialog({
   );
 
   const { errors } = form.formState;
+  const isEdit = mode === 'edit';
+  // An error in a hidden field must not stay hidden
+  const hiddenFieldError = Boolean(errors.version || errors.status);
+  useEffect(() => {
+    if (hiddenFieldError) setDetailsOpen(true);
+  }, [hiddenFieldError]);
   const fieldClassNames = { label: classes.label, error: classes.error, description: classes.hint };
   const selectClassNames = { ...fieldClassNames, option: classes.option };
   // Hints sit under their field, as before
   const hintBelow = ['label', 'input', 'description', 'error'] as ('label' | 'input' | 'description' | 'error')[];
+
+  // The fields beyond what a new product needs: behind "Add details" when creating, always shown when editing
+  const detailsFields = (
+    <>
+      <div className={classes.row}>
+        <TextInput
+          id="version"
+          {...form.register('version')}
+          label={t('data-products:form.version')}
+          withAsterisk
+          placeholder={t('data-products:createDialog.versionPlaceholder')}
+          error={errors.version?.message}
+          classNames={fieldClassNames}
+        />
+
+        <Select
+          id="status"
+          label={t('data-products:form.status')}
+          withAsterisk
+          data={statusOptions}
+          value={form.watch('status')}
+          onChange={(value) => value && form.setValue('status', value, { shouldDirty: true })}
+          allowDeselect={false}
+          disabled={mode === 'edit'}
+          description={mode === 'edit' ? t('data-products:form.statusChangeHint') : undefined}
+          inputWrapperOrder={hintBelow}
+          error={errors.status?.message}
+          classNames={selectClassNames}
+        />
+      </div>
+
+      <Select
+        id="productType"
+        label={t('data-products:createDialog.productTypeLabel')}
+        placeholder={t('data-products:createDialog.productTypePlaceholder')}
+        data={typeOptions}
+        value={form.watch('productType') ?? null}
+        onChange={(value) => value && form.setValue('productType', value as FormData['productType'], { shouldDirty: true })}
+        allowDeselect={false}
+        description={t('data-products:createDialog.productTypeHint')}
+        inputWrapperOrder={hintBelow}
+        classNames={selectClassNames}
+      />
+
+      <Select
+        id="projectId"
+        label={t('data-products:createDialog.projectLabel')}
+        placeholder={t('data-products:createDialog.selectProjectPlaceholder')}
+        data={projectOptions}
+        value={form.watch('projectId') || NO_PROJECT}
+        onChange={(value) => value && form.setValue('projectId', value === NO_PROJECT ? '' : value, { shouldDirty: true })}
+        allowDeselect={false}
+        disabled={projectsLoading}
+        description={t('data-products:createDialog.projectMemberHint')}
+        inputWrapperOrder={hintBelow}
+        classNames={selectClassNames}
+      />
+
+      <TextInput
+        id="tenant"
+        {...form.register('tenant')}
+        label={t('data-products:createDialog.tenantLabel')}
+        placeholder={t('data-products:createDialog.tenantPlaceholder')}
+        classNames={fieldClassNames}
+      />
+
+    <Textarea
+      id="limitations"
+      {...form.register('limitations')}
+      label={t('data-products:createDialog.limitationsLabel')}
+      placeholder={t('data-products:createDialog.limitationsPlaceholder')}
+      autosize
+      minRows={2}
+      maxRows={8}
+      classNames={fieldClassNames}
+    />
+
+    <Textarea
+      id="usage"
+      {...form.register('usage')}
+      label={t('data-products:form.usage')}
+      placeholder={t('data-products:createDialog.usagePlaceholder')}
+      autosize
+      minRows={2}
+      maxRows={8}
+      classNames={fieldClassNames}
+    />
+
+      {/* Tags Section */}
+      <section className={classes.section}>
+        <Input.Wrapper
+          label={t('data-products:form.tags')}
+          labelElement="div"
+          description={t('data-products:createDialog.tagsHint')}
+          inputWrapperOrder={hintBelow}
+          classNames={fieldClassNames}
+        >
+          <Controller
+            name="tags"
+            control={form.control}
+            render={({ field }) => (
+              <TagSelector
+                value={field.value || []}
+                onChange={field.onChange}
+                placeholder={t('data-products:createDialog.tagsPlaceholder')}
+                allowCreate={true}
+              />
+            )}
+          />
+        </Input.Wrapper>
+      </section>
+
+      {/* Consumer Groups Section */}
+      <section className={classes.section}>
+        <Input.Wrapper
+          label={t('data-products:createDialog.consumerGroupsLabel')}
+          labelElement="div"
+          description={
+            <>
+              {t('data-products:form.sections.consumerGroupsDescriptionPart1')}<code className={classes.code}>{'{'}type: "group", value: "..."{'}'}</code>{t('data-products:form.sections.consumerGroupsDescriptionPart2')}<code className={classes.code}>${'{'}entity.consumer_principals{'}'}</code>.
+            </>
+          }
+          classNames={fieldClassNames}
+        >
+          <Controller
+            name="consumer_principals"
+            control={form.control}
+            render={({ field }) => (
+              <ConsumerGroupsPicker
+                value={field.value || []}
+                onChange={(next: ConsumerPrincipal[]) => field.onChange(next)}
+              />
+            )}
+          />
+        </Input.Wrapper>
+      </section>
+    </>
+  );
 
   return (
     <>
@@ -400,193 +548,62 @@ export default function DataProductCreateDialog({
             data-autofocus
           />
 
-          <div className={classes.row}>
-            <TextInput
-              id="version"
-              {...form.register('version')}
-              label={t('data-products:form.version')}
-              withAsterisk
-              placeholder={t('data-products:createDialog.versionPlaceholder')}
-              error={errors.version?.message}
-              classNames={fieldClassNames}
-            />
-
-            <Select
-              id="status"
-              label={t('data-products:form.status')}
-              withAsterisk
-              data={statusOptions}
-              value={form.watch('status')}
-              onChange={(value) => value && form.setValue('status', value, { shouldDirty: true })}
-              allowDeselect={false}
-              disabled={mode === 'edit'}
-              description={mode === 'edit' ? t('data-products:form.statusChangeHint') : undefined}
-              inputWrapperOrder={hintBelow}
-              error={errors.status?.message}
-              classNames={selectClassNames}
-            />
-          </div>
-
-          {/* Product Type & Owner Team */}
-          <div className={classes.row}>
-            <Select
-              id="productType"
-              label={t('data-products:createDialog.productTypeLabel')}
-              placeholder={t('data-products:createDialog.productTypePlaceholder')}
-              data={typeOptions}
-              value={form.watch('productType') ?? null}
-              onChange={(value) => value && form.setValue('productType', value as FormData['productType'], { shouldDirty: true })}
-              allowDeselect={false}
-              description={t('data-products:createDialog.productTypeHint')}
-              inputWrapperOrder={hintBelow}
-              classNames={selectClassNames}
-            />
-
-            <Select
-              id="ownerTeamId"
-              label={t('data-products:form.ownerTeam')}
-              placeholder={teamsLoading
-                ? t('data-products:createDialog.loadingTeams')
-                : t('data-products:createDialog.selectTeamPlaceholder')}
-              data={teamsLoading ? [] : teamOptions}
-              value={form.watch('ownerTeamId') || null}
-              onChange={(value) => value && form.setValue('ownerTeamId', value, { shouldDirty: true })}
-              allowDeselect={false}
-              disabled={teamsLoading}
-              description={t('data-products:createDialog.ownerTeamHint')}
-              inputWrapperOrder={hintBelow}
-              classNames={selectClassNames}
-            />
-          </div>
-
-          {/* Project Field */}
           <Select
-            id="projectId"
-            label={t('data-products:createDialog.projectLabel')}
-            placeholder={t('data-products:createDialog.selectProjectPlaceholder')}
-            data={projectOptions}
-            value={form.watch('projectId') || NO_PROJECT}
-            onChange={(value) => value && form.setValue('projectId', value === NO_PROJECT ? '' : value, { shouldDirty: true })}
+            id="ownerTeamId"
+            label={t('data-products:form.ownerTeam')}
+            placeholder={teamsLoading
+              ? t('data-products:createDialog.loadingTeams')
+              : t('data-products:createDialog.selectTeamPlaceholder')}
+            data={teamsLoading ? [] : teamOptions}
+            value={form.watch('ownerTeamId') || null}
+            onChange={(value) => value && form.setValue('ownerTeamId', value, { shouldDirty: true })}
             allowDeselect={false}
-            disabled={projectsLoading}
-            description={t('data-products:createDialog.projectMemberHint')}
+            disabled={teamsLoading}
+            description={t('data-products:createDialog.ownerTeamHint')}
             inputWrapperOrder={hintBelow}
             classNames={selectClassNames}
           />
 
-          {/* Optional Fields */}
-          <div className={classes.row}>
-            <Input.Wrapper
-              label={t('data-products:createDialog.domainsLabel')}
-              labelElement="div"
-              classNames={fieldClassNames}
+          <Input.Wrapper
+            label={t('data-products:createDialog.domainsLabel')}
+            labelElement="div"
+            classNames={fieldClassNames}
+          >
+            <DomainMultiSelector
+              value={form.watch('domain_ids') || []}
+              primaryDomainId={form.watch('primary_domain_id')}
+              onChange={(domainIds, primaryDomainId) => {
+                form.setValue('domain_ids', domainIds, { shouldDirty: true });
+                form.setValue('primary_domain_id', primaryDomainId, { shouldDirty: true });
+              }}
+              placeholder={t('data-products:createDialog.domainsPlaceholder')}
+            />
+          </Input.Wrapper>
+
+          <Textarea
+            id="purpose"
+            {...form.register('purpose')}
+            label={t('data-products:form.purpose')}
+            placeholder={t('data-products:createDialog.purposePlaceholder')}
+            autosize
+            minRows={2}
+            maxRows={8}
+            classNames={fieldClassNames}
+          />
+
+          {isEdit ? detailsFields : (
+            <FormMoreDetails
+              opened={detailsOpen}
+              onToggle={() => setDetailsOpen((o) => !o)}
+              label={t('data-products:createDialog.addDetails')}
+              summary={t('data-products:createDialog.detailsSummary', {
+                status: statusOptions.find((o) => o.value === form.watch('status'))?.label ?? form.watch('status'),
+                version: form.watch('version'),
+              })}
             >
-              <DomainMultiSelector
-                value={form.watch('domain_ids') || []}
-                primaryDomainId={form.watch('primary_domain_id')}
-                onChange={(domainIds, primaryDomainId) => {
-                  form.setValue('domain_ids', domainIds, { shouldDirty: true });
-                  form.setValue('primary_domain_id', primaryDomainId, { shouldDirty: true });
-                }}
-                placeholder={t('data-products:createDialog.domainsPlaceholder')}
-              />
-            </Input.Wrapper>
-
-            <TextInput
-              id="tenant"
-              {...form.register('tenant')}
-              label={t('data-products:createDialog.tenantLabel')}
-              placeholder={t('data-products:createDialog.tenantPlaceholder')}
-              classNames={fieldClassNames}
-            />
-          </div>
-
-          {/* Structured Description */}
-          <section className={classes.section}>
-            <h3 className={classes.sectionTitle}>{t('data-products:createDialog.descriptionSectionTitle')}</h3>
-
-            <Textarea
-              id="purpose"
-              {...form.register('purpose')}
-              label={t('data-products:form.purpose')}
-              placeholder={t('data-products:createDialog.purposePlaceholder')}
-              autosize
-              minRows={2}
-              maxRows={8}
-              classNames={fieldClassNames}
-            />
-
-            <Textarea
-              id="limitations"
-              {...form.register('limitations')}
-              label={t('data-products:createDialog.limitationsLabel')}
-              placeholder={t('data-products:createDialog.limitationsPlaceholder')}
-              autosize
-              minRows={2}
-              maxRows={8}
-              classNames={fieldClassNames}
-            />
-
-            <Textarea
-              id="usage"
-              {...form.register('usage')}
-              label={t('data-products:form.usage')}
-              placeholder={t('data-products:createDialog.usagePlaceholder')}
-              autosize
-              minRows={2}
-              maxRows={8}
-              classNames={fieldClassNames}
-            />
-          </section>
-
-          {/* Tags Section */}
-          <section className={classes.section}>
-            <Input.Wrapper
-              label={t('data-products:form.tags')}
-              labelElement="div"
-              description={t('data-products:createDialog.tagsHint')}
-              inputWrapperOrder={hintBelow}
-              classNames={fieldClassNames}
-            >
-              <Controller
-                name="tags"
-                control={form.control}
-                render={({ field }) => (
-                  <TagSelector
-                    value={field.value || []}
-                    onChange={field.onChange}
-                    placeholder={t('data-products:createDialog.tagsPlaceholder')}
-                    allowCreate={true}
-                  />
-                )}
-              />
-            </Input.Wrapper>
-          </section>
-
-          {/* Consumer Groups Section */}
-          <section className={classes.section}>
-            <Input.Wrapper
-              label={t('data-products:createDialog.consumerGroupsLabel')}
-              labelElement="div"
-              description={
-                <>
-                  {t('data-products:form.sections.consumerGroupsDescriptionPart1')}<code className={classes.code}>{'{'}type: "group", value: "..."{'}'}</code>{t('data-products:form.sections.consumerGroupsDescriptionPart2')}<code className={classes.code}>${'{'}entity.consumer_principals{'}'}</code>.
-                </>
-              }
-              classNames={fieldClassNames}
-            >
-              <Controller
-                name="consumer_principals"
-                control={form.control}
-                render={({ field }) => (
-                  <ConsumerGroupsPicker
-                    value={field.value || []}
-                    onChange={(next: ConsumerPrincipal[]) => field.onChange(next)}
-                  />
-                )}
-              />
-            </Input.Wrapper>
-          </section>
+              {detailsFields}
+            </FormMoreDetails>
+          )}
         </form>
       </Dialog>
 

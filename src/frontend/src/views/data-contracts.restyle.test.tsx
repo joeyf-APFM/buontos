@@ -146,7 +146,7 @@ describe('data contracts on the page kit', () => {
     await loaded();
 
     expect(sorted(names(screen.getAllByRole('button', { hidden: true })))).toEqual(sorted([
-      'Columns', 'New Contract', 'Upload File', ...HEADERS, '3 versions',
+      'Columns', 'Create Contract', 'Upload File', ...HEADERS, '3 versions',
       'Preview Metadata', 'Edit', 'Delete', 'Preview Metadata', 'Edit', 'Delete', ...PAGER,
     ]));
     expect(screen.getByRole('switch', { name: 'Show all versions' })).not.toBeChecked();
@@ -187,7 +187,7 @@ describe('data contracts on the page kit', () => {
       'Columns', ...HEADERS, '3 versions',
       'Preview Metadata', 'Edit', 'Delete', 'Preview Metadata', 'Edit', 'Delete', ...PAGER,
     ]));
-    expect(screen.queryByRole('button', { name: 'New Contract' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create Contract' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Upload File' })).toBeNull();
     expect(screen.getByRole('switch', { name: 'Show all versions' })).toBeEnabled();
   });
@@ -244,7 +244,7 @@ describe('data contracts on the page kit', () => {
     const user = userEvent.setup();
     const { unmount } = renderPage();
     expect(await screen.findByText('No results.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New Contract' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Create Contract' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Upload File' })).toBeEnabled();
     expect(screen.getByRole('switch', { name: 'Show all versions' })).toBeEnabled();
     unmount();
@@ -256,7 +256,7 @@ describe('data contracts on the page kit', () => {
     const alert = await within(await screen.findByRole('region', { name: 'Data contract list' })).findByRole('alert');
     expect(alert).toHaveTextContent('Failed to fetch data contracts');
     expect(alert).toHaveClass('mantine-Alert-root');
-    expect(screen.getByRole('button', { name: 'New Contract' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Create Contract' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Upload File' })).toBeEnabled();
 
     // Retry loads again; a good answer clears the error
@@ -267,8 +267,8 @@ describe('data contracts on the page kit', () => {
     expect(calls('GET', '/api/data-contracts')).toHaveLength(1);
 
     // Create still opens its dialog
-    await user.click(screen.getByRole('button', { name: 'New Contract' }));
-    expect(await screen.findByRole('dialog', { name: 'Create New Data Contract' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Create Contract' }));
+    expect(await screen.findByRole('dialog', { name: 'Create Data Contract' })).toBeInTheDocument();
   });
 
   it('data contracts: a failed delete shows a dismissible error', async () => {

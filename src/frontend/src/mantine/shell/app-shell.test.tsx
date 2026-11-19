@@ -517,11 +517,11 @@ describe('the side menu (Task 16c)', () => {
       }
     });
 
-    it('highlights New Contract while ?new=1 is in the URL', () => {
+    it('highlights Create Contract while ?new=1 is in the URL', () => {
       renderShell('/data-contracts?new=1');
       openPinned('Build');
-      expect(highlighted(panelOf('Build')!)).toEqual(['New Contract']);
-      expect(within(panelOf('Build')!).getByRole('link', { name: 'New Contract' })).toHaveAttribute('href', '/data-contracts?new=1');
+      expect(highlighted(panelOf('Build')!)).toEqual(['Create Contract']);
+      expect(within(panelOf('Build')!).getByRole('link', { name: 'Create Contract' })).toHaveAttribute('href', '/data-contracts?new=1');
     });
 
     it('highlights Workflows alone on its page', () => {
@@ -537,19 +537,19 @@ describe('the side menu (Task 16c)', () => {
   });
 
   describe('Build → Data Contracts', () => {
-    it('offers New Contract to a user who can create contracts', () => {
+    it('offers Create Contract to a user who can create contracts', () => {
       renderShell('/data-contracts');
       openPinned('Build');
-      expect(within(panelOf('Build')!).getByRole('link', { name: 'New Contract' })).toBeInTheDocument();
+      expect(within(panelOf('Build')!).getByRole('link', { name: 'Create Contract' })).toBeInTheDocument();
     });
 
-    it('hides New Contract from a user who can only read contracts', () => {
+    it('hides Create Contract from a user who can only read contracts', () => {
       usePermissionsStore.setState({ permissions: { 'data-contracts': FeatureAccessLevel.READ_ONLY } });
       renderShell('/data-contracts');
       openPinned('Build');
       const build = panelOf('Build')!;
       expect(within(build).getByRole('link', { name: 'Explorer' })).toBeInTheDocument();
-      expect(within(build).queryByRole('link', { name: 'New Contract' })).toBeNull();
+      expect(within(build).queryByRole('link', { name: 'Create Contract' })).toBeNull();
     });
   });
 
@@ -722,12 +722,12 @@ describe('the side menu (Task 16c)', () => {
       expect(window.history.state?.usr).toEqual({ nav: 'menu', navGroup: 'Workflows' });
     });
 
-    it('closes an unpinned panel after New Contract, which changes only the search', async () => {
+    it('closes an unpinned panel after Create Contract, which changes only the search', async () => {
       useShellStore.setState({ pinned: false });
       const user = userEvent.setup();
       renderShell('/data-contracts');
       await user.click(within(strip()).getByRole('button', { name: 'Build' }));
-      await user.click(within(panelOf('Build')!).getByRole('link', { name: 'New Contract' }));
+      await user.click(within(panelOf('Build')!).getByRole('link', { name: 'Create Contract' }));
 
       expect(window.location.search).toBe('?new=1');
       expect(panelOf('Build')).toBeNull();

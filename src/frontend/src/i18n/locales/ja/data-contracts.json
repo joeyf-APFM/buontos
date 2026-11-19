@@ -571,7 +571,9 @@
     "tagsHint": "タグを追加してこのデータコントラクトを分類・整理します",
     "discardDescription": "このダイアログを閉じると失われる未保存の変更があります。破棄してもよろしいですか？",
     "continueEditing": "編集を続ける",
-    "discardChanges": "変更を破棄"
+    "discardChanges": "変更を破棄",
+    "addDetails": "詳細を追加",
+    "detailsSummary": "{{status}}、バージョン {{version}} で開始します。プロジェクト、テナント、用途、制限事項、タグは任意です。"
   },
   "wizard": {
     "title": "データコントラクトウィザード",

@@ -571,7 +571,9 @@
     "tagsHint": "Ajoutez des tags pour catégoriser et organiser ce contrat de données",
     "discardDescription": "Vous avez des modifications non enregistrées qui seront perdues si vous fermez cette boîte de dialogue. Êtes-vous sûr de vouloir les abandonner ?",
     "continueEditing": "Continuer la modification",
-    "discardChanges": "Abandonner les modifications"
+    "discardChanges": "Abandonner les modifications",
+    "addDetails": "Ajouter des détails",
+    "detailsSummary": "Démarre en {{status}}, version {{version}}. Projet, locataire, usage, limites et étiquettes sont facultatifs."
   },
   "wizard": {
     "title": "Assistant de contrat de données",

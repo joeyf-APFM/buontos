@@ -1016,7 +1016,7 @@
   },
   "createDialog": {
     "editTitle": "Modifica metadati del prodotto dati",
-    "createTitle": "Crea prodotto dati (ODPS v1.0.0)",
+    "createTitle": "Crea prodotto dati",
     "editDescription": "Aggiorna i metadati principali di questo prodotto dati.",
     "createDescription": "Crea un nuovo prodotto dati con le informazioni essenziali. Puoi aggiungere porte, membri del team e canali di supporto nella vista dei dettagli.",
     "productNameLabel": "Nome del prodotto",
@@ -1056,7 +1056,9 @@
       "nameRequired": "Il nome del prodotto è obbligatorio",
       "versionRequired": "La versione è obbligatoria",
       "statusRequired": "Lo stato è obbligatorio"
-    }
+    },
+    "addDetails": "Aggiungi dettagli",
+    "detailsSummary": "Parte come {{status}}, versione {{version}}. Tipo di prodotto, progetto, tenant, tag e gruppi di consumatori sono facoltativi."
   },
   "createFromContract": {
     "title": "Crea prodotto dati dal contratto",

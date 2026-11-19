@@ -284,7 +284,7 @@ describe('data products on the page kit', () => {
 
     // Create still opens its dialog
     await user.click(screen.getByRole('button', { name: 'Create Product' }));
-    expect(await screen.findByRole('dialog', { name: 'Create Data Product (ODPS v1.0.0)' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Create Data Product' })).toBeInTheDocument();
   });
 
   it('data products filters by name and sorts by title', async () => {

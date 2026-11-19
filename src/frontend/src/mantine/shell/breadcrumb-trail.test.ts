@@ -85,7 +85,7 @@ describe('pageCrumbs: the hierarchy from the menu', () => {
 
   it('links a parent with a default child to that child (Data Contracts → Explorer)', () => {
     const crumbs = own({ path: '/data-contracts?new=1' });
-    expect(crumbs.map((c) => c.label)).toEqual(['Home', 'Build', 'Data Contracts', 'New Contract']);
+    expect(crumbs.map((c) => c.label)).toEqual(['Home', 'Build', 'Data Contracts', 'Create Contract']);
     expect(crumbs[2].to).toBe('/data-contracts');
   });
 

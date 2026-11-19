@@ -1,0 +1,67 @@
+/*
+ * The "Add details" toggle that hides a create form's optional fields.
+ * Ruled off above like the other form sections (dialog-form.module.css).
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aura-border);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: 28px;
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--aura-accent);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--aura-accent-subtle);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--aura-accent);
+  outline-offset: 1px;
+}
+
+.chevron {
+  transition: transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  transform: rotate(-90deg);
+}
+
+.chevron[data-opened] {
+  transform: rotate(0deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+.summary {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aura-text-secondary);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}

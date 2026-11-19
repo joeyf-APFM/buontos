@@ -571,7 +571,9 @@
     "tagsHint": "Adicione tags para categorizar e organizar este contrato de dados",
     "discardDescription": "Você tem alterações não salvas que serão perdidas se fechar esta caixa de diálogo. Tem certeza de que deseja descartá-las?",
     "continueEditing": "Continuar Editando",
-    "discardChanges": "Descartar Alterações"
+    "discardChanges": "Descartar Alterações",
+    "addDetails": "Adicionar detalhes",
+    "detailsSummary": "Começa como {{status}}, versão {{version}}. Projeto, tenant, uso, limitações e tags são opcionais."
   },
   "wizard": {
     "title": "Assistente de Contrato de Dados",

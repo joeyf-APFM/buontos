@@ -2,7 +2,7 @@
   "title": "Data Contracts",
   "listPane": "Data contract list",
   "subtitle": "Manage your data contracts and specifications",
-  "newContract": "New Contract",
+  "newContract": "Create Contract",
   "uploadFile": "Upload File",
   "importContract": "Import",
   "searchPlaceholder": "Search data contracts...",
@@ -551,9 +551,9 @@
   },
   "basicForm": {
     "editTitle": "Edit Contract Metadata",
-    "createTitle": "Create New Data Contract",
+    "createTitle": "Create Data Contract",
     "editDescription": "Update the core metadata for this data contract.",
-    "createDescription": "Enter basic information to create a new data contract. You can add schemas, quality rules, and other details after creation.",
+    "createDescription": "Name it, choose the team that owns it and say what it is for. Schemas and quality rules come after it exists.",
     "namePlaceholder": "e.g., Customer Data Contract",
     "selectOwnerTeamOptional": "Select an owner team (optional)",
     "selectProjectOptional": "Select a project (optional)",
@@ -571,7 +571,9 @@
     "tagsHint": "Add tags to categorize and organize this data contract",
     "discardDescription": "You have unsaved changes that will be lost if you close this dialog. Are you sure you want to discard them?",
     "continueEditing": "Continue Editing",
-    "discardChanges": "Discard Changes"
+    "discardChanges": "Discard Changes",
+    "addDetails": "Add details",
+    "detailsSummary": "Starts as {{status}}, version {{version}}. Project, tenant, usage, limitations and tags are optional."
   },
   "wizard": {
     "title": "Data Contract Wizard",

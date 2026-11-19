@@ -1016,7 +1016,7 @@
   },
   "createDialog": {
     "editTitle": "Modifier les métadonnées du produit de données",
-    "createTitle": "Créer un produit de données (ODPS v1.0.0)",
+    "createTitle": "Créer un produit de données",
     "editDescription": "Mettez à jour les métadonnées principales de ce produit de données.",
     "createDescription": "Créez un nouveau produit de données avec les informations essentielles. Vous pourrez ajouter des ports, des membres d'équipe et des canaux d'assistance dans la vue détaillée.",
     "productNameLabel": "Nom du produit",
@@ -1056,7 +1056,9 @@
       "nameRequired": "Le nom du produit est obligatoire",
       "versionRequired": "La version est obligatoire",
       "statusRequired": "Le statut est obligatoire"
-    }
+    },
+    "addDetails": "Ajouter des détails",
+    "detailsSummary": "Démarre en {{status}}, version {{version}}. Type de produit, projet, locataire, étiquettes et groupes de consommateurs sont facultatifs."
   },
   "createFromContract": {
     "title": "Créer un produit de données à partir d'un contrat",

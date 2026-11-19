@@ -1016,7 +1016,7 @@
   },
   "createDialog": {
     "editTitle": "Dataproduct-metadata bewerken",
-    "createTitle": "Dataproduct aanmaken (ODPS v1.0.0)",
+    "createTitle": "Dataproduct aanmaken",
     "editDescription": "Werk de kernmetadata voor dit dataproduct bij.",
     "createDescription": "Maak een nieuw dataproduct aan met essentiële informatie. Je kunt poorten, teamleden en supportkanalen toevoegen in de detailweergave.",
     "productNameLabel": "Productnaam",
@@ -1056,7 +1056,9 @@
       "nameRequired": "Productnaam is verplicht",
       "versionRequired": "Versie is verplicht",
       "statusRequired": "Status is verplicht"
-    }
+    },
+    "addDetails": "Details toevoegen",
+    "detailsSummary": "Begint als {{status}}, versie {{version}}. Producttype, project, tenant, tags en consumentengroepen zijn optioneel."
   },
   "createFromContract": {
     "title": "Dataproduct aanmaken vanuit contract",

@@ -45,7 +45,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const CREATE = 'Create New Data Contract';
+const CREATE = 'Create Data Contract';
 
 /** A Mantine Select's field (jsdom gives it the textbox role; the restyle check records it as a combobox, R3). */
 const selectField = (dialog: HTMLElement, name: RegExp) => {
@@ -70,18 +70,33 @@ function renderDialog(props: Partial<Parameters<typeof DataContractBasicFormDial
   return { ...view, onOpenChange, onSubmit };
 }
 
+/** Creating hides the optional fields behind "Add details". */
+async function openDetails(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await user.click(within(dialog).getByRole('button', { name: 'Add details' }));
+  // The collapse opens on the next animation frame
+  await within(dialog).findByRole('textbox', { name: 'Version' });
+}
+
 describe('contract metadata dialog on the kit Dialog', () => {
   it('data contract create dialog keeps every field', async () => {
     const user = userEvent.setup();
     renderDialog();
     const dialog = await screen.findByRole('dialog', { name: CREATE });
     expect(dialog).toHaveClass('mantine-Modal-content', dialogKit.content);
-    expect(dialog).toHaveAccessibleDescription(/Enter basic information to create a new data contract/);
+    expect(dialog).toHaveAccessibleDescription(/Name it, choose the team that owns it/);
 
     expect(within(dialog).getByRole('textbox', { name: /Name/ })).toHaveValue('');
+    expect(within(dialog).getByRole('textbox', { name: 'Purpose' })).toHaveProperty('tagName', 'TEXTAREA');
+    // Only what a new contract needs is shown; the rest waits behind "Add details", with what it starts as
+    const toggle = within(dialog).getByRole('button', { name: 'Add details' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(within(dialog).getByText(/Starts as Draft, version 0\.0\.1/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole('textbox', { name: 'Version' })).toBeNull();
+    await openDetails(user, dialog);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(within(dialog).getByRole('textbox', { name: 'Version' })).toHaveValue('0.0.1');
     expect(within(dialog).getByRole('textbox', { name: 'Tenant' })).toBeInTheDocument();
-    for (const name of ['Purpose', 'Usage', 'Limitations']) {
+    for (const name of ['Usage', 'Limitations']) {
       expect(within(dialog).getByRole('textbox', { name })).toHaveProperty('tagName', 'TEXTAREA');
     }
     const status = selectField(dialog, /Status/);
@@ -113,6 +128,7 @@ describe('contract metadata dialog on the kit Dialog', () => {
     expect(onSubmit).not.toHaveBeenCalled();
 
     await user.type(within(dialog).getByRole('textbox', { name: /Name/ }), ' Orders ');
+    await openDetails(user, dialog);
     await user.click(selectField(dialog, /Status/));
     await user.click(await screen.findByRole('option', { name: 'Proposed', hidden: true }));
     await waitFor(() => expect(selectField(dialog, /Owner Team/)).toBeEnabled());
@@ -171,6 +187,7 @@ describe('contract metadata dialog on the kit Dialog', () => {
     onOpenChange.mockClear();
 
     // A change made only in a Select counts
+    await openDetails(user, dialog);
     await user.click(selectField(dialog, /Status/));
     await user.click(await screen.findByRole('option', { name: 'Approved', hidden: true }));
     await user.click(within(dialog).getByRole('button', { name: 'Close' }));

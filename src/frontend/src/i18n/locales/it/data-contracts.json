@@ -571,7 +571,9 @@
     "tagsHint": "Aggiungi tag per categorizzare e organizzare questo contratto dati",
     "discardDescription": "Hai modifiche non salvate che andranno perse se chiudi questa finestra. Sei sicuro di volerle scartare?",
     "continueEditing": "Continua a Modificare",
-    "discardChanges": "Scarta Modifiche"
+    "discardChanges": "Scarta Modifiche",
+    "addDetails": "Aggiungi dettagli",
+    "detailsSummary": "Parte come {{status}}, versione {{version}}. Progetto, tenant, utilizzo, limitazioni e tag sono facoltativi."
   },
   "wizard": {
     "title": "Procedura Guidata Contratto Dati",

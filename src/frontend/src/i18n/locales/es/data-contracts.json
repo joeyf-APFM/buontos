@@ -571,7 +571,9 @@
     "tagsHint": "Añade etiquetas para categorizar y organizar este contrato de datos",
     "discardDescription": "Tienes cambios sin guardar que se perderán si cierras este diálogo. ¿Seguro que quieres descartarlos?",
     "continueEditing": "Seguir editando",
-    "discardChanges": "Descartar cambios"
+    "discardChanges": "Descartar cambios",
+    "addDetails": "Añadir detalles",
+    "detailsSummary": "Empieza como {{status}}, versión {{version}}. Proyecto, inquilino, uso, limitaciones y etiquetas son opcionales."
   },
   "wizard": {
     "title": "Asistente de contratos de datos",

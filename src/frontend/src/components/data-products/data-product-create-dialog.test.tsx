@@ -6,6 +6,7 @@
  * the picker has to live here for users to populate `consumer_principals`.
  */
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders } from '@/test/utils';
 import DataProductCreateDialog from './data-product-create-dialog';
@@ -190,12 +191,15 @@ describe('DataProductCreateDialog — status', () => {
     expect(screen.getByText(/The status changes with Change Status on the page/)).toBeInTheDocument();
   });
 
-  it('lets the status be chosen when creating', () => {
+  it('lets the status be chosen when creating, behind Add details', async () => {
+    const user = userEvent.setup();
     renderWithProviders(
       <DataProductCreateDialog open={true} onOpenChange={vi.fn()} onSuccess={vi.fn()} mode="create" />
     );
 
-    expect(screen.getByRole('textbox', { name: /Status/ })).not.toBeDisabled();
+    expect(screen.queryByRole('textbox', { name: /Status/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    expect(await screen.findByRole('textbox', { name: /Status/ })).not.toBeDisabled();
     expect(screen.queryByText(/The status changes with Change Status on the page/)).not.toBeInTheDocument();
   });
 });

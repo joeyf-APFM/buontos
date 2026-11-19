@@ -1016,9 +1016,9 @@
   },
   "createDialog": {
     "editTitle": "Edit Data Product Metadata",
-    "createTitle": "Create Data Product (ODPS v1.0.0)",
+    "createTitle": "Create Data Product",
     "editDescription": "Update the core metadata for this data product.",
-    "createDescription": "Create a new data product with essential information. You can add ports, team members, and support channels in the details view.",
+    "createDescription": "Name it, choose the team that owns it and say what it is for. Ports, team members and support channels come after it exists.",
     "productNameLabel": "Product Name",
     "productNamePlaceholder": "e.g., Customer Analytics Data",
     "versionPlaceholder": "0.0.1",
@@ -1056,7 +1056,9 @@
       "nameRequired": "Product name is required",
       "versionRequired": "Version is required",
       "statusRequired": "Status is required"
-    }
+    },
+    "addDetails": "Add details",
+    "detailsSummary": "Starts as {{status}}, version {{version}}. Product type, project, tenant, tags and consumer groups are optional."
   },
   "createFromContract": {
     "title": "Create Data Product from Contract",

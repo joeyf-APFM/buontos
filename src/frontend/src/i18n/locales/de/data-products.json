@@ -1016,7 +1016,7 @@
   },
   "createDialog": {
     "editTitle": "Datenprodukt-Metadaten bearbeiten",
-    "createTitle": "Datenprodukt erstellen (ODPS v1.0.0)",
+    "createTitle": "Datenprodukt erstellen",
     "editDescription": "Aktualisieren Sie die Kernmetadaten für dieses Datenprodukt.",
     "createDescription": "Erstellen Sie ein neues Datenprodukt mit den wesentlichen Informationen. Ports, Teammitglieder und Support-Kanäle können Sie in der Detailansicht hinzufügen.",
     "productNameLabel": "Produktname",
@@ -1056,7 +1056,9 @@
       "nameRequired": "Produktname ist erforderlich",
       "versionRequired": "Version ist erforderlich",
       "statusRequired": "Status ist erforderlich"
-    }
+    },
+    "addDetails": "Details hinzufügen",
+    "detailsSummary": "Startet als {{status}}, Version {{version}}. Produkttyp, Projekt, Mandant, Tags und Konsumentengruppen sind optional."
   },
   "createFromContract": {
     "title": "Datenprodukt aus Vertrag erstellen",
