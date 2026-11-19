@@ -1,4 +1,4 @@
-import { UnstyledButton } from '@mantine/core';
+import { Tooltip, UnstyledButton } from '@mantine/core';
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -31,15 +31,18 @@ function HelixStripButton() {
   const { open, close } = useHelixStore((s) => s.actions);
   if (!enabled) return null;
   return (
-    <UnstyledButton
-      className={`${classes.groupButton} ${classes.assistantButton}`}
-      aria-label={t('strip.askHelix')}
-      aria-pressed={isOpen}
-      onClick={isOpen ? close : open}
-    >
-      <HelixMark size={17} />
-      {t('strip.helix')}
-    </UnstyledButton>
+    // Helix and Ask Nucleus are two assistants: each says what it is for
+    <Tooltip label={t('strip.helixHint')} position="right" withArrow>
+      <UnstyledButton
+        className={`${classes.groupButton} ${classes.assistantButton}`}
+        aria-label={t('strip.askHelix')}
+        aria-pressed={isOpen}
+        onClick={isOpen ? close : open}
+      >
+        <HelixMark size={17} />
+        {t('strip.helix')}
+      </UnstyledButton>
+    </Tooltip>
   );
 }
 
@@ -60,15 +63,17 @@ function OntosStripButton() {
 
   if (!enabled) return null;
   return (
-    <UnstyledButton
-      className={`${classes.groupButton} ${classes.assistantButton}`}
-      aria-label={t('strip.askOntos')}
-      aria-pressed={isOpen}
-      onClick={togglePanel}
-    >
-      <Sparkles size={17} strokeWidth={1.7} aria-hidden />
-      {t('strip.ontos')}
-    </UnstyledButton>
+    <Tooltip label={t('strip.ontosHint')} position="right" withArrow>
+      <UnstyledButton
+        className={`${classes.groupButton} ${classes.assistantButton}`}
+        aria-label={t('strip.askOntos')}
+        aria-pressed={isOpen}
+        onClick={togglePanel}
+      >
+        <Sparkles size={17} strokeWidth={1.7} aria-hidden />
+        {t('strip.ontos')}
+      </UnstyledButton>
+    </Tooltip>
   );
 }
 
@@ -76,7 +81,6 @@ interface SideStripProps {
   groups: NavGroupId[];
   /** The menu as this user sees it (visibleNav), for each group's default page. */
   nav: Partial<Record<NavGroupId, NavSection[]>>;
-  settingsGate: boolean;
   /** The current page's place in the menu, or null. */
   here: ActiveLocation | null;
   /** The group whose panel is showing, or null. */
@@ -85,15 +89,15 @@ interface SideStripProps {
 
 /**
  * The icon strip: the top groups in NAV_GROUPS order (Discover, Build,
- * Organization, Semantics, Workflows), then Ask Helix and Ask Ontos, and
- * Settings alone at the bottom (Govern, without the Settings gate).
+ * Organization, Semantics, Workflows, Govern), then Ask Helix and Ask Ontos,
+ * and Settings alone at the bottom.
  *
  * One button is highlighted: the showing panel's group, or else the current
  * page's. A group's button opens its panel and goes to its default page,
  * unless the current page is already in the group; on the showing panel's
  * group it tucks the panel away.
  */
-export function SideStrip({ groups, nav, settingsGate, here, shownGroup }: SideStripProps) {
+export function SideStrip({ groups, nav, here, shownGroup }: SideStripProps) {
   const { t } = useTranslation(['shell', 'navigation', 'settings']);
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -113,7 +117,7 @@ export function SideStrip({ groups, nav, settingsGate, here, shownGroup }: SideS
 
   const button = (id: NavGroupId) => {
     const group = NAV_GROUPS.find((g) => g.id === id)!;
-    const face = groupFace(group, settingsGate);
+    const face = groupFace(group);
     const active = highlighted === id || undefined;
     if (group.link) {
       // A direct link (Workflows): goes to its page and closes any panel, pinned or not

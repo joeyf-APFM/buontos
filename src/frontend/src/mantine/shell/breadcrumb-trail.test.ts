@@ -40,7 +40,7 @@ function visit({ path, page, kind = 'menu', navGroup, settingsGate = true, previ
   const nav = navFor(settingsGate);
   const located = (navGroup && locateIn(navGroup, pathname, search)) || activeLocation(pathname, search);
   const here = located && nav[located.group] ? located : null;
-  return buildTrail({ pathname, search, nav, here, settingsGate, page, label, kind, previous, stored, crumbIndex });
+  return buildTrail({ pathname, search, nav, here, page, label, kind, previous, stored, crumbIndex });
 }
 
 const text = (record: TrailRecord) => trailCrumbs(record).map((c) => c.label).join(' > ');
@@ -93,12 +93,12 @@ describe('pageCrumbs: the hierarchy from the menu', () => {
     expect(own({ path: '/settings/general' })[1]).toEqual({ label: 'Settings', role: 'group', group: 'Settings' });
   });
 
-  it('puts the Govern and Deploy sections under Settings, with no section crumb', () => {
-    expect(text(visit({ path: '/compliance' }))).toBe('Home > Settings > Compliance');
-    expect(text(visit({ path: '/estate-manager' }))).toBe('Home > Settings > Estate Manager');
+  it('puts the Govern and Deploy sections under Govern, with no section crumb', () => {
+    expect(text(visit({ path: '/compliance' }))).toBe('Home > Govern > Compliance');
+    expect(text(visit({ path: '/estate-manager' }))).toBe('Home > Govern > Estate Manager');
   });
 
-  it('reads Govern for a user without the Settings gate', () => {
+  it('reads Govern the same for a user without the Settings gate', () => {
     expect(text(visit({ path: '/compliance', settingsGate: false }))).toBe('Home > Govern > Compliance');
   });
 
@@ -150,7 +150,7 @@ describe('pageCrumbs: a third menu level (Task 16e)', () => {
   it('shows Define for a reader, who has no Author Concepts in the menu', () => {
     const nav = visibleNav((id, level) => id === 'semantic-models' && level === FeatureAccessLevel.READ_ONLY);
     const here = activeLocation('/concepts/define', '?open=author');
-    const crumbs = pageCrumbs({ pathname: '/concepts/define', search: '?open=author', nav, here, settingsGate: false, page: definePage, label });
+    const crumbs = pageCrumbs({ pathname: '/concepts/define', search: '?open=author', nav, here, page: definePage, label });
     expect(crumbs.map((c) => c.label)).toEqual(['Home', 'Build', 'Concepts', 'Define']);
   });
 
@@ -186,7 +186,7 @@ describe('pageCrumbs: detail pages', () => {
 
   it('falls back to the page title it is given when the store has none', () => {
     const record = buildTrail({
-      pathname: '/security-features', nav: {}, here: null, settingsGate: true, label, kind: 'menu', previous: null, stored: null,
+      pathname: '/security-features', nav: {}, here: null, label, kind: 'menu', previous: null, stored: null,
       fallbackTitle: 'Security Features',
     });
     expect(text(record)).toBe('Home > Security Features');
@@ -213,12 +213,12 @@ describe('pageCrumbs: detail pages', () => {
 
   it('keeps a store segment the hierarchy does not show', () => {
     const page = { staticSegments: [{ label: 'Policies', path: '/compliance/policies' }], dynamicTitle: 'PII check' };
-    expect(text(visit({ path: '/compliance/policies/p1', page }))).toBe('Home > Settings > Compliance > Policies > PII check');
+    expect(text(visit({ path: '/compliance/policies/p1', page }))).toBe('Home > Govern > Compliance > Policies > PII check');
   });
 
   it('places a page outside the menu under the menu page its store names', () => {
     const page = { staticSegments: [{ label: 'Estate Manager', path: '/estate-manager' }], dynamicTitle: 'Partner estate' };
-    expect(text(visit({ path: '/estates/e1', page }))).toBe('Home > Settings > Estate Manager > Partner estate');
+    expect(text(visit({ path: '/estates/e1', page }))).toBe('Home > Govern > Estate Manager > Partner estate');
   });
 });
 
@@ -235,7 +235,7 @@ describe('pageCrumbs: pages in no group', () => {
   });
 
   it('shows Home on a page with no title yet', () => {
-    expect(pageCrumbs({ pathname: '/nowhere', nav: navFor(), here: null, settingsGate: true, label }).map((c) => c.label)).toEqual(['Home']);
+    expect(pageCrumbs({ pathname: '/nowhere', nav: navFor(), here: null, label }).map((c) => c.label)).toEqual(['Home']);
   });
 });
 
@@ -336,14 +336,14 @@ describe('the trail: following the user', () => {
     expect(text(cut)).toBe('Home > Build > Data Contracts > Orders');
     // The page then selects something within it, and is renamed
     const own = pageCrumbs({
-      pathname: '/data-contracts/c1', nav: navFor(), here: activeLocation('/data-contracts/c1'), settingsGate: true, label,
+      pathname: '/data-contracts/c1', nav: navFor(), here: activeLocation('/data-contracts/c1'), label,
       page: { ...contract, dynamicTitle: 'Orders v2', trailingSegments: [{ label: 'Schema' }, { label: 'order_id' }] },
     });
     expect(text(withLiveCrumbs(cut, own))).toBe('Home > Build > Data Contracts > Orders v2 > Schema > order_id');
     // A crumb within the page's own in-page crumbs gives way to the page's live ones
     const explorer = visit({ path: '/assets', page: { trailingSegments: [{ label: 'Unity Catalog', path: '/assets?node=uc' }, { label: 'main' }] } });
     const toUc = visit({ path: '/assets', previous: explorer, kind: 'crumb', crumbIndex: 4 });
-    const live = pageCrumbs({ pathname: '/assets', nav: navFor(), here: activeLocation('/assets'), settingsGate: true, label, page: { trailingSegments: [{ label: 'Unity Catalog' }] } });
+    const live = pageCrumbs({ pathname: '/assets', nav: navFor(), here: activeLocation('/assets'), label, page: { trailingSegments: [{ label: 'Unity Catalog' }] } });
     expect(text(withLiveCrumbs(toUc, live))).toBe('Home > Build > Assets > Explorer > Unity Catalog');
   });
 

@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePermissions } from '@/stores/permissions-store';
 import { useFeatureVisibilityStore } from '@/stores/feature-visibility-store';
-import { FeatureAccessLevel } from '@/types/settings';
-import { SETTINGS_GATE, activeLocation, locateIn, menuNavGroup, visibleNav } from './nav-config';
+import { activeLocation, locateIn, menuNavGroup, visibleNav } from './nav-config';
 
 /**
  * The menu as this user sees it, and the current page's place in it, for the
@@ -27,9 +26,8 @@ export function useShellNav() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [permissions, hasPermission, allowedMaturities],
   );
-  const settingsGate = hasPermission(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
   const navGroup = menuNavGroup(state);
   const located = (navGroup && nav[navGroup] && locateIn(navGroup, pathname, search)) || activeLocation(pathname, search);
   const here = located && nav[located.group] ? located : null;
-  return { nav, settingsGate, here };
+  return { nav, here };
 }

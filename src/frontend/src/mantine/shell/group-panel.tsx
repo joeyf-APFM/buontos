@@ -10,8 +10,6 @@ import classes from './shell.module.css';
 interface GroupPanelProps {
   group: NavGroupId;
   sections: NavSection[];
-  /** Whether the user has the Settings gate (the panel is titled as its strip button). */
-  settingsGate: boolean;
   /** The current page's place in the menu, or null. */
   here: ActiveLocation | null;
 }
@@ -21,7 +19,7 @@ interface GroupPanelProps {
  * It highlights one item, the current page, and only when the page is in
  * this group (Build's Asset types isn't highlighted: the page is Semantics').
  */
-export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelProps) {
+export function GroupPanel({ group, sections, here }: GroupPanelProps) {
   const { t } = useTranslation(['shell', 'navigation', 'settings', 'features', 'concepts', 'data-contracts']);
   const { pathname } = useLocation();
   const pinned = useShellStore((s) => s.pinned);
@@ -33,7 +31,7 @@ export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelPr
   const place = match ? [match.itemId, match.childId, match.grandchildId] : [];
   // Every link here keeps this group for the page it opens
   const navState = menuNavState(group);
-  const face = groupFace(NAV_GROUPS.find((g) => g.id === group)!, settingsGate);
+  const face = groupFace(NAV_GROUPS.find((g) => g.id === group)!);
   const groupLabel = t(face.labelKey);
 
   // Show the sub-items of the page you arrive on (you can still fold them):
@@ -136,7 +134,7 @@ export function GroupPanel({ group, sections, settingsGate, here }: GroupPanelPr
       <div className={classes.items}>
         {sections.map((section, i) => (
           <div key={section.titleKey ?? i}>
-            {/* A section titled as the panel (Govern, without the Settings gate) shows no heading of its own */}
+            {/* A section titled as the panel (Govern's first) shows no heading of its own */}
             {section.titleKey && section.titleKey !== face.labelKey && (
               <div className={classes.section}>{t(section.titleKey)}</div>
             )}

@@ -60,7 +60,6 @@ export interface PageCrumbsInput {
   nav: Partial<Record<NavGroupId, NavSection[]>>;
   /** The page's place in the menu, in a group the user sees (the shell's `here`), or null. */
   here: ActiveLocation | null;
-  settingsGate: boolean;
   page?: PageTitles;
   /** An i18n key's text. */
   label: (key: string) => string;
@@ -100,7 +99,7 @@ function hierarchy(here: ActiveLocation, input: PageCrumbsInput, exact: boolean)
   if (!group || !sections || chain.length === 0) return null;
   const { label } = input;
   const home: Crumb = { label: label('shell:breadcrumb.home'), to: '/', role: 'home' };
-  const groupLabel = label(groupFace(group, input.settingsGate).labelKey);
+  const groupLabel = label(groupFace(group).labelKey);
   // A link group (Workflows) is its one item: the page's own crumb, kept in a later step
   if (group.link) return [home, { label: groupLabel, to: group.link }];
   const crumbs: Crumb[] = [home, { label: groupLabel, to: groupDefaultPath(group, sections) ?? undefined, role: 'group', group: group.id }];

@@ -5,7 +5,9 @@
     "askHelix": "Ask Helix",
     "helix": "Helix",
     "askOntos": "Ask Nucleus",
-    "ontos": "Nucleus"
+    "ontos": "Nucleus",
+    "helixHint": "Ask questions about your data (Genie One)",
+    "ontosHint": "Get help using Nucleus and your catalog"
   },
   "sections": {
     "platform": "Platform",

@@ -1,6 +1,6 @@
 /** "Ask Helix" in the top bar, shown only while Helix is enabled. */
 import { useEffect } from 'react';
-import { UnstyledButton } from '@mantine/core';
+import { Tooltip, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { HelixMark } from './helix-mark';
 import { useHelixStore } from './helix-store';
@@ -18,9 +18,11 @@ export function HelixButton() {
 
   if (!enabled) return null;
   return (
-    <UnstyledButton className={classes.button} aria-pressed={isOpen} onClick={isOpen ? close : open}>
-      <HelixMark />
-      {t('button')}
-    </UnstyledButton>
+    <Tooltip label={t('buttonHint')} position="bottom" withArrow>
+      <UnstyledButton className={classes.button} aria-pressed={isOpen} onClick={isOpen ? close : open}>
+        <HelixMark />
+        {t('button')}
+      </UnstyledButton>
+    </Tooltip>
   );
 }

@@ -27,7 +27,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const ontosEnabled = useOntosStore((s) => !!s.status?.enabled);
   const ontosOpen = useCopilotStore((s) => s.isOpen) && ontosEnabled;
 
-  const { nav, settingsGate, here } = useShellNav();
+  const { nav, here } = useShellNav();
   const groups = NAV_GROUPS.map((g) => g.id).filter((id) => nav[id]);
   const shownGroup = isPanelGroup(openGroup) && nav[openGroup] ? openGroup : null;
 
@@ -47,8 +47,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TopBar helixSlot={<HelixButton />} />
       <div className={classes.body}>
         <div className={`${classes.side} apfm-surface`}>
-          <SideStrip groups={groups} nav={nav} settingsGate={settingsGate} here={here} shownGroup={shownGroup} />
-          {shownGroup && <GroupPanel group={shownGroup} sections={nav[shownGroup]} settingsGate={settingsGate} here={here} />}
+          <SideStrip groups={groups} nav={nav} here={here} shownGroup={shownGroup} />
+          {shownGroup && <GroupPanel group={shownGroup} sections={nav[shownGroup]} here={here} />}
         </div>
         <div className={classes.main}>{children}</div>
       </div>

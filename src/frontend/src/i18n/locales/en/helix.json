@@ -57,5 +57,6 @@
     "saved": "Settings saved",
     "saveFailed": "Failed to save settings",
     "loadFailed": "Couldn’t load the settings."
-  }
+  },
+  "buttonHint": "Ask questions about your data (Genie One)"
 }

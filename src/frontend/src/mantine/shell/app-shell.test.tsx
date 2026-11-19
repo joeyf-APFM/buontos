@@ -164,14 +164,14 @@ describe('AppShell', () => {
   it('hides alpha and beta features unless the user shows them', async () => {
     const user = userEvent.setup();
     renderShell();
-    await user.click(screen.getByRole('button', { name: 'Settings' }));
-    const settings = () => screen.getByRole('navigation', { name: 'Settings' });
-    expect(within(settings()).queryByText('Deploy')).toBeNull(); // all alpha
-    expect(within(settings()).queryByText('Govern')).toBeNull(); // beta and alpha
+    // Every Govern and Deploy item is beta or alpha: no Govern button until they are shown
+    expect(screen.queryByRole('button', { name: 'Govern' })).toBeNull();
 
     act(() => useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] }));
-    expect(within(settings()).getByText('Govern')).toBeInTheDocument();
-    expect(within(settings()).getByRole('link', { name: 'Security Features' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Govern' }));
+    const govern = screen.getByRole('navigation', { name: 'Govern' });
+    expect(within(govern).getByText('Deploy')).toBeInTheDocument();
+    expect(within(govern).getByRole('link', { name: 'Security Features' })).toBeInTheDocument();
   });
 
   it('hides the settings-area strip entries without the settings gate, keeping Govern and Deploy under the Govern button', async () => {
@@ -218,19 +218,22 @@ describe('AppShell', () => {
     expect(within(panel).getByRole('link', { name: 'Compliance' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('keeps Settings, with its icon, for a user with the settings gate', async () => {
+  it('keeps Settings and Govern as separate buttons for a user with the settings gate', async () => {
     useFeatureVisibilityStore.setState({ allowedMaturities: ['ga', 'beta', 'alpha'] }); // Compliance is beta
     const user = userEvent.setup();
     renderShell('/compliance');
     const strip = screen.getByRole('navigation', { name: 'Main menu' });
-    expect(within(strip).queryByRole('button', { name: 'Govern' })).toBeNull();
+    const govern = within(strip).getByRole('button', { name: 'Govern' });
+    expect(govern.querySelector('svg.lucide-shield')).not.toBeNull();
     const settingsButton = within(strip).getByRole('button', { name: 'Settings' });
     expect(settingsButton.querySelector('svg.lucide-settings')).not.toBeNull();
 
     await user.click(settingsButton);
     const panel = screen.getByRole('navigation', { name: 'Settings' });
     expect(within(panel).getByText('Platform')).toBeInTheDocument();
-    expect(within(panel).getByText('Govern')).toBeInTheDocument();
+    // The stewardship tools are no longer filed under Settings
+    expect(within(panel).queryByText('Govern')).toBeNull();
+    expect(within(panel).queryByRole('link', { name: 'Compliance' })).toBeNull();
   });
 
   it('renders the brand and the page content', () => {
@@ -258,7 +261,7 @@ describe('the side strip', () => {
 
   const controls = (el: HTMLElement) => [...el.querySelectorAll('a, button')].map((c) => c.textContent);
 
-  it('lists Discover, Build, Organization, Semantics, Workflows, Helix, Nucleus, then Settings', async () => {
+  it('lists Discover, Build, Organization, Semantics, Workflows, Govern, Helix, Nucleus, then Settings', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       const body =
@@ -273,7 +276,7 @@ describe('the side strip', () => {
 
     const names = [...strip().querySelectorAll('button, a')].map((el) => el.getAttribute('aria-label') ?? el.textContent);
     expect(names).toEqual([
-      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Ask Helix', 'Ask Nucleus', 'Settings',
+      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Govern', 'Ask Helix', 'Ask Nucleus', 'Settings',
     ]);
   });
 
@@ -362,7 +365,7 @@ describe('the side strip', () => {
     expect(screen.getByRole('navigation', { name: 'Settings' })).toBeInTheDocument();
     unmount();
 
-    for (const stored of ['Govern', 'Deploy', 'Workflows', 'toString', 42]) {
+    for (const stored of ['Deploy', 'Workflows', 'toString', 42]) {
       localStorage.setItem('apfm-shell', JSON.stringify({ state: { openGroup: stored, pinned: true, expanded: [] }, version: 0 }));
       await act(() => useShellStore.persist.rehydrate());
       expect(useShellStore.getState().openGroup).toBeNull();

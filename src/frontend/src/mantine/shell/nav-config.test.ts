@@ -82,7 +82,7 @@ function tree(group: NavGroupId): string[] {
 describe('the side strip groups (Task 16a)', () => {
   it('lists the groups in strip order, Settings last', () => {
     expect(NAV_GROUPS.map((g) => g.id)).toEqual([
-      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Settings',
+      'Discover', 'Build', 'Organization', 'Semantics', 'Workflows', 'Govern', 'Settings',
     ]);
   });
 
@@ -117,21 +117,25 @@ describe('the side strip groups (Task 16a)', () => {
     ]);
   });
 
-  it('leaves Settings with Platform, a Process of Delivery and Audit log, then Govern and Deploy', () => {
-    expect(NAV.Settings.map((s) => s.titleKey)).toEqual([
-      'shell:sections.platform', 'shell:sections.process', 'navigation:groups.govern', 'navigation:groups.deploy',
-    ]);
+  it('leaves Settings with Platform and a Process of Delivery and Audit log', () => {
+    expect(NAV.Settings.map((s) => s.titleKey)).toEqual(['shell:sections.platform', 'shell:sections.process']);
     expect(tree('Settings')).toEqual([
       'general', 'helix', 'appearance', 'settings-search', 'connectors [git, mcp, delivery-methods]', 'jobs', 'directory',
       'delivery', 'audit',
+    ]);
+  });
+
+  it('gives Govern its own group, with a Govern and a Deploy section', () => {
+    expect(NAV.Govern.map((s) => s.titleKey)).toEqual(['navigation:groups.govern', 'navigation:groups.deploy']);
+    expect(tree('Govern')).toEqual([
       'compliance', 'master-data', 'data-asset-reviews', 'security-features', 'entitlements-menu [entitlements, entitlements-sync]',
       'estate-manager', 'catalog-commander',
     ]);
   });
 
   it('keeps the Govern and Deploy permission ids', () => {
-    const govern = NAV.Settings.find((s) => s.titleKey === 'navigation:groups.govern')!;
-    const deploy = NAV.Settings.find((s) => s.titleKey === 'navigation:groups.deploy')!;
+    const govern = NAV.Govern.find((s) => s.titleKey === 'navigation:groups.govern')!;
+    const deploy = NAV.Govern.find((s) => s.titleKey === 'navigation:groups.deploy')!;
     const ids = (s: NavSection) => s.items.flatMap((i) => [i, ...(i.children ?? [])]).map((i) => `${i.id}:${i.permissionId}`);
     expect(ids(govern)).toEqual([
       'compliance:compliance', 'master-data:master-data', 'data-asset-reviews:data-asset-reviews',
@@ -166,27 +170,30 @@ describe('visibleNav', () => {
     expect(nav.Build).toBeDefined();
   });
 
-  it('keeps only Govern and Deploy in Settings without the settings gate', () => {
+  it('keeps Govern and Deploy, and no Settings, without the settings gate', () => {
     const nav = visibleNav((id) => id !== 'settings');
-    expect(nav.Settings.map((s) => s.titleKey)).toEqual(['navigation:groups.govern', 'navigation:groups.deploy']);
+    expect(nav.Settings).toBeUndefined();
+    expect(nav.Govern.map((s) => s.titleKey)).toEqual(['navigation:groups.govern', 'navigation:groups.deploy']);
   });
 
-  it('shows Settings with just Govern for a user with compliance access and no gate', () => {
+  it('shows Govern with just Compliance for a user with compliance access and no gate', () => {
     const nav = visibleNav((id) => id === 'compliance');
-    expect(nav.Settings.map((s) => s.titleKey)).toEqual(['navigation:groups.govern']);
-    expect(itemIds(nav, 'Settings')).toEqual(['compliance']);
+    expect(nav.Govern.map((s) => s.titleKey)).toEqual(['navigation:groups.govern']);
+    expect(itemIds(nav, 'Govern')).toEqual(['compliance']);
+    expect(nav.Settings).toBeUndefined();
   });
 
-  it('hides Settings without the gate and without any Govern or Deploy item', () => {
+  it('hides Govern and Settings without the gate and without any Govern or Deploy item', () => {
+    expect(visibleNav((id) => id === 'data-contracts').Govern).toBeUndefined();
     expect(visibleNav((id) => id === 'data-contracts').Settings).toBeUndefined();
     // Settings pages alone don't show without the gate
     expect(visibleNav((id) => id === 'settings-general').Settings).toBeUndefined();
   });
 
-  it('shows every Settings section with the gate', () => {
-    expect(visibleNav(() => true).Settings.map((s) => s.titleKey)).toEqual([
-      'shell:sections.platform', 'shell:sections.process', 'navigation:groups.govern', 'navigation:groups.deploy',
-    ]);
+  it('shows every Settings section with the gate, and Govern beside it', () => {
+    const nav = visibleNav(() => true);
+    expect(nav.Settings.map((s) => s.titleKey)).toEqual(['shell:sections.platform', 'shell:sections.process']);
+    expect(nav.Govern.map((s) => s.titleKey)).toEqual(['navigation:groups.govern', 'navigation:groups.deploy']);
   });
 
   it('shows them with the gate and all permissions', () => {
@@ -256,7 +263,7 @@ describe('visibleNav maturity', () => {
 
   it('hides alpha items unless alpha is allowed', () => {
     const section = (nav: ReturnType<typeof visibleNav>, key: string) =>
-      (nav.Settings ?? []).find((s) => s.titleKey === `navigation:groups.${key}`)?.items.map((i) => i.id);
+      (nav.Govern ?? []).find((s) => s.titleKey === `navigation:groups.${key}`)?.items.map((i) => i.id);
     const hidden = visibleNav(() => true, gaOnly);
     expect(section(hidden, 'govern') ?? []).not.toContain('security-features');
     expect(section(hidden, 'govern') ?? []).not.toContain('entitlements-menu'); // both sub-items are alpha
@@ -276,8 +283,8 @@ describe('visibleNav maturity', () => {
 
   it('applies on top of the permission check', () => {
     const nav = visibleNav((id) => id !== 'security-features', everything);
-    expect(itemIds(nav, 'Settings')).not.toContain('security-features');
-    expect(itemIds(nav, 'Settings')).toContain('compliance');
+    expect(itemIds(nav, 'Govern')).not.toContain('security-features');
+    expect(itemIds(nav, 'Govern')).toContain('compliance');
   });
 });
 
@@ -316,12 +323,12 @@ describe('activeLocation', () => {
     expect(activeLocation('/settings/workflows/new')).toEqual({ group: 'Workflows', itemId: 'workflows' });
   });
 
-  it('gives the Govern and Deploy pages to Settings', () => {
-    expect(activeLocation('/compliance')).toEqual({ group: 'Settings', itemId: 'compliance' });
-    expect(activeLocation('/compliance/runs/r1')).toEqual({ group: 'Settings', itemId: 'compliance' });
-    expect(activeLocation('/estate-manager')).toEqual({ group: 'Settings', itemId: 'estate-manager' });
-    expect(activeLocation('/entitlements-sync')).toEqual({ group: 'Settings', itemId: 'entitlements-menu', childId: 'entitlements-sync' });
-    expect(activeLocation('/catalog-commander')).toEqual({ group: 'Settings', itemId: 'catalog-commander' });
+  it('gives the Govern and Deploy pages to Govern', () => {
+    expect(activeLocation('/compliance')).toEqual({ group: 'Govern', itemId: 'compliance' });
+    expect(activeLocation('/compliance/runs/r1')).toEqual({ group: 'Govern', itemId: 'compliance' });
+    expect(activeLocation('/estate-manager')).toEqual({ group: 'Govern', itemId: 'estate-manager' });
+    expect(activeLocation('/entitlements-sync')).toEqual({ group: 'Govern', itemId: 'entitlements-menu', childId: 'entitlements-sync' });
+    expect(activeLocation('/catalog-commander')).toEqual({ group: 'Govern', itemId: 'catalog-commander' });
   });
 
   it('only matches whole path segments', () => {
@@ -422,6 +429,7 @@ describe('group defaults (Task 16c)', () => {
       ['Organization', 'data-domains'],
       ['Semantics', 'semantic-models'],
       ['Workflows', 'workflows'],
+      ['Govern', 'compliance'],
       ['Settings', undefined],
     ]);
   });
@@ -433,6 +441,7 @@ describe('group defaults (Task 16c)', () => {
       ['Organization', '/settings/data-domains'],
       ['Semantics', '/settings/semantic-models'],
       ['Workflows', '/settings/workflows'],
+      ['Govern', '/compliance'],
       ['Settings', null],
     ]);
   });

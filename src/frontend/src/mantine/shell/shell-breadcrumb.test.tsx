@@ -202,9 +202,9 @@ describe('the shell breadcrumb', () => {
   });
 
   it.each([
-    ['a migrated full-bleed page (Data Asset Reviews)', '/data-asset-reviews', ['Home', 'Settings', 'Asset Reviews']],
+    ['a migrated full-bleed page (Data Asset Reviews)', '/data-asset-reviews', ['Home', 'Govern', 'Asset Reviews']],
     ['a migrated settings page (Asset types)', '/settings/asset-types', ['Home', 'Semantics', 'Asset types']],
-    ['an unmigrated page (Compliance)', '/compliance', ['Home', 'Settings', 'Compliance']],
+    ['an unmigrated page (Compliance)', '/compliance', ['Home', 'Govern', 'Compliance']],
     ['a settings page in the wrapper (General)', '/settings/general', ['Home', 'Settings', 'General']],
   ])('draws exactly one breadcrumb on %s', async (_name, route, expected) => {
     await renderApp(route);

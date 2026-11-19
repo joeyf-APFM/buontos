@@ -93,7 +93,7 @@ export function ShellBreadcrumb({ fullBleed = false }: { fullBleed?: boolean }) 
   const { t } = useTranslation('shell');
   const location = useLocation();
   const navigationType = useNavigationType();
-  const { nav, settingsGate, here } = useShellNav();
+  const { nav, here } = useShellNav();
   const staticSegments = useBreadcrumbStore((s) => s.staticSegments);
   const dynamicTitle = useBreadcrumbStore((s) => s.dynamicTitle);
   const trailingSegments = useBreadcrumbStore((s) => s.trailingSegments);
@@ -132,7 +132,6 @@ export function ShellBreadcrumb({ fullBleed = false }: { fullBleed?: boolean }) 
     search: location.search,
     nav,
     here,
-    settingsGate,
     page: { staticSegments, dynamicTitle, trailingSegments },
     label: (key) => t(key),
     fallbackTitle: feature ? t(`features:${feature.id}.name`, feature.name) : null,

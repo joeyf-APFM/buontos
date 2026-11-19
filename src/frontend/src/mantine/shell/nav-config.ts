@@ -77,6 +77,7 @@ export type NavGroupId =
   | 'Organization'
   | 'Semantics'
   | 'Workflows'
+  | 'Govern'
   | 'Settings';
 
 export interface NavItem {
@@ -96,8 +97,6 @@ export interface NavItem {
 export interface NavSection {
   titleKey?: string;
   items: NavItem[];
-  /** Pages outside /settings/* in a settings-area group: shown without the Settings gate. */
-  ungated?: boolean;
 }
 
 export interface NavGroup {
@@ -111,22 +110,14 @@ export interface NavGroup {
    * None for Settings: its button only opens the panel.
    */
   defaultItemId?: string;
-  /**
-   * Pages under /settings/*: hidden without the Settings area's gate, except
-   * its `ungated` sections (Settings → Govern and Deploy).
-   */
+  /** Pages under /settings/*: hidden without the Settings area's gate. */
   settingsArea?: boolean;
-  /**
-   * The label and icon for a user without the Settings gate, who sees only
-   * the group's ungated sections (Settings shows them as Govern).
-   */
-  withoutGate?: { labelKey: string; icon: LucideIcon };
 }
 
 /** The Workflows group's one item; the strip's Workflows button links to its path. */
 const WORKFLOWS_ITEM = { id: 'workflows', labelKey: 'settings:tabs.workflows', path: '/settings/workflows', permissionId: 'settings-workflows', icon: GitBranch } satisfies NavItem;
 
-// Strip order, top to bottom (Helix and Ontos follow Workflows; side-strip.tsx)
+// Strip order, top to bottom (Helix and Ontos follow Govern; side-strip.tsx)
 export const NAV_GROUPS: NavGroup[] = [
   { id: 'Discover', labelKey: 'navigation:groups.discover', icon: Compass, defaultItemId: 'marketplace' },
   { id: 'Build', labelKey: 'navigation:groups.build', icon: LayoutGrid, defaultItemId: 'explorer' },
@@ -136,10 +127,10 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'Workflows', labelKey: 'settings:tabs.workflows', icon: GitBranch, link: WORKFLOWS_ITEM.path, settingsArea: true,
     defaultItemId: WORKFLOWS_ITEM.id,
   },
-  {
-    id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true,
-    withoutGate: { labelKey: 'navigation:groups.govern', icon: Shield },
-  },
+  // The stewardship tools (Compliance, reviews, entitlements) and the Deploy pages. Their paths are not
+  // under /settings/*, so each item is gated by its own permission, not the Settings gate.
+  { id: 'Govern', labelKey: 'navigation:groups.govern', icon: Shield, defaultItemId: 'compliance' },
+  { id: 'Settings', labelKey: 'settings:title', icon: Settings, settingsArea: true },
 ];
 
 /** The groups whose strip button opens a panel (every group but a link). */
@@ -150,9 +141,9 @@ export function isPanelGroup(id: unknown): id is NavGroupId {
 /** The Settings area's own gate (SettingsLayout redirects home without it). */
 export const SETTINGS_GATE = 'settings';
 
-/** The label and icon a group's strip button and panel show to this user. */
-export function groupFace(group: NavGroup, settingsGate: boolean): { labelKey: string; icon: LucideIcon } {
-  return !settingsGate && group.withoutGate ? group.withoutGate : { labelKey: group.labelKey, icon: group.icon };
+/** The label and icon a group's strip button and panel show. */
+export function groupFace(group: NavGroup): { labelKey: string; icon: LucideIcon } {
+  return { labelKey: group.labelKey, icon: group.icon };
 }
 
 export const NAV: Record<NavGroupId, NavSection[]> = {
@@ -271,6 +262,31 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
       ],
     },
   ],
+  Govern: [
+    {
+      titleKey: 'navigation:groups.govern',
+      items: [
+        { id: 'compliance', labelKey: 'features:compliance.name', path: '/compliance', permissionId: 'compliance', icon: CheckCircle },
+        { id: 'master-data', labelKey: 'shell:items.masterData', path: '/master-data', permissionId: 'master-data', icon: Users },
+        { id: 'data-asset-reviews', labelKey: 'features:data-asset-reviews.name', path: '/data-asset-reviews', permissionId: 'data-asset-reviews', icon: ClipboardCheck },
+        { id: 'security-features', labelKey: 'features:security-features.name', path: '/security-features', permissionId: 'security-features', icon: Lock },
+        {
+          id: 'entitlements-menu', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield,
+          children: [
+            { id: 'entitlements', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield },
+            { id: 'entitlements-sync', labelKey: 'features:entitlements-sync.name', path: '/entitlements-sync', permissionId: 'entitlements-sync', icon: RefreshCw },
+          ],
+        },
+      ],
+    },
+    {
+      titleKey: 'navigation:groups.deploy',
+      items: [
+        { id: 'estate-manager', labelKey: 'features:estate-manager.name', path: '/estate-manager', permissionId: 'estate-manager', icon: Globe },
+        { id: 'catalog-commander', labelKey: 'features:catalog-commander.name', path: '/catalog-commander', permissionId: 'catalog-commander', icon: FolderKanban },
+      ],
+    },
+  ],
   Settings: [
     {
       titleKey: 'shell:sections.platform',
@@ -296,32 +312,6 @@ export const NAV: Record<NavGroupId, NavSection[]> = {
       items: [
         { id: 'delivery', labelKey: 'shell:items.delivery', path: '/settings/delivery', permissionId: 'settings-delivery', icon: Briefcase },
         { id: 'audit', labelKey: 'shell:items.auditLog', path: '/settings/audit', permissionId: 'audit', icon: ScrollText },
-      ],
-    },
-    // Not under /settings/*: no Settings gate (the owner's call, Task 16a)
-    {
-      titleKey: 'navigation:groups.govern',
-      ungated: true,
-      items: [
-        { id: 'compliance', labelKey: 'features:compliance.name', path: '/compliance', permissionId: 'compliance', icon: CheckCircle },
-        { id: 'master-data', labelKey: 'shell:items.masterData', path: '/master-data', permissionId: 'master-data', icon: Users },
-        { id: 'data-asset-reviews', labelKey: 'features:data-asset-reviews.name', path: '/data-asset-reviews', permissionId: 'data-asset-reviews', icon: ClipboardCheck },
-        { id: 'security-features', labelKey: 'features:security-features.name', path: '/security-features', permissionId: 'security-features', icon: Lock },
-        {
-          id: 'entitlements-menu', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield,
-          children: [
-            { id: 'entitlements', labelKey: 'features:entitlements.name', path: '/entitlements', permissionId: 'entitlements', icon: Shield },
-            { id: 'entitlements-sync', labelKey: 'features:entitlements-sync.name', path: '/entitlements-sync', permissionId: 'entitlements-sync', icon: RefreshCw },
-          ],
-        },
-      ],
-    },
-    {
-      titleKey: 'navigation:groups.deploy',
-      ungated: true,
-      items: [
-        { id: 'estate-manager', labelKey: 'features:estate-manager.name', path: '/estate-manager', permissionId: 'estate-manager', icon: Globe },
-        { id: 'catalog-commander', labelKey: 'features:catalog-commander.name', path: '/catalog-commander', permissionId: 'catalog-commander', icon: FolderKanban },
       ],
     },
   ],
@@ -358,8 +348,7 @@ export function visibleNav(
   const result = {} as Record<NavGroupId, NavSection[]>;
   const gated = !has(SETTINGS_GATE, FeatureAccessLevel.READ_ONLY);
   for (const { id, settingsArea } of NAV_GROUPS) {
-    const sections = NAV[id]
-      .filter((s) => !(settingsArea && gated) || s.ungated)
+    const sections = (settingsArea && gated ? [] : NAV[id])
       .map((s) => ({ ...s, items: s.items.map((i) => visibleItem(i, allowed)).filter((i): i is NavItem => i !== null) }))
       .filter((s) => s.items.length > 0);
     if (sections.length > 0) result[id] = sections;
@@ -432,7 +421,7 @@ function matchInGroup(sections: NavSection[], pathname: string, search: string):
 
 // The settings-area groups first, so a page listed in two groups belongs to the
 // more specific one: Asset types (Build → Assets and Semantics) is Semantics'
-const SEARCH_ORDER: NavGroupId[] = ['Settings', 'Organization', 'Semantics', 'Workflows', 'Discover', 'Build'];
+const SEARCH_ORDER: NavGroupId[] = ['Settings', 'Organization', 'Semantics', 'Workflows', 'Govern', 'Discover', 'Build'];
 
 /**
  * The router state a menu navigation carries (panel items, strip defaults

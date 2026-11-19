@@ -61,8 +61,8 @@ export const useShellStore = create<ShellState>()(
       name: 'apfm-shell',
       storage: createJSONStorage(() => localStorage),
       partialize: ({ openGroup, pinned, expanded }) => ({ openGroup, pinned, expanded }),
-      // A stored group this version doesn't open a panel for (removed, like
-      // Govern and Deploy, or the Workflows link) comes back as no open panel
+      // A stored group this version doesn't open a panel for (removed, or
+      // the Workflows link) comes back as no open panel
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<ShellState>;
         return {
