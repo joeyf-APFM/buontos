@@ -293,5 +293,17 @@
     "entityTypeDataProduct": "Producto de datos",
     "entityTypeDataset": "Conjunto de datos",
     "entityTypeDataContract": "Contrato de datos"
+  },
+  "nextSteps": {
+    "title": "Próximos pasos",
+    "createContract": "Crear un contrato de datos",
+    "createProduct": "Crear un producto de datos",
+    "continueDraft": "Continuar un borrador de producto",
+    "browseMarketplace": "Explorar el marketplace",
+    "search": "Buscar en el catálogo",
+    "myRequests": "Ver tus solicitudes",
+    "reviewAssets": "Revisar activos",
+    "checkCompliance": "Comprobar el cumplimiento",
+    "manageConcepts": "Gestionar conceptos"
   }
 }

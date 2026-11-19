@@ -14,6 +14,6 @@ export const dataProductsTile: TileConfig = {
   requiredLevel: FeatureAccessLevel.READ_ONLY,
   useTileData: useDataProductsData,
   renderContent: (data) => (
-    <ContractStatusBreakdown statusCounts={data.customData?.statusBreakdown || []} />
+    <ContractStatusBreakdown to="/data-products" statusCounts={data.customData?.statusBreakdown || []} />
   ),
 };

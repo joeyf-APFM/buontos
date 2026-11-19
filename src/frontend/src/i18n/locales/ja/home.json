@@ -292,5 +292,17 @@
     "entityTypeDataProduct": "データ製品",
     "entityTypeDataset": "データセット",
     "entityTypeDataContract": "データコントラクト"
+  },
+  "nextSteps": {
+    "title": "次のステップ",
+    "createContract": "データ契約を作成",
+    "createProduct": "データプロダクトを作成",
+    "continueDraft": "下書きのプロダクトを続ける",
+    "browseMarketplace": "マーケットプレイスを見る",
+    "search": "カタログを検索",
+    "myRequests": "リクエストを確認",
+    "reviewAssets": "アセットをレビュー",
+    "checkCompliance": "コンプライアンスを確認",
+    "manageConcepts": "コンセプトを管理"
   }
 }

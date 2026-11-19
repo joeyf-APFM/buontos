@@ -168,7 +168,7 @@ export default function DataProducts() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { getDomainIdByName } = useDomains();
   const refreshNotifications = useNotificationsStore((state) => state.refreshNotifications);
 
@@ -183,6 +183,23 @@ export default function DataProducts() {
   const canRead = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_ONLY);
   const canWrite = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.READ_WRITE);
   const canAdmin = !permissionsLoading && hasPermission(featureId, FeatureAccessLevel.ADMIN);
+
+  // The Home page's "Create a data product" links here with ?new=1: it opens the
+  // create dialog for those who can create, and the param goes once handled, so a
+  // reload or back never reopens it
+  const wantsNewProduct = searchParams.get('new') === '1';
+  useEffect(() => {
+    if (!wantsNewProduct || permissionsLoading) return;
+    if (canWrite) {
+      setProductToEdit(null);
+      setIsCreateDialogOpen(true);
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('new');
+      return next;
+    }, { replace: true });
+  }, [wantsNewProduct, permissionsLoading, canWrite, setSearchParams]);
 
   // Fetch initial data for the table and dropdowns
   // The shell's breadcrumb names this menu page from the menu: no titles to set

@@ -293,5 +293,17 @@
     "entityTypeDataProduct": "Data product",
     "entityTypeDataset": "Dataset",
     "entityTypeDataContract": "Data contract"
+  },
+  "nextSteps": {
+    "title": "Next steps",
+    "createContract": "Create a data contract",
+    "createProduct": "Create a data product",
+    "continueDraft": "Continue a draft product",
+    "browseMarketplace": "Browse the marketplace",
+    "search": "Search the catalog",
+    "myRequests": "See your requests",
+    "reviewAssets": "Review assets",
+    "checkCompliance": "Check compliance",
+    "manageConcepts": "Manage concepts"
   }
 }

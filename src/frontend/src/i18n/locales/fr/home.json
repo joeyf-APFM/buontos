@@ -293,5 +293,17 @@
     "entityTypeDataProduct": "Produit de données",
     "entityTypeDataset": "Jeu de données",
     "entityTypeDataContract": "Contrat de données"
+  },
+  "nextSteps": {
+    "title": "Prochaines étapes",
+    "createContract": "Créer un contrat de données",
+    "createProduct": "Créer un produit de données",
+    "continueDraft": "Reprendre un brouillon de produit",
+    "browseMarketplace": "Parcourir la marketplace",
+    "search": "Rechercher dans le catalogue",
+    "myRequests": "Voir vos demandes",
+    "reviewAssets": "Examiner les actifs",
+    "checkCompliance": "Vérifier la conformité",
+    "manageConcepts": "Gérer les concepts"
   }
 }
