@@ -48,7 +48,7 @@
   background: var(--aura-accent-subtle);
   color: var(--aura-accent-hover);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--aura-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aura-accent) 45%, transparent);
 }
 
 .chevron {
@@ -177,9 +177,6 @@
   background: var(--aura-accent-subtle);
 }
 
-.table > tbody > tr[data-selected] > td:first-child {
-  box-shadow: inset 2px 0 0 var(--aura-accent);
-}
 
 /* Nested rows */
 .nameCell {
@@ -276,9 +273,6 @@ button.rowChevron:hover {
   background: var(--aura-accent-subtle);
 }
 
-.subgrid tbody tr[data-selected] td:first-child {
-  box-shadow: inset 2px 0 0 var(--aura-accent);
-}
 
 .truncate {
   display: inline-block;

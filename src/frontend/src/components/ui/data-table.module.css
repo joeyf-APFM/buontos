@@ -108,9 +108,6 @@
   background: var(--aura-accent-subtle);
 }
 
-.table > tbody > tr[data-state='selected'] > td:first-child {
-  box-shadow: inset 2px 0 0 var(--aura-accent);
-}
 
 /* The select column: just wide enough for the checkbox */
 .table > thead > tr > th[data-select],

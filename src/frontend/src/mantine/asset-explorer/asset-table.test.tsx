@@ -35,11 +35,11 @@ describe('AssetTable', () => {
     expect(dot(selected)).toBe('rgb(39, 113, 83)'); // active #277153
     expect(dot(other)).toBe('rgb(182, 127, 20)'); // draft #B67F14
 
-    // The highlight: accent-subtle across the row, a 2px accent bar on its
-    // left edge (jsdom reports the declared values; it doesn't resolve var())
+    // The highlight: accent-subtle across the row and no side bar
+    // (jsdom reports the declared values; it doesn't resolve var())
     const [first, ...rest] = [...selected.querySelectorAll('td')];
     [first, ...rest].forEach((td) => expect(getComputedStyle(td).background).toBe('var(--aura-accent-subtle)'));
-    expect(getComputedStyle(first).boxShadow).toBe('inset 2px 0 0 var(--aura-accent)');
+    expect(getComputedStyle(first).boxShadow).toBe('');
     rest.forEach((td) => expect(getComputedStyle(td).boxShadow).toBe(''));
     other.querySelectorAll('td').forEach((td) => {
       expect(getComputedStyle(td).background).not.toBe('var(--aura-accent-subtle)');

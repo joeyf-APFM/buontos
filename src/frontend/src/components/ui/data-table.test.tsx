@@ -301,7 +301,7 @@ describe('DataTable', () => {
       const cells = Array.from(row.querySelectorAll('td')) as HTMLElement[];
       expect(row).toHaveAttribute('data-state', 'selected');
       cells.forEach((c) => expect(getComputedStyle(c).background).toBe('var(--aura-accent-subtle)'));
-      expect(getComputedStyle(cells[0]).boxShadow).toBe('inset 2px 0 0 var(--aura-accent)');
+      expect(getComputedStyle(cells[0]).boxShadow).toBe('');
       expect(getComputedStyle(cells[1]).boxShadow).toBe('');
       expect(within(row).getByText('Item 00').tagName).toBe('STRONG');
       // The selected row keeps the body text style
