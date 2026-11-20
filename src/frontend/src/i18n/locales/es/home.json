@@ -13,7 +13,7 @@
       "compliance": {
         "title": "Cumplimiento",
         "description": "Puntuación de cumplimiento actual",
-        "notAvailable": "N/D"
+        "notAvailable": "Aún sin datos"
       },
       "dataContracts": {
         "title": "Contratos de datos",

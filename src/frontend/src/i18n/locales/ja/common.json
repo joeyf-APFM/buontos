@@ -171,7 +171,8 @@
     "noDomainsFound": "ドメインが見つかりません。",
     "loadingTags": "タグを読み込み中...",
     "noTagsFound": "タグが見つかりません。",
-    "loadingInfo": "情報を読み込み中..."
+    "loadingInfo": "情報を読み込み中...",
+    "noOwner": "オーナーなし"
   },
   "confirmations": {
     "discardChanges": "未保存の変更を破棄しますか？",

@@ -172,7 +172,8 @@
     "noDomainsFound": "Geen domeinen gevonden.",
     "loadingTags": "Tags laden...",
     "noTagsFound": "Geen tags gevonden.",
-    "loadingInfo": "Info laden..."
+    "loadingInfo": "Info laden...",
+    "noOwner": "Geen eigenaar"
   },
   "confirmations": {
     "discardChanges": "Niet-opgeslagen wijzigingen verwerpen?",

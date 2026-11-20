@@ -13,7 +13,7 @@
       "compliance": {
         "title": "Compliance",
         "description": "Current compliance score",
-        "notAvailable": "N/A"
+        "notAvailable": "No data yet"
       },
       "dataContracts": {
         "title": "Data Contracts",

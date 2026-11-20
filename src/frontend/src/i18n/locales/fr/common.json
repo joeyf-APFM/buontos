@@ -171,7 +171,8 @@
     "noDomainsFound": "Aucun domaine trouvé.",
     "loadingTags": "Chargement des étiquettes...",
     "noTagsFound": "Aucune étiquette trouvée.",
-    "loadingInfo": "Chargement des informations..."
+    "loadingInfo": "Chargement des informations...",
+    "noOwner": "Aucun propriétaire"
   },
   "confirmations": {
     "discardChanges": "Abandonner les modifications non enregistrées ?",

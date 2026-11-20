@@ -687,7 +687,8 @@ export default function DataProducts() {
       header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => {
         const owner = row.original.team?.members?.find(m => m.role === 'owner');
-        return <span className={list.person}>{owner?.name || owner?.username || t('common:states.notAvailable')}</span>;
+        const who = owner?.name || owner?.username;
+        return <span className={list.person} data-empty={!who || undefined}>{who || t('common:states.noOwner')}</span>;
       },
     },
     {

@@ -26,6 +26,8 @@ interface CompliancePolicy {
   failure_message?: string;  // Human-readable message shown when policy fails
   rule: string;
   compliance: number;
+  /** False for a rule never run: its 0 is no score. */
+  has_run?: boolean;
   history: number[];
   created_at: string;
   updated_at: string;
@@ -39,6 +41,8 @@ interface ComplianceStats {
   overall_compliance: number;
   active_policies: number;
   critical_issues: number;
+  /** Rules that have been run at least once; without any, the score means nothing. */
+  scored_policies?: number;
 }
 
 interface ComplianceApiResponse {
@@ -46,7 +50,7 @@ interface ComplianceApiResponse {
   stats: ComplianceStats;
 }
 
-const NO_STATS: ComplianceStats = { overall_compliance: 0, active_policies: 0, critical_issues: 0 };
+const NO_STATS: ComplianceStats = { overall_compliance: 0, active_policies: 0, critical_issues: 0, scored_policies: 0 };
 
 /** A score's status tone: 90 and up good, 70 and up a warning, below that critical. */
 const scoreTone = (score: number) => (score >= 90 ? 'good' : score >= 70 ? 'warning' : 'critical');
@@ -324,11 +328,14 @@ export default function Compliance() {
     {
       accessorKey: "compliance",
       header: t('common:labels.compliance'),
-      cell: ({ row }) => (
-        <span className={classes.score} data-tone={scoreTone(row.getValue<number>("compliance"))}>
-          {row.getValue("compliance")}%
-        </span>
-      ),
+      cell: ({ row }) =>
+        row.original.has_run === false ? (
+          <span className={classes.hint}>{t('compliance:stats.notRun')}</span>
+        ) : (
+          <span className={classes.score} data-tone={scoreTone(row.getValue<number>("compliance"))}>
+            {row.getValue("compliance")}%
+          </span>
+        ),
     },
     {
       accessorKey: "is_active",
@@ -356,7 +363,9 @@ export default function Compliance() {
   ], [t]);
 
   const formId = 'compliance-policy-form';
-  const overallTone = scoreTone(stats.overall_compliance);
+  // Before any rule has run there is no score: a 0% would read as failing
+  const hasScore = (stats.scored_policies ?? stats.active_policies) > 0;
+  const overallTone = hasScore ? scoreTone(stats.overall_compliance) : 'neutral';
 
   return (
     <>
@@ -373,8 +382,10 @@ export default function Compliance() {
                   label={t('compliance:stats.overallCompliance')}
                   value={
                     <>
-                      {Number(stats.overall_compliance).toFixed(0)}%
-                      <span className={classes.hint}>{t('compliance:stats.acrossAllRules')}</span>
+                      {hasScore ? `${Number(stats.overall_compliance).toFixed(0)}%` : '\u2014'}
+                      <span className={classes.hint}>
+                        {hasScore ? t('compliance:stats.acrossAllRules') : t('compliance:stats.notRunYet')}
+                      </span>
                     </>
                   }
                   tone={overallTone === 'good' ? 'success' : overallTone}
@@ -397,15 +408,6 @@ export default function Compliance() {
                     </>
                   }
                   tone={stats.critical_issues > 0 ? 'critical' : 'neutral'}
-                />
-                <StatTile
-                  label={t('compliance:stats.lastUpdated')}
-                  value={
-                    <>
-                      {t('compliance:stats.today')}
-                      <span className={classes.hint}>12:30 PM</span>
-                    </>
-                  }
                 />
               </div>
               <div className={list.body}>

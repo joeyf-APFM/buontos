@@ -20,7 +20,9 @@
     "criticalIssues": "Kritieke Problemen",
     "requireAttention": "Vereisen aandacht",
     "lastUpdated": "Laatst Bijgewerkt",
-    "today": "Vandaag"
+    "today": "Vandaag",
+    "notRunYet": "Nog geen regel uitgevoerd",
+    "notRun": "Niet uitgevoerd"
   },
   "form": {
     "name": "Naam",

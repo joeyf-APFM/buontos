@@ -171,7 +171,8 @@
     "noDomainsFound": "Keine Bereiche gefunden.",
     "loadingTags": "Tags werden geladen...",
     "noTagsFound": "Keine Tags gefunden.",
-    "loadingInfo": "Informationen werden geladen..."
+    "loadingInfo": "Informationen werden geladen...",
+    "noOwner": "Kein Eigentümer"
   },
   "confirmations": {
     "discardChanges": "Ungespeicherte Änderungen verwerfen?",

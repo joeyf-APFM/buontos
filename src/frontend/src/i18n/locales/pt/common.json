@@ -172,7 +172,8 @@
     "noDomainsFound": "Nenhum domínio encontrado.",
     "loadingTags": "Carregando tags...",
     "noTagsFound": "Nenhuma tag encontrada.",
-    "loadingInfo": "Carregando informações..."
+    "loadingInfo": "Carregando informações...",
+    "noOwner": "Sem proprietário"
   },
   "confirmations": {
     "discardChanges": "Descartar alterações não salvas?",

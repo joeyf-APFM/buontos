@@ -482,7 +482,7 @@ export default function DataContracts() {
       header: ({ column }) => <SortButton column={column} label={t('table.owner')} />,
       cell: ({ row }) => {
         const teamName = row.original.owner_team_name;
-        return <span className={list.person}>{teamName || t('common:states.notAvailable')}</span>;
+        return <span className={list.person} data-empty={!teamName || undefined}>{teamName || t('common:states.noOwner')}</span>;
       },
     },
     {

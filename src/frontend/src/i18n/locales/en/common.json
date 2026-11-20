@@ -172,7 +172,8 @@
     "noDomainsFound": "No domains found.",
     "loadingTags": "Loading tags...",
     "noTagsFound": "No tags found.",
-    "loadingInfo": "Loading info..."
+    "loadingInfo": "Loading info...",
+    "noOwner": "No owner"
   },
   "confirmations": {
     "discardChanges": "Discard unsaved changes?",

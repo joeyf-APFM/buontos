@@ -20,7 +20,9 @@
     "criticalIssues": "Critical Issues",
     "requireAttention": "Require attention",
     "lastUpdated": "Last Updated",
-    "today": "Today"
+    "today": "Today",
+    "notRunYet": "No rules run yet",
+    "notRun": "Not run"
   },
   "form": {
     "name": "Name",

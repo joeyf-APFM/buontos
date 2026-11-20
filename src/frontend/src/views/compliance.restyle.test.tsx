@@ -328,6 +328,13 @@ describe('compliance on the page kit', () => {
     expect(name).toHaveAttribute('title', LONG_NAME);
   });
 
+  it('compliance shows no score, not 0%, until a rule has run', async () => {
+    mockBackend({ policies: POLICIES, stats: { overall_compliance: 0, active_policies: 2, critical_issues: 0, scored_policies: 0 } });
+    renderPage();
+    expect(await screen.findByText('No rules run yet')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  });
+
   it('compliance empty and error states keep their actions', async () => {
     mockBackend({ policies: [], stats: { overall_compliance: 0, active_policies: 0, critical_issues: 0 } });
     const user = userEvent.setup();

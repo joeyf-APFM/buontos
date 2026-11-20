@@ -38,7 +38,9 @@ export function useComplianceData(): TileData {
       })
       .then(apiData => {
         const complianceArray = Array.isArray(apiData) ? apiData : [];
-        const latestCompliance = complianceArray.length > 0
+        // A trend of nothing but zeros is days with no checks run, not a failing score
+        const anyRun = complianceArray.some((d: any) => Number(d.compliance) > 0);
+        const latestCompliance = complianceArray.length > 0 && anyRun
           ? complianceArray[complianceArray.length - 1].compliance
           : null;
 

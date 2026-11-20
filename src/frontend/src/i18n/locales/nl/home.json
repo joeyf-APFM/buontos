@@ -13,7 +13,7 @@
       "compliance": {
         "title": "Compliance",
         "description": "Huidige compliance score",
-        "notAvailable": "N.v.t."
+        "notAvailable": "Nog geen gegevens"
       },
       "dataContracts": {
         "title": "Datacontracten",

@@ -80,6 +80,12 @@ button.sort:focus-visible {
   overflow-wrap: anywhere;
 }
 
+/* No owner yet: quieter than a name, so a gap reads as a gap */
+.person[data-empty] {
+  color: var(--aura-text-secondary);
+  font-style: italic;
+}
+
 /* Version, status and tag badges, wrapping in their cell */
 .badges {
   display: flex;

@@ -20,7 +20,9 @@
     "criticalIssues": "Problemas Críticos",
     "requireAttention": "Requieren atención",
     "lastUpdated": "Última Actualización",
-    "today": "Hoy"
+    "today": "Hoy",
+    "notRunYet": "Aún no se ha ejecutado ninguna regla",
+    "notRun": "Sin ejecutar"
   },
   "form": {
     "name": "Nombre",

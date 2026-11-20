@@ -13,7 +13,7 @@
       "compliance": {
         "title": "Compliance",
         "description": "Aktueller Compliance-Score",
-        "notAvailable": "N/V"
+        "notAvailable": "Noch keine Daten"
       },
       "dataContracts": {
         "title": "Datenverträge",

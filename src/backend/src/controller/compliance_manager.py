@@ -395,11 +395,15 @@ class ComplianceManager:
         # Use latest run score per policy
         scores: List[float] = []
         critical_issues = 0
+        scored = 0  # policies that have been run at least once
         for p in policies:
             runs = compliance_run_repo.list_for_policy(db, policy_id=p.id, limit=1)
             score = runs[0].score if runs else 0.0
             scores.append(score)
-            if (p.severity or '').lower() == 'critical' and score < 70:
+            if runs:
+                scored += 1
+            # A rule never run is unknown, not failing
+            if runs and (p.severity or '').lower() == 'critical' and score < 70:
                 critical_issues += 1
         overall = sum(scores) / len(scores) if scores else 0.0
         active = len([p for p in policies if p.is_active])
@@ -407,6 +411,7 @@ class ComplianceManager:
             "overall_compliance": overall,
             "active_policies": active,
             "critical_issues": critical_issues,
+            "scored_policies": scored,
         }
 
     def get_policies_with_stats(self, db: Session, yaml_path: Optional[str] = None) -> Dict:
@@ -452,6 +457,7 @@ class ComplianceManager:
                 'severity': r.severity,
                 'category': r.category,
                 'compliance': compliance_score,
+                'has_run': bool(runs),
                 'history': [],
             })
         

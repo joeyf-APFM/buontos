@@ -13,7 +13,7 @@
       "compliance": {
         "title": "コンプライアンス",
         "description": "現在のコンプライアンススコア",
-        "notAvailable": "N/A"
+        "notAvailable": "データなし"
       },
       "dataContracts": {
         "title": "データ契約",
