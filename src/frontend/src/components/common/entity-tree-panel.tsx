@@ -210,13 +210,13 @@ function ChildTreeNode({
         <span className="flex-1 text-sm truncate min-w-0">{node.name}</span>
 
         {node.status && (
-          <Badge variant={STATUS_VARIANT[node.status] ?? 'outline'} className="text-[10px] flex-shrink-0 h-4 px-1">
+          <Badge variant={STATUS_VARIANT[node.status] ?? 'outline'} className="text-[11px] flex-shrink-0 h-4 px-1">
             {node.status}
           </Badge>
         )}
 
         {node.child_count > 0 && !expanded && (
-          <span className="text-[10px] text-muted-foreground flex-shrink-0">{node.child_count}</span>
+          <span className="text-[11px] text-muted-foreground flex-shrink-0">{node.child_count}</span>
         )}
 
         <Tooltip>
@@ -334,18 +334,18 @@ function RootTreeNode({
         </button>
 
         {/* Type badge */}
-        <Badge variant="secondary" className="text-[10px] flex-shrink-0 h-4 px-1.5">
+        <Badge variant="secondary" className="text-[11px] flex-shrink-0 h-4 px-1.5">
           {formatTypeName(rootNode.entityType)}
         </Badge>
 
         {/* Relationship label */}
-        <span className="text-[10px] text-muted-foreground flex-shrink-0 hidden sm:inline max-w-40 truncate">
+        <span className="text-[11px] text-muted-foreground flex-shrink-0 hidden sm:inline max-w-40 truncate">
           {formatLabel(rootNode.relationshipLabel || rootNode.relationshipType)}
         </span>
 
         {/* Child count (before expansion) */}
         {loaded && childCount !== null && childCount > 0 && !expanded && (
-          <span className="text-[10px] text-muted-foreground flex-shrink-0">{childCount}</span>
+          <span className="text-[11px] text-muted-foreground flex-shrink-0">{childCount}</span>
         )}
 
         {/* Navigate */}

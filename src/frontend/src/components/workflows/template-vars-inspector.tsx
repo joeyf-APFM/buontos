@@ -120,7 +120,7 @@ function VariableRow({
           {descriptor.type}
         </Badge>
         {groupLabel && (
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground/70">
             {groupLabel}
           </span>
         )}

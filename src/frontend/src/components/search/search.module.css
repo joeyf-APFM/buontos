@@ -299,7 +299,7 @@ button.chip:focus-visible {
 }
 
 .direction {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   color: var(--aura-text-secondary);
 }
@@ -313,7 +313,7 @@ button.chip:focus-visible {
 .kind {
   flex: none;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   color: var(--aura-text-secondary);
   background: var(--aura-surface-strong);

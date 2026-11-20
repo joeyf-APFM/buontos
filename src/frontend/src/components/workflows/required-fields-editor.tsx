@@ -622,7 +622,7 @@ export default function RequiredFieldsEditor({
                           updateField(idx, { options_endpoint: e.target.value })
                         }
                       />
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground">
                         {t('workflows:requiredFields.endpointHint')}{' '}
                         <code>{`{ options: [{ value, label }] }`}</code>.
                       </p>

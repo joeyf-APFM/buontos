@@ -366,7 +366,7 @@ button.fold svg {
 button.fold[data-small] {
   min-height: 20px;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .chevron {
@@ -450,7 +450,7 @@ button.fold[data-small] {
 /* Tool names, arguments and models: identifiers, in the mono font */
 .code {
   font-family: var(--aura-font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .code[data-strong] {
@@ -495,7 +495,7 @@ svg.failed {
   padding: 8px;
   overflow: auto;
   font-family: var(--aura-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   white-space: pre;
   background: var(--aura-surface-strong);
   border-radius: 4px;

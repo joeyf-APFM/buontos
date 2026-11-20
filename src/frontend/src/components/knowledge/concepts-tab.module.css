@@ -90,7 +90,7 @@
 
 .sub {
   flex: none;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--aura-text-secondary);
 }
@@ -107,7 +107,7 @@
 /* The raw IRI: an identifier, in mono */
 .iri {
   font-family: var(--aura-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--aura-text-muted);
 }
 
@@ -215,7 +215,7 @@
   max-width: 260px;
   overflow: hidden;
   font-family: var(--aura-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--aura-text-secondary);
 }
 
@@ -274,7 +274,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--aura-accent);
   cursor: pointer;
 }

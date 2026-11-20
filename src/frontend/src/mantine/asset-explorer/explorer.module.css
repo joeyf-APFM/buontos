@@ -23,7 +23,7 @@
 
 .sectionTitle {
   padding: 10px 12px 4px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -114,7 +114,7 @@
 
 /* Header badges (the header itself is the page kit's PageHeader) */
 .tag {
-  font-size: 10.5px;
+  font-size: 11px;
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--aura-surface-strong);

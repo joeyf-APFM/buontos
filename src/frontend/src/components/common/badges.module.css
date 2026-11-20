@@ -11,7 +11,7 @@
 }
 
 .inherited {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* "(2/5)" after a maturity level: lighter weight, same colour, so it keeps
@@ -101,7 +101,7 @@
   border: 1px solid var(--aura-border);
   border-radius: 4px;
   background: var(--aura-canvas);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 16px;
   color: var(--aura-text-secondary);

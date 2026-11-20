@@ -943,7 +943,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                     <div className="text-[11px] font-medium mb-2">{t('data-contracts:wizard.constraints.string', 'String Constraints')}</div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.minLength', 'Min Length')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.minLength', 'Min Length')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="0"
@@ -953,7 +953,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.maxLength', 'Max Length')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.maxLength', 'Max Length')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="255"
@@ -963,7 +963,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.pattern', 'Pattern (Regex)')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.pattern', 'Pattern (Regex)')}</Label>
                                         <Input
                                           placeholder="^[a-zA-Z]+$"
                                           value={(col as any).pattern || ''}
@@ -980,7 +980,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                     <div className="text-[11px] font-medium mb-2">{t('data-contracts:wizard.constraints.number', 'Number Constraints')}</div>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.minimum', 'Minimum')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.minimum', 'Minimum')}</Label>
                                         <Input
                                           type="number"
                                           step="any"
@@ -991,7 +991,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.maximum', 'Maximum')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.maximum', 'Maximum')}</Label>
                                         <Input
                                           type="number"
                                           step="any"
@@ -1002,7 +1002,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.multipleOf', 'Multiple Of')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.multipleOf', 'Multiple Of')}</Label>
                                         <Input
                                           type="number"
                                           step="any"
@@ -1013,7 +1013,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.precision', 'Precision')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.precision', 'Precision')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="2"
@@ -1031,7 +1031,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                     <div className="text-[11px] font-medium mb-2">{t('data-contracts:wizard.constraints.integer', 'Integer Constraints')}</div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.minimum', 'Minimum')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.minimum', 'Minimum')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="0"
@@ -1041,7 +1041,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.maximum', 'Maximum')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.maximum', 'Maximum')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="100"
@@ -1059,7 +1059,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                     <div className="text-[11px] font-medium mb-2">{t('data-contracts:wizard.constraints.date', 'Date Constraints')}</div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.format', 'Format')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.format', 'Format')}</Label>
                                         <Select
                                           value={(col as any).format || 'date'}
                                           onValueChange={(v) => setSchemaObjects((prev) => prev.map((x, i) => i === objIndex ? { ...x, properties: x.properties.map((y, j) => j === colIndex ? { ...y, format: v } : y) } : x))}
@@ -1076,7 +1076,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         </Select>
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.timezone', 'Timezone')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.timezone', 'Timezone')}</Label>
                                         <Input
                                           placeholder={t('data-contracts:wizard.constraints.timezonePlaceholder', 'UTC, America/New_York')}
                                           value={(col as any).timezone || ''}
@@ -1085,7 +1085,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.customFormat', 'Custom Format')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.customFormat', 'Custom Format')}</Label>
                                         <Input
                                           placeholder={t('data-contracts:wizard.constraints.customFormatPlaceholder', '%Y-%m-%d %H:%M:%S')}
                                           value={(col as any).customFormat || ''}
@@ -1102,7 +1102,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                     <div className="text-[11px] font-medium mb-2">{t('data-contracts:wizard.constraints.array', 'Array Constraints')}</div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.itemType', 'Item Type')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.itemType', 'Item Type')}</Label>
                                         <Select
                                           value={(col as any).itemType || 'string'}
                                           onValueChange={(v) => setSchemaObjects((prev) => prev.map((x, i) => i === objIndex ? { ...x, properties: x.properties.map((y, j) => j === colIndex ? { ...y, itemType: v } : y) } : x))}
@@ -1118,7 +1118,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         </Select>
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.minItems', 'Min Items')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.minItems', 'Min Items')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="0"
@@ -1128,7 +1128,7 @@ export default function DataContractWizardDialog({ isOpen, onOpenChange, onSubmi
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-[10px]">{t('data-contracts:wizard.constraints.maxItems', 'Max Items')}</Label>
+                                        <Label className="text-[11px]">{t('data-contracts:wizard.constraints.maxItems', 'Max Items')}</Label>
                                         <Input
                                           type="number"
                                           placeholder="100"

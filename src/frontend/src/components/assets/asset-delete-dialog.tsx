@@ -183,17 +183,17 @@ export function AssetDeleteDialog({
           <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="text-sm truncate flex-1">{node.name}</span>
           {node.asset_type_name && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+            <Badge variant="outline" className="text-[11px] px-1.5 py-0 shrink-0">
               {node.asset_type_name}
             </Badge>
           )}
           {node.relationship_type && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+            <Badge variant="secondary" className="text-[11px] px-1.5 py-0 shrink-0">
               {node.relationship_type}
             </Badge>
           )}
           {node.children.length > 0 && (
-            <span className="text-[10px] text-muted-foreground shrink-0">
+            <span className="text-[11px] text-muted-foreground shrink-0">
               {childrenSelected}/{node.children.length}
             </span>
           )}

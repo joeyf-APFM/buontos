@@ -338,17 +338,17 @@ export function EntityVersionPicker({
                           />
                           <span className="flex-1 truncate">{row.name || t('common:entityVersionPicker.unnamed')}</span>
                           {row.version && (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[11px]">
                               v{row.version}
                             </Badge>
                           )}
                           {row.status && (
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-[11px]">
                               {row.status}
                             </Badge>
                           )}
                           {versionCount && versionCount > 1 && (
-                            <span className="inline-flex items-center gap-0.5 rounded border border-border bg-muted/40 px-1 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-0.5 rounded border border-border bg-muted/40 px-1 py-0.5 text-[11px] text-muted-foreground">
                               <History className="h-3 w-3" />
                               {versionCount}
                             </span>

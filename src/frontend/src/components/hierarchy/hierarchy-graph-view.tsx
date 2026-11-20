@@ -101,19 +101,19 @@ const HierarchyNode: React.FC<NodeProps<HierarchyNodeData>> = ({ data }) => {
             <span className="truncate">{data.label}</span>
           </CardTitle>
           <div className="flex items-center gap-1 mt-1">
-            <Badge variant="outline" className="text-[9px] h-3.5 px-1 font-normal">
+            <Badge variant="outline" className="text-[11px] h-4 px-1 font-normal">
               {data.entityType}
             </Badge>
             {data.status && (
               <Badge
                 variant={STATUS_VARIANT[data.status] ?? 'outline'}
-                className="text-[9px] h-3.5 px-1"
+                className="text-[11px] h-4 px-1"
               >
                 {data.status}
               </Badge>
             )}
             {data.childCount > 0 && (
-              <span className="text-[9px] text-muted-foreground ml-auto">
+              <span className="text-[11px] text-muted-foreground ml-auto">
                 {data.childCount}
               </span>
             )}

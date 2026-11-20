@@ -156,7 +156,7 @@ export function MaturityPanel({ entityType, entityId }: MaturityPanelProps) {
                             <p className="text-xs text-muted-foreground">{gate.message}</p>
                           )}
                         </div>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[11px]">
                           {gate.required ? t('data-products:maturity.required') : t('data-products:maturity.advisory')}
                         </Badge>
                       </div>

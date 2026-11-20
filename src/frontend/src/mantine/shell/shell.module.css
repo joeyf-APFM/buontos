@@ -129,7 +129,7 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--aura-text-secondary);
 }
@@ -201,7 +201,7 @@
 }
 
 .section {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -295,7 +295,7 @@
 
 .foot {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--aura-text-muted);
   padding: 8px 12px;
   border-top: 1px solid var(--aura-border-subtle);

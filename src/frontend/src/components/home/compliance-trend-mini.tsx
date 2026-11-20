@@ -113,7 +113,7 @@ export default function ComplianceTrendMini({
           x={padding.left}
           y={height - 3}
           textAnchor="start"
-          className="text-[9px] fill-muted-foreground"
+          className="text-[11px] fill-muted-foreground"
         >
           30d ago
         </text>
@@ -121,7 +121,7 @@ export default function ComplianceTrendMini({
           x={width - padding.right}
           y={height - 3}
           textAnchor="end"
-          className="text-[9px] fill-muted-foreground"
+          className="text-[11px] fill-muted-foreground"
         >
           Today
         </text>
@@ -131,7 +131,7 @@ export default function ComplianceTrendMini({
           x={3}
           y={padding.top + 3}
           textAnchor="start"
-          className="text-[9px] fill-muted-foreground"
+          className="text-[11px] fill-muted-foreground"
         >
           100%
         </text>
@@ -139,7 +139,7 @@ export default function ComplianceTrendMini({
           x={3}
           y={height - padding.bottom - 2}
           textAnchor="start"
-          className="text-[9px] fill-muted-foreground"
+          className="text-[11px] fill-muted-foreground"
         >
           0%
         </text>

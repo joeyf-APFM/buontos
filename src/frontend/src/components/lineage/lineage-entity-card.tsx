@@ -113,7 +113,7 @@ const LineageEntityCard = memo(({ id, data }: NodeProps<GroupCardData>) => {
         <span className="text-sm font-semibold truncate flex-1 min-w-0 text-white">
           {node.name}
         </span>
-        <span className="text-[10px] font-medium text-white/75 shrink-0 uppercase tracking-wide">
+        <span className="text-[11px] font-medium text-white/75 shrink-0 uppercase tracking-wide">
           {humanizeType(node.entity_type)}
         </span>
         <button
@@ -132,7 +132,7 @@ const LineageEntityCard = memo(({ id, data }: NodeProps<GroupCardData>) => {
 
       {/* ── System badge (subtle, below header) ──────────────────── */}
       {system && (
-        <div className="px-3 py-0.5 bg-muted/30 text-[10px] text-muted-foreground truncate border-b">
+        <div className="px-3 py-0.5 bg-muted/30 text-[11px] text-muted-foreground truncate border-b">
           {system}
         </div>
       )}
@@ -190,7 +190,7 @@ const LineageEntityCard = memo(({ id, data }: NodeProps<GroupCardData>) => {
                 <span className="text-xs truncate flex-1 min-w-0">
                   {child.name}
                 </span>
-                <span className="text-[10px] text-muted-foreground shrink-0">
+                <span className="text-[11px] text-muted-foreground shrink-0">
                   {humanizeType(child.entity_type)}
                 </span>
 
@@ -209,7 +209,7 @@ const LineageEntityCard = memo(({ id, data }: NodeProps<GroupCardData>) => {
           {/* Overflow toggle */}
           {hasOverflow && (
             <button
-              className="flex items-center gap-1 px-3 w-full text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t border-border/30"
+              className="flex items-center gap-1 px-3 w-full text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t border-border/30"
               style={{ height: rowH }}
               onClick={(e) => {
                 e.stopPropagation();

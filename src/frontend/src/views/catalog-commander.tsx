@@ -1017,7 +1017,7 @@ const CatalogCommander: React.FC = () => {
                               }
                             `}>
                               {msg.role === 'user' 
-                                ? <span className="text-[10px] font-medium">U</span>
+                                ? <span className="text-[11px] font-medium">U</span>
                                 : <Sparkles className="w-3 h-3" />
                               }
                             </div>

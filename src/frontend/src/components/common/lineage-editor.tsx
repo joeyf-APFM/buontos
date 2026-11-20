@@ -417,9 +417,9 @@ function CandidateSearchStep({
                     <div className="text-xs text-muted-foreground truncate">{c.description}</div>
                   )}
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Badge variant="outline" className="text-[9px] h-3.5">{c.entity_type}</Badge>
+                    <Badge variant="outline" className="text-[11px] h-3.5">{c.entity_type}</Badge>
                     {c.status && (
-                      <Badge variant="secondary" className="text-[9px] h-3.5">{c.status}</Badge>
+                      <Badge variant="secondary" className="text-[11px] h-3.5">{c.status}</Badge>
                     )}
                   </div>
                 </div>
@@ -477,7 +477,7 @@ function ReviewStep({ pendingRelationships, onRemove }: ReviewStepProps) {
         const candidate = (typeLabel: string) => (
           <>
             <span className="font-medium">{rel.candidate_name}</span>
-            <Badge variant="outline" className="ml-2 text-[9px]">{typeLabel}</Badge>
+            <Badge variant="outline" className="ml-2 text-[11px]">{typeLabel}</Badge>
           </>
         );
         return (

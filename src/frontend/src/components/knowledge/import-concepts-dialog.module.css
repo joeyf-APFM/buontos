@@ -93,7 +93,7 @@ svg.fileIcon {
 .requestId {
   margin-left: 4px;
   font-family: var(--aura-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--aura-text-secondary);
 }
 

@@ -131,7 +131,7 @@
 .sql {
   margin: 6px 0 0;
   font-family: var(--aura-font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   background: var(--aura-surface-strong);
   border-radius: 4px;
   padding: 5px 6px;
@@ -165,7 +165,7 @@
 
 .footer {
   margin-top: 5px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--aura-text-muted);
   display: flex;
   gap: 8px;
@@ -174,7 +174,7 @@
 
 .link {
   color: var(--aura-accent);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .error {

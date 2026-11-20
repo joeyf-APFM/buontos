@@ -88,7 +88,7 @@
 .condition {
   max-width: 100%;
   font-family: var(--aura-font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;

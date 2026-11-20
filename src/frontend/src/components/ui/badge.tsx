@@ -7,10 +7,10 @@ import { AURA } from "@/mantine/theme"
 
 /**
  * Badge classes for elements that are not a Badge. The Badge itself is
- * Mantine; these classes match its density (18px high, 10.5px text).
+ * Mantine; these classes match its density (18px high, 11px text).
  */
 const badgeVariants = cva(
-  "inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10.5px] font-semibold transition-colors focus:outline-none focus:ring-1 focus:ring-ring",
+  "inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[11px] font-semibold transition-colors focus:outline-none focus:ring-1 focus:ring-ring",
   {
     variants: {
       variant: {
@@ -39,7 +39,7 @@ const MANTINE: Record<Variant, { variant: BadgeVariant; color?: string }> = {
 
 const SIZE_VARS = {
   "--badge-height": "18px",
-  "--badge-fz": "10.5px",
+  "--badge-fz": "11px",
   "--badge-padding-x": "6px",
   "--badge-radius": "4px",
 }

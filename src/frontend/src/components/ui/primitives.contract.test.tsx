@@ -437,7 +437,7 @@ describe('Enter on checkbox, radio and switch', () => {
 const cssVar = (el: HTMLElement, name: string) => el.style.getPropertyValue(name);
 
 describe('Badge', () => {
-  it('badge variants map to Mantine variants at 18px and 10.5px', () => {
+  it('badge variants map to Mantine variants at 18px and 11px', () => {
     const variants: [NonNullable<BadgeProps['variant']>, string][] = [
       ['default', 'filled'],
       ['secondary', 'light'],
@@ -450,7 +450,7 @@ describe('Badge', () => {
       const badge = screen.getByText(variant).closest('.mantine-Badge-root') as HTMLElement;
       expect(badge).toHaveAttribute('data-variant', mantineVariant);
       expect(cssVar(badge, '--badge-height')).toBe('18px');
-      expect(cssVar(badge, '--badge-fz')).toBe('10.5px');
+      expect(cssVar(badge, '--badge-fz')).toBe('11px');
       unmount();
     }
   });

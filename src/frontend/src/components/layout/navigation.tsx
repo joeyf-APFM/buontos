@@ -171,7 +171,7 @@ export function Navigation({ isCollapsed }: NavigationProps) {
                   {translatedName}
                   {item.maturity !== 'ga' && (
                     <sup className={cn(
-                      "ml-1 text-[10px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
+                      "ml-1 text-[11px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
                       item.maturity === 'beta' ? "bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-400" : "",
                       item.maturity === 'alpha' ? "bg-purple-500/20 text-purple-700 dark:bg-purple-500/30 dark:text-purple-400" : ""
                     )}>
@@ -198,7 +198,7 @@ export function Navigation({ isCollapsed }: NavigationProps) {
                   {translatedName}
                   {item.maturity !== 'ga' && (
                     <sup className={cn(
-                      "ml-1 text-[10px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
+                      "ml-1 text-[11px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
                       item.maturity === 'beta' ? "bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-400" : "",
                       item.maturity === 'alpha' ? "bg-purple-500/20 text-purple-700 dark:bg-purple-500/30 dark:text-purple-400" : ""
                     )}>
@@ -246,7 +246,7 @@ export function Navigation({ isCollapsed }: NavigationProps) {
                       {translatedName}
                       {item.maturity !== 'ga' && (
                         <sup className={cn(
-                          "ml-1 text-[10px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
+                          "ml-1 text-[11px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
                           item.maturity === 'beta' ? "bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-400" : "",
                           item.maturity === 'alpha' ? "bg-purple-500/20 text-purple-700 dark:bg-purple-500/30 dark:text-purple-400" : ""
                         )}>
@@ -273,7 +273,7 @@ export function Navigation({ isCollapsed }: NavigationProps) {
                       {translatedName}
                       {item.maturity !== 'ga' && (
                         <sup className={cn(
-                          "ml-1 text-[10px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
+                          "ml-1 text-[11px] font-bold px-1 py-0.5 rounded whitespace-nowrap",
                           item.maturity === 'beta' ? "bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-400" : "",
                           item.maturity === 'alpha' ? "bg-purple-500/20 text-purple-700 dark:bg-purple-500/30 dark:text-purple-400" : ""
                         )}>

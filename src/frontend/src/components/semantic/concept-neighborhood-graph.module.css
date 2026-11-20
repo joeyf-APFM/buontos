@@ -50,7 +50,7 @@
 }
 
 .nodeType {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--aura-text-secondary);

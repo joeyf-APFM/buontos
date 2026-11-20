@@ -65,20 +65,20 @@ const EstateNode: React.FC<NodeProps<EstateNodeData>> = ({ data }) => {
                     estate.cloud_type === 'azure' ? 'default' :
                     'outline'
                 } 
-                className="capitalize text-[10px] px-1.5 py-0.5"
+                className="capitalize text-[11px] px-1.5 py-0.5"
             >
               {estate.cloud_type}
             </Badge>
             <Badge 
                 variant={estate.connection_type === 'delta_share' ? 'default' : 'secondary'} 
-                className="capitalize text-[10px] px-1.5 py-0.5"
+                className="capitalize text-[11px] px-1.5 py-0.5"
             >
               {estate.connection_type === 'delta_share' ? 
                 <Share2 className="h-3 w-3 mr-1" /> : 
                 <Database className="h-3 w-3 mr-1" />}
               {estate.connection_type.replace('_', ' ')}
             </Badge>
-            <Badge variant={estate.is_enabled ? 'default' : 'secondary'} className="capitalize text-[10px] px-1.5 py-0.5">
+            <Badge variant={estate.is_enabled ? 'default' : 'secondary'} className="capitalize text-[11px] px-1.5 py-0.5">
                 {estate.is_enabled ? <Zap className="h-3 w-3 mr-0.5"/> : <ZapOff className="h-3 w-3 mr-0.5"/>}
                 {estate.is_enabled ? 'On' : 'Off'}
             </Badge>

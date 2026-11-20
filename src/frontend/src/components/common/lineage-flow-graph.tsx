@@ -96,16 +96,16 @@ const ContainerNode: React.FC<NodeProps<ContainerNodeData>> = ({ data }) => {
         <div className="flex items-center gap-2 cursor-pointer hover:opacity-80" onClick={handleClick}>
           <Icon className={`w-4 h-4 flex-shrink-0 ${colors.text}`} />
           <span className="text-sm font-medium truncate">{data.label}</span>
-          <Badge variant="outline" className="text-[9px] h-3.5 px-1 font-normal ml-auto">
+          <Badge variant="outline" className="text-[11px] h-4 px-1 font-normal ml-auto">
             {humanizeType(data.entityType)}
           </Badge>
           {data.status && (
-            <Badge variant={STATUS_VARIANT[data.status] ?? 'outline'} className="text-[9px] h-3.5 px-1">
+            <Badge variant={STATUS_VARIANT[data.status] ?? 'outline'} className="text-[11px] h-4 px-1">
               {data.status}
             </Badge>
           )}
           {data.childCount > 0 && (
-            <Badge variant="secondary" className="text-[9px] h-3.5 px-1">
+            <Badge variant="secondary" className="text-[11px] h-4 px-1">
               {data.childCount}
             </Badge>
           )}

@@ -472,7 +472,7 @@ function SchemaPropertyEditorInner(
               <TabsTrigger value="relationships">
                 {t('data-contracts:property.tabs.relationships', 'Relationships')}
                 {propRelationships.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1">{propRelationships.length}</Badge>
+                  <Badge variant="secondary" className="ml-1 text-[11px] h-4 px-1">{propRelationships.length}</Badge>
                 )}
               </TabsTrigger>
             </TabsList>

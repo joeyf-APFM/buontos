@@ -28,7 +28,7 @@ export default function LineageLegend({ onClose }: LineageLegendProps) {
 
       {/* Entity types */}
       <div className="space-y-1 mb-3">
-        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">{t('data-catalog:lineage.legendPanel.entityTypes')}</p>
+        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">{t('data-catalog:lineage.legendPanel.entityTypes')}</p>
         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
           {typeEntries.map(([type, colors]) => (
             <div key={type} className="flex items-center gap-1.5">
@@ -36,7 +36,7 @@ export default function LineageLegend({ onClose }: LineageLegendProps) {
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: colors.hex }}
               />
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="text-[11px] text-muted-foreground truncate">
                 {type.replace(/([A-Z])/g, ' $1').trim()}
               </span>
             </div>
@@ -46,27 +46,27 @@ export default function LineageLegend({ onClose }: LineageLegendProps) {
 
       {/* Edge styles */}
       <div className="space-y-1.5 pt-2 border-t">
-        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">{t('data-catalog:lineage.legendPanel.edgeStyles')}</p>
+        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">{t('data-catalog:lineage.legendPanel.edgeStyles')}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="w-8 h-0 border-t-2 border-foreground/60" />
-            <span className="text-[10px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.dataFlow')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.dataFlow')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-0 border-t-2 border-rose-500/70" />
-            <span className="text-[10px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.implementation')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.implementation')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-0 border-t-[1.5px] border-muted-foreground/40" />
-            <span className="text-[10px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.containment')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.containment')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-0 border-t-[1.5px] border-dashed border-muted-foreground/60" />
-            <span className="text-[10px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.governance')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.governance')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-0 border-t border-dotted border-muted-foreground/40" />
-            <span className="text-[10px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.semantic')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('data-catalog:lineage.legendPanel.semantic')}</span>
           </div>
         </div>
       </div>

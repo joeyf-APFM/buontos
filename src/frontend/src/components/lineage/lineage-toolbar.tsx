@@ -155,13 +155,13 @@ export default function LineageToolbar({
             <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
             {t('data-catalog:lineage.toolbar.view')}
             {hiddenCount > 0 && (
-              <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">{hiddenCount}</Badge>
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[11px]">{hiddenCount}</Badge>
             )}
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-64 p-3 space-y-3">
           <div className="space-y-1.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               {t('data-catalog:lineage.toolbar.layers')}
             </p>
             {MODEL_LAYERS.map((layer) => (
@@ -177,7 +177,7 @@ export default function LineageToolbar({
             ))}
           </div>
           <div className="space-y-1.5 pt-2 border-t">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               {t('data-catalog:lineage.toolbar.edges')}
             </p>
             {EDGE_FILTERS.map((f) => (

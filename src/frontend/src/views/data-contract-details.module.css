@@ -425,7 +425,7 @@ a.itemName:hover {
 
 .stableId {
   font-family: var(--aura-font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--aura-text-muted);
   overflow-wrap: anywhere;
 }

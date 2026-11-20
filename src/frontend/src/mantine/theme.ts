@@ -37,7 +37,7 @@ export const AURA = {
   textNavy: '#1F3066',
   textBody: '#2C2F34',
   textSecondary: '#565D65',
-  textMuted: '#828D96',
+  textMuted: '#636D76',
   // Status, as in the Aura globals.css
   good: '#277153',
   goodBg: '#DDEBE4',
@@ -146,6 +146,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--aura-font-display': DISPLAY_FONT,
     '--aura-font-mono': MONO_FONT,
   },
-  light: {},
+  // Placeholder text reads at 4.5:1 on the cream and white fields; Mantine's default is about 2:1
+  light: { '--mantine-color-placeholder': AURA.textMuted },
   dark: {},
 });

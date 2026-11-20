@@ -6,7 +6,7 @@
 /* Beside the title: the type and platform, as the explorer's tags */
 .tag {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--aura-surface-strong);

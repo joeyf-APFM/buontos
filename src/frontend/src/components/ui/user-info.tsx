@@ -319,11 +319,11 @@ export default function UserInfo() {
                         {t('common:userInfo.testPersona')}
                     </span>
                     {activeTestPersona ? (
-                        <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-700 dark:text-yellow-400">
+                        <Badge variant="outline" className="text-[11px] border-yellow-500 text-yellow-700 dark:text-yellow-400">
                             {t('common:status.active')}
                         </Badge>
                     ) : !testToken ? (
-                        <Badge variant="outline" className="text-[10px]" title="Set VITE_TEST_USER_TOKEN or localStorage['ucapp.testToken'] to enable">
+                        <Badge variant="outline" className="text-[11px]" title="Set VITE_TEST_USER_TOKEN or localStorage['ucapp.testToken'] to enable">
                             {t('common:userInfo.noToken')}
                         </Badge>
                     ) : null}
@@ -348,7 +348,7 @@ export default function UserInfo() {
                                 <TestTube2 className="mr-1.5 h-3.5 w-3.5" />
                                 <span className="flex flex-col">
                                     <span>{p.label}</span>
-                                    <span className="text-[10px] text-muted-foreground">{p.email}</span>
+                                    <span className="text-[11px] text-muted-foreground">{p.email}</span>
                                 </span>
                             </DropdownMenuRadioItem>
                         ))}
