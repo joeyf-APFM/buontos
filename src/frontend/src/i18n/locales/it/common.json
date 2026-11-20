@@ -764,5 +764,18 @@
     "createdSkipped": "Creati: {{created}}, saltati: {{skipped}}.",
     "createdFailed": "Creati: {{created}}, non riusciti: {{failed}}.",
     "createdSkippedFailed": "Creati: {{created}}, saltati: {{skipped}}, non riusciti: {{failed}}."
+  },
+  "headerActions": {
+    "more": "Altro",
+    "moreLabel": "Altre azioni"
+  },
+  "detailLevel": {
+    "label": "Dettaglio",
+    "minimal": "Riepilogo",
+    "medium": "Standard",
+    "large": "Tutto",
+    "minimalHint": "Solo deliverable e descrizione",
+    "mediumHint": "La maggior parte delle sezioni",
+    "largeHint": "Tutte le sezioni"
   }
 }

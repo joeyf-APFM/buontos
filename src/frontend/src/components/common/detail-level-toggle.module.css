@@ -1,0 +1,17 @@
+/* The "Detail" label and its three-level toggle, beside the version navigator */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--aura-text-secondary);
+}
+
+.levels {
+  display: inline-flex;
+  gap: 2px;
+}

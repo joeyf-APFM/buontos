@@ -11,7 +11,8 @@
  * - The quality panel's Add, Edit and Delete need Read/Write on data-contracts.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithMantine } from '@/test/utils';
 import usePermissionsStore from '@/stores/permissions-store';
@@ -127,17 +128,40 @@ async function open(persona: Persona, status: string, extra: Record<string, unkn
   await within((await screen.findAllByRole('region', { name: 'Data Quality' }))[0]).findByText('Nulls');
   await screen.findByText('https://wiki.example.com/orders');
   await screen.findByText(/quality check suggestions available/);
+  // The header's secondary actions are under More, and the secondary panes start folded: open both,
+  // so every control can be looked for where it lives
+  await openHeaderMenu();
+  expandPanes();
+}
+
+async function openHeaderMenu() {
+  const more = within(header()).queryByRole('button', { name: 'More actions' });
+  if (!more) return;
+  await userEvent.click(more);
+  // jsdom leaves a Mantine menu display: none until its transition ends: hence hidden
+  await screen.findByRole('menu', { hidden: true });
+}
+
+function expandPanes() {
+  for (const fold of document.querySelectorAll<HTMLButtonElement>('h2 button[aria-expanded="false"]')) {
+    act(() => fold.click());
+  }
 }
 
 const header = () => screen.getByRole('heading', { level: 1 }).parentElement as HTMLElement;
 const region = (name: RegExp | string) => screen.getAllByRole('region', { name })[0];
 const button = (scope: HTMLElement, name: string | RegExp) => within(scope).queryAllByRole('button', { name });
+/** A header control: a button in the header, or an item of its More menu (open once the page is). */
+const headerControl = (name: string) => [
+  ...within(header()).queryAllByRole('button', { name }),
+  ...screen.queryAllByRole('menuitem', { name, hidden: true }),
+];
 
 // The in-place controls, each where it lives
 function inPlaceControls(): Record<string, HTMLElement[]> {
   return {
-    'Edit Metadata': button(header(), 'Edit Metadata'),
-    Delete: button(header(), 'Delete'),
+    'Edit Metadata': headerControl('Edit Metadata'),
+    Delete: headerControl('Delete'),
     'Edit description': button(region('Description'), 'Edit description'),
     'concept Add': button(region('Details'), 'Add'),
     'Infer from Catalog': button(region(/^Schemas/), 'Infer from Catalog'),
@@ -208,17 +232,17 @@ describe('data contract details permission gates', () => {
     expect(present(inPlaceControls())).toEqual([]);
     expect(present(writeControls())).toEqual([]);
     expect(present(productControls())).toEqual([]);
-    for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
+    for (const name of ['Approve', 'Reject']) expect(headerControl(name)).toHaveLength(0);
     // The owners and relationships panels lose their assign and add too
     expect(within(region('Owners')).queryByRole('button', { name: 'Assign Owner' })).toBeNull();
     expect(metadataWriteButtons()).toHaveLength(0);
     // As before for a draft: no read-only banner
     expect(screen.queryByText('Read-Only')).toBeNull();
     // Both clones write a contract (fix round 1, I1)
-    for (const name of ['Clone for Editing', 'Create New Version']) expect(button(header(), name)).toHaveLength(0);
+    for (const name of ['Clone for Editing', 'Create New Version']) expect(headerControl(name)).toHaveLength(0);
     // What stays: reading and requesting
     for (const name of ['Back to List', 'Request...', 'Export ODCS']) {
-      expect(within(header()).getByRole('button', { name })).toBeEnabled();
+      expect(headerControl(name)[0]).toBeEnabled();
     }
   });
 
@@ -233,16 +257,16 @@ describe('data contract details permission gates', () => {
     expect(within(region('Owners')).getByRole('button', { name: 'Assign Owner' })).toBeInTheDocument();
     // Notes, links and documents: add and attach each
     expect(metadataWriteButtons()).toHaveLength(6);
-    expect(within(header()).getByRole('button', { name: 'Create New Version' })).toBeEnabled();
+    expect(headerControl('Create New Version')[0]).toBeEnabled();
     // A draft isn't up for approval
-    for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
+    for (const name of ['Approve', 'Reject']) expect(headerControl(name)).toHaveLength(0);
   });
 
   it('data contract permissions: the owner of a personal draft (a writer) edits it in place', async () => {
     await open('writer', 'draft', { draftOwnerId: 'writer@example.com', parentContractId: 'c-0' });
     expect(present(inPlaceControls())).toEqual(IN_PLACE);
-    expect(within(header()).getByRole('button', { name: 'Commit Changes' })).toBeEnabled();
-    expect(within(header()).getByRole('button', { name: 'Discard Draft' })).toBeEnabled();
+    expect(headerControl('Commit Changes')[0]).toBeEnabled();
+    expect(headerControl('Discard Draft')[0]).toBeEnabled();
   });
 
   it('data contract permissions: a writer on an active contract has no in-place control, as before', async () => {
@@ -252,8 +276,8 @@ describe('data contract details permission gates', () => {
     const products = productControls();
     expect(products['Link to Existing Product'][0]).toBeEnabled();
     expect(products['Create Data Product'][0]).toBeEnabled();
-    expect(within(header()).getByRole('button', { name: 'Clone for Editing' })).toBeEnabled();
-    expect(within(header()).getByRole('button', { name: 'Publish' })).toBeEnabled();
+    expect(headerControl('Clone for Editing')[0]).toBeEnabled();
+    expect(headerControl('Publish')[0]).toBeEnabled();
     expect(screen.getByText('Read-Only')).toBeInTheDocument();
   });
 
@@ -262,7 +286,7 @@ describe('data contract details permission gates', () => {
     expect(present(inPlaceControls())).toEqual([]);
     expect(present(writeControls())).toEqual([]);
     expect(present(productControls())).toEqual([]);
-    for (const name of ['Clone for Editing', 'Create New Version']) expect(button(header(), name)).toHaveLength(0);
+    for (const name of ['Clone for Editing', 'Create New Version']) expect(headerControl(name)).toHaveLength(0);
     expect(screen.getByText('Read-Only')).toBeInTheDocument();
   });
 
@@ -272,7 +296,7 @@ describe('data contract details permission gates', () => {
       expect(present(productControls())).toEqual([]);
       // Everything that follows data-contracts stays
       expect(present(writeControls())).toEqual(WRITE);
-      expect(within(header()).getByRole('button', { name: 'Create New Version' })).toBeEnabled();
+      expect(headerControl('Create New Version')[0]).toBeEnabled();
       if (persona === 'contractAdminProductReader') expect(present(inPlaceControls())).toEqual(IN_PLACE);
     });
 
@@ -300,24 +324,24 @@ describe('data contract details permission gates', () => {
 
   it.each(['proposed', 'under_review'])('data contract permissions: Approve and Reject on a %s contract need the approval privilege', async (status) => {
     await open('writer', status);
-    for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
+    for (const name of ['Approve', 'Reject']) expect(headerControl(name)).toHaveLength(0);
     cleanup();
 
     await open('approver', status);
-    await waitFor(() => expect(within(header()).getByRole('button', { name: 'Approve' })).toBeEnabled());
-    expect(within(header()).getByRole('button', { name: 'Reject' })).toBeEnabled();
+    await waitFor(() => expect(headerControl('Approve')[0]).toBeEnabled());
+    expect(headerControl('Reject')[0]).toBeEnabled();
   });
 
   it('data contract permissions: a contracts writer read-only on business-owners gets no Assign Owner (R66)', async () => {
     await open('ownersReader', 'draft');
     expect(within(region('Owners')).queryByRole('button', { name: 'Assign Owner' })).toBeNull();
     // The contract itself stays editable in place
-    expect(button(header(), 'Edit Metadata')[0]).toBeEnabled();
+    expect(headerControl('Edit Metadata')[0]).toBeEnabled();
   });
 
   it('data contract permissions: an admin without the approval privilege gets no Approve or Reject', async () => {
     await open('admin', 'proposed');
-    for (const name of ['Approve', 'Reject']) expect(button(header(), name)).toHaveLength(0);
+    for (const name of ['Approve', 'Reject']) expect(headerControl(name)).toHaveLength(0);
     // ...but still edits in place, as admins do
     expect(present(inPlaceControls())).toEqual(IN_PLACE);
   });

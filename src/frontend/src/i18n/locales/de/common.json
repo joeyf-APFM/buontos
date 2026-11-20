@@ -764,5 +764,18 @@
     "createdSkipped": "Erstellt: {{created}}, übersprungen: {{skipped}}.",
     "createdFailed": "Erstellt: {{created}}, fehlgeschlagen: {{failed}}.",
     "createdSkippedFailed": "Erstellt: {{created}}, übersprungen: {{skipped}}, fehlgeschlagen: {{failed}}."
+  },
+  "headerActions": {
+    "more": "Mehr",
+    "moreLabel": "Weitere Aktionen"
+  },
+  "detailLevel": {
+    "label": "Detail",
+    "minimal": "Überblick",
+    "medium": "Standard",
+    "large": "Alles",
+    "minimalHint": "Nur Lieferobjekte und Beschreibung",
+    "mediumHint": "Die meisten Abschnitte",
+    "largeHint": "Alle Abschnitte"
   }
 }

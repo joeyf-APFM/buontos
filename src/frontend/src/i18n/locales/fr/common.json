@@ -764,5 +764,18 @@
     "createdSkipped": "Créés : {{created}}, ignorés : {{skipped}}.",
     "createdFailed": "Créés : {{created}}, en échec : {{failed}}.",
     "createdSkippedFailed": "Créés : {{created}}, ignorés : {{skipped}}, en échec : {{failed}}."
+  },
+  "headerActions": {
+    "more": "Plus",
+    "moreLabel": "Plus d'actions"
+  },
+  "detailLevel": {
+    "label": "Détail",
+    "minimal": "Résumé",
+    "medium": "Standard",
+    "large": "Tout",
+    "minimalHint": "Livrables et description uniquement",
+    "mediumHint": "La plupart des sections",
+    "largeHint": "Toutes les sections"
   }
 }

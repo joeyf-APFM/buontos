@@ -79,6 +79,15 @@ const names = (els: HTMLElement[]) =>
 // The header's actions, in the kit's end slot (its badges hold the maturity buttons)
 const actions = () => header().querySelector(`.${kit.headerEnd}`) as HTMLElement;
 const headerButtons = () => names(within(actions()).getAllByRole('button')).sort();
+/** The header shows a primary and a secondary action; the rest are in the More menu, opened here. */
+async function openMore(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(within(actions()).getByRole('button', { name: 'More actions' }));
+  // jsdom leaves a Mantine menu display: none until its transition ends: hence hidden
+  return screen.findByRole('menu', { hidden: true });
+}
+const menuItems = (menu: HTMLElement) => within(menu).getAllByRole('menuitem', { hidden: true }).map((el) => el.textContent?.trim());
+const menuItem = (menu: HTMLElement, name: string) => within(menu).getByRole('menuitem', { name, hidden: true });
+const isDisabled = (el: HTMLElement) => el.hasAttribute('data-disabled') || (el as HTMLButtonElement).disabled;
 
 describe('data contract details on the page kit', () => {
   let confirmSpy: MockInstance<(message?: string) => boolean>;
@@ -114,7 +123,7 @@ describe('data contract details on the page kit', () => {
     expect(header()).toHaveClass(kit.header);
     expect(header()).toHaveAttribute('data-wrap-actions');
     expect(within(header()).getByText('draft', { exact: true })).toBeInTheDocument();
-    expect(within(header()).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    expect(within(header()).getByRole('button', { name: 'More actions' })).toBeInTheDocument();
     // The purpose, under the header
     const purpose = screen.getByText('Orders for reporting', { selector: 'p' });
     expect(header().contains(purpose)).toBe(false);
@@ -138,19 +147,23 @@ describe('data contract details on the page kit', () => {
   });
 
   it('data contract details keeps every control', async () => {
+    const user = userEvent.setup();
     renderPage();
     await loaded();
 
-    // A draft (editable in place) for an admin
-    expect(headerButtons()).toEqual([
-      'Back to List', 'Comments', 'Create New Version', 'Delete', 'Edit Metadata', 'Export ODCS', 'Request...',
-    ].sort());
-    for (const name of ['Back to List', 'Comments', 'Create New Version', 'Delete', 'Edit Metadata', 'Export ODCS', 'Request...']) {
+    // A draft (editable in place) for an admin: Edit Metadata leads, with Request, and the rest are under More
+    expect(headerButtons()).toEqual(['Back to List', 'Comments', 'Edit Metadata', 'More actions', 'Request...'].sort());
+    for (const name of ['Back to List', 'Comments', 'Edit Metadata', 'More actions', 'Request...']) {
       expect(within(header()).getByRole('button', { name })).toBeEnabled();
     }
-    // The view sizes, still named S, M and L, mark the current one (an admin starts on M)
-    for (const name of ['S', 'M', 'L']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
-    await waitFor(() => expect(['S', 'M', 'L'].map((name) => screen.getByRole('button', { name }).getAttribute('aria-pressed')))
+    const menu = await openMore(user);
+    expect(menuItems(menu)).toEqual(['Create New Version', 'Export ODCS', 'Delete']);
+    for (const name of menuItems(menu)) expect(isDisabled(menuItem(menu, name!))).toBe(false);
+    await user.keyboard('{Escape}');
+    // The detail level is named, and marks the current one (an admin starts on Standard)
+    const level = screen.getByRole('group', { name: 'Detail' });
+    for (const name of ['Summary', 'Standard', 'Everything']) expect(within(level).getByRole('button', { name })).toBeInTheDocument();
+    await waitFor(() => expect(['Summary', 'Standard', 'Everything'].map((name) => within(level).getByRole('button', { name }).getAttribute('aria-pressed')))
       .toEqual(['false', 'true', 'false']));
     // The maturity badge and its re-evaluate button
     expect(await screen.findByRole('button', { name: 'Not assessed Maturity' })).toBeInTheDocument();
@@ -173,20 +186,27 @@ describe('data contract details on the page kit', () => {
     mockBackend({ ...CONTRACT, status: 'active' });
     renderPage();
     await loaded();
-    expect(within(header()).getByRole('button', { name: 'Certify' })).toBeEnabled();
+    // An admin edits an active contract in place: Edit Metadata leads, with Publish; Certify is under More
+    expect(within(header()).getByRole('button', { name: 'Edit Metadata' })).toBeEnabled();
     expect(within(header()).getByRole('button', { name: 'Publish' })).toBeEnabled();
+    const menu = await openMore(user);
+    expect(isDisabled(menuItem(menu, 'Certify'))).toBe(false);
     // Certify opens its (kit) dialog, as before
-    await user.click(within(header()).getByRole('button', { name: 'Certify' }));
+    await user.click(menuItem(menu, 'Certify'));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('data contract details keeps the personal draft actions and its banner', async () => {
+    const user = userEvent.setup();
     mockBackend({ ...CONTRACT, draftOwnerId: 'e2e.user@example.com', parentContractId: 'c-0', version: '1.1.0-draft' });
     renderPage();
     await loaded();
     expect(within(header()).getByRole('button', { name: 'Commit Changes' })).toBeEnabled();
-    expect(within(header()).getByRole('button', { name: 'Discard Draft' })).toBeEnabled();
-    expect(within(header()).queryByRole('button', { name: 'Create New Version' })).toBeNull();
+    // Discard Draft is under More, and there is no Create New Version for a personal draft
+    const menu = await openMore(user);
+    expect(isDisabled(menuItem(menu, 'Discard Draft'))).toBe(false);
+    expect(menuItems(menu)).not.toContain('Create New Version');
+    await user.keyboard('{Escape}');
     const banner = screen.getByText('Personal Draft').closest('[role="alert"], .mantine-Alert-root') as HTMLElement;
     expect(banner).toHaveClass('mantine-Alert-root');
     // Based on the parent: a named button that opens it
@@ -194,6 +214,7 @@ describe('data contract details on the page kit', () => {
   });
 
   it('data contract details: the consumer sees no edit, delete or certify control', async () => {
+    const user = userEvent.setup();
     grant(FeatureAccessLevel.READ_ONLY);
     useUserStore.setState({ userInfo: { email: 'e2e.consumer@example.com', username: 'c', user: 'C', ip: '', groups: ['users'] } as never });
     mockBackend({ ...CONTRACT, status: 'active' });
@@ -201,9 +222,13 @@ describe('data contract details on the page kit', () => {
     await loaded();
 
     // Neither clone: both write a contract (Task 11c fix round 1)
-    expect(headerButtons()).toEqual(['Back to List', 'Comments', 'Export ODCS', 'Request...'].sort());
+    expect(headerButtons()).toEqual(['Back to List', 'Comments', 'More actions', 'Request...'].sort());
+    const menu = await openMore(user);
+    expect(menuItems(menu)).toEqual(['Export ODCS']);
+    await user.keyboard('{Escape}');
     for (const name of ['Edit Metadata', 'Delete', 'Certify', 'Publish', 'Approve', 'Reject', 'Clone for Editing', 'Create New Version']) {
       expect(screen.queryByRole('button', { name })).toBeNull();
+      expect(screen.queryByRole('menuitem', { name, hidden: true })).toBeNull();
     }
     expect(within(screen.getByRole('region', { name: 'Details' })).queryByRole('button', { name: 'Add' })).toBeNull();
     expect(within(screen.getByRole('region', { name: 'Description' })).queryByRole('button', { name: 'Edit description' })).toBeNull();
@@ -243,7 +268,8 @@ describe('data contract details on the page kit', () => {
     const user = userEvent.setup();
     renderPage();
     await loaded();
-    await user.click(within(header()).getByRole('button', { name: 'Delete' }));
+    const menu = await openMore(user);
+    await user.click(menuItem(menu, 'Delete'));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
     expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Deleted' }));
     expect(screen.queryByText('contract list')).toBeNull();

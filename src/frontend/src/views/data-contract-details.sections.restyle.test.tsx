@@ -99,7 +99,17 @@ const renderPage = () =>
     { route: '/data-contracts/c-1' },
   );
 
-const loaded = () => screen.findByRole('heading', { level: 1, name: 'Orders contract' });
+/** The secondary panes (Team Metadata, SLA, Access Control, Support) start folded: open them to look inside. */
+function expandPanes() {
+  for (const fold of document.querySelectorAll<HTMLButtonElement>('h2 button[aria-expanded="false"]')) {
+    act(() => fold.click());
+  }
+}
+const loaded = async () => {
+  const heading = await screen.findByRole('heading', { level: 1, name: 'Orders contract' });
+  expandPanes();
+  return heading;
+};
 const pane = (name: RegExp | string) => screen.getByRole('region', { name });
 
 // The section panes, by their titles
@@ -321,7 +331,8 @@ describe('data contract details sections on the page kit', () => {
     expect(within(pane(/^Schemas/)).getByText('This contract has no schemas defined')).toBeInTheDocument();
     expect(within(pane(/^Schemas/)).queryByRole('button', { name: /Add|Infer/ })).toBeNull();
     expect(within(pane(/^Quality Rules/)).queryByRole('button', { name: 'Add Rule' })).toBeNull();
-    expect(within(pane('SLA & Infrastructure')).queryByRole('button')).toBeNull();
+    // The pane's own fold button is not a control of its content
+    expect(within(pane('SLA & Infrastructure')).queryAllByRole('button').filter((b) => !b.hasAttribute('aria-expanded'))).toHaveLength(0);
     expect(within(pane('Authoritative Definitions')).queryByRole('button')).toBeNull();
   });
 

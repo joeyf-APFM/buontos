@@ -764,5 +764,18 @@
     "createdSkipped": "作成: {{created}} 件、スキップ: {{skipped}} 件。",
     "createdFailed": "作成: {{created}} 件、失敗: {{failed}} 件。",
     "createdSkippedFailed": "作成: {{created}} 件、スキップ: {{skipped}} 件、失敗: {{failed}} 件。"
+  },
+  "headerActions": {
+    "more": "その他",
+    "moreLabel": "その他の操作"
+  },
+  "detailLevel": {
+    "label": "詳細度",
+    "minimal": "概要",
+    "medium": "標準",
+    "large": "すべて",
+    "minimalHint": "成果物と説明のみ",
+    "mediumHint": "ほとんどのセクション",
+    "largeHint": "すべてのセクション"
   }
 }

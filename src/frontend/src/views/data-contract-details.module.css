@@ -57,23 +57,12 @@ button.inlineLink:focus-visible {
   border-radius: 2px;
 }
 
-/* The version navigator and the S / M / L view sizes */
+/* The version navigator and the detail level */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-}
-
-.sizes {
-  display: inline-flex;
-  gap: 2px;
-}
-
-button.size {
-  width: 28px;
-  padding: 0;
-  font-weight: 600;
 }
 
 /* A section's lead line, under its head */

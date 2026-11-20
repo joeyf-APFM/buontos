@@ -1,4 +1,5 @@
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import classes from './page.module.css';
 
 export interface PaneProps {
@@ -19,6 +20,13 @@ export interface PaneProps {
    * a short title gets no tooltip repeating it.
    */
   titleTooltip?: boolean;
+  /**
+   * Lets the title fold the body away. The body stays mounted when folded, so
+   * what is typed or loaded in it survives. Needs a `title`.
+   */
+  collapsible?: boolean;
+  /** With `collapsible`: start folded. */
+  defaultCollapsed?: boolean;
 }
 
 /**
@@ -33,8 +41,13 @@ export function Pane({
   'aria-label': ariaLabel,
   className,
   titleTooltip = false,
+  collapsible = false,
+  defaultCollapsed = false,
 }: PaneProps) {
   const titleId = useId();
+  const bodyId = useId();
+  const foldable = collapsible && !!title;
+  const [collapsed, setCollapsed] = useState(foldable && defaultCollapsed);
   const head = title || actions;
   return (
     <section
@@ -46,13 +59,26 @@ export function Pane({
         <div className={classes.paneHead}>
           {title && (
             <h2 id={titleId} className={classes.paneTitle} title={titleTooltip ? title : undefined}>
-              {title}
+              {foldable ? (
+                <button
+                  type="button"
+                  className={classes.paneFold}
+                  aria-expanded={!collapsed}
+                  aria-controls={bodyId}
+                  onClick={() => setCollapsed((c) => !c)}
+                >
+                  <ChevronDown size={14} aria-hidden className={classes.paneChevron} data-collapsed={collapsed || undefined} />
+                  {title}
+                </button>
+              ) : (
+                title
+              )}
             </h2>
           )}
           {actions && <div className={classes.paneActions}>{actions}</div>}
         </div>
       )}
-      <div className={classes.paneBody} data-flush={flush || undefined}>
+      <div id={bodyId} className={classes.paneBody} data-flush={flush || undefined} hidden={collapsed || undefined}>
         {children}
       </div>
     </section>

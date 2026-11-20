@@ -17,6 +17,8 @@ import { EntityTreePanel } from '@/components/common/entity-tree-panel'
 import { MaturityInline } from '@/components/common/maturity-inline'
 import { useHoverFocusCard } from '@/components/common/use-hover-focus-card'
 import { CommentSidebar } from '@/components/comments'
+import { HeaderActions, type HeaderAction } from '@/components/common/header-actions'
+import { DetailLevelToggle } from '@/components/common/detail-level-toggle'
 import ConceptSelectDialog from '@/components/semantic/concept-select-dialog'
 import LinkedConceptChips from '@/components/semantic/linked-concept-chips'
 import TagChip from '@/components/ui/tag-chip'
@@ -73,12 +75,6 @@ const EDITABLE_STATUSES = ['draft', 'proposed']
 // View mode for filtering contract details sections
 type ViewMode = 'minimal' | 'medium' | 'large'
 const VIEW_MODE_STORAGE_KEY = 'data-contract-view-mode'
-// The S / M / L buttons: their names, and their tooltips' i18n keys
-const VIEW_MODE_BUTTONS: ReadonlyArray<{ mode: ViewMode; label: string; tooltip: string }> = [
-  { mode: 'minimal', label: 'S', tooltip: 'common:tooltips.smallView' },
-  { mode: 'medium', label: 'M', tooltip: 'common:tooltips.mediumView' },
-  { mode: 'large', label: 'L', tooltip: 'common:tooltips.largeView' },
-]
 
 // Define column structure for schema properties
 type SchemaProperty = {
@@ -1993,6 +1989,48 @@ export default function DataContractDetails() {
   ] : []
   const status = (contract.status || '').toLowerCase()
 
+  // The header shows one primary action for the state the contract is in, and at most one
+  // more; everything else is under More. A reviewer approves or rejects, a producer commits
+  // a draft or edits, and anyone else can clone a read-only contract or make a request.
+  const inReview = ['proposed', 'under_review'].includes(status) && !!canApproveContractLifecycle
+  const publishable = ['active', 'approved'].includes(status) && !!canWriteContracts
+  const cloneable = !!(isReadOnly && !isPersonalDraft && canWriteContracts)
+  const headerActions: HeaderAction[] = [
+    { key: 'approve', show: inReview, label: t('data-contracts:detailsView.header.approve', 'Approve'), onClick: handleApprove },
+    { key: 'reject', show: inReview, danger: true, className: common.danger, label: t('data-contracts:detailsView.header.reject', 'Reject'), onClick: handleReject },
+    { key: 'commit', show: !!isPersonalDraft, icon: <CopyPlus />, label: t('data-contracts:detailsView.header.commitChanges', 'Commit Changes'), onClick: () => setIsCommitDraftDialogOpen(true) },
+    { key: 'edit', show: !!canEditInPlace, icon: <Pencil />, label: t('data-contracts:detailsView.header.editMetadata', 'Edit Metadata'), onClick: () => setIsBasicFormOpen(true) },
+    { key: 'clone', show: cloneable, icon: <CopyPlus />, label: t('data-contracts:detailsView.header.cloneForEditing', 'Clone for Editing'), onClick: handleCloneForEditing },
+    {
+      key: 'publish', show: publishable, icon: <Globe />, label: t('data-contracts:detailsView.header.publish', 'Publish'),
+      onClick: () => {
+        const cur = (contract.publication_scope || 'none') as PublicationScope
+        setSelectedPublishScope(cur === 'none' ? 'organization' : cur)
+        setPublishDialogOpen(true)
+      },
+    },
+    { key: 'request', icon: <KeyRound />, label: t('data-contracts:detailsView.header.request', 'Request...'), onClick: () => setIsRequestDialogOpen(true) },
+    {
+      key: 'certify', show: status === 'active' && !!canApproveContractLifecycle, icon: <ShieldCheck />, label: t('data-contracts:detailsView.header.certify', 'Certify'),
+      onClick: () => {
+        const first = certificationLevels[0]?.level_order ?? null
+        setSelectedCertifyLevel(first)
+        setCertifyDialogOpen(true)
+      },
+    },
+    { key: 'discard', show: !!isPersonalDraft, icon: <Trash2 />, label: t('data-contracts:detailsView.header.discardDraft', 'Discard Draft'), onClick: handleDiscardDraft },
+    { key: 'new-version', show: !isPersonalDraft && !!canWriteContracts, icon: <CopyPlus />, label: t('data-contracts:detailsView.header.createNewVersion', 'Create New Version'), onClick: handleCreateNewVersion },
+    { key: 'export', icon: <Download />, label: t('data-contracts:detailsView.header.exportOdcs', 'Export ODCS'), onClick: exportOdcs },
+    { key: 'delete', show: !!canEditInPlace, danger: true, className: common.danger, icon: <Trash2 />, label: t('common:actions.delete', 'Delete'), onClick: handleDelete },
+  ]
+  const primaryKey = inReview ? 'approve' : isPersonalDraft ? 'commit' : canEditInPlace ? 'edit' : cloneable ? 'clone' : 'request'
+  const secondaryKey = inReview
+    ? 'reject'
+    : primaryKey === 'commit' ? (canEditInPlace ? 'edit' : null)
+    : primaryKey === 'request' ? null
+    : publishable ? 'publish' : 'request'
+  const headerVisible = [primaryKey, secondaryKey].filter((k): k is string => k !== null)
+
   return (
     <>
       <PageLayout
@@ -2010,85 +2048,18 @@ export default function DataContractDetails() {
               actions={
                 <>
                   {backButton}
-                  {/* Lifecycle actions */}
-                  {['proposed', 'under_review'].includes(status) && canApproveContractLifecycle && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={handleApprove}>{t('data-contracts:detailsView.header.approve', 'Approve')}</Button>
-                      <Button size="sm" variant="outline" className={common.danger} onClick={handleReject}>{t('data-contracts:detailsView.header.reject', 'Reject')}</Button>
-                    </>
-                  )}
-                  {status === 'active' && canApproveContractLifecycle && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const first = certificationLevels[0]?.level_order ?? null
-                        setSelectedCertifyLevel(first)
-                        setCertifyDialogOpen(true)
-                      }}
-                    >
-                      <ShieldCheck /> {t('data-contracts:detailsView.header.certify', 'Certify')}
-                    </Button>
-                  )}
-                  {['active', 'approved'].includes(status) && canWriteContracts && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const cur = (contract.publication_scope || 'none') as PublicationScope
-                        setSelectedPublishScope(cur === 'none' ? 'organization' : cur)
-                        setPublishDialogOpen(true)
-                      }}
-                    >
-                      <Globe /> {t('data-contracts:detailsView.header.publish', 'Publish')}
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm">
-                    <KeyRound /> {t('data-contracts:detailsView.header.request', 'Request...')}
-                  </Button>
-                  <CommentSidebar
-                    entityType="data_contract"
-                    entityId={contractId!}
-                    isOpen={isCommentSidebarOpen}
-                    onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                  <HeaderActions
+                    actions={headerActions}
+                    visible={headerVisible}
+                    afterVisible={
+                      <CommentSidebar
+                        entityType="data_contract"
+                        entityId={contractId!}
+                        isOpen={isCommentSidebarOpen}
+                        onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                      />
+                    }
                   />
-                  {/* Personal draft actions */}
-                  {isPersonalDraft && (
-                    <>
-                      <Button variant="default" onClick={() => setIsCommitDraftDialogOpen(true)} size="sm">
-                        <CopyPlus /> {t('data-contracts:detailsView.header.commitChanges', 'Commit Changes')}
-                      </Button>
-                      <Button variant="outline" onClick={handleDiscardDraft} size="sm">
-                        <Trash2 /> {t('data-contracts:detailsView.header.discardDraft', 'Discard Draft')}
-                      </Button>
-                    </>
-                  )}
-                  {/* Clone for editing (for active+ contracts) */}
-                  {isReadOnly && !isPersonalDraft && canWriteContracts && (
-                    <Button variant="outline" onClick={handleCloneForEditing} size="sm">
-                      <CopyPlus /> {t('data-contracts:detailsView.header.cloneForEditing', 'Clone for Editing')}
-                    </Button>
-                  )}
-                  {/* Create new version (for any contract) */}
-                  {!isPersonalDraft && canWriteContracts && (
-                    <Button variant="outline" onClick={handleCreateNewVersion} size="sm">
-                      <CopyPlus /> {t('data-contracts:detailsView.header.createNewVersion', 'Create New Version')}
-                    </Button>
-                  )}
-                  {/* Edit metadata only if editable */}
-                  {canEditInPlace && (
-                    <Button variant="outline" onClick={() => setIsBasicFormOpen(true)} size="sm">
-                      <Pencil /> {t('data-contracts:detailsView.header.editMetadata', 'Edit Metadata')}
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={exportOdcs} size="sm">
-                    <Download /> {t('data-contracts:detailsView.header.exportOdcs', 'Export ODCS')}
-                  </Button>
-                  {canEditInPlace && (
-                    <Button variant="outline" className={common.danger} onClick={handleDelete} size="sm">
-                      <Trash2 /> {t('common:actions.delete', 'Delete')}
-                    </Button>
-                  )}
                 </>
               }
             />
@@ -2130,22 +2101,7 @@ export default function DataContractDetails() {
               currentVersion={contract.version}
               onVersionChange={(id) => navigate(`${listPath}/${id}`)}
             />
-            {/* View Mode Toggle */}
-            <div className={classes.sizes}>
-              {VIEW_MODE_BUTTONS.map(({ mode, label, tooltip }) => (
-                <Button
-                  key={mode}
-                  size="sm"
-                  variant={viewMode === mode ? 'default' : 'outline'}
-                  className={classes.size}
-                  aria-pressed={viewMode === mode}
-                  onClick={() => setViewMode(mode)}
-                  title={t(tooltip)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
+            <DetailLevelToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           <PaneStack>
@@ -2441,7 +2397,7 @@ export default function DataContractDetails() {
 
             {/* ODCS Team Metadata (read-only provenance) */}
             {shouldShowSection('team-members') && (contract.team?.length || teamMetaName || teamMetaDesc) && (
-              <Pane title={t('data-contracts:detailsView.teamMetadata.title', 'ODCS Team Metadata')}>
+              <Pane title={t('data-contracts:detailsView.teamMetadata.title', 'ODCS Team Metadata')} collapsible defaultCollapsed>
                 <p className={classes.lead}>{t('data-contracts:detailsView.teamMetadata.subtitle', 'Read-only provenance from imported contract YAML. Manage ownership via the Owners panel above.')}</p>
                 {/* Team metadata (ODCS v3.1.0) */}
                 {(teamMetaName || teamMetaDesc) && (
@@ -2475,7 +2431,7 @@ export default function DataContractDetails() {
 
             {/* SLA & Infrastructure Section */}
             {shouldShowSection('sla') && (
-              <Pane title={t('data-contracts:detailsView.sla.title', 'SLA & Infrastructure')}>
+              <Pane title={t('data-contracts:detailsView.sla.title', 'SLA & Infrastructure')} collapsible defaultCollapsed>
                 <p className={classes.lead}>{t('data-contracts:detailsView.sla.subtitle', 'Service level agreements and server configurations')}</p>
                 {/* SLA Requirements */}
                 <div className={classes.subsection}>
@@ -2546,7 +2502,7 @@ export default function DataContractDetails() {
 
             {/* Access Control (read-only for now, can add edit later) */}
             {shouldShowSection('access-control') && contract.accessControl && (
-              <Pane title={t('data-contracts:details.accessControl.title', 'Access Control')}>
+              <Pane title={t('data-contracts:details.accessControl.title', 'Access Control')} collapsible defaultCollapsed>
                 <DetailsGrid
                   rows={[
                     ...(contract.accessControl.classification ? [{
@@ -2639,7 +2595,7 @@ export default function DataContractDetails() {
 
             {/* Support Channels (read-only for now) */}
             {shouldShowSection('support') && contract.support && Object.keys(contract.support).length > 0 && (
-              <Pane title={t('data-contracts:detailsView.support.title', 'Support')}>
+              <Pane title={t('data-contracts:detailsView.support.title', 'Support')} collapsible defaultCollapsed>
                 {/* The channels' names, capitalised as their badges were */}
                 <div className={classes.support}>
                   <DetailsGrid

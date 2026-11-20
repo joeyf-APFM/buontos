@@ -764,5 +764,18 @@
     "createdSkipped": "Creados: {{created}}, omitidos: {{skipped}}.",
     "createdFailed": "Creados: {{created}}, con error: {{failed}}.",
     "createdSkippedFailed": "Creados: {{created}}, omitidos: {{skipped}}, con error: {{failed}}."
+  },
+  "headerActions": {
+    "more": "Más",
+    "moreLabel": "Más acciones"
+  },
+  "detailLevel": {
+    "label": "Detalle",
+    "minimal": "Resumen",
+    "medium": "Estándar",
+    "large": "Todo",
+    "minimalHint": "Solo entregables y descripción",
+    "mediumHint": "La mayoría de las secciones",
+    "largeHint": "Todas las secciones"
   }
 }

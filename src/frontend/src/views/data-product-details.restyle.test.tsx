@@ -102,6 +102,15 @@ const names = (els: HTMLElement[]) =>
 // The header's actions, in the kit's end slot (its badges hold the maturity buttons)
 const actions = () => header().querySelector(`.${kit.headerEnd}`) as HTMLElement;
 const headerButtons = () => names(within(actions()).getAllByRole('button')).sort();
+/** The header shows a primary and a secondary action; the rest are in the More menu, opened here. */
+async function openMore(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(within(actions()).getByRole('button', { name: 'More actions' }));
+  // jsdom leaves a Mantine menu display: none until its transition ends: hence hidden
+  return screen.findByRole('menu', { hidden: true });
+}
+const menuItems = (menu: HTMLElement) => within(menu).getAllByRole('menuitem', { hidden: true });
+const menuItem = (menu: HTMLElement, name: string) => within(menu).getByRole('menuitem', { name, hidden: true });
+const isDisabled = (el: HTMLElement) => el.hasAttribute('data-disabled') || (el as HTMLButtonElement).disabled;
 
 describe('data product details on the page kit', () => {
   let confirmSpy: MockInstance<(message?: string) => boolean>;
@@ -137,7 +146,7 @@ describe('data product details on the page kit', () => {
     expect(h1).toHaveAttribute('title', 'Sales orders');
     expect(header()).toHaveClass(kit.header);
     expect(within(header()).getByText('draft', { exact: true })).toBeInTheDocument();
-    expect(within(header()).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    expect(within(header()).getByRole('button', { name: 'More actions' })).toBeInTheDocument();
     expect(screen.getByText('Orders for reporting', { selector: 'p' })).toBeInTheDocument();
 
     // The sections are kit panes in a stack, with the details in a DetailsGrid
@@ -155,19 +164,26 @@ describe('data product details on the page kit', () => {
   });
 
   it('data product details keeps every control', async () => {
+    const user = userEvent.setup();
     renderPage();
     await loaded();
 
-    expect(headerButtons()).toEqual([
-      'Back to List', 'Comments', 'Create Genie Space', 'Delete', 'Edit', 'Export ODPS', 'New Version', 'Request...',
-    ].sort());
-    for (const name of ['Back to List', 'Comments', 'Create Genie Space', 'Delete', 'Edit', 'Export ODPS', 'New Version', 'Request...']) {
+    // A draft an admin can edit: Edit is the primary action, and the rest are under More
+    expect(headerButtons()).toEqual(['Back to List', 'Comments', 'Edit', 'More actions'].sort());
+    for (const name of ['Back to List', 'Comments', 'Edit', 'More actions']) {
       expect(within(header()).getByRole('button', { name })).toBeEnabled();
     }
-    // The view sizes, still named S, M and L, mark the current one
-    for (const name of ['S', 'M', 'L']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
-    // An admin starts on M (computeDefaultViewMode)
-    expect(['S', 'M', 'L'].map((name) => screen.getByRole('button', { name }).getAttribute('aria-pressed')))
+    const menu = await openMore(user);
+    expect(menuItems(menu).map((el) => el.textContent?.trim())).toEqual([
+      'Request...', 'Create Genie Space', 'New Version', 'Export ODPS', 'Delete',
+    ]);
+    for (const item of menuItems(menu)) expect(isDisabled(item)).toBe(false);
+    await user.keyboard('{Escape}');
+    // The detail level is named, and marks the current one
+    const level = screen.getByRole('group', { name: 'Detail' });
+    for (const name of ['Summary', 'Standard', 'Everything']) expect(within(level).getByRole('button', { name })).toBeInTheDocument();
+    // An admin starts on Standard (computeDefaultViewMode)
+    expect(['Summary', 'Standard', 'Everything'].map((name) => within(level).getByRole('button', { name }).getAttribute('aria-pressed')))
       .toEqual(['false', 'true', 'false']);
     // The maturity badge and its re-evaluate button
     expect(await screen.findByRole('button', { name: 'Not assessed Maturity' })).toBeInTheDocument();
@@ -180,33 +196,39 @@ describe('data product details on the page kit', () => {
   });
 
   it('data product details keeps the active-product actions for an approver', async () => {
+    const user = userEvent.setup();
     mockBackend({ ...PRODUCT, status: 'active' });
     grant(FeatureAccessLevel.ADMIN, true);
     renderPage();
     await loaded();
-    await waitFor(() => expect(within(header()).getByRole('button', { name: 'Subscribe' })).toBeEnabled());
-    expect(within(header()).getByRole('button', { name: 'Certify' })).toBeEnabled();
+    // Active is locked for editing in place, but an admin may still edit: Edit and Publish lead
+    await waitFor(() => expect(within(header()).getByRole('button', { name: 'Edit' })).toBeEnabled());
     expect(within(header()).getByRole('button', { name: 'Publish' })).toBeEnabled();
-    // Active is locked for editing in place, but an admin may still edit; New Version gives way to Clone
-    expect(within(header()).getByRole('button', { name: 'Edit' })).toBeEnabled();
+    // Subscribe and Certify are under More
+    const menu = await openMore(user);
+    await waitFor(() => expect(isDisabled(menuItem(menu, 'Subscribe'))).toBe(false));
+    expect(isDisabled(menuItem(menu, 'Certify'))).toBe(false);
   });
 
   it('data product details: the consumer sees no edit, delete or certify control it can use', async () => {
     mockBackend({ ...PRODUCT, status: 'active' });
+    const user = userEvent.setup();
     grant(FeatureAccessLevel.READ_ONLY);
     renderPage();
     await loaded();
+    // A consumer: Subscribe is the primary action, with Request as the other
     await waitFor(() => expect(within(header()).getByRole('button', { name: 'Subscribe' })).toBeEnabled());
 
-    expect(headerButtons()).toEqual([
-      'Back to List', 'Comments', 'Create Genie Space', 'Delete', 'Export ODPS', 'Request...', 'Subscribe',
-    ].sort());
+    expect(headerButtons()).toEqual(['Back to List', 'Comments', 'More actions', 'Request...', 'Subscribe'].sort());
     expect(within(header()).queryByRole('button', { name: 'Edit' })).toBeNull();
     expect(within(header()).queryByRole('button', { name: 'Certify' })).toBeNull();
     expect(within(header()).queryByRole('button', { name: 'Publish' })).toBeNull();
-    // Delete and Genie stay in place, disabled, as before
-    expect(within(header()).getByRole('button', { name: 'Delete' })).toBeDisabled();
-    expect(within(header()).getByRole('button', { name: 'Create Genie Space' })).toBeDisabled();
+    // Delete and Genie stay in the More menu, disabled, as before
+    const menu = await openMore(user);
+    expect(menuItems(menu).map((el) => el.textContent?.trim())).toEqual(['Create Genie Space', 'Export ODPS', 'Delete']);
+    expect(isDisabled(menuItem(menu, 'Delete'))).toBe(true);
+    expect(isDisabled(menuItem(menu, 'Create Genie Space'))).toBe(true);
+    await user.keyboard('{Escape}');
     expect(screen.queryByRole('button', { name: 'Add Deliverable' })).toBeNull();
     expect(within(screen.getByRole('region', { name: 'Details' })).queryByRole('button', { name: 'Add' })).toBeNull();
   });
@@ -246,7 +268,8 @@ describe('data product details on the page kit', () => {
     const user = userEvent.setup();
     renderPage();
     await loaded();
-    await user.click(within(header()).getByRole('button', { name: 'Delete' }));
+    const menu = await openMore(user);
+    await user.click(menuItem(menu, 'Delete'));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
     expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Success' }));
     expect(screen.queryByText('product list')).toBeNull();

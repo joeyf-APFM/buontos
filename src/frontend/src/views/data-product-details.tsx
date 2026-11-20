@@ -33,6 +33,8 @@ import type { EntitySemanticLink } from '@/types/semantic-link';
 import EntityMetadataPanel from '@/components/metadata/entity-metadata-panel';
 import { OwnershipPanel } from '@/components/common/ownership-panel';
 import { CommentSidebar } from '@/components/comments';
+import { HeaderActions, type HeaderAction } from '@/components/common/header-actions'
+import { DetailLevelToggle } from '@/components/common/detail-level-toggle';
 import { RatingPanel } from '@/components/ratings';
 import AccessGrantsPanel from '@/components/access/access-grants-panel';
 import { useDomains } from '@/hooks/use-domains';
@@ -74,12 +76,6 @@ const VIEW_MODE_STORAGE_KEY = 'data-product-view-mode'
 
 const VIEW_MODES: ReadonlyArray<ViewMode> = ['minimal', 'medium', 'large'];
 
-// The view-size buttons: S, M and L, each with its tooltip
-const VIEW_MODE_BUTTONS = [
-  { mode: 'minimal', label: 'S', tooltip: 'common:tooltips.smallView' },
-  { mode: 'medium', label: 'M', tooltip: 'common:tooltips.mediumView' },
-  { mode: 'large', label: 'L', tooltip: 'common:tooltips.largeView' },
-] as const satisfies ReadonlyArray<{ mode: ViewMode; label: string; tooltip: string }>;
 
 /**
  * Parse a value retrieved from `localStorage[VIEW_MODE_STORAGE_KEY]`. Returns
@@ -1528,6 +1524,56 @@ export default function DataProductDetails() {
     </div>
   );
 
+  // The header shows one primary action for what this person most likely does here, and at
+  // most one more; everything else is under More. A producer edits (or commits a draft),
+  // a consumer subscribes, and anyone else can request access.
+  const subscribed = !!subscriptionStatus?.subscribed;
+  const publishable = !!(isProductActive(product.status) && canWrite);
+  const headerActions: HeaderAction[] = [
+    { key: 'commit', show: !!(isPersonalDraft && canWrite), icon: <FileText />, label: t('data-products:details.actions.commitChanges'), onClick: () => setIsCommitDraftDialogOpen(true) },
+    { key: 'edit', show: !!canModify, icon: <Pencil />, label: t('data-products:details.edit'), onClick: handleEdit },
+    {
+      key: 'subscribe', show: !!isSubscribable, quiet: subscribed, disabled: subscriptionLoading,
+      icon: subscriptionLoading ? <Loader2 className={common.spin} /> : subscribed ? <BellOff /> : <Bell />,
+      label: subscribed ? t('data-products:details.unsubscribe') : t('data-products:details.subscribe'),
+      onClick: subscribed ? handleUnsubscribe : handleSubscribeClick,
+    },
+    {
+      key: 'publish', show: publishable, icon: <Globe />, label: t('data-products:details.publish'),
+      onClick: () => {
+        const cur = (product.publication_scope || 'none') as PublicationScope;
+        setSelectedPublishScope(cur === 'none' ? 'organization' : cur);
+        setPublishDialogOpen(true);
+      },
+    },
+    { key: 'request', icon: <KeyRound />, label: t('data-products:details.actions.requestAccess'), onClick: () => setIsRequestDialogOpen(true) },
+    {
+      key: 'certify', show: isProductActive(product.status) && canApproveProductLifecycle, icon: <ShieldCheck />, label: t('data-products:details.actions.certify'),
+      onClick: () => {
+        const first = certificationLevels[0]?.level_order ?? null;
+        setSelectedCertifyLevel(first);
+        setCertifyDialogOpen(true);
+      },
+    },
+    { key: 'genie', icon: <Sparkles />, label: t('data-products:details.actions.createGenieSpace'), onClick: handleCreateGenieSpace, disabled: !canModify },
+    {
+      key: 'clone', show: !!(isReadOnly && canWrite), disabled: isCloning, label: t('data-products:details.actions.cloneForEditing'),
+      icon: isCloning ? <Loader2 className={common.spin} /> : <CopyPlus />, onClick: handleCloneForEditing,
+    },
+    {
+      key: 'discard', show: !!(isPersonalDraft && canWrite), disabled: isDiscarding, label: t('data-products:details.actions.discardDraft'),
+      icon: isDiscarding ? <Loader2 className={common.spin} /> : <Trash2 />, onClick: handleDiscardDraft,
+    },
+    { key: 'new-version', show: !isReadOnly, icon: <CopyPlus />, label: t('data-products:details.actions.newVersion'), onClick: handleCreateNewVersion, disabled: !canModify },
+    { key: 'export', icon: <Download />, label: t('data-products:details.actions.exportODPS'), onClick: () => setIsImportExportDialogOpen(true) },
+    { key: 'delete', danger: true, className: common.danger, icon: <Trash2 />, label: t('data-products:details.delete'), onClick: handleDelete, disabled: !canAdmin },
+  ];
+  const primaryKey = isPersonalDraft && canWrite ? 'commit' : canModify ? 'edit' : isSubscribable ? 'subscribe' : 'request';
+  const secondaryKey = canModify
+    ? (primaryKey === 'commit' ? 'edit' : publishable ? 'publish' : null)
+    : (primaryKey === 'request' ? null : 'request');
+  const headerVisible = [primaryKey, secondaryKey].filter((k): k is string => k !== null);
+
   return (
     <>
       <PageLayout
@@ -1553,96 +1599,18 @@ export default function DataProductDetails() {
               actions={
                 <>
                   {backButton}
-                  <Button variant="outline" onClick={() => setIsRequestDialogOpen(true)} size="sm">
-                    <KeyRound /> {t('data-products:details.actions.requestAccess')}
-                  </Button>
-                  {isProductActive(product.status) && canApproveProductLifecycle && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const first = certificationLevels[0]?.level_order ?? null;
-                        setSelectedCertifyLevel(first);
-                        setCertifyDialogOpen(true);
-                      }}
-                    >
-                      <ShieldCheck /> {t('data-products:details.actions.certify')}
-                    </Button>
-                  )}
-                  {isProductActive(product.status) && canWrite && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const cur = (product.publication_scope || 'none') as PublicationScope;
-                        setSelectedPublishScope(cur === 'none' ? 'organization' : cur);
-                        setPublishDialogOpen(true);
-                      }}
-                    >
-                      <Globe /> {t('data-products:details.publish')}
-                    </Button>
-                  )}
-                  <CommentSidebar
-                    entityType="data_product"
-                    entityId={productId!}
-                    isOpen={isCommentSidebarOpen}
-                    onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                  <HeaderActions
+                    actions={headerActions}
+                    visible={headerVisible}
+                    afterVisible={
+                      <CommentSidebar
+                        entityType="data_product"
+                        entityId={productId!}
+                        isOpen={isCommentSidebarOpen}
+                        onToggle={() => setIsCommentSidebarOpen(!isCommentSidebarOpen)}
+                      />
+                    }
                   />
-                  <Button variant="outline" onClick={handleCreateGenieSpace} disabled={!canModify} size="sm">
-                    <Sparkles /> {t('data-products:details.actions.createGenieSpace')}
-                  </Button>
-                  {/* Clone for Editing - shown when product is read-only */}
-                  {isReadOnly && canWrite && (
-                    <Button variant="outline" onClick={handleCloneForEditing} disabled={isCloning} size="sm">
-                      {isCloning ? <Loader2 className={common.spin} /> : <CopyPlus />}
-                      {t('data-products:details.actions.cloneForEditing')}
-                    </Button>
-                  )}
-                  {/* Commit Draft - shown when this is a personal draft */}
-                  {isPersonalDraft && canWrite && (
-                    <Button variant="default" onClick={() => setIsCommitDraftDialogOpen(true)} size="sm">
-                      <FileText /> {t('data-products:details.actions.commitChanges')}
-                    </Button>
-                  )}
-                  {/* Discard Draft - shown when this is a personal draft */}
-                  {isPersonalDraft && canWrite && (
-                    <Button variant="outline" onClick={handleDiscardDraft} disabled={isDiscarding} size="sm">
-                      {isDiscarding ? <Loader2 className={common.spin} /> : <Trash2 />}
-                      {t('data-products:details.actions.discardDraft')}
-                    </Button>
-                  )}
-                  {/* New Version - only for editable products */}
-                  {!isReadOnly && (
-                    <Button variant="outline" onClick={handleCreateNewVersion} disabled={!canModify} size="sm">
-                      <CopyPlus /> {t('data-products:details.actions.newVersion')}
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={() => setIsImportExportDialogOpen(true)} size="sm">
-                    <Download /> {t('data-products:details.actions.exportODPS')}
-                  </Button>
-                  {/* Subscribe/Unsubscribe Button */}
-                  {isSubscribable && (
-                    subscriptionStatus?.subscribed ? (
-                      <Button variant="outline" onClick={handleUnsubscribe} disabled={subscriptionLoading} size="sm">
-                        {subscriptionLoading ? <Loader2 className={common.spin} /> : <BellOff />}
-                        {t('data-products:details.unsubscribe')}
-                      </Button>
-                    ) : (
-                      <Button variant="default" onClick={handleSubscribeClick} disabled={subscriptionLoading} size="sm">
-                        {subscriptionLoading ? <Loader2 className={common.spin} /> : <Bell />}
-                        {t('data-products:details.subscribe')}
-                      </Button>
-                    )
-                  )}
-                  {/* Edit - only enabled for editable products */}
-                  {canModify && (
-                    <Button variant="outline" onClick={handleEdit} size="sm">
-                      <Pencil /> {t('data-products:details.edit')}
-                    </Button>
-                  )}
-                  <Button variant="outline" className={common.danger} onClick={handleDelete} disabled={!canAdmin} size="sm">
-                    <Trash2 /> {t('data-products:details.delete')}
-                  </Button>
                 </>
               }
             />
@@ -1676,22 +1644,7 @@ export default function DataProductDetails() {
               currentVersion={product?.version}
               onVersionChange={(id) => navigate(`${listPath}/${id}`)}
             />
-            {/* View Mode Toggle */}
-            <div className={classes.sizes}>
-              {VIEW_MODE_BUTTONS.map(({ mode, label, tooltip }) => (
-                <Button
-                  key={mode}
-                  size="sm"
-                  variant={viewMode === mode ? 'default' : 'outline'}
-                  className={classes.size}
-                  aria-pressed={viewMode === mode}
-                  onClick={() => setViewMode(mode)}
-                  title={t(tooltip)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
+            <DetailLevelToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           <PaneStack>
